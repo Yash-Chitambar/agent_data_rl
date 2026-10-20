@@ -160,7 +160,8 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
     then in the wrong frame and a spec contype edit on right_pad did not reach the compiled model.
     `sphere_pads` uses compiled poses, and `build` switches the boxes off after compiling.
   - Retraining queued: E-usbc-proprio-currsph-s0 (configs/phase_e_usbc_spheres.json).
-  - Open: CPU replays of GPU states drift 1-2 mm in the grasp (GPU 0.01 mm), also with box pads.
+  - Not pursued (Yash, 2026-10-20): the CPU-replay drift and a sphere-pad re-check of the peg
+    tasks do not affect the results.
 
 - **YAM blind peg policy (C-peg-proprio-base-s0) trains faster and seats faster than the Flexiv.**
   300M steps in 2.45 h; training success 22.5% at 3.9M, 82.5% at 11.8M steps (Flexiv: 57% at
@@ -319,10 +320,6 @@ One 300M-step run = ~2.3 h on the local RTX 3090 Ti (12,288 worlds, ~37k env ste
 
 ## Ideas to explore
 
-- (2026-10-20) Re-check the peg tasks (Flexiv and YAM) with sphere pads: the pegs can also
-  turn in the grasp ("the grasp is a pivot"), possibly the same partial-overlap contact artifact.
-- (2026-10-20) Upstream test case for MuJoCo: box pad vs rotated box-shaped mesh with partial
-  face overlap, count the contacts.
 
 - (2026-10-20) Gear: the meshed anchor turns with the gear and the other one slips under
   it only if the press is light and the hinge friction high; a probe on "pressing hard vs

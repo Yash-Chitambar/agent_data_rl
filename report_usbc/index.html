@@ -137,9 +137,7 @@
     <h2>Next steps</h2>
     <ul class="facts">
       <li><b>Train again with sphere pads.</b> The run E-usbc-proprio-currsph-s0 is in the queue after the gear run. It uses the same curriculum with <code>pad_spheres: 4</code> (configuration <code>phase_e_usbc_spheres.json</code>).</li>
-      <li><b>Check the peg tasks.</b> The peg runs used box pads. The pegs are heavy and wide, and their training success is 99.9%. But the peg can also turn in the grasp, so a sphere-pad check on the peg tasks is useful.</li>
-      <li><b>Find why the CPU replay drifts.</b> In the CPU copies of the GPU states, the drive moves 1 to 2 mm in the grasp, also with box pads. On the GPU, it moves 0.01 mm. This does not change the result above, because we train on the GPU.</li>
-      <li><b>Possible upstream report.</b> The partial-overlap contact case can be a small test for the MuJoCo developers: one box pad, one rotated box-shaped mesh, and a count of the contact points.</li>
+      <li><b>Examine the new policy.</b> When the new run is complete, we test it on each curriculum stage and on the final USB-C clearances, and we examine its failures.</li>
     </ul>
     <div class="tbl">
       <table>
