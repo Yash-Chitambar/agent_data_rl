@@ -149,7 +149,7 @@ and report to Yash.
 Work on a branch, never directly on `main`:
 
 ```bash
-git switch -c jensen-runs        # once
+git switch -c mason-runs        # once
 ```
 
 Commit and push **after each phase's evaluations finish, and at least once a day:**
@@ -168,10 +168,10 @@ git add results docs/FINDINGS.md scripts/server/jobs
 git -c user.name="Yash Chitambar" -c user.email="yash_chitambar@berkeley.edu" commit -m "<phase>: <what finished>
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-git push -u origin jensen-runs
+git push -u origin mason-runs
 ```
 
-Yash merges `jensen-runs` into `main`. Before each push, `git pull --rebase origin main` into the
+Yash merges `mason-runs` into `main`. Before each push, `git pull --rebase origin main` into the
 branch if `main` moved, and resolve conflicts in `docs/FINDINGS.md` by keeping both sides' entries.
 
 ## 8. When to stop and ask Yash
@@ -193,4 +193,4 @@ branch if `main` moved, and resolve conflicts in `docs/FINDINGS.md` by keeping b
 | 2026-10-20 | mason | Visual benchmark, 4,096 worlds | 1 (released) | peg-bench-visual (finished) | runs/benchmark-visual.log | passed: 3,922 steps/s, 28,558 MiB |
 | 2026-10-20 | mason | 300M-step validation, B-peg-proprio-base-s3 | 0 (released) | peg-validation (finished) | runs/B-peg-proprio-base-s3.log | passed: 90% at 37.4M, >=99.2% from 150M, 99.8% at 300M |
 | 2026-10-20 | mason | YAM lab-table scene (builder.YAM_TABLE, EnvCfg.table_top) + 25M smoke | 1 (released) | - | runs/_smoke-C-yam-table | passed: 90% at 18.1M |
-| 2026-10-20 | mason | Batch: B_train, B_eval, C_train, C_eval (Yash OK: 2 GPUs) | 0,1 | jobs | runs/queue_server/runner.log | running |
+| 2026-10-20 | mason | Batch: B_train, B_eval, C_train, C_eval (+ C base s0 on the table setup) | 0–4 (Yash OK) | jobs | runs/queue_server/runner.log | running |

@@ -47,8 +47,9 @@ LOCAL_QUEUE = {"B-peg-proprio-base-s2", "B-peg-proprio-nocontact-s1", "E-usbc-pr
 # Runs already finished locally (evaluate where their checkpoints are; on a server first
 # `sync_up.sh --runs NAME` and `run_jobs.py --mark-complete NAME`).
 LOCAL_DONE = {"B-peg-proprio-base-s0", "B-peg-proprio-base-s1", "B-peg-proprio-nocontact-s0",
-              "B-peg-rgb-base-s0",
-              "C-peg-proprio-base-s0"}     # (C base s0 was still training locally on 2026-10-20)
+              "B-peg-rgb-base-s0"}
+# C-peg-proprio-base-s0 from athena5 used the old YAM mount (fixture 10-30 cm below the base);
+# the server trains C base s0 again on the lab table setup (builder.YAM_TABLE).
 
 
 def jq(d: dict) -> str:

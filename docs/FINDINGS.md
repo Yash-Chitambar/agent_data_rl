@@ -337,7 +337,7 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Actual host: `mason`, 5 × Tesla V100-PCIE-32GB, driver 580.82.07, compute
   capability 7.0. Setup is pinned to GPU 0 after repeated idle capacity checks;
   all five GPUs initially used <50 MiB with 0% compute and no compute processes.
-- Branch: `jensen-runs`. Bootstrap completed in tmux `peg-setup`, log
+- Branch: `mason-runs` (renamed from `jensen-runs` on 2026-10-20; the host is mason). Bootstrap completed in tmux `peg-setup`, log
   `runs/bootstrap.log`; `runs/bootstrap.exit` is 0.
 - Pinned submodules and Menagerie installed. CUDA 12 stack: torch
   `2.14.1+cu126`, Warp `1.18.0+cu12`, MuJoCo/MuJoCo Warp `3.12.0`.
@@ -394,6 +394,12 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   also_in_local_queue --skip-tag needs_local_ckpt`. First jobs: B-peg-rgb-base-s1 (28.6 GB,
   ~4.0k steps/s) and B-peg-proprio-nocontact-s2 (10.7 GB, ~21.4k steps/s), as benchmarked.
   C jobs use the new YAM table scene.
+- **2026-10-20 22:17 UTC: batch widened to GPUs 0–4** (Yash's OK). The runner was restarted
+  and adopted the two running jobs. **C-peg-proprio-base-s0 now trains on mason** on the
+  table setup (removed from `LOCAL_DONE` in `make_manifests.py`: athena5's run used the old
+  mount). Yash's plan: athena5's old-setup YAM runs are not re-validated; mason's
+  table-setup C runs confirm the result, then D and E. New jobs start as benchmarked
+  (visual 28.6 GB / 4.1k steps/s, YAM blind 10.7 GB / 20.3–20.7k steps/s).
 - No production batch has started. D/E retain their Gate C noise decision
   requirement; local-queue jobs and missing local checkpoints must be skipped.
 

@@ -6,8 +6,8 @@
 # Lines tagged also_in_local_queue are ALSO in the local runs/queue/jobs.txt: remove them
 # from one side first. Lines tagged needs_local_ckpt evaluate runs trained on the local
 # machine: sync_up.sh --runs NAME and run_jobs.py --mark-complete NAME first, or run there.
-scripts/eval_phase_c.sh C-peg-proprio-base-s0 yam_base_s0 > runs/eval_yam_base_s0.log 2>&1  # after=C-peg-proprio-base-s0 mem=3 est_h=0.35 needs_local_ckpt
-scripts/server/eval/eval_ood.sh C-peg-proprio-base-s0 yam_base_s0 C blind_insertion/configs/phase_c_yam.json > runs/ood_yam_base_s0.log 2>&1  # after=C-peg-proprio-base-s0 mem=3 est_h=0.12 needs_local_ckpt
+scripts/eval_phase_c.sh C-peg-proprio-base-s0 yam_base_s0 > runs/eval_yam_base_s0.log 2>&1  # after=C-peg-proprio-base-s0 mem=3 est_h=0.35
+scripts/server/eval/eval_ood.sh C-peg-proprio-base-s0 yam_base_s0 C blind_insertion/configs/phase_c_yam.json > runs/ood_yam_base_s0.log 2>&1  # after=C-peg-proprio-base-s0 mem=3 est_h=0.12
 scripts/eval_phase_c.sh C-peg-proprio-qnoise1e-4-s0 yam_qnoise1e-4_s0 > runs/eval_yam_qnoise1e-4_s0.log 2>&1  # after=C-peg-proprio-qnoise1e-4-s0 mem=3 est_h=0.35
 scripts/eval_phase_c.sh C-peg-proprio-qnoise5e-4-s0 yam_qnoise5e-4_s0 > runs/eval_yam_qnoise5e-4_s0.log 2>&1  # after=C-peg-proprio-qnoise5e-4-s0 mem=3 est_h=0.35
 scripts/eval_phase_c.sh C-peg-proprio-quant14-s0 yam_quant14_s0 > runs/eval_yam_quant14_s0.log 2>&1  # after=C-peg-proprio-quant14-s0 mem=3 est_h=0.35
