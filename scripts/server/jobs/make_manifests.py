@@ -29,6 +29,14 @@ PY = ".venv/bin/python"
 YAM = "blind_insertion/configs/phase_c_yam.json"
 USBC = "blind_insertion/configs/phase_e_usbc_up.json"
 SEEDS = (0, 1, 2)
+# 2026-10-20 (Yash): initial results first. C, D and E train seed 0 only, and blind C/D/E runs
+# stop once training success reaches STOP_SUCCESS after MIN_STEPS (Phase B keeps 3 seeds and
+# full 300M runs). Add seeds 1-2 later where a result is close or surprising.
+SEEDS_CDE = (0,)
+STOP = "--stop_success 0.99 --min_steps 50e6"
+# Already running on mason with the full 300M command: keep their lines unchanged, because the
+# runner matches running jobs by command text (a changed line would start a duplicate).
+STARTED_FULL = {"C-peg-proprio-base-s0", "C-peg-proprio-qnoise1e-4-s0"}
 # Phase C noise model carried into Phases D and E (plan §10: "with the Phase C noise model on").
 # PLACEHOLDER until Gate C picks it from the robustness plots; regenerate D/E after changing.
 NOISE = {"q_noise": 1e-4}
@@ -135,12 +143,12 @@ C_CONDS = [  # variant, env_json overrides (training with that factor on, §9.3 
 
 def phase_c():
     tr, ev = [], []
-    for s in SEEDS:
+    for s in SEEDS_CDE:
         for var, ej in C_CONDS:
             name = f"C-peg-proprio-{var}-s{s}"
             args = f"--env_file {YAM}" + (f" --env_json {jq(ej)}" if ej else "")
             if name not in LOCAL_DONE:
-                tr.append(train_line(name, s, args))
+                tr.append(train_line(name, s, args if name in STARTED_FULL else f"{args} {STOP}"))
             tag = f"yam_{var}_s{s}"
             # full brittleness matrix: base + each factor alone + gain sweep (scripts/eval_phase_c.sh)
             ev.append(eval_line(f"scripts/eval_phase_c.sh {name} {tag}", f"eval_{tag}", name, H_EVAL_C))
@@ -170,14 +178,14 @@ def phase_d():
     tiers = {1: [], 2: []}
     ev = []
     cells = [(o, c, r) for r in ("scaled", "fixed") for o in D_OPENINGS_MM for c in D_CLEARANCES_MM]
-    for s in SEEDS:
+    for s in SEEDS_CDE:
         for o, c, r in cells:
             tier = 1 if (o, c) in D_DIAGONAL or o == 8 else 2
             var = f"o{o}_c{c:g}_{r}"
             name = f"D-peg-proprio-{var}-s{s}"
             fam = f"scale:{o / 1000:g}:{c / 1000:g}"
             ej = dict(NOISE, peg_offset=d_offset(o, r))
-            tiers[tier].append(train_line(name, s, f"--env_file {YAM} --family {fam} --env_json {jq(ej)}"))
+            tiers[tier].append(train_line(name, s, f"--env_file {YAM} --family {fam} --env_json {jq(ej)} {STOP}"))
             ev.append(eval_line(f"{PY} -m blind_insertion.eval --policy runs/{name}/last.pt --env_file {YAM} "
                                 f"--family {fam} --env_json {jq(ej)} --episodes 2048 "
                                 f"--out results/D/eval_{var}_s{s}.parquet", f"eval_{name}", name, H_EVAL1))
@@ -199,10 +207,10 @@ E_CONDS = [  # variant, extra train args, eval env_json (must repeat EnvCfg over
 
 def phase_e():
     tr, ev = [], []
-    for s in SEEDS:
+    for s in SEEDS_CDE:
         for var, extra, ej, mode in E_CONDS:
             name = f"E-usbc-proprio-{var}-s{s}"
-            tr.append(train_line(name, s, f"{E_BASE} {extra}".strip(), nworld=8192, mem=16, est=H_USBC))
+            tr.append(train_line(name, s, f"{E_BASE} {extra} {STOP}".replace("  ", " "), nworld=8192, mem=16, est=H_USBC))
             tag = f"{var}_s{s}"
             ejs = f" {jq(ej)}" if ej else ""
             ev.append(eval_line(f"scripts/server/eval/eval_phase_e.sh {name} {tag} {mode}{ejs}", f"eval_{name}",

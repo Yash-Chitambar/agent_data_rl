@@ -318,6 +318,12 @@ def train(args):
             torch.save({"model": ac.state_dict(), "iter": it, "steps": total, "encoder": args.encoder,
                         "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
                         "task": task, "n_points": n_lab}, run / f"ckpt_{total // 1_000_000:04d}M.pt")
+        if args.stop_success and succ == succ and succ >= args.stop_success and total >= args.min_steps:
+            torch.save({"model": ac.state_dict(), "iter": it, "steps": total,
+                        "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
+                        "encoder": args.encoder, "task": task, "n_points": n_lab}, run / "last.pt")
+            print(f"[{args.name}] reached training success {succ:.3f} at {total/1e6:.1f}M steps", flush=True)
+            break
     log_f.close()
 
 
@@ -349,6 +355,8 @@ def parser():
     ap.add_argument("--ckpt_every", type=int, default=25)
     ap.add_argument("--task", default="peg", choices=["peg", "gear"])
     ap.add_argument("--minibatches", type=int, default=0, help="0: task default (peg 20, gear 24)")
+    ap.add_argument("--stop_success", type=float, default=0.0, help="stop once training success >= this ...")
+    ap.add_argument("--min_steps", type=float, default=0.0, help="... after at least this many env steps")
     return ap
 
 

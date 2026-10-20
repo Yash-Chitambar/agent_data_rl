@@ -301,6 +301,7 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 | Item | Paper / plan | Ours | Why |
 |---|---|---|---|
+| Seeds and run length, C/D/E (2026-10-20) | 3 seeds, 300M steps | Seed 0 only; blind runs stop at training success >= 99% after >= 50M steps (`--stop_success 0.99 --min_steps 50e6`). C base s0 and C qnoise1e-4 s0 were already running and keep 300M | Yash: initial results first; ~815 -> ~160 GPU-h (3090 Ti-eq.). Add seeds 1-2 where a result is close or surprising |
 | Gear: bore clearance | "bore 0.75–1.0 mm" | Diametral (0.375–0.5 mm radial play) | Radial 1 mm play would exceed the 0.25-module tip–root clearance and let teeth jam into anchor roots |
 | Gear: backlash | 0.4–0.6 mm per flank | Centre distance solved so the circular backlash on the operating pitch circles is 2x the per-flank value (exact involute relations); verified 1.05x in sim at low torque | Concrete definition |
 | Gear: anchors | 1–2 anchors, tooth count not stated | 1 or 2 (50/50), 16–24 teeth, tooth width 0.45–0.47, same module, pressure angle and face width as the gear; azimuth 70–290 deg apart; printed density 1,250 kg/m^3 | Not stated |
@@ -400,6 +401,9 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   mount). Yash's plan: athena5's old-setup YAM runs are not re-validated; mason's
   table-setup C runs confirm the result, then D and E. New jobs start as benchmarked
   (visual 28.6 GB / 4.1k steps/s, YAM blind 10.7 GB / 20.3–20.7k steps/s).
+- **Plan cut to initial results** (Yash, 2026-10-20 ~22:40 UTC): C, D, E seed 0 only, with a
+  99% stop rule (ported from `train_visual.py` to `train.py`). 136 jobs, ~161 GPU-h
+  3090 Ti-equivalent (~290 V100 GPU-h, ~2.5 days on 5 GPUs; less where the stop rule fires).
 - No production batch has started. D/E retain their Gate C noise decision
   requirement; local-queue jobs and missing local checkpoints must be skipped.
 
