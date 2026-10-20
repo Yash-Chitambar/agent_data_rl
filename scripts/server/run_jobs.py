@@ -330,6 +330,8 @@ class Runner:
             ready = [j for j in self.jobs if states[j.idx] == "ready"]
             if self.a.only:
                 ready = [j for j in ready if re.search(self.a.only, j.cmd)]
+            if self.a.skip_tag:
+                ready = [j for j in ready if not any(t in j.tags for t in self.a.skip_tag)]
             free = [s for s in self.slots if s not in self.running]
             if self.a.max_jobs:
                 ready = ready[:max(self.a.max_jobs - started, 0)]
@@ -377,6 +379,9 @@ def main():
     ap.add_argument("--poll", type=float, default=10.0)
     ap.add_argument("--watch", action="store_true", help="keep polling for appended lines when idle")
     ap.add_argument("--only", default="", help="regex: run only matching commands")
+    ap.add_argument("--skip-tag", action="append", default=[], metavar="TAG",
+                    help="never start jobs carrying this annotation tag (repeatable), e.g. "
+                         "--skip-tag also_in_local_queue --skip-tag needs_local_ckpt")
     ap.add_argument("--max-jobs", type=int, default=0, help="start at most this many jobs, then drain")
     ap.add_argument("--force", action="store_true", help="ignore runs/<name>/.complete markers")
     ap.add_argument("--dry-run", action="store_true")

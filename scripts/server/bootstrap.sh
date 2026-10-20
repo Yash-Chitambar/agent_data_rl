@@ -20,7 +20,15 @@
 #   --skip-smoke     skip step 6
 #   --no-egl         EGL failure is a warning (EGL is only needed for viz/replay, not training)
 #   --no-visual      skip the train_visual smoke run
-# Env overrides: UV_VERSION, MENAGERIE_COMMIT, SMOKE_TIMEOUT (s per smoke step, default 900).
+#   --cuda12         force the CUDA 12 stack (torch 2.14.1+cu126, Warp 1.18.0+cu12)
+#   --cuda13         force the locked CUDA 13 stack (torch cu130, Warp 1.18.0)
+#   Default: CUDA 13 if every GPU has compute capability >= 7.5 and the driver is >= 580,
+#   else CUDA 12. V100 (7.0) and P100 (6.0) need CUDA 12: CUDA 13 dropped them.
+#   CUDA 12 mode installs the locked env, then swaps torch and warp-lang in .venv. On such a
+#   machine never run `uv sync` or `uv run` by hand afterwards (they restore the cu130
+#   wheels); call .venv/bin/python directly, or re-run this script.
+# Env overrides: UV_VERSION, MENAGERIE_COMMIT, SMOKE_TIMEOUT (s per smoke step, default 900),
+#   TORCH_CU12 (default 2.14.1+cu126), WARP_CU12_URL.
 # Exit status is non-zero if any step fails.
 set -euo pipefail
 
@@ -29,15 +37,20 @@ MENAGERIE_URL="${MENAGERIE_URL:-https://github.com/google-deepmind/mujoco_menage
 MENAGERIE_COMMIT="${MENAGERIE_COMMIT:-cda5236f98383f6fbaa4820c6b18dba892cd087f}"
 MENAGERIE_ROBOTS=(flexiv_rizon4s robotiq_2f85 i2rt_yam)
 SMOKE_TIMEOUT="${SMOKE_TIMEOUT:-900}"
+TORCH_CU12="${TORCH_CU12:-2.14.1+cu126}"
+TORCH_CU12_INDEX="${TORCH_CU12_INDEX:-https://download.pytorch.org/whl/cu126}"
+WARP_CU12_URL="${WARP_CU12_URL:-https://github.com/NVIDIA/warp/releases/download/v1.18.0/warp_lang-1.18.0%2Bcu12-py3-none-manylinux_2_28_x86_64.whl}"
 
-SKIP_INSTALL=0 SKIP_SMOKE=0 NO_EGL=0 NO_VISUAL=0
+SKIP_INSTALL=0 SKIP_SMOKE=0 NO_EGL=0 NO_VISUAL=0 CUDA=auto
 for a in "$@"; do
   case "$a" in
     --skip-install) SKIP_INSTALL=1 ;;
     --skip-smoke) SKIP_SMOKE=1 ;;
     --no-egl) NO_EGL=1 ;;
     --no-visual) NO_VISUAL=1 ;;
-    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
+    --cuda12) CUDA=12 ;;
+    --cuda13) CUDA=13 ;;
+    -h|--help) sed -n '2,35p' "$0"; exit 0 ;;
     *) echo "unknown option $a" >&2; exit 2 ;;
   esac
 done
@@ -54,8 +67,17 @@ command -v git >/dev/null || die "git not found"
 command -v nvidia-smi >/dev/null || die "nvidia-smi not found (no NVIDIA driver?)"
 drv=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader | head -1)
 log "GPUs: $(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader | sort | uniq -c | tr '\n' ';') driver $drv"
-if [ "${drv%%.*}" -lt 580 ]; then
-  die "driver $drv is too old: torch cu130 / Warp 1.18 (CUDA 13) need driver >= 580"
+min_cc=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | sort -n | head -1)
+cc10=$(awk -v c="$min_cc" 'BEGIN{printf "%d", c * 10 + 0.5}')
+if [ "$CUDA" = auto ]; then
+  if [ "$cc10" -ge 75 ] && [ "${drv%%.*}" -ge 580 ]; then CUDA=13; else CUDA=12; fi
+  log "CUDA stack: $CUDA (min compute capability $min_cc, driver $drv)"
+fi
+if [ "$CUDA" = 13 ]; then
+  [ "${drv%%.*}" -ge 580 ] || die "driver $drv is too old for CUDA 13 (needs >= 580); use --cuda12"
+  [ "$cc10" -ge 75 ] || die "compute capability $min_cc < 7.5 is not supported by CUDA 13; use --cuda12"
+else
+  [ "${drv%%.*}" -ge 525 ] || die "driver $drv is too old even for CUDA 12 (needs >= 525)"
 fi
 free_gb=$(df -Pk . | awk 'NR==2{print int($4/1024/1024)}')
 [ "$free_gb" -ge 20 ] || log "WARNING: only ${free_gb} GB free here; .venv + uv cache need ~15 GB"
@@ -85,6 +107,17 @@ if [ "$SKIP_INSTALL" = 0 ]; then
   uv python install 3.12
   # --inexact: never remove extra packages (e.g. the dev group) from an existing .venv
   uv sync --locked --inexact --group train
+  if [ "$CUDA" = 12 ]; then
+    have=$("$PY" -c "import importlib.metadata as m; print(m.version('torch'), m.version('warp-lang'))" 2>/dev/null || true)
+    if [ "$have" != "$TORCH_CU12 1.18.0+cu12" ]; then
+      log "CUDA 12 stack: torch $TORCH_CU12 and warp-lang 1.18.0+cu12 (had: ${have:-none})"
+      uv pip install --python "$PY" --reinstall-package torch "torch==$TORCH_CU12" \
+        --index "$TORCH_CU12_INDEX" --default-index https://pypi.org/simple
+      uv pip install --python "$PY" --reinstall --no-deps "warp-lang @ $WARP_CU12_URL"
+    else
+      log "CUDA 12 stack already installed ($have)"
+    fi
+  fi
 
   # ---------------------------------------------------------------- 4. Menagerie
   M=third_party/mujoco_menagerie

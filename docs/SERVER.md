@@ -24,7 +24,8 @@ lives in `scripts/server/`. Written 2026-10-20 against the code as of commit 7d8
       (e.g. the gear-task files another agent is writing) is not there unless pushed or sent
       with `sync_up.sh`.
 - [ ] **Decide the server type** (plain box: §4; SLURM: §5) and check its GPUs meet §2
-      (driver >= 580; compute capability >= 7.5, so **no V100/P100**).
+      (CUDA 13: driver >= 580 and compute capability >= 7.5; older GPUs such as V100/P100 and older
+      drivers (>= 525) use the CUDA 12 stack, which `bootstrap.sh` selects automatically).
 - [ ] **GitHub access** to the private repo from the server (§3.1): `gh auth login`, a read-only
       deploy key, or a fine-grained PAT. The submodules (mjfit, robosimstudio) and Menagerie
       are public.
@@ -53,8 +54,8 @@ lives in `scripts/server/`. Written 2026-10-20 against the code as of commit 7d8
 | Item | Requirement | Why |
 |---|---|---|
 | OS | Linux x86_64, glibc >= 2.28 | manylinux wheels (torch, mujoco, warp) |
-| NVIDIA driver | **>= 580** (CUDA 13.0 driver branch). Local: 595.91 / CUDA 13.2 | torch 2.14.1+cu130 and Warp 1.18 (built with CUDA 13.4, needs a CUDA 13 driver) |
-| GPU | compute capability **>= 7.5** (T4, A10, A40, L4, L40S, A100, H100, RTX 30/40/50) | CUDA 13 dropped sm_50-72 (V100, P100) |
+| NVIDIA driver | **>= 580** for CUDA 13, **>= 525** for CUDA 12. Local: 595.91 / CUDA 13.2 | CUDA 13: torch 2.14.1+cu130, Warp 1.18.0 (CUDA 13.4). CUDA 12: torch 2.14.1+cu126, Warp 1.18.0+cu12 (CUDA 12.9, from the Warp GitHub release) |
+| GPU | CUDA 13: compute capability **>= 7.5** (T4, A10, A40, L4, L40S, A100, H100, RTX 30/40/50). CUDA 12: also V100 (7.0) | CUDA 13 dropped sm_50-72. `bootstrap.sh` picks the stack (`--cuda12` / `--cuda13` force it). Tested 2026-10-20: the CUDA 12 stack passes verify + all smoke runs on the 3090 Ti; not yet run on a V100 |
 | GPU memory | 12 GB per blind job; 16-24 GB recommended (table below) | |
 | CUDA toolkit | **not needed**: CUDA runtime comes from pip wheels; Warp compiles kernels with its bundled NVRTC | |
 | EGL | only for `viz/replay.py`, `viz/render.py` (CPU `mujoco.Renderer`). Needs `libEGL.so.1` (glvnd) + the NVIDIA EGL library (`libEGL_nvidia.so.0`, part of the driver) | see note |
@@ -118,7 +119,7 @@ bash scripts/server/bootstrap.sh          # or: --no-egl, --skip-smoke, --skip-i
 
 ### 3.2 What bootstrap.sh does
 
-1. Checks the driver (>= 580) and free disk.
+1. Checks the driver and the GPUs' compute capability, selects the CUDA 13 or CUDA 12 stack, and checks free disk. In CUDA 12 mode it installs the locked env, then swaps in torch cu126 and Warp cu12; afterwards never run `uv sync`/`uv run` by hand on that machine (they restore the cu130 wheels).
 2. Installs uv 0.12.18 into `~/.local/bin` if `uv` is not on `PATH`.
 3. `git submodule update --init --recursive` (mjfit, robosimstudio at the pinned commits).
 4. `uv python install 3.12` and `uv sync --locked --inexact --group train` (`--inexact` never
@@ -289,6 +290,9 @@ Notes on the choices (all flags verified against argparse; see also §9):
 
 ## 7. Verification on the server
 
+Speed and memory before long runs: `bash scripts/server/benchmark.sh --gpu <free index> [--visual] [--nworld N]` writes `runs/_bench/*.json` (steps/s, peak GPU memory).
+
+
 1. `bash scripts/server/bootstrap.sh` ends with `ALL OK`.
 2. Throughput at full size (no training, ~2 min):
    `source scripts/server/env.sh; $PY -m blind_insertion.checks.a_s9_throughput --ns 4096,12288 --out runs/_a_s9.json`
@@ -450,7 +454,7 @@ leaves a truncated `last.pt`. Write to `last.pt.tmp` and `os.replace` (as in the
 | Symptom | Cause / fix |
 |---|---|
 | `torch.cuda.is_available()` False | driver < 580, or `CUDA_VISIBLE_DEVICES` empty |
-| `no kernel image is available` | GPU older than sm_75 (V100/P100) |
+| `no kernel image is available` | GPU older than sm_75 with the CUDA 13 stack: re-run `bootstrap.sh --cuda12` (or someone ran `uv sync`) |
 | first job slow to start (minutes) | Warp kernel compile on a new GPU type; later runs hit the cache |
 | EGL errors in `verify.py` | install `libegl1` / `libglvnd0` and make sure the NVIDIA EGL library and `/usr/share/glvnd/egl_vendor.d/10_nvidia.json` exist; or `--no-egl` (training does not need EGL) |
 | `ov_nefc`/`ov_narrow` > 0 in `train_log.csv` | constraint/contact buffer overflow: raise `njmax`/`nconmax` via `--env_json` |
