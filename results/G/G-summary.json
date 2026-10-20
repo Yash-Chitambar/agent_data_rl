@@ -1,0 +1,11 @@
+{
+ "steps_to_90M": {
+  "G-gear-proprio-smoke": null
+ },
+ "final_train_success": {
+  "G-gear-proprio-smoke": 0.1028145501048241
+ },
+ "sps_median": {
+  "G-gear-proprio-smoke": 14370.779277176398
+ }
+}

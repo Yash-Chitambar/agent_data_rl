@@ -53,6 +53,13 @@ MEDIAN_RADIAL_PER_HALFWIDTH = 0.765   # median |(x,y)| for x,y ~ U(-a, a) is ~0.
 
 def make_variants(args):
     from blind_insertion.assets import builder as B  # noqa: PLC0415
+    if getattr(args, "task", "peg") == "gear":
+        from blind_insertion.assets import gear_builder as GB  # noqa: PLC0415
+        if args.family == "study":
+            return GB.sample_study_gears(args.n_variants, args.variant_seed)
+        if args.family.startswith("ood:"):
+            return GB.sample_ood_gears(args.n_variants, args.variant_seed, args.family[4:])
+        raise ValueError(args.family)
     if args.family == "study":
         return B.sample_study_pegs(args.n_variants, args.variant_seed)
     if args.family.startswith("scale:"):     # scale:<opening m>:<clearance m>
@@ -80,6 +87,9 @@ def make_env(args, **over) -> PegEnv:
     kw.update(json.loads(args.env_json) if args.env_json else {})
     kw.update(over)
     kw["variants"] = make_variants(args)
+    if getattr(args, "task", "peg") == "gear":
+        from blind_insertion.envs.gear_env import GearCfg, GearEnv  # noqa: PLC0415
+        return GearEnv(GearCfg(**kw))
     return PegEnv(EnvCfg(**kw))
 
 
@@ -129,8 +139,15 @@ def train(args):
     cur = Curriculum(env, USBC_STAGES) if args.curriculum == "usbc" else None
     pc = PPOCfg()
     pc.contact_coef = args.contact_coef
+    task = getattr(args, "task", "peg")
+    if args.minibatches:
+        pc.minibatches = args.minibatches
+    elif task == "gear":
+        pc.minibatches = 24     # paper App. A.1 (gear and nut)
+    n_lab = getattr(env, "n_labels", 64)
+    lab_fn = getattr(env, "current_labels", None)
     ac = ActorCritic(env.obs_dim, env.n_arm, env.critic_dim, history=env.cfg.history,
-                     encoder=args.encoder).to(dev)
+                     encoder=args.encoder, n_points=n_lab).to(dev)
     opt = torch.optim.Adam(ac.parameters(), lr=pc.lr)
     meta = dict(args=vars(args), env=asdict(env.cfg) | {"variants": None, "variant_sampler": None},
                 git=git_hash(), versions={p: version(p) for p in ("mujoco", "mujoco-warp", "warp-lang",
@@ -142,7 +159,7 @@ def train(args):
                act=torch.zeros(T, N, A, device=dev), logp=torch.zeros(T, N, device=dev),
                val=torch.zeros(T, N, device=dev), rew=torch.zeros(T, N, device=dev),
                done=torch.zeros(T, N, device=dev), tout=torch.zeros(T, N, device=dev),
-               lab=torch.zeros(T, N, 64, dtype=torch.long, device=dev))
+               lab=torch.zeros(T, N, n_lab, dtype=torch.long, device=dev))
     env.reset_all(desync=True)
     hist, crit = env.observe()
     cw = torch.tensor(pc.class_w, device=dev)
@@ -169,8 +186,11 @@ def train(args):
                 buf["logp"][t] = d.log_prob(a).sum(-1)
                 buf["val"][t] = ac.value(hist, crit)
                 # labels of the state the latent encodes (before stepping)
-                p, R, _, _ = env.peg_in_fixture()
-                buf["lab"][t] = env.labels(env.edge_points_fixture(p, R))[0]
+                if lab_fn is not None:
+                    buf["lab"][t] = lab_fn()
+                else:
+                    p, R, _, _ = env.peg_in_fixture()
+                    buf["lab"][t] = env.labels(env.edge_points_fixture(p, R))[0]
                 hist, crit, r, done, info = env.step(a)
                 buf["rew"][t] = r
                 buf["done"][t] = done.float()
@@ -288,16 +308,16 @@ def train(args):
         if it % args.ckpt_every == 0 or total >= args.steps:
             torch.save({"model": ac.state_dict(), "iter": it, "steps": total,
                         "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
-                        "encoder": args.encoder}, run / "last.pt")
+                        "encoder": args.encoder, "task": task, "n_points": n_lab}, run / "last.pt")
             if succ == succ and succ >= best:
                 best = succ
                 torch.save({"model": ac.state_dict(), "iter": it, "steps": total,
                             "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
-                            "encoder": args.encoder}, run / "best.pt")
+                            "encoder": args.encoder, "task": task, "n_points": n_lab}, run / "best.pt")
         if it % (args.ckpt_every * 10) == 0:
             torch.save({"model": ac.state_dict(), "iter": it, "steps": total, "encoder": args.encoder,
-                        "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim},
-                       run / f"ckpt_{total // 1_000_000:04d}M.pt")
+                        "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
+                        "task": task, "n_points": n_lab}, run / f"ckpt_{total // 1_000_000:04d}M.pt")
     log_f.close()
 
 
@@ -327,6 +347,8 @@ def parser():
     ap.add_argument("--curriculum", default="none")
     ap.add_argument("--print_every", type=int, default=10)
     ap.add_argument("--ckpt_every", type=int, default=25)
+    ap.add_argument("--task", default="peg", choices=["peg", "gear"])
+    ap.add_argument("--minibatches", type=int, default=0, help="0: task default (peg 20, gear 24)")
     return ap
 
 

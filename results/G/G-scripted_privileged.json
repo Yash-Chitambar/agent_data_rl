@@ -1,0 +1,15 @@
+{
+ "n": 1024,
+ "success": 0.8896484375,
+ "success_1anchor": 0.9242424368858337,
+ "success_2anchor": 0.8528226017951965,
+ "median_time_s": 4.639999866485596,
+ "failures": {
+  "success": 911,
+  "on_shaft_not_meshed": 72,
+  "never_captured": 17,
+  "slipped": 9,
+  "meshed_not_seated": 8,
+  "left_fixture": 7
+ }
+}

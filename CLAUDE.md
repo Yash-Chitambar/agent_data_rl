@@ -88,6 +88,36 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
 - Eval variants default to `variant_seed=1000` (unseen geometries from the training
   distribution; training uses seed 0). OOD bins: `builder.OOD_BINS`.
 
+## Gear meshing (Phase G)
+
+Paper's second task: a spur gear held by an 18 mm boss slides down a shaft into mesh with
+1–2 hinged anchor gears (Table 1 gear column). Code: `assets/gear_builder.py` (variants,
+`GEAR_OOD_BINS`, build), `envs/gear_env.py` (`GearCfg`, `GearEnv(PegEnv)`), `eval_gear.py`,
+`checks/g_checks.py`; results in `results/G/`.
+
+```bash
+.venv/bin/python -m blind_insertion.train --task gear --name G-gear-proprio-base-s0 --seed 0 --nworld 12288
+.venv/bin/python -m blind_insertion.eval --task gear --policy runs/<run>/last.pt --episodes 8192 --out results/G/x.parquet [--ood tighter|taller|much_taller|mild_size|extreme_size|random_tooth]
+.venv/bin/python -m blind_insertion.checks.g_checks [--only render,drop,spin,backlash,scripted]
+scripts/eval_phase_g.sh <run> <tag>; .venv/bin/python scripts/phase_g_report.py
+```
+
+- `--task gear` sets the gear defaults: kp/kd 40/20, action scale 0.04 rad, 10 s episodes,
+  24 PPO minibatches, 128 contact labels (64 shaft rim + 64 tooth tips), critic 401 (+33).
+  Checkpoints store `task` and `n_points`; `eval.load_policy` reads `n_points`.
+- Fixture frame: origin on the shaft axis at the collar top (seat plane). Gear frame:
+  bore centre of the bottom face. Seated <=> all rim points in the bore and gear z < 1 mm.
+- Teeth share one mesh per gear (rotated geom slots); unused slots are parked 50 m (gear) /
+  80 m (anchors) along the body z axis. Anchors are hinged children of the mocap fixture
+  with per-world `body_pos`, `dof_damping`, `dof_frictionloss`.
+- CPU rendering needs `geom_sameframe = 0` on slot geoms (done in `gear_builder.build`).
+- Keep mesh polygons <= 24 vertices: MuJoCo Warp's multi-CCD buffers scale with the
+  largest polygon x `naccdmax` (OOM at 12,288 worlds otherwise). `GearCfg` uses
+  `nconmax` 96, `nccdmax` 48, `njmax` 640; the 12,288-world run takes ~10.6 GB.
+- `GearCfg(pads_collide=False)` makes pads and housing collision-free (drop tests).
+- `scripts/server/jobs/make_manifests.py --check` imports train.py: run it with
+  `.venv/bin/python` (system python3 has no numpy).
+
 ## Conventions
 
 - Lengths in meters in code; mm in plots/tables.

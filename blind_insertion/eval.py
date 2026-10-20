@@ -29,7 +29,7 @@ def load_policy(path, env, device):
         ac.eval()
         return ac
     ac = ActorCritic(ck["obs_dim"], ck["act_dim"], ck["critic_dim"], history=env.cfg.history,
-                     encoder=ck.get("encoder", "tcn")).to(device)
+                     encoder=ck.get("encoder", "tcn"), n_points=ck.get("n_points", 64)).to(device)
     ac.load_state_dict(ck["model"])
     ac.eval()
     ac.obs_norm.freeze()
@@ -218,7 +218,11 @@ def main():
     ap.add_argument("--family", default="", help="as in train.py (study | usbc | scale:o:c | ood:bin)")
     ap.add_argument("--clearance", default="", help="usbc: fixed clearance (m) or lo,hi")
     ap.add_argument("--peg_offset", type=float, default=None)
+    ap.add_argument("--task", default="peg", choices=["peg", "gear"])
     args = ap.parse_args()
+    if args.task == "gear":
+        from blind_insertion.eval_gear import run as run_gear  # noqa: PLC0415
+        return run_gear(args)
     kw = dict(robot=args.robot, nworld=args.episodes, n_variants=args.n_variants,
               variant_seed=args.variant_seed, seed=args.seed)
     if args.ood:

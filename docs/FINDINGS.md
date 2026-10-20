@@ -12,6 +12,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | B | Blind s0, s1 (300M) and visual s0 (50M, stop rule) trained and evaluated; no-contact s0 running; s2 and no-contact s1 queued. Results match the paper (table below). |
 | C | YAM model, workspace and fixture ranges set up (`configs/phase_c_yam.json`); A-S3..A-S6 run on YAM. |
 | E | USB-C flash-drive variants + pool sampler in the builder; visual check done. |
+| G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
 
 ### Phase B results (seed 0 final checkpoints, 2,048 matched starts, unseen geometries)
@@ -84,7 +85,64 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-20 — Gear meshing (Phase G)
+
+- **One mesh per gear, rotated by geom slots.** All teeth of a gear are identical, so each
+  gear set needs only ~7 meshes (gear tooth, gear hub sector, shaft, and per anchor a tooth
+  and a hub); T geom slots use the same mesh with different `geom_pos/quat`. 1,024 gear
+  sets build in 6.8 s (6,213 meshes). Random-tooth OOD gears need one mesh per tooth.
+- **Hinged anchors work as children of the mocap fixture**, with per-world `body_pos`
+  (centre distance and azimuth), `dof_damping` and `dof_frictionloss` (all batched in
+  MuJoCo Warp; verified to take effect per world).
+- **CPU MuJoCo ignores per-variant geom frames when `geom_sameframe` is set.** Slots
+  compiled with identical placeholder meshes are flagged "same frame as the body", and
+  `mj_kinematics` then skips `geom_pos/quat`: every anchor tooth rendered at the anchor
+  centre (a plain disc). MuJoCo Warp does not use the flag, so GPU physics was correct.
+  Fix: `gear_builder.build` clears `geom_sameframe`/`body_sameframe` on part bodies.
+  (The peg builder may have the same latent issue for CPU renders of multi-piece pegs.)
+- **MuJoCo Warp sizes multi-CCD scratch buffers by the largest mesh polygon x `naccdmax`.**
+  mjfit's anchor hub (a polygon through every root point, ~4T vertices) gave
+  `npolygonmax` = 72 and a 2.7 GB allocation that ran out of memory at 12,288 worlds. Hub
+  -> 24-gon inscribed in the root circle, shaft 24-gon, `nconmax` 96, `nccdmax` 48 (both are
+  pooled across worlds): `npolygonmax` 24 (as the peg), 10.6 GB for the 12,288-world run.
+- **Newton is stable for the hinged anchors** (no PGS needed in MuJoCo Warp): contacts
+  are always between an anchor and the free gear, whose inverse weight regularizes them.
+  Anchors at rest stay at rest; a free anchor spun at 3 rad/s follows
+  I w' = -b w - f within 0.11 rad/s (median max error; p95 0.41), time constant 24 ms
+  (`G-anchor_spin.png`, n = 256).
+- **Drop test (coaxial, level, 1 mm above the shaft tip, gripper collision-free;
+  `G-drop.png`, n = 256 per phase):** seats in 100% / 99.6% / 98.4% / 81% / 10% / 0% / 0% of
+  drops at tooth-phase errors 0 / 0.02 / 0.05 / 0.1 / 0.2 / 0.3 / 0.5 pitch. Out-of-phase gears
+  stop on the anchors' tops (median 1.5 mm below the top face, because a gear resting on one
+  anchor tilts within the bore play). The capture band in phase is about +-0.1 pitch.
+- **Soft fixture contacts make tooth contact squishy.** With the paper's 3.5–7.1 ms fixture
+  time constant, gear-anchor penetration is 0.06 mm (p99) when seated in phase but up to
+  0.8 mm for a gear resting tilted on a tooth edge, comparable to the 0.4–0.6 mm backlash.
+  Measured play of a meshed anchor (+-torque, `G-backlash.png`): 1.05x the designed
+  backlash at 3 mN m (p10–p90 0.82–1.29; the spread is the gear's bore play, which moves the
+  centre distance), 1.97x at 20 mN m.
+- **The task is feasible with the robot's grasp**: a privileged scripted controller
+  (aligns the axis to 0.2 mm, turns to zero phase with anchor 0, then turns to fix the worst
+  anchor while pressing 1 N) seats 89.0% of 1,024 unseen gear sets (1 anchor 92.4%, 2 anchors
+  85.3%), median 4.6 s. Its first version (no lift above the tip, gain 10) reached 13%:
+  aligning a 0.375–0.5 mm radial bore play with the compliant kp = 40 arm needs care.
+- **Baselines (2,048 matched starts, unseen gear sets):** zero action 0.05% success, random
+  (sigma 0.5) 0.73%.
+- **Smoke training (12,288 worlds, 15 min, shared GPU):** 14.4k env steps/s (YAM training
+  running alongside), 10.6 GB. In 12.2M steps training capture rose from 2% to 50%;
+  training success stayed at 0–0.4%. The 9.8M checkpoint (deterministic, 2,048 starts):
+  0% success, 18% captured (zero action: 5.6%). The peg had 11% success at the same step
+  count, so the gear learns slower at first; whether it reaches the paper's >99.9% is open
+  until the queued 300M run finishes.
+
 ### 2026-10-20 — Visual pipeline, YAM, USB-C
+
+- **YAM blind peg policy (C-peg-proprio-base-s0) trains faster and seats faster than the Flexiv.**
+  300M steps in 2.45 h; training success 22.5% at 3.9M, 82.5% at 11.8M steps (Flexiv: 57% at
+  15.7M) and 99.9% at 299M, with a mean episode of 16 steps (0.32 s) against 36 on the Flexiv.
+  Plausible causes: the YAM is ~3x stiffer (14 mm sag vs 48 mm), its action scale is 0.04 rad,
+  and its arm bodies are gravity compensated. Eval (scripts/eval_phase_c.sh, tag yam_s0) queued.
+- **USB-C curriculum run (E-usbc-proprio-curr-s0)** at 86.5M steps: 73.8% training success.
 
 - **The visual policy learns ~5x faster in steps but is ~4.4x slower per step** (8.5k vs
   37.7k env steps/s; the PPO update with the CNN dominates, 10 s vs 5 s rollout per
@@ -192,6 +250,20 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 | Item | Paper / plan | Ours | Why |
 |---|---|---|---|
+| Gear: bore clearance | "bore 0.75–1.0 mm" | Diametral (0.375–0.5 mm radial play) | Radial 1 mm play would exceed the 0.25-module tip–root clearance and let teeth jam into anchor roots |
+| Gear: backlash | 0.4–0.6 mm per flank | Centre distance solved so the circular backlash on the operating pitch circles is 2x the per-flank value (exact involute relations); verified 1.05x in sim at low torque | Concrete definition |
+| Gear: anchors | 1–2 anchors, tooth count not stated | 1 or 2 (50/50), 16–24 teeth, tooth width 0.45–0.47, same module, pressure angle and face width as the gear; azimuth 70–290 deg apart; printed density 1,250 kg/m^3 | Not stated |
+| Gear: mass | 128–202 g with boss | Linear in volume (pitch disc minus bore + boss), mapped so the study range spans 128–202 g; inertia from the uniform-density geometry scaled to that mass | "set by their geometry" (App. A.2) |
+| Gear: boss | 18 mm printed boss | 18 mm, 30 mm tall, 16-segment ring with a 6.6 mm bore (never touches the shaft) | Height not stated; shaft sticks out into the boss |
+| Gear: collar / plate | collar the gear seats on | Collar r 10 mm x 5 mm, plate 200 mm square; no chamfers on shaft or bore | Not stated |
+| Gear: polygonal round parts | involute gears, round shaft | Bore = T-gon of inradius r_bore (one hub sector per tooth); shaft 24-gon on r_shaft (max extra play 0.04 mm); anchor hub 24-gon in the root circle | Mesh count / MJW polygon buffers |
+| Gear: start phase | "teeth out of phase" | Each anchor's hinge angle set so the tooth-phase error is +-U(0.2, 0.5) pitch | Concrete definition (drop test: errors <= 0.1 pitch seat by themselves) |
+| Gear: start height | "resting on the shaft tip" | Lowest gear point over the shaft top (or over an anchor, when the tilt makes it lower) 0.5 mm above it | Concrete definition |
+| Gear: mesh bonus | "first mesh with every anchor" | One +1 bonus the first step all anchors are meshed (a tooth-tip point inside an anchor's tip circle 1 mm below its top face) | Ambiguous (could be one per anchor) |
+| Gear: labels | free / on gear / inside bore; free / on anchor / in mesh | Rim point inside bore: radial < r_bore and above the gear's bottom plane; on the gear: within 1 mm below it. Tip point in mesh: inside an anchor's tip circle and > 0.5 mm below its top; on anchor: within 0.5 mm of the tip circle and < 1 mm above the top | Concrete definition |
+| Gear: critic | 434 inputs | 33 obs + gear pos/6D rot/lin+ang vel (15) + 128x3 one-hot labels + 2 anchor phase errors (pitches) = 434 | The paper's count leaves 2 values; phase errors are the natural privileged state |
+| Gear: termination | "far from the fixture" | Gear > 35 mm off the shaft axis or > 60 mm above the seat; slip > 20 mm | Concrete definition |
+| Gear: distinct sets | one per world | 1,024 gear sets, each used by 12 worlds | As for pegs |
 | Framework | mjlab + rsl_rl | MuJoCo Warp + own PPO (rsl_rl-style GAE, timeout bootstrap) | mjlab pins MuJoCo 3.11 |
 | Phase B robot | Flexiv Rizon 4S (real, identified) / plan: Panda stand-in | Menagerie Flexiv Rizon 4S; armature from Menagerie; no identified damping/friction | Exact arm available |
 | Gripper | Robotiq 2F-85 | Simplified 2F-85: two coupled slide fingers, 22 x 37.5 mm pads, constant-force motors (20 N x scale 1.41–2.83), 0.925 kg | Linkage gripper is costly; force-capped grasp is what matters |
@@ -222,6 +294,11 @@ One 300M-step run = ~2.3 h on the local RTX 3090 Ti (12,288 worlds, ~37k env ste
 
 ## Ideas to explore
 
+- (2026-10-20) Gear: the meshed anchor turns with the gear and the other one slips under
+  it only if the press is light and the hinge friction high; a probe on "pressing hard vs
+  lightly while meshing" could show whether the blind policy learns this force regulation.
+- (2026-10-20) Gear: train with stiffer fixture contacts (2 ms, mjfit default) as an
+  ablation; the paper's 3.5–7.1 ms lets teeth sink up to 0.8 mm into each other.
 - (2026-10-20) Payload-aware gravity feed-forward as an ablation: compensate the nominal
   peg weight in the controller (as a real Flexiv with a configured payload would) and
   see whether learning speeds up and search gets gentler.

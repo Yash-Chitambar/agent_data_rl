@@ -27,7 +27,11 @@ class WorldRenderer:
     def load(self, w: int, qpos: np.ndarray | None = None):
         env, m = self.env, self.m
         k = int(env.variant[w])
-        B.apply_variant_cpu(m, env.lay, k)
+        if getattr(env, "task", "peg") == "gear":
+            from blind_insertion.assets import gear_builder as GB  # noqa: PLC0415
+            GB.apply_variant_cpu(m, env.lay, k)
+        else:
+            B.apply_variant_cpu(m, env.lay, k)
         self.d.mocap_pos[0] = env.t_mocap_pos[w, 0].cpu().numpy()
         self.d.mocap_quat[0] = env.t_mocap_quat[w, 0].cpu().numpy()
         self.d.qpos[:] = env.t_qpos[w].cpu().numpy() if qpos is None else qpos
