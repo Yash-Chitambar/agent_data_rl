@@ -340,6 +340,11 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   `runs/B-peg-proprio-base-s3.log`; completion marker is written only on exit 0.
   No retries (a failure needs inspection). Compare success >90% at 35–50M and
   >=99% from 150M before starting a production batch.
+  First checkpoint at 9,830,400 steps (iteration 25) loaded strictly on CPU;
+  all model tensors and policy/value forward outputs were finite. Training success
+  at this checkpoint was 40.2%. Evidence:
+  `results/server_setup/mason/validation_checkpoint_smoke.json`. This is a checkpoint
+  integrity check; the learning-curve gate is still pending.
 - All README test suites passed: mjfit **265 tests** (528.70 s), RoboSimStudio fast
   **1,728 tests, 27 skipped** (160.19 s), RoboSimStudio CPU **19 tests** (111.59 s).
   Logs: `runs/test-mjfit.log`, `runs/test-robosimstudio-fast.log`,
