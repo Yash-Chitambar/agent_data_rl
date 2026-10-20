@@ -344,6 +344,12 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   **1,728 tests, 27 skipped** (160.19 s), RoboSimStudio CPU **19 tests** (111.59 s).
   Logs: `runs/test-mjfit.log`, `runs/test-robosimstudio-fast.log`,
   `runs/test-robosimstudio-cpu.log`.
+- Shared-server runner hardened with opt-in `--require-idle-gpus`: three idle
+  samples followed by a launch-time recheck; busy or unreadable GPUs keep jobs
+  queued without moving partial runs or counting failed attempts. Six regression
+  tests passed. Live queue smoke skipped the active validation GPU 0 and dispatched
+  a CPU-only environment check on idle GPU 1; recorded `CUDA_VISIBLE_DEVICES=1`
+  and exited 0 (`runs/_runner-idle-smoke/runner.log`). Training code is unchanged.
 - No production batch has started. D/E retain their Gate C noise decision
   requirement; local-queue jobs and missing local checkpoints must be skipped.
 

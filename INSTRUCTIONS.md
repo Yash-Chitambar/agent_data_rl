@@ -106,7 +106,7 @@ the batch.
 ## 5. The training batch (only after Yash's OK on the GPU count)
 
 ```bash
-tmux new -d -s jobs "python3 scripts/server/run_jobs.py --gpus <free indices> \
+tmux new -d -s jobs "python3 scripts/server/run_jobs.py --gpus <free indices> --require-idle-gpus \
     --skip-tag also_in_local_queue --skip-tag needs_local_ckpt \
     scripts/server/jobs/B_train.txt scripts/server/jobs/B_eval.txt \
     scripts/server/jobs/C_train.txt scripts/server/jobs/C_eval.txt"
