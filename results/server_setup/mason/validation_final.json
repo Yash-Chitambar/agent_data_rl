@@ -1,0 +1,15 @@
+{
+  "run": "B-peg-proprio-base-s3",
+  "host": "mason",
+  "gpu": "Tesla V100-PCIE-32GB",
+  "nworld": 12288,
+  "final_steps": 300023808,
+  "final_training_success": 0.9979,
+  "first_90_percent_steps": 37355520,
+  "min_success_from_150M": 0.9921,
+  "mean_success_from_150M": 0.9964,
+  "wall_hours": 4.08,
+  "exit_code": 0,
+  "early_learning_gate_passed": true,
+  "late_learning_gate_passed": true
+}

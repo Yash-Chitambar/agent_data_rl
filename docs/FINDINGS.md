@@ -385,6 +385,15 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   (39.7M, 41.7M). Early learning gate passed; >=99% from 150M and completion
   of the 300M run are still pending. Evidence:
   `results/server_setup/mason/validation_early_gate.json`.
+- **Validation passed both gates** and finished 300M steps (exit 0, 4.08 h): min training
+  success 99.21% from 150M (mean 99.64%), final 99.79%. Logs:
+  `results/B/train_logs/B-peg-proprio-base-s3/`; summary
+  `results/server_setup/mason/validation_final.json`.
+- **Production batch started 2026-10-20 22:06 UTC on GPUs 0,1** (Yash's OK: 2 GPUs), tmux
+  `jobs`: B_train, B_eval, C_train, C_eval with `--require-idle-gpus --skip-tag
+  also_in_local_queue --skip-tag needs_local_ckpt`. First jobs: B-peg-rgb-base-s1 (28.6 GB,
+  ~4.0k steps/s) and B-peg-proprio-nocontact-s2 (10.7 GB, ~21.4k steps/s), as benchmarked.
+  C jobs use the new YAM table scene.
 - No production batch has started. D/E retain their Gate C noise decision
   requirement; local-queue jobs and missing local checkpoints must be skipped.
 
