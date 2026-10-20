@@ -1,0 +1,13 @@
+{
+  "run": "B-peg-proprio-base-s3",
+  "first_90_percent_steps": 37355520,
+  "success_at_crossing": 0.9047233462333679,
+  "iteration": 95,
+  "expected_window_steps": [
+    35000000,
+    50000000
+  ],
+  "early_learning_gate_passed": true,
+  "late_learning_gate": "pending: >=99% from 150M",
+  "training_completion": "pending: 300M"
+}

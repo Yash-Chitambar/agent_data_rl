@@ -355,6 +355,11 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   tests passed. Live queue smoke skipped the active validation GPU 0 and dispatched
   a CPU-only environment check on idle GPU 1; recorded `CUDA_VISIBLE_DEVICES=1`
   and exited 0 (`runs/_runner-idle-smoke/runner.log`). Training code is unchanged.
+- Validation crossed **90% training success at 37.36M steps** (iteration 95,
+  success 90.47%), within the required 35–50M window and comparable to local seeds
+  (39.7M, 41.7M). Early learning gate passed; >=99% from 150M and completion
+  of the 300M run are still pending. Evidence:
+  `results/server_setup/mason/validation_early_gate.json`.
 - No production batch has started. D/E retain their Gate C noise decision
   requirement; local-queue jobs and missing local checkpoints must be skipped.
 
