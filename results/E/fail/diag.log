@@ -1,0 +1,12 @@
+[14:30:24] notilt_hand: --clearance 3e-4 --peg_offset 6.54e-4 --env_json {"inhand_tilt_deg": 0.0}
+runs/E-usbc-proprio-curr-s0/last.pt: success 0.944 (n=2048), median time 0.44s, median travel 2.5 mm; failures: {'success': 1933, 'slipped': 107, 'left_fixture': 6, 'never_found': 2}
+[14:33:04] notilt_all: --clearance 3e-4 --peg_offset 6.54e-4 --env_json {"inhand_tilt_deg": 0.0, "grip_rot_deg": 0.0, "fix_tilt_deg": 0.0}
+runs/E-usbc-proprio-curr-s0/last.pt: success 0.982 (n=2048), median time 0.30s, median travel 2.0 mm; failures: {'success': 2011, 'slipped': 33, 'left_fixture': 3, 'never_found': 1}
+[14:36:47] nooffset: --clearance 3e-4 --peg_offset 0.0
+runs/E-usbc-proprio-curr-s0/last.pt: success 0.823 (n=2048), median time 0.48s, median travel 2.2 mm; failures: {'success': 1686, 'slipped': 332, 'left_fixture': 21, 'never_found': 6, 'wedged_partial': 2, 'captured_then_lost': 1}
+[14:40:17] clear1mm: --clearance 1e-3 --peg_offset 6.54e-4
+     /home/yashc/.cache/warp/1.18.0
+[14:40:20] softpads: --clearance 3e-4 --peg_offset 6.54e-4 --env_json {"pad_timeconst": 0.004, "pad_solimp": null}
+runs/E-usbc-proprio-curr-s0/last.pt: success 0.096 (n=2048), median time 0.32s, median travel 3.2 mm; failures: {'slipped': 1814, 'success': 197, 'left_fixture': 30, 'never_found': 7}
+[14:43:15] long16s: --clearance 3e-4 --peg_offset 6.54e-4 --env_json {"episode_s": 16.0}
+runs/E-usbc-proprio-curr-s0/last.pt: success 0.812 (n=2048), median time 0.48s, median travel 2.7 mm; failures: {'success': 1663, 'slipped': 350, 'left_fixture': 32, 'never_found': 3}

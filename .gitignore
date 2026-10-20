@@ -15,3 +15,5 @@ third_party/
 MUJOCO_LOG.TXT
 report/.build/
 report/.preview.html
+report_usbc/.build/
+report_usbc/.preview.html

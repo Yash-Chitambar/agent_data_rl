@@ -1,0 +1,17 @@
+{
+ "gpu_slip_rate": 0.0,
+ "steps": 10,
+ "nworld": 2048,
+ "gpu_contacts_all_median": 31.0,
+ "by_gpu_slip": [
+  {
+   "gpu_slip": false,
+   "n": 20,
+   "cpu_slip": 0.2,
+   "gpu_disp_med": 0.005657497513280937,
+   "cpu_disp_med": 2.3424348432813713,
+   "gpu_contacts": 31.0,
+   "cpu_contacts": 17.0
+  }
+ ]
+}

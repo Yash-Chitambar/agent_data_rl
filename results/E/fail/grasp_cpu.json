@@ -1,0 +1,51 @@
+[
+ {
+  "cond": "elliptic cone, impratio 10",
+  "slipped": 0.0,
+  "rot_med": 0.0007609793539400827,
+  "slide_med": 0.0020331098406473464,
+  "n": 48
+ },
+ {
+  "cond": "env (pyramidal, impratio 1)",
+  "slipped": 0.0,
+  "rot_med": 0.019759514190812306,
+  "slide_med": 0.026164002533118208,
+  "n": 48
+ },
+ {
+  "cond": "grip 2x",
+  "slipped": 0.0,
+  "rot_med": 0.019632375237259313,
+  "slide_med": 0.02595300215111364,
+  "n": 48
+ },
+ {
+  "cond": "in free air (gap 20 mm)",
+  "slipped": 0.0,
+  "rot_med": 0.01829537329139725,
+  "slide_med": 0.029296399124703228,
+  "n": 48
+ },
+ {
+  "cond": "no in-hand tilt",
+  "slipped": 0.0,
+  "rot_med": 0.020398291936314546,
+  "slide_med": 0.026226935638448454,
+  "n": 48
+ },
+ {
+  "cond": "pyramidal, impratio 10",
+  "slipped": 0.0,
+  "rot_med": 0.0019415226403071424,
+  "slide_med": 0.003316869218441231,
+  "n": 48
+ },
+ {
+  "cond": "softer pads (4 ms, default solimp)",
+  "slipped": 0.020833333333333332,
+  "rot_med": 0.25349842347740376,
+  "slide_med": 0.3094974314167115,
+  "n": 48
+ }
+]

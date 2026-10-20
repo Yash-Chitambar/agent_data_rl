@@ -84,14 +84,27 @@ def main():
     ap.add_argument("--variant_seed", type=int, default=1000)
     ap.add_argument("--out", required=True)
     ap.add_argument("--every", type=int, default=1)
+    ap.add_argument("--family", default="study", help="study | usbc (as in eval.py)")
+    ap.add_argument("--clearance", default="", help="usbc: fixed clearance (m) or lo,hi, as in eval.py")
+    ap.add_argument("--azimuth", type=float, default=150)
+    ap.add_argument("--elevation", type=float, default=-20)
+    ap.add_argument("--distance", type=float, default=None)
     args = ap.parse_args()
-    vs = B.sample_study_pegs(args.n_variants, args.variant_seed)
+    if args.family == "usbc":
+        kw = {}
+        if args.clearance:
+            cr = [float(x) for x in args.clearance.split(",")]
+            kw["clearance"] = (cr[0], cr[-1])
+        vs = B.sample_usbc(args.n_variants, args.variant_seed, **kw)
+    else:
+        vs = B.sample_study_pegs(args.n_variants, args.variant_seed)
     m, lay = B.build(args.robot, vs)
     z = np.load(args.rollouts)
     for w in [int(x) for x in args.worlds.split(",")]:
         roll = {k.split("_", 1)[1]: z[k] for k in z.files if k.startswith(f"w{w}_")}
         render_rollout(m, lay, w % args.n_variants, roll, Path(f"{args.out}_w{w}"), every=args.every,
-                       title=f"world {w}")
+                       title=f"world {w}", azimuth=args.azimuth, elevation=args.elevation,
+                       distance=args.distance)
         print("rendered world", w)
 
 

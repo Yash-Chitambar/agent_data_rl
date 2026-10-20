@@ -51,6 +51,9 @@ class EnvCfg:
     grip_force_base: float | None = None   # N per pad (default: robot's nominal)
     pad_timeconst: float = 0.004           # pad contact solref time constant (x finger scale)
     pad_solimp: tuple | None = None        # e.g. (0.99, 0.999, 0.001) for light parts
+    pad_spheres: int = 0                   # >0: n x n sphere grid per pad face (robust grasp contacts)
+    mj_opt: dict | None = None             # MjModel.opt overrides, e.g. {"cone": 1, "impratio": 10,
+                                           # "iterations": 100, "ls_iterations": 50} (cone 1 = elliptic)
     # labels / success / termination
     free_height: float = 0.001
     seat_tol: float = 0.0015
@@ -103,10 +106,12 @@ class PegEnv:
             sampler = cfg.variant_sampler or B.sample_study_pegs
             variants = sampler(cfg.n_variants, cfg.variant_seed)
         self.mjm, self.lay = B.build(cfg.robot, variants, gains=cfg.gains,
-                                     backlash_arcmin=cfg.backlash_arcmin)
+                                     backlash_arcmin=cfg.backlash_arcmin, pad_spheres=cfg.pad_spheres)
         lay = self.lay
         if cfg.pad_solimp is not None:
             self.mjm.geom_solimp[lay.pad_geoms, :3] = cfg.pad_solimp
+        for k_, v_ in (cfg.mj_opt or {}).items():
+            setattr(self.mjm.opt, k_, v_)
         N = self.N = cfg.nworld
         self.nK = len(variants)
         self.n_arm = len(lay.arm_qadr)

@@ -1,0 +1,26 @@
+{
+ "gpu_slip_rate": 0.11279296875,
+ "steps": 10,
+ "nworld": 2048,
+ "gpu_contacts_all_median": 8.0,
+ "by_gpu_slip": [
+  {
+   "gpu_slip": false,
+   "n": 30,
+   "cpu_slip": 0.16666666666666666,
+   "gpu_disp_med": 0.01277434133901743,
+   "cpu_disp_med": 1.1534609176009694,
+   "gpu_contacts": 8.0,
+   "cpu_contacts": 2.0
+  },
+  {
+   "gpu_slip": true,
+   "n": 30,
+   "cpu_slip": 0.13333333333333333,
+   "gpu_disp_med": 67.39392180864274,
+   "cpu_disp_med": 1.8361645218291411,
+   "gpu_contacts": 2.0,
+   "cpu_contacts": 8.0
+  }
+ ]
+}

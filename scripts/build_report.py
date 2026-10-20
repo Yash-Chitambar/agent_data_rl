@@ -79,7 +79,7 @@ def curves():
         "visual": ("Wrist RGB (visual)", 1, "B-peg-rgb-base-s*"),
         "nocontact": ("Blind, no contact loss", 2, "B-peg-proprio-nocontact-s*"),
         "yam": ("YAM arm, blind peg", 3, "C-peg-proprio-base-s*"),
-        "usbc": ("USB-C on YAM, curriculum (running)", 4, "E-usbc-proprio-curr-s*"),
+        "usbc": ("USB-C on YAM, box pads (stopped)", 4, "E-usbc-proprio-curr-s*"),
         "gear": ("Gear meshing, 15-min smoke run", 5, "G-gear-proprio-smoke"),
     }
     series = {}

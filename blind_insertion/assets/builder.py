@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import itertools
 import math
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
@@ -259,6 +260,7 @@ class RobotInfo:
     grip_force: float           # nominal force per pad (N)
     max_opening: float          # per finger travel (m)
     pad_geoms: list[str] = field(default_factory=list)
+    no_collide: list[str] = field(default_factory=list)   # geoms to switch off after compiling
     gripper_geoms: list[str] = field(default_factory=list)
     nom_yaw_deg: float = 0.0    # gripper yaw about the fixture normal at the nominal grasp
 
@@ -341,8 +343,61 @@ def add_backlash(spec: mujoco.MjSpec, joints: list[str], arcmin: float, stiffnes
                        damping=[damping, 0, 0], armature=1e-5)
 
 
-def load_robot(name: str, *, gains=None, backlash_arcmin: float = 0.0) -> tuple[mujoco.MjSpec, RobotInfo]:
+def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: float = 0.0012):
+    """Replace each box pad's contact by an n x n grid of spheres on its inner face.
+
+    MuJoCo's box-mesh multi-contact (CPU and MuJoCo Warp) can return only an edge (2 points) or no
+    contact when a narrow part's face is rotated within the pad plane and the two rectangles
+    overlap only partly (Phase E finding, docs/FINDINGS.md). Sphere-mesh contacts give one robust
+    point each, independent of face clipping. The sphere surfaces lie exactly on the pad's inner
+    face; the box stays as a visual and stops colliding. The spheres take the pad's contact
+    parameters and become the robot's pad geoms (so the env's per-reset pad friction and time
+    constant randomization applies to them).
+    """
+    m0 = spec.compile()
+    d0 = mujoco.MjData(m0)
+    mujoco.mj_kinematics(m0, d0)
+    tcp = d0.site_xpos[mujoco.mj_name2id(m0, mujoco.mjtObj.mjOBJ_SITE, info.tcp_site)]
+    new = []
+    for pname in info.pad_geoms:
+        g = spec.geom(pname)
+        gid = mujoco.mj_name2id(m0, mujoco.mjtObj.mjOBJ_GEOM, pname)
+        # use the COMPILED pose and parent body: the compiler may fuse a joint-less pad body
+        # into its parent, and then the geom's spec-local pose is in a different frame
+        body = spec.body(mujoco.mj_id2name(m0, mujoco.mjtObj.mjOBJ_BODY, m0.geom_bodyid[gid]))
+        gpos = m0.geom_pos[gid].copy()
+        Rl = np.zeros(9)
+        mujoco.mju_quat2Mat(Rl, m0.geom_quat[gid])
+        Rl = Rl.reshape(3, 3)
+        size = m0.geom_size[gid].copy()
+        thin = int(np.argmin(size))
+        Rw = d0.geom_xmat[gid].reshape(3, 3)
+        s = float(np.sign((Rw.T @ (tcp - d0.geom_xpos[gid]))[thin]))     # inner face side
+        a1, a2 = [i for i in range(3) if i != thin]
+        for i, j in itertools.product(range(n), range(n)):
+            loc = np.zeros(3)
+            loc[a1] = (2 * (i + 0.5) / n - 1) * (size[a1] - radius)
+            loc[a2] = (2 * (j + 0.5) / n - 1) * (size[a2] - radius)
+            loc[thin] = s * (size[thin] - radius)
+            sg = body.add_geom(name=f"{pname}_s{i}{j}", type=mujoco.mjtGeom.mjGEOM_SPHERE,
+                               size=[radius, 0, 0], pos=(gpos + Rl @ loc).tolist())
+            sg.contype, sg.conaffinity = g.contype, g.conaffinity
+            sg.condim, sg.priority = g.condim, g.priority
+            sg.friction, sg.solref, sg.solimp = list(g.friction), list(g.solref), list(g.solimp)
+            sg.margin, sg.gap, sg.group = g.margin, g.gap, 3
+            sg.rgba = [0.9, 0.2, 0.2, 1.0]
+            new.append(sg.name)
+        g.contype, g.conaffinity = 0, 0
+        info.no_collide.append(pname)       # also enforced on the compiled model (see build)
+    info.pad_geoms = new
+    return info
+
+
+def load_robot(name: str, *, gains=None, backlash_arcmin: float = 0.0,
+               pad_spheres: int = 0) -> tuple[mujoco.MjSpec, RobotInfo]:
     spec, info = _load_robot(name, gains=gains)
+    if pad_spheres > 0:
+        info = sphere_pads(spec, info, pad_spheres)
     if backlash_arcmin > 0:
         add_backlash(spec, info.arm_joints, backlash_arcmin)
     return spec, info
@@ -516,8 +571,9 @@ def _mini_model(pieces: Pieces, v: Variant, n_fix: int, n_peg: int) -> mujoco.Mj
 
 
 def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
-          multiccd: bool = False, extra=None, backlash_arcmin: float = 0.0) -> tuple[mujoco.MjModel, Layout]:
-    spec, info = load_robot(robot, gains=gains, backlash_arcmin=backlash_arcmin)
+          multiccd: bool = False, extra=None, backlash_arcmin: float = 0.0,
+          pad_spheres: int = 0) -> tuple[mujoco.MjModel, Layout]:
+    spec, info = load_robot(robot, gains=gains, backlash_arcmin=backlash_arcmin, pad_spheres=pad_spheres)
     spec.option.timestep = timestep
     spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
     spec.option.solver = mujoco.mjtSolver.mjSOL_NEWTON
@@ -567,6 +623,9 @@ def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
     if extra is not None:
         extra(spec)
     m = spec.compile()
+    for name in info.no_collide:   # the compiler can keep a fused body's old geom flags
+        i = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, name)
+        m.geom_contype[i] = m.geom_conaffinity[i] = 0
 
     def gid(name):
         return mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, name)

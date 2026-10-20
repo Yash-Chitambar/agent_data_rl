@@ -137,6 +137,31 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ### 2026-10-20 — Visual pipeline, YAM, USB-C
 
+- **USB-C plateau (78% on curriculum stage 1 for 160M steps) is a contact-generation artifact,
+  not a learning problem** (full analysis: report_usbc/, results/E/fail/). The run was stopped at
+  160M steps.
+  - Trained policy, stage 1, 2,048 matched starts: 80.9% success; 87% of failures are grasp slips
+    (median 0.18 s into the episode); only 7 episodes never find the port. Start offset and the
+    16 s episode limit change nothing.
+  - Zero action slips in 12.5% of resets (median 0.08 s); 73% of those starts also slip under the
+    policy. Solver iterations (100/50) do not help (12.2%); elliptic cone + impratio 10 helps a
+    little (10.8%); pyramidal + impratio 10 is 4x worse on the GPU (43.7%).
+  - Cause: pad-drive contact count. With 8 contacts (4 per pad) 1.3% of worlds slip; with 0-6
+    contacts 75% slip (277 of 2,048 worlds). The in-hand tilt turns the drive face up to 5 deg in
+    the pad plane; narrow bodies (< ~20 mm) then overlap the 14.4 mm pad face only partly, and
+    MuJoCo's box-mesh multi-contact returns an edge (2 points) or nothing. Bodies >= 22 mm always
+    get 8 points. Removing in-hand tilt removes all zero-action slips. CPU MuJoCo also produces the
+    partial-contact states (in different worlds), so it is not only MuJoCo Warp.
+  - Fix: `EnvCfg.pad_spheres = 4` (`builder.sphere_pads`): each pad's contact is a 4x4 grid of
+    1.2 mm spheres flush with its inner face (box kept as visual, collision off). Zero-action slip
+    0/2,048; the SAME box-pad policy seats 98.3% on stage 1 (slips 2/2,048). A 3x3 grid gives NO
+    contact (probably a GJK degeneracy with spheres on the drive's symmetry plane): use 4x4.
+  - The compiler fuses the joint-less YAM pad bodies into the fingers; spec-local geom poses are
+    then in the wrong frame and a spec contype edit on right_pad did not reach the compiled model.
+    `sphere_pads` uses compiled poses, and `build` switches the boxes off after compiling.
+  - Retraining queued: E-usbc-proprio-currsph-s0 (configs/phase_e_usbc_spheres.json).
+  - Open: CPU replays of GPU states drift 1-2 mm in the grasp (GPU 0.01 mm), also with box pads.
+
 - **YAM blind peg policy (C-peg-proprio-base-s0) trains faster and seats faster than the Flexiv.**
   300M steps in 2.45 h; training success 22.5% at 3.9M, 82.5% at 11.8M steps (Flexiv: 57% at
   15.7M) and 99.9% at 299M, with a mean episode of 16 steps (0.32 s) against 36 on the Flexiv.
@@ -293,6 +318,11 @@ One 300M-step run = ~2.3 h on the local RTX 3090 Ti (12,288 worlds, ~37k env ste
 | F six sensing variants x 3 seeds (rendering) | 18 | days | **server** |
 
 ## Ideas to explore
+
+- (2026-10-20) Re-check the peg tasks (Flexiv and YAM) with sphere pads: the pegs can also
+  turn in the grasp ("the grasp is a pivot"), possibly the same partial-overlap contact artifact.
+- (2026-10-20) Upstream test case for MuJoCo: box pad vs rotated box-shaped mesh with partial
+  face overlap, count the contacts.
 
 - (2026-10-20) Gear: the meshed anchor turns with the gear and the other one slips under
   it only if the press is light and the hinge friction high; a probe on "pressing hard vs

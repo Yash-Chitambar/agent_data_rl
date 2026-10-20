@@ -61,6 +61,10 @@ the "Ideas" section of `docs/FINDINGS.md`.
 - `EnvCfg(auto_reset=False)` + huge `far_*`/`slip_dist` for scripted checks; otherwise
   success/termination silently resets worlds mid-check.
 - The CUDA graph (20 substeps) is captured in `PegEnv.__init__` before the first reset.
+- **Box pads can lose grasp contacts** when a narrow part's face is rotated in the pad plane
+  (partial face overlap: MuJoCo box-mesh multi-contact gives an edge or nothing). Use
+  `EnvCfg(pad_spheres=4)` for small parts (USB-C); 3x3 gives no contact at all. The env does not log
+  the CCD overflow bit (4); per-world pad contact counts are in `checks/e_slip_gpu_cpu.py`.
 
 ## How to run
 
