@@ -1,0 +1,6 @@
+[submodule "mjfit"]
+	path = mjfit
+	url = https://github.com/younghyopark/mjfit.git
+[submodule "robosimstudio"]
+	path = robosimstudio
+	url = https://github.com/robosimstudio/robosimstudio.git

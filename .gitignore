@@ -1,0 +1,17 @@
+.venv/
+.cache/
+.python/
+__pycache__/
+.pytest_cache/
+outputs/
+.agents/
+.aws/
+.codex/
+runs/
+third_party/
+*.egg-info/
+
+# local-only artefacts
+MUJOCO_LOG.TXT
+report/.build/
+report/.preview.html

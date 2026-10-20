@@ -1,0 +1,26 @@
+{
+ "A-S8_max_diff": 0.6768181324005127,
+ "A-S1": {
+  "arm_only_first_step_max_mm": 0.024789968042606848,
+  "arm_only_p90_mm": NaN,
+  "arm_only": {
+   "max_mm": NaN,
+   "median_mm": NaN,
+   "frac_over_threshold": 0.0
+  },
+  "no_contact_first_step_max_mm": 0.039678969417497365,
+  "no_contact_p90_mm": 92.61414444192546,
+  "no_contact": {
+   "max_mm": 1098.157850160074,
+   "median_mm": 0.2124616062848343,
+   "frac_over_threshold": 0.99
+  },
+  "contact_first_step_max_mm": 0.0364242674080423,
+  "contact_p90_mm": 37.401485240259156,
+  "contact": {
+   "max_mm": 1308.521342723745,
+   "median_mm": 14.56641174511703,
+   "frac_over_threshold": 0.98
+  }
+ }
+}

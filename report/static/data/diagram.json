@@ -1,0 +1,25 @@
+{"width": 940, "height": 330, "minWidth": 680,
+ "nodes": [
+  {"id": "hist", "label": "Joint history", "sub": "30 steps × 33", "x": 90, "y": 110, "w": 150, "h": 54, "kind": "data", "color": 0,
+   "info": "The last 0.6 s of proprioception at 50 Hz: 7 joint angles, 7 joint velocities, end-effector pose and twist from forward kinematics, and the previous action."},
+  {"id": "obs", "label": "Current step", "sub": "o_t, 33", "x": 90, "y": 220, "w": 150, "h": 48, "kind": "data", "color": 0,
+   "info": "The newest observation. The actor sees it directly, next to the latent."},
+  {"id": "tcn", "label": "TCN encoder", "sub": "3 × Conv1d, 64 ch", "x": 300, "y": 110, "w": 160, "h": 58, "kind": "op", "color": 0,
+   "info": "Three 1-D convolutions (kernel 5, strides 1/2/2) and an MLP (128) compress the history."},
+  {"id": "z", "label": "Latent z", "sub": "32", "x": 480, "y": 110, "w": 110, "h": 48, "kind": "data", "color": 0,
+   "info": "A 32-value summary of the contact history. The probe in Section 6 reads contact mode from it."},
+  {"id": "actor", "label": "Actor MLP", "sub": "256-256-128", "x": 650, "y": 165, "w": 150, "h": 58, "kind": "op", "color": 0,
+   "info": "Gaussian policy on [z, o_t]. PPO trains it with the encoder."},
+  {"id": "act", "label": "Joint action", "sub": "q* = q + 0.02·a", "x": 850, "y": 165, "w": 150, "h": 54, "kind": "data", "color": 0,
+   "info": "A joint-target offset. The joint PD controller holds it for 20 physics steps (20 ms)."},
+  {"id": "dec", "label": "Contact decoder", "sub": "64 points × 3 classes", "x": 650, "y": 50, "w": 170, "h": 58, "kind": "loss", "color": 3, "train": true,
+   "info": "Training only. It predicts free / contact / inside for 64 points on the peg's bottom edge. Its cross-entropy loss shapes z."},
+  {"id": "priv", "label": "Privileged state", "sub": "207 + 33", "x": 300, "y": 280, "w": 160, "h": 48, "kind": "data", "color": 3, "train": true,
+   "info": "Training only. Peg pose and velocity and the 64 × 3 contact labels, plus the actor's observation."},
+  {"id": "critic", "label": "Critic", "sub": "value", "x": 650, "y": 280, "w": 150, "h": 48, "kind": "op", "color": 3, "train": true,
+   "info": "Training only. Asymmetric value function for PPO."}
+ ],
+ "edges": [
+  {"from": "hist", "to": "tcn"}, {"from": "tcn", "to": "z"}, {"from": "z", "to": "actor"}, {"from": "obs", "to": "actor"},
+  {"from": "actor", "to": "act"}, {"from": "z", "to": "dec", "train": true}, {"from": "priv", "to": "critic", "train": true}
+ ]}

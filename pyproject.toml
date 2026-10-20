@@ -1,0 +1,35 @@
+[project]
+name = "peg-test"
+version = "0.1.0"
+description = "Shared development environment for mjfit and RoboSimStudio"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mjfit",
+    "robosimstudio[cpu]",
+    # Match RoboSimStudio's Newton/MuJoCo-Warp stack; also satisfies mjfit.
+    "mujoco~=3.12.0",
+]
+
+[dependency-groups]
+dev = ["mjfit[test,benchmark]"]
+train = [
+    "h5py>=3.16.0",
+    "pyarrow>=26.0.0",
+    "torch>=2.14.1",
+]
+
+[project.optional-dependencies]
+rtx = ["robosimstudio[rtx]"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+mjfit = { path = "mjfit", editable = true }
+robosimstudio = { path = "robosimstudio", editable = true }
+ovrtx = { index = "nvidia" }
+
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+explicit = true

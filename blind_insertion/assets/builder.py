@@ -1,0 +1,671 @@
+"""Compose one MJCF model: robot + gripper + mjfit assembly with per-world geometry slots.
+
+The model holds the meshes of every assembly variant. Each world uses one variant by
+setting its batched `geom_dataid` (and the geom frame fields that depend on the mesh)
+for the fixture and peg geom slots. `Layout` records everything the batched env needs.
+
+Frames (our convention, not mjfit's):
+  fixture body: origin at the hole's top centre, z out of the plate (top face at z=0,
+                hole floor at z=-depth).
+  peg body:     origin at the centre of the peg's bottom face, z along the peg.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import mjfit
+import mujoco
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[2]
+MENAGERIE = ROOT / "third_party" / "mujoco_menagerie"
+
+# Collision bits: fixture=1, peg=2, gripper=4, finger links=8 (collide with the fixture only).
+FIX_BITS = (1, 2 | 4 | 8)
+FINGER_LINK_BITS = (8, 1)
+PEG_BITS = (2, 1 | 4)
+GRIP_BITS = (4, 1 | 2)
+PARK_Z = -50.0  # unused geom slots are parked this far below their body
+
+
+# ----------------------------------------------------------------------------- variants
+@dataclass
+class Variant:
+    """One assembly: outline of the hole, clearance, dimensions, mass."""
+    hole_w: float              # long side of the opening (m)
+    hole_h: float              # short side of the opening (m)
+    clearance: float           # per side (m)
+    depth: float               # hole depth = plate thickness (m)
+    plate_size: float          # square plate side (m)
+    peg_length: float          # m
+    peg_mass: float            # kg
+    islands: list = field(default_factory=list)   # mjfit island specs (USB-C tongue)
+    n_sides: int = 24          # stadium tessellation (fixed => fixed topology)
+    bottom: float = 0.005      # closed hole floor thickness
+    kind: str = "stadium"
+    hole_spec: dict | None = None  # explicit mjfit hole spec overrides the stadium
+    handle: dict | None = None     # mjfit handle outline (e.g. the flash-drive body)
+    handle_height: float = 0.0
+    grasp_z: float | None = None   # pad centre height above the peg bottom (default 0.75 L)
+    grip_half: float | None = None # half width across the pads (default: peg width at x=0)
+
+    def hole(self):
+        if self.hole_spec is not None:
+            return self.hole_spec
+        return {"type": "stadium", "width": self.hole_w, "height": self.hole_h, "n": self.n_sides}
+
+    def mjfit_xml(self) -> str:
+        kw = {}
+        if self.handle_height > 0:
+            kw = dict(handle=self.handle, handle_height=self.handle_height)
+        return mjfit.peg(hole=self.hole(), islands=self.islands, clearance=self.clearance,
+                         peg_length=self.peg_length, plate_size=self.plate_size,
+                         plate_thickness=self.depth, bottom_thickness=self.bottom,
+                         peg_mass=self.peg_mass, standalone=False, spawn_height=0.0, **kw)
+
+    def to_dict(self):
+        return dict(self.__dict__)
+
+    def digest(self) -> str:
+        return hashlib.sha1(json.dumps(self.to_dict(), sort_keys=True).encode()).hexdigest()[:12]
+
+
+def stadium_dims(scale: float, aspect: float, area0: float = 515e-6):
+    """Area-preserving stadium (long w, short h) with w/h = aspect and area0*scale^2."""
+    # area = (w-h)h + pi h^2/4 = h^2 (aspect - 1 + pi/4)
+    h = math.sqrt(area0 / (aspect - 1 + math.pi / 4)) * scale
+    return aspect * h, h
+
+
+def sample_study_pegs(n: int, seed: int, *, scale=(1.35, 2.45), aspect=(1.25, 2.5),
+                      clearance=(1.0e-3, 1.5e-3), mass=(0.35, 0.675), length=(0.050, 0.060),
+                      n_sides: int = 24) -> list[Variant]:
+    """Table 1 'study peg' ranges of the paper (aspect log-uniform)."""
+    rng = np.random.default_rng(seed)
+    out = []
+    for _ in range(n):
+        s = rng.uniform(*scale)
+        ar = math.exp(rng.uniform(math.log(aspect[0]), math.log(aspect[1])))
+        w, h = stadium_dims(s, ar)
+        out.append(Variant(hole_w=w, hole_h=h, clearance=float(rng.uniform(*clearance)),
+                           depth=0.010 * s, plate_size=0.080 * s,
+                           peg_length=float(rng.uniform(*length)) * s,
+                           peg_mass=float(rng.uniform(*mass)), n_sides=n_sides))
+    return out
+
+
+def _two_range(rng, lo_rng, hi_rng):
+    """Draw uniformly from the union of two intervals (weighted by length)."""
+    la, lb = lo_rng[1] - lo_rng[0], hi_rng[1] - hi_rng[0]
+    r = lo_rng if rng.uniform() < la / (la + lb) else hi_rng
+    return rng.uniform(*r)
+
+
+def _random_convex_in_box(rng, w, h):
+    """Paper Fig. 13: a convex quadrilateral with one vertex on each side of the w x h box."""
+    x_top, x_bot = rng.uniform(-w / 2, w / 2), rng.uniform(-w / 2, w / 2)
+    y_r, y_l = rng.uniform(-h / 2, h / 2), rng.uniform(-h / 2, h / 2)
+    return np.array([[x_bot, -h / 2], [w / 2, y_r], [x_top, h / 2], [-w / 2, y_l]])
+
+
+# Table 6 (peg column): each bin widens one property beyond the study range.
+OOD_BINS = {
+    "in_dist": {},
+    "tighter": dict(clearance=(0.5e-3, 0.625e-3)),
+    "slender": dict(aspect=(3.54, 4.20)),
+    "very_slender": dict(aspect=(4.20, 5.0)),
+    "mild_size": dict(scale=((1.075, 1.35), (2.45, 2.725))),
+    "extreme_size": dict(scale=((0.8, 1.075), (2.725, 3.0))),
+    "random_convex": dict(shape="random_convex"),
+}
+
+
+def sample_ood_pegs(n: int, seed: int, bin: str, n_sides: int = 24) -> list[Variant]:
+    """Study-peg ranges with one property widened per OOD_BINS[bin]."""
+    spec = OOD_BINS[bin]
+    rng = np.random.default_rng(seed)
+    out = []
+    for _ in range(n):
+        sc = spec.get("scale", (1.35, 2.45))
+        s = _two_range(rng, *sc) if isinstance(sc[0], tuple) else rng.uniform(*sc)
+        ar_lo, ar_hi = spec.get("aspect", (1.25, 2.5))
+        ar = math.exp(rng.uniform(math.log(ar_lo), math.log(ar_hi)))
+        w, h = stadium_dims(s, ar)
+        c = float(rng.uniform(*spec.get("clearance", (1.0e-3, 1.5e-3))))
+        v = Variant(hole_w=w, hole_h=h, clearance=c, depth=0.010 * s, plate_size=0.080 * s,
+                    peg_length=float(rng.uniform(0.050, 0.060)) * s,
+                    peg_mass=float(rng.uniform(0.35, 0.675)), n_sides=n_sides)
+        if spec.get("shape") == "random_convex":
+            # the peg is the random convex outline inside the matching stadium's box
+            # (minus the clearance), so the hole is its outward offset
+            poly = _random_convex_in_box(rng, w - 2 * c, h - 2 * c)
+            from mjfit import _polygon as pg  # noqa: PLC0415
+            v.hole_spec = {"type": "polygon", "vertices": pg.offset_outward(poly, c).tolist()}
+            v.kind = "random_convex"
+        out.append(v)
+    return out
+
+
+def usbc_variant(clearance=5e-5, housing=0.025, recess=0.0, body=(0.020, 0.0065, 0.030),
+                 mass=0.008, n_sides=16) -> Variant:
+    """USB-C flash drive in a blind receptacle (plan §11.1, Type-C R2.0 dims).
+
+    Receptacle opening 8.34 x 2.56 mm stadium with a 6.5 x 0.7 mm tongue, 6.6 mm deep,
+    blind (1 mm floor). Plug shell 8.5 mm long; the drive body is the handle the gripper
+    holds across its thickness.
+    """
+    bw, bt, bl = body
+    return Variant(hole_w=0.00834, hole_h=0.00256, clearance=clearance, depth=0.0066 + recess,
+                   plate_size=housing, peg_length=0.0085, peg_mass=mass, n_sides=n_sides,
+                   bottom=0.001, kind="usbc",
+                   islands=[{"type": "stadium", "width": 0.0065, "height": 0.0007, "n": 8}],
+                   hole_spec={"type": "stadium", "width": 0.00834, "height": 0.00256, "n": n_sides},
+                   handle={"type": "rect", "width": bw, "height": bt}, handle_height=bl,
+                   grasp_z=0.0085 + bl - 0.009, grip_half=bt / 2)   # pads near the body's top
+
+
+def sample_usbc(n: int, seed: int, *, clearance=(2e-5, 1e-4), housing=(0.015, 0.040),
+                recess=(0.0, 0.0015), body_w=(0.012, 0.025), body_t=(0.0045, 0.009),
+                body_l=(0.025, 0.040), mass=(0.003, 0.015)) -> list[Variant]:
+    """Plan §11.1 pool; clearance log-uniform. Pass fixed tuples (a, a) to pin a value."""
+    rng = np.random.default_rng(seed)
+    lu = lambda r: math.exp(rng.uniform(math.log(r[0]), math.log(r[1]))) if r[0] != r[1] else r[0]  # noqa: E731
+    return [usbc_variant(clearance=lu(clearance), housing=rng.uniform(*housing),
+                         recess=rng.uniform(*recess),
+                         body=(rng.uniform(*body_w), rng.uniform(*body_t), rng.uniform(*body_l)),
+                         mass=rng.uniform(*mass)) for _ in range(n)]
+
+
+def scale_variant(opening: float, clearance: float, rng=None) -> Variant:
+    """Phase D grid cell (plan §10.1): stadium, aspect 2.0, long side `opening`.
+
+    The insertion feature scales with the opening; it sits under a carrier body (handle) at
+    least 20 x 8 mm so the same grasp works at every size (USB-C-like construction).
+    Depth = clip(0.33 * opening, 3, 20) mm; mass 20-60 g (randomized if rng given).
+    """
+    w, h = opening, opening / 2
+    depth = float(np.clip(0.33 * w, 0.003, 0.020))
+    ins = depth + 0.002
+    hw, ht = max(w + 0.004, 0.020), max(h + 0.003, 0.008)
+    hl = 0.030
+    mass = float(rng.uniform(0.02, 0.06)) if rng is not None else 0.04
+    return Variant(hole_w=w, hole_h=h, clearance=clearance, depth=depth,
+                   plate_size=max(2.5 * w, 0.025), peg_length=ins, peg_mass=mass, n_sides=24,
+                   bottom=0.002, kind="scale",
+                   handle={"type": "rect", "width": hw, "height": ht}, handle_height=hl,
+                   grasp_z=ins + hl - 0.010, grip_half=ht / 2)
+
+
+def sample_scale_cell(n: int, seed: int, opening: float, clearance: float) -> list[Variant]:
+    rng = np.random.default_rng(seed)
+    return [scale_variant(opening, clearance, rng) for _ in range(n)]
+
+
+# ------------------------------------------------------------------- mjfit -> pieces
+@dataclass
+class Pieces:
+    fixture: list[np.ndarray]   # vertex arrays in our fixture frame
+    peg: list[np.ndarray]       # vertex arrays in our peg frame
+    hole_poly: np.ndarray       # (n, 2) opening outline in fixture xy
+    peg_poly: np.ndarray        # (n, 2) peg outline in peg xy
+    islands: list[np.ndarray]
+
+
+def extract_pieces(v: Variant) -> Pieces:
+    root = ET.fromstring(v.mjfit_xml())
+    meshes = {m.get("name"): np.array(m.get("vertex").split(), float).reshape(-1, 3)
+              for m in root.iter("mesh")}
+    plate_z = v.bottom + v.depth / 2          # mjfit plate body origin height
+    fixture, peg = [], []
+    for body in root.iter("body"):
+        name = body.get("name")
+        for g in body.findall("geom"):
+            verts = meshes[g.get("mesh")].copy()
+            if name == "plate":
+                verts[:, 2] -= v.depth / 2      # top face to z=0
+                fixture.append(verts)
+            elif name == "peg":
+                verts[:, 2] += v.peg_length / 2  # bottom face to z=0
+                peg.append(verts)
+    # mjfit centres all outlines on the hole centroid (center=True); reproduce that shift.
+    from mjfit import _polygon as pg  # noqa: PLC0415
+    from mjfit._peg import _centroid  # noqa: PLC0415 (private but stable)
+    hole_poly = mjfit.shapes.from_spec(v.hole(), name="hole")
+    shift = _centroid(hole_poly)
+    hole_poly = hole_poly - shift
+    peg_poly = pg.offset_inward(hole_poly, v.clearance)
+    isl = [mjfit.shapes.from_spec(s, name="island") - shift for s in v.islands]
+    del plate_z
+    return Pieces(fixture, peg, hole_poly, peg_poly, isl)
+
+
+# ----------------------------------------------------------------------------- robots
+@dataclass
+class RobotInfo:
+    name: str
+    arm_joints: list[str]
+    finger_joints: list[str]
+    tcp_site: str
+    base_body: str
+    kp: np.ndarray
+    kv: np.ndarray
+    action_scale: float
+    home: np.ndarray
+    grip_force: float           # nominal force per pad (N)
+    max_opening: float          # per finger travel (m)
+    pad_geoms: list[str] = field(default_factory=list)
+    gripper_geoms: list[str] = field(default_factory=list)
+    nom_yaw_deg: float = 0.0    # gripper yaw about the fixture normal at the nominal grasp
+
+
+def _set_position_gains(act, kp, kv):
+    act.gainprm[0] = kp
+    act.biasprm[0] = 0.0
+    act.biasprm[1] = -kp
+    act.biasprm[2] = -kv
+
+
+def _strip_collisions(spec: mujoco.MjSpec, keep: set[str]):
+    for g in spec.geoms:
+        if g.name not in keep:
+            g.contype = 0
+            g.conaffinity = 0
+
+
+def _add_parallel_gripper(spec: mujoco.MjSpec, parent: mujoco.MjsBody, pos, quat):
+    """Simplified Robotiq 2F-85: housing + two coupled slide fingers with 22x37.5 mm pads.
+
+    Finger joint q in [0, 0.0425] is the closing displacement of each finger from fully
+    open (85 mm). Pads close along the gripper y axis; the TCP is the pad centre.
+    """
+    g = parent.add_body(name="gripper", pos=pos, quat=quat, gravcomp=1)
+    g.mass = 0.925 - 2 * 0.05
+    g.ipos = [0, 0, 0.05]
+    g.inertia = [1.2e-3, 1.2e-3, 6e-4]
+    g.explicitinertial = True
+    g.add_geom(name="gripper_housing", type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.035, 0.047, 0.04],
+               pos=[0, 0, 0.04], rgba=[0.15, 0.15, 0.17, 1], contype=GRIP_BITS[0],
+               conaffinity=GRIP_BITS[1])
+    pad_z = 0.135
+    g.add_site(name="tcp", pos=[0, 0, pad_z], size=[0.004, 0, 0], rgba=[1, 0, 0, 1])
+    # wrist camera on the housing side, looking along the fingers at the part tip (§2.3)
+    c = np.array([0.09, 0.0, 0.08])
+    tgt = np.array([0.0, 0.0, 0.25])
+    zc = -(tgt - c) / np.linalg.norm(tgt - c)          # MuJoCo cameras look along -z
+    yc = np.cross(zc, [0, 1, 0])
+    yc /= np.linalg.norm(yc)
+    xc = np.cross(yc, zc)
+    g.add_camera(name="wrist", pos=c.tolist(), xyaxes=np.r_[xc, yc].tolist(), fovy=75)
+    g.add_geom(name="wrist_cam_body", type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.01, 0.02, 0.012],
+               pos=(c + [0.012, 0, -0.012]).tolist(), rgba=[0.05, 0.05, 0.05, 1], contype=0, conaffinity=0, group=3)
+    half_open = 0.0425
+    for side, sgn in (("left", 1.0), ("right", -1.0)):
+        f = g.add_body(name=f"finger_{side}", pos=[0, sgn * (half_open + 0.004), pad_z], gravcomp=1)
+        f.mass = 0.05
+        f.inertia = [2e-5, 2e-5, 1e-5]
+        f.explicitinertial = True
+        f.add_joint(name=f"finger_{side}", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=[0, -sgn, 0],
+                    range=[0, half_open], damping=5.0, armature=0.01)
+        f.add_geom(name=f"finger_{side}_link", type=mujoco.mjtGeom.mjGEOM_BOX,
+                   size=[0.011, 0.006, 0.045], pos=[0, sgn * 0.006, -0.06],
+                   rgba=[0.3, 0.3, 0.32, 1], contype=0, conaffinity=0)
+        f.add_geom(name=f"pad_{side}", type=mujoco.mjtGeom.mjGEOM_BOX,
+                   size=[0.011, 0.004, 0.01875], rgba=[0.1, 0.1, 0.1, 1], priority=1,
+                   friction=[1.0, 0.005, 0.0001], solref=[0.004, 1], solimp=[0.95, 0.99, 0.001, 0.5, 2],
+                   contype=GRIP_BITS[0], conaffinity=GRIP_BITS[1], condim=4)
+    eq = spec.add_equality(type=mujoco.mjtEq.mjEQ_JOINT, name1="finger_left", name2="finger_right")
+    eq.data[:5] = [0, 1, 0, 0, 0]
+    eq.solref = [0.005, 1]
+    for side in ("left", "right"):
+        a = spec.add_actuator(name=f"grip_{side}", target=f"finger_{side}",
+                              trntype=mujoco.mjtTrn.mjTRN_JOINT)
+        a.ctrlrange = [0, 400]
+        a.ctrllimited = 1
+        a.gainprm[0] = 1.0  # motor: force = ctrl
+
+
+def add_backlash(spec: mujoco.MjSpec, joints: list[str], arcmin: float, stiffness=0.05, damping=0.01):
+    """Plan §9.3: a passive dead-zone hinge in series with each motor joint (same body, same
+    axis), free within +-arcmin/2 and weakly sprung. Encoders read only the motor joint."""
+    half = math.radians(arcmin / 60.0) / 2
+    for j in joints:
+        jt = spec.joint(j)
+        body = jt.parent
+        body.add_joint(name=f"{j}_backlash", type=mujoco.mjtJoint.mjJNT_HINGE, axis=list(jt.axis),
+                       pos=list(jt.pos), range=[-half, half], limited=1, stiffness=[stiffness, 0, 0],
+                       damping=[damping, 0, 0], armature=1e-5)
+
+
+def load_robot(name: str, *, gains=None, backlash_arcmin: float = 0.0) -> tuple[mujoco.MjSpec, RobotInfo]:
+    spec, info = _load_robot(name, gains=gains)
+    if backlash_arcmin > 0:
+        add_backlash(spec, info.arm_joints, backlash_arcmin)
+    return spec, info
+
+
+def _load_robot(name: str, *, gains=None) -> tuple[mujoco.MjSpec, RobotInfo]:
+    if name == "flexiv":
+        spec = mujoco.MjSpec.from_file(str(MENAGERIE / "flexiv_rizon4s" / "flexiv_rizon4s.xml"))
+        for s in list(spec.sensors):
+            spec.delete(s)
+        for k in list(spec.keys):
+            spec.delete(k)
+        for lt in list(spec.lights):
+            spec.delete(lt)
+        for b in spec.bodies:
+            if b.name:
+                b.gravcomp = 1
+        _strip_collisions(spec, keep=set())
+        link7 = spec.body("link7")
+        _add_parallel_gripper(spec, link7, pos=[0, 0, 0.124], quat=[1, 0, 0, 0])
+        joints = [f"joint{i}" for i in range(1, 8)]
+        kp = np.full(7, 80.0) if gains is None else np.asarray(gains[0], float)
+        kv = np.full(7, 20.0) if gains is None else np.asarray(gains[1], float)
+        for j, act in zip(joints, [spec.actuator(f"joint{i}") for i in range(1, 8)]):
+            _set_position_gains(act, *(kp[joints.index(j)], kv[joints.index(j)]))
+            act.forcerange = [-1e3, 1e3]
+            act.forcelimited = 0
+        info = RobotInfo(name="flexiv", arm_joints=joints, finger_joints=["finger_left", "finger_right"],
+                         tcp_site="tcp", base_body="base", kp=kp, kv=kv, action_scale=0.02,
+                         home=np.array([0.0, -0.35, 0.0, 1.75, 0.0, 0.53, 0.0]),
+                         grip_force=20.0, max_opening=0.0425,
+                         pad_geoms=["pad_left", "pad_right"], gripper_geoms=["gripper_housing"])
+        return spec, info
+    if name == "yam":
+        spec = mujoco.MjSpec.from_file(str(MENAGERIE / "i2rt_yam" / "yam_linear_4310.xml"))
+        for k in list(spec.keys):
+            spec.delete(k)
+        for lt in list(spec.lights):
+            spec.delete(lt)
+        for b in spec.bodies:
+            if b.name:
+                b.gravcomp = 1
+        joints = [f"joint{i}" for i in range(1, 7)]
+        if gains is None:
+            kp = np.array([80, 80, 80, 30, 30, 30], float)
+            kv = np.array([6, 6, 6, 2, 2, 2], float)
+        else:
+            kp, kv = (np.asarray(x, float) for x in gains)
+        for i, j in enumerate(joints):
+            jt = spec.joint(j)
+            jt.armature = 0.032 if i < 3 else 0.0018
+            jt.damping = [0.5, 0.0, 0.0]
+            jt.frictionloss = 0.01
+            act = spec.actuator(j)
+            _set_position_gains(act, kp[i], kv[i])
+        pads = ["left_pad", "right_pad"]
+        finger_links = [g.name for g in spec.geoms if g.name and ("left_" in g.name or "right_" in g.name)
+                        and g.name not in pads and g.classname.name == "finger_body_collision"
+                        and any(k in g.name for k in ("tip", "strut", "pad_edge"))]
+        _strip_collisions(spec, keep=set(pads) | {"gripper_housing"} | set(finger_links))
+        for gname in finger_links:   # fingertips must not pass through the fixture
+            gg = spec.geom(gname)
+            gg.contype, gg.conaffinity = FINGER_LINK_BITS
+        for gname in pads + ["gripper_housing"]:
+            gg = spec.geom(gname)
+            gg.contype, gg.conaffinity = GRIP_BITS
+        # finger: replace the position servo with a constant-force motor
+        grip = spec.actuator("gripper")
+        spec.delete(grip)
+        for side in ("left", "right"):
+            a = spec.add_actuator(name=f"grip_{side}", target=f"{side}_finger",
+                                  trntype=mujoco.mjtTrn.mjTRN_JOINT)
+            a.ctrlrange = [-400, 400]
+            a.ctrllimited = 1
+            a.gainprm[0] = 1.0
+        info = RobotInfo(name="yam", arm_joints=joints, finger_joints=["left_finger", "right_finger"],
+                         tcp_site="grasp_site", base_body="arm", kp=kp, kv=kv, action_scale=0.04,
+                         home=np.array([0.0, 1.96, 1.29, -0.9, 0.0, 0.0]),
+                         grip_force=-20.0, max_opening=0.0475, pad_geoms=pads,
+                         gripper_geoms=["gripper_housing"], nom_yaw_deg=180.0)
+        return spec, info
+    raise ValueError(name)
+
+
+# ----------------------------------------------------------------------------- layout
+@dataclass
+class Layout:
+    """Indices and per-variant data the env writes into batched model fields."""
+    robot: RobotInfo
+    variants: list[Variant]
+    fixture_body: int
+    peg_body: int
+    peg_qadr: int
+    peg_dofadr: int
+    arm_qadr: np.ndarray
+    arm_dofadr: np.ndarray
+    finger_qadr: np.ndarray
+    arm_act: np.ndarray
+    grip_act: np.ndarray
+    tcp_site: int
+    fixture_slots: np.ndarray        # geom ids
+    peg_slots: np.ndarray
+    pad_geoms: np.ndarray
+    # per-variant (K, S, ...) arrays
+    fix_dataid: np.ndarray
+    fix_pos: np.ndarray
+    fix_quat: np.ndarray
+    fix_size: np.ndarray
+    fix_aabb: np.ndarray
+    fix_rbound: np.ndarray
+    peg_dataid: np.ndarray
+    peg_pos: np.ndarray
+    peg_quat: np.ndarray
+    peg_size: np.ndarray
+    peg_aabb: np.ndarray
+    peg_rbound: np.ndarray
+    peg_mass: np.ndarray             # (K,)
+    peg_inertia: np.ndarray          # (K, 3)
+    peg_ipos: np.ndarray
+    peg_iquat: np.ndarray
+    peg_invweight: np.ndarray        # (K, 2)
+    peg_dof_invweight: np.ndarray    # (K, 6)
+    hole_polys: list[np.ndarray]
+    peg_polys: list[np.ndarray]
+    # derived per-variant scalars
+    depth: np.ndarray
+    peg_length: np.ndarray
+    peg_half_short: np.ndarray       # half the peg width across the pads
+    grasp_z: np.ndarray              # pad centre height above the peg bottom
+    edge_points: np.ndarray          # (K, 64, 2) points on the peg bottom edge (peg xy)
+
+
+def _half_width_at_x0(poly: np.ndarray) -> float:
+    """Half the peg's extent along y on the grasp line x = 0 (pads close along y)."""
+    ys = []
+    closed = np.vstack([poly, poly[:1]])
+    for (x1, y1), (x2, y2) in zip(closed[:-1], closed[1:]):
+        if (x1 - 0) * (x2 - 0) <= 0 and x1 != x2:
+            ys.append(y1 + (0 - x1) * (y2 - y1) / (x2 - x1))
+        elif x1 == 0:
+            ys.append(y1)
+    return (max(ys) - min(ys)) / 2
+
+
+def _resample_outline(poly: np.ndarray, n: int) -> np.ndarray:
+    closed = np.vstack([poly, poly[:1]])
+    seg = np.linalg.norm(np.diff(closed, axis=0), axis=1)
+    s = np.concatenate([[0], np.cumsum(seg)])
+    t = np.linspace(0, s[-1], n, endpoint=False)
+    x = np.interp(t, s, closed[:, 0])
+    y = np.interp(t, s, closed[:, 1])
+    return np.column_stack([x, y])
+
+
+def _mini_model(pieces: Pieces, v: Variant, n_fix: int, n_peg: int) -> mujoco.MjModel:
+    spec = mujoco.MjSpec()
+    fb = spec.worldbody.add_body(name="fixture")
+    pb = spec.worldbody.add_body(name="peg")
+    pb.add_freejoint()
+    for j, verts in enumerate(pieces.fixture):
+        spec.add_mesh(name=f"f{j}", uservert=verts.ravel().tolist())
+        fb.add_geom(name=f"fix_{j}", type=mujoco.mjtGeom.mjGEOM_MESH, meshname=f"f{j}")
+    vol = []
+    for j, verts in enumerate(pieces.peg):
+        spec.add_mesh(name=f"g{j}", uservert=verts.ravel().tolist())
+        pb.add_geom(name=f"peg_{j}", type=mujoco.mjtGeom.mjGEOM_MESH, meshname=f"g{j}")
+    m = spec.compile()
+    # peg mass: scale densities so the total equals v.peg_mass (inertia scales linearly)
+    del vol
+    return m
+
+
+def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
+          multiccd: bool = False, extra=None, backlash_arcmin: float = 0.0) -> tuple[mujoco.MjModel, Layout]:
+    spec, info = load_robot(robot, gains=gains, backlash_arcmin=backlash_arcmin)
+    spec.option.timestep = timestep
+    spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
+    spec.option.solver = mujoco.mjtSolver.mjSOL_NEWTON
+    spec.option.iterations = 50
+    spec.option.ls_iterations = 20
+    if multiccd:
+        spec.option.enableflags |= mujoco.mjtEnableBit.mjENBL_MULTICCD
+    spec.stat.extent = 1.5
+    spec.stat.center = [0.4, 0, 0.3]
+    spec.visual.global_.offwidth = 1280
+    spec.visual.global_.offheight = 960
+    spec.worldbody.add_light(name="key", pos=[0.6, -0.6, 1.5], dir=[-0.3, 0.3, -1],
+                             diffuse=[0.8, 0.8, 0.8], castshadow=True)
+    spec.worldbody.add_light(name="fill", pos=[-0.5, 0.5, 1.2], dir=[0.4, -0.4, -1],
+                             diffuse=[0.35, 0.35, 0.35], castshadow=False)
+
+    pieces = [extract_pieces(v) for v in variants]
+    n_fix = max(len(p.fixture) for p in pieces)
+    n_peg = max(len(p.peg) for p in pieces)
+
+    # meshes of every variant
+    for k, p in enumerate(pieces):
+        for j, verts in enumerate(p.fixture):
+            spec.add_mesh(name=f"v{k}_f{j}", uservert=verts.ravel().tolist())
+        for j, verts in enumerate(p.peg):
+            spec.add_mesh(name=f"v{k}_g{j}", uservert=verts.ravel().tolist())
+
+    # mocap: MuJoCo Warp computes static (world-welded) geom poses once in make_data, so a
+    # per-world fixture pose and per-world geom frames need a mocap body.
+    fix = spec.worldbody.add_body(name="fixture", pos=[0.65, 0.0, 0.1], mocap=True)
+    fix_geoms = []
+    for j in range(n_fix):
+        mesh = f"v0_f{min(j, len(pieces[0].fixture) - 1)}"
+        fix_geoms.append(fix.add_geom(
+            name=f"fix_{j}", type=mujoco.mjtGeom.mjGEOM_MESH, meshname=mesh,
+            rgba=[0.70, 0.75, 0.82, 1], priority=1, friction=[1.0, 0.01, 0.001],
+            solref=[0.005, 1], solimp=[0.99, 0.999, 0.001, 0.5, 2], condim=4,
+            contype=FIX_BITS[0], conaffinity=FIX_BITS[1], margin=0, gap=0))
+    peg = spec.worldbody.add_body(name="peg", pos=[0.65, 0.0, 0.3])
+    peg.add_freejoint(name="peg_joint")
+    for j in range(n_peg):
+        mesh = f"v0_g{min(j, len(pieces[0].peg) - 1)}"
+        peg.add_geom(name=f"peg_{j}", type=mujoco.mjtGeom.mjGEOM_MESH, meshname=mesh,
+                     rgba=[0.90, 0.30, 0.30, 1], friction=[1.0, 0.01, 0.001],
+                     solref=[0.002, 1], solimp=[0.99, 0.999, 0.001, 0.5, 2], condim=4,
+                     contype=PEG_BITS[0], conaffinity=PEG_BITS[1], margin=0, gap=0, density=1000)
+    if extra is not None:
+        extra(spec)
+    m = spec.compile()
+
+    def gid(name):
+        return mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, name)
+
+    def mid(name):
+        return mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_MESH, name)
+
+    K = len(variants)
+    fix_slots = np.array([gid(f"fix_{j}") for j in range(n_fix)])
+    peg_slots = np.array([gid(f"peg_{j}") for j in range(n_peg)])
+    out = {k: [] for k in ("fix_dataid", "fix_pos", "fix_quat", "fix_size", "fix_aabb", "fix_rbound",
+                           "peg_dataid", "peg_pos", "peg_quat", "peg_size", "peg_aabb", "peg_rbound",
+                           "peg_mass", "peg_inertia", "peg_ipos", "peg_iquat", "peg_invweight",
+                           "peg_dof_invweight")}
+    edge_pts, half_short, grasp_z = [], [], []
+    for k, (p, v) in enumerate(zip(pieces, variants)):
+        mm = _mini_model(p, v, n_fix, n_peg)
+        for role, slots, src in (("fix", n_fix, p.fixture), ("peg", n_peg, p.peg)):
+            prefix = "f" if role == "fix" else "g"
+            ids, pos, quat, size, aabb, rb = [], [], [], [], [], []
+            for j in range(slots):
+                jj = min(j, len(src) - 1)
+                g_m = mujoco.mj_name2id(mm, mujoco.mjtObj.mjOBJ_GEOM, f"{role}_{jj}")
+                ids.append(mid(f"v{k}_{prefix}{jj}"))
+                ps = mm.geom_pos[g_m].copy()
+                if j >= len(src):
+                    ps[2] += PARK_Z
+                pos.append(ps)
+                quat.append(mm.geom_quat[g_m].copy())
+                size.append(mm.geom_size[g_m].copy())
+                aabb.append(mm.geom_aabb[g_m].copy())
+                rb.append(mm.geom_rbound[g_m])
+            out[f"{role}_dataid"].append(ids)
+            out[f"{role}_pos"].append(pos)
+            out[f"{role}_quat"].append(quat)
+            out[f"{role}_size"].append(size)
+            out[f"{role}_aabb"].append(aabb)
+            out[f"{role}_rbound"].append(rb)
+        pb = mujoco.mj_name2id(mm, mujoco.mjtObj.mjOBJ_BODY, "peg")
+        scale = v.peg_mass / mm.body_mass[pb]
+        out["peg_mass"].append(v.peg_mass)
+        out["peg_inertia"].append(mm.body_inertia[pb] * scale)
+        out["peg_ipos"].append(mm.body_ipos[pb].copy())
+        out["peg_iquat"].append(mm.body_iquat[pb].copy())
+        out["peg_invweight"].append(mm.body_invweight0[pb] / scale)
+        dadr = mm.jnt_dofadr[mm.body_jntadr[pb]]
+        out["peg_dof_invweight"].append(mm.dof_invweight0[dadr:dadr + 6] / scale)
+        edge_pts.append(_resample_outline(p.peg_poly, 64))
+        half_short.append(v.grip_half if v.grip_half is not None else _half_width_at_x0(p.peg_poly))
+        grasp_z.append(v.grasp_z if v.grasp_z is not None else 0.75 * v.peg_length)
+    arr = {k: np.asarray(v_) for k, v_ in out.items()}
+
+    def jq(name):
+        return m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, name)]
+
+    def jd(name):
+        return m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, name)]
+
+    acts = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_ACTUATOR, j) for j in info.arm_joints]
+    grips = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_ACTUATOR, f"grip_{s}") for s in ("left", "right")]
+    pegb = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "peg")
+    layout = Layout(
+        robot=info, variants=variants,
+        fixture_body=mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "fixture"),
+        peg_body=pegb, peg_qadr=int(jq("peg_joint")), peg_dofadr=int(jd("peg_joint")),
+        arm_qadr=np.array([jq(j) for j in info.arm_joints]),
+        arm_dofadr=np.array([jd(j) for j in info.arm_joints]),
+        finger_qadr=np.array([jq(j) for j in info.finger_joints]),
+        arm_act=np.array(acts), grip_act=np.array(grips),
+        tcp_site=mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, info.tcp_site),
+        fixture_slots=fix_slots, peg_slots=peg_slots,
+        pad_geoms=np.array([gid(g) for g in info.pad_geoms]),
+        hole_polys=[p.hole_poly for p in pieces], peg_polys=[p.peg_poly for p in pieces],
+        depth=np.array([v.depth for v in variants]),
+        peg_length=np.array([v.peg_length for v in variants]),
+        peg_half_short=np.array(half_short), edge_points=np.asarray(edge_pts),
+        grasp_z=np.array(grasp_z),
+        **arr)
+    return m, layout
+
+
+def apply_variant_cpu(m: mujoco.MjModel, lay: Layout, k: int):
+    """Write variant k into a CPU MjModel (for single-world checks and rendering)."""
+    m.geom_dataid[lay.fixture_slots] = lay.fix_dataid[k]
+    m.geom_pos[lay.fixture_slots] = lay.fix_pos[k]
+    m.geom_quat[lay.fixture_slots] = lay.fix_quat[k]
+    m.geom_size[lay.fixture_slots] = lay.fix_size[k]
+    m.geom_aabb[lay.fixture_slots] = lay.fix_aabb[k].reshape(len(lay.fixture_slots), 6)
+    m.geom_rbound[lay.fixture_slots] = lay.fix_rbound[k]
+    m.geom_dataid[lay.peg_slots] = lay.peg_dataid[k]
+    m.geom_pos[lay.peg_slots] = lay.peg_pos[k]
+    m.geom_quat[lay.peg_slots] = lay.peg_quat[k]
+    m.geom_size[lay.peg_slots] = lay.peg_size[k]
+    m.geom_aabb[lay.peg_slots] = lay.peg_aabb[k].reshape(len(lay.peg_slots), 6)
+    m.geom_rbound[lay.peg_slots] = lay.peg_rbound[k]
+    b = lay.peg_body
+    m.body_mass[b] = lay.peg_mass[k]
+    m.body_inertia[b] = lay.peg_inertia[k]
+    m.body_ipos[b] = lay.peg_ipos[k]
+    m.body_iquat[b] = lay.peg_iquat[k]
+    m.body_invweight0[b] = lay.peg_invweight[k]
+    m.dof_invweight0[lay.peg_dofadr:lay.peg_dofadr + 6] = lay.peg_dof_invweight[k]
