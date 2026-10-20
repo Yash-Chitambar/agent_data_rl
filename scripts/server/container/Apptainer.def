@@ -1,0 +1,27 @@
+# Apptainer/Singularity version of the Dockerfile next to it (OS layer only; the Python env is
+# built by scripts/server/bootstrap.sh in the bind-mounted repo). UNTESTED.
+#
+#   apptainer build peg-test-os.sif scripts/server/container/Apptainer.def
+#   apptainer exec --nv --bind $PWD:/work/peg_test --pwd /work/peg_test peg-test-os.sif \
+#       bash scripts/server/bootstrap.sh
+#   apptainer exec --nv --bind $PWD:/work/peg_test --pwd /work/peg_test peg-test-os.sif \
+#       python3 scripts/server/run_jobs.py scripts/server/jobs/B_train.txt
+# --nv binds the host driver libraries (incl. libEGL_nvidia) into the container. In SLURM
+# job scripts, prefix the command in job_array.sbatch with the same `apptainer exec ...`.
+Bootstrap: docker
+From: ubuntu:24.04
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl git rsync tmux build-essential python3 \
+        libglvnd0 libegl1 libgl1 libgles2 libopengl0 libglx0
+    rm -rf /var/lib/apt/lists/*
+    mkdir -p /usr/share/glvnd/egl_vendor.d
+    printf '{"file_format_version":"1.0.0","ICD":{"library_path":"libEGL_nvidia.so.0"}}\n' \
+        > /usr/share/glvnd/egl_vendor.d/10_nvidia.json
+    curl -LsSf https://astral.sh/uv/0.12.18/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
+
+%environment
+    export MUJOCO_GL=egl
+    export PYOPENGL_PLATFORM=egl
