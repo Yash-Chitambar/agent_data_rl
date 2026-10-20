@@ -85,6 +85,31 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-20 — YAM on the lab workcell table (mason)
+
+- **The YAM scene now matches the lab mount** (Yash's instruction): RoboSimStudio's
+  `yam_i2rt` workcell, without its background. The arm base is level with the table top, at
+  0.3475 m behind the table centre and 0.31 m to its right (the task arm of the bimanual
+  mount; we use it for one arm too). In the arm frame the table centre is (0.3475, 0.31),
+  half size 0.2975 x 0.65 m, height 0.75 m (`builder.YAM_TABLE`). The Menagerie and i2rt YAM
+  base frames are the same (arm along +x, z up; joint origins agree to ~8 mm), so only the
+  mount height changed.
+- **Before, the YAM was effectively mounted 10–30 cm above the work**: Phase C fixture tops were
+  at z −0.30 to −0.10 m in the base frame. Now `EnvCfg.table_top = 0` puts the table top
+  level with the base, and the (tilted) fixture rests on the table at its lowest corner
+  (`fix_z` = extra lift, now 0). Fixture tops are then at z +19 to +45 mm. x 0.25–0.45 and
+  y ±0.2 m stay. The table collides like the fixture (peg, pads, fingertips). Also applied to
+  `phase_e_usbc_up.json` and `phase_e_usbc_spheres.json`.
+- Checks (GPU 1, 2,048 starts): 0 IK failures; lowest fixture corner at z = 0 in every
+  world; all arm links stay ≥ 63 mm above the table top. IK failure at table height is
+  0–0.5% for x ≤ 0.45 m (3% at x 0.40–0.50, top 50 mm). Image:
+  `results/C/yam_table_reset.png`.
+- Smoke training (12,288 worlds, 25M steps, `_smoke-C-yam-table`): 90% training success at
+  18.1M steps, 97.4% at 25.2M, 19.2k steps/s on a V100. The YAM learns faster than the
+  Flexiv (90% at ~40M).
+- **Runs trained before this change use the old (floating) YAM setup**: athena5's
+  C-peg-proprio-base-s0 and E1 s0. They are not comparable with the new C/D/E runs.
+
 ### 2026-10-20 — Gear meshing (Phase G)
 
 - **One mesh per gear, rotated by geom slots.** All teeth of a gear are identical, so each

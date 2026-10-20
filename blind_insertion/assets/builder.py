@@ -33,6 +33,12 @@ PEG_BITS = (2, 1 | 4)
 GRIP_BITS = (4, 1 | 2)
 PARK_Z = -50.0  # unused geom slots are parked this far below their body
 
+# The lab's YAM workcell, as RoboSimStudio's `yam_i2rt` embodiment and its 0.75 m bench define
+# it, restated in the task ("right") arm's base frame: the base is level with the table top,
+# 0.3475 m behind the table centre and 0.31 m to its right (the bimanual mount, also used with
+# one arm). Base orientation is the same in both models (arm reaches along +x, z up).
+YAM_TABLE = dict(center=(0.3475, 0.31), half=(0.2975, 0.65), height=0.75)
+
 
 # ----------------------------------------------------------------------------- variants
 @dataclass
@@ -528,6 +534,7 @@ class Layout:
     peg_half_short: np.ndarray       # half the peg width across the pads
     grasp_z: np.ndarray              # pad centre height above the peg bottom
     edge_points: np.ndarray          # (K, 64, 2) points on the peg bottom edge (peg xy)
+    fix_corners: np.ndarray          # (K, 8, 3) fixture bounding-box corners (fixture frame)
 
 
 def _half_width_at_x0(poly: np.ndarray) -> float:
@@ -572,7 +579,8 @@ def _mini_model(pieces: Pieces, v: Variant, n_fix: int, n_peg: int) -> mujoco.Mj
 
 def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
           multiccd: bool = False, extra=None, backlash_arcmin: float = 0.0,
-          pad_spheres: int = 0) -> tuple[mujoco.MjModel, Layout]:
+          pad_spheres: int = 0, table_top: float | None = None) -> tuple[mujoco.MjModel, Layout]:
+    """`table_top`: add the YAM workcell table (`YAM_TABLE`) with its top at this height."""
     spec, info = load_robot(robot, gains=gains, backlash_arcmin=backlash_arcmin, pad_spheres=pad_spheres)
     spec.option.timestep = timestep
     spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
@@ -612,6 +620,12 @@ def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
             rgba=[0.70, 0.75, 0.82, 1], priority=1, friction=[1.0, 0.01, 0.001],
             solref=[0.005, 1], solimp=[0.99, 0.999, 0.001, 0.5, 2], condim=4,
             contype=FIX_BITS[0], conaffinity=FIX_BITS[1], margin=0, gap=0))
+    if table_top is not None:
+        t = YAM_TABLE
+        spec.worldbody.add_geom(
+            name="table", type=mujoco.mjtGeom.mjGEOM_BOX, size=[*t["half"], t["height"] / 2],
+            pos=[*t["center"], table_top - t["height"] / 2], rgba=[0.55, 0.45, 0.35, 1],
+            friction=[1.0, 0.01, 0.001], condim=3, contype=FIX_BITS[0], conaffinity=FIX_BITS[1])
     peg = spec.worldbody.add_body(name="peg", pos=[0.65, 0.0, 0.3])
     peg.add_freejoint(name="peg_joint")
     for j in range(n_peg):
@@ -640,7 +654,7 @@ def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
                            "peg_dataid", "peg_pos", "peg_quat", "peg_size", "peg_aabb", "peg_rbound",
                            "peg_mass", "peg_inertia", "peg_ipos", "peg_iquat", "peg_invweight",
                            "peg_dof_invweight")}
-    edge_pts, half_short, grasp_z = [], [], []
+    edge_pts, half_short, grasp_z, corners = [], [], [], []
     for k, (p, v) in enumerate(zip(pieces, variants)):
         mm = _mini_model(p, v, n_fix, n_peg)
         for role, slots, src in (("fix", n_fix, p.fixture), ("peg", n_peg, p.peg)):
@@ -674,6 +688,9 @@ def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
         dadr = mm.jnt_dofadr[mm.body_jntadr[pb]]
         out["peg_dof_invweight"].append(mm.dof_invweight0[dadr:dadr + 6] / scale)
         edge_pts.append(_resample_outline(p.peg_poly, 64))
+        fv = np.concatenate([f.reshape(-1, 3) for f in p.fixture])
+        lo, hi = fv.min(0), fv.max(0)
+        corners.append([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
         half_short.append(v.grip_half if v.grip_half is not None else _half_width_at_x0(p.peg_poly))
         grasp_z.append(v.grasp_z if v.grasp_z is not None else 0.75 * v.peg_length)
     arr = {k: np.asarray(v_) for k, v_ in out.items()}
@@ -702,7 +719,7 @@ def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
         depth=np.array([v.depth for v in variants]),
         peg_length=np.array([v.peg_length for v in variants]),
         peg_half_short=np.array(half_short), edge_points=np.asarray(edge_pts),
-        grasp_z=np.array(grasp_z),
+        grasp_z=np.array(grasp_z), fix_corners=np.asarray(corners),
         **arr)
     return m, layout
 

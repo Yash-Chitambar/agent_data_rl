@@ -192,3 +192,4 @@ branch if `main` moved, and resolve conflicts in `docs/FINDINGS.md` by keeping b
 | 2026-10-20 | mason | Blind benchmark, 12,288 worlds | 0 | peg-bench-blind (finished) | runs/benchmark-blind.log | passed: 20,490 steps/s, 10,706 MiB |
 | 2026-10-20 | mason | Visual benchmark, 4,096 worlds | 1 (released) | peg-bench-visual (finished) | runs/benchmark-visual.log | passed: 3,922 steps/s, 28,558 MiB |
 | 2026-10-20 | mason | 300M-step validation, B-peg-proprio-base-s3 | 0 | peg-validation | runs/B-peg-proprio-base-s3.log | running; batch gated on learning curve |
+| 2026-10-20 | mason | YAM lab-table scene (builder.YAM_TABLE, EnvCfg.table_top) + 25M smoke | 1 (released) | - | runs/_smoke-C-yam-table | passed: 90% at 18.1M |

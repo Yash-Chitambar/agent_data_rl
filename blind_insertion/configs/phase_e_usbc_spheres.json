@@ -9,8 +9,8 @@
   0.2
  ],
  "fix_z": [
-  -0.25,
-  -0.12
+  0.0,
+  0.0
  ],
  "fix_tilt_deg": 2.0,
  "grip_rot_deg": 5.0,
@@ -35,5 +35,6 @@
  ],
  "njmax": 2048,
  "nconmax": 256,
- "pad_spheres": 4
+ "pad_spheres": 4,
+ "table_top": 0.0
 }
