@@ -188,4 +188,7 @@ branch if `main` moved, and resolve conflicts in `docs/FINDINGS.md` by keeping b
 | Date | Host | What | GPUs | tmux session | Log | State |
 |---|---|---|---|---|---|---|
 | 2026-10-20 | athena5 | Local queue: C-peg-proprio-base-s0, then E1 s0, B blind s2, no-contact s1 (and the gear task when its agent adds it) | 0 | (queue.sh) | runs/queue/queue.log | running |
-| | jensen | Setup + benchmark | | | | not started |
+| 2026-10-20 | mason (actual migration host; 5 × V100 32 GB) | CUDA 12 bootstrap + all smoke tests | 0 | peg-setup (finished) | runs/bootstrap.log | passed, exit 0 |
+| 2026-10-20 | mason | Blind benchmark, 12,288 worlds | 0 | peg-bench-blind (finished) | runs/benchmark-blind.log | passed: 20,490 steps/s, 10,706 MiB |
+| 2026-10-20 | mason | Visual benchmark, 4,096 worlds | 1 (released) | peg-bench-visual (finished) | runs/benchmark-visual.log | passed: 3,922 steps/s, 28,558 MiB |
+| 2026-10-20 | mason | 300M-step validation, B-peg-proprio-base-s3 | 0 | peg-validation | runs/B-peg-proprio-base-s3.log | running; batch gated on learning curve |

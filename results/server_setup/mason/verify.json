@@ -1,0 +1,63 @@
+{
+ "versions": {
+  "ok": true,
+  "required": true,
+  "s": 0.0,
+  "mujoco": "3.12.0",
+  "mujoco-warp": "3.12.0",
+  "warp-lang": "1.18.0+cu12",
+  "torch": "2.14.1+cu126",
+  "mjfit": "0.1.0",
+  "robosimstudio": "0.1.0",
+  "numpy": "2.5.4",
+  "pyarrow": "26.0.0",
+  "h5py": "3.16.0"
+ },
+ "torch_cuda": {
+  "ok": true,
+  "required": true,
+  "s": 8.5,
+  "torch_cuda": "12.6",
+  "n_gpu": 1,
+  "gpu0": "Tesla V100-PCIE-32GB",
+  "capability": "sm_70",
+  "mem_GB": 31.7
+ },
+ "warp_cuda": {
+  "ok": true,
+  "required": true,
+  "s": 1.6,
+  "warp_devices": [
+   "cuda:0"
+  ],
+  "kernel_cache": "/home/yashchitambar/.cache/warp/1.18.0",
+  "cuda_driver": [
+   13,
+   0
+  ],
+  "warp_toolkit": [
+   12,
+   9
+  ]
+ },
+ "blind_insertion_imports": {
+  "ok": true,
+  "required": true,
+  "s": 5.0,
+  "menagerie": "/home/yashchitambar/peg_test/third_party/mujoco_menagerie"
+ },
+ "egl_render": {
+  "ok": true,
+  "required": true,
+  "s": 0.6,
+  "MUJOCO_GL": "egl",
+  "mean_px": 14.733642578125,
+  "gl_vendor": null
+ },
+ "mujoco_warp_step": {
+  "ok": true,
+  "required": true,
+  "s": 40.6,
+  "z_mean": 0.1995
+ }
+}

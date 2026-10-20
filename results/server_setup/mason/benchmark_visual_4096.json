@@ -1,0 +1,32 @@
+{
+ "host": "mason",
+ "gpu_index": "1",
+ "gpu": "Tesla V100-PCIE-32GB",
+ "gpu_mem_total_MiB": 32768,
+ "driver": "580.82.07",
+ "compute_cap": "7.0",
+ "torch": "2.14.1+cu126",
+ "warp": "1.18.0+cu12",
+ "kind": "visual",
+ "nworld": 4096,
+ "iterations_logged": 12,
+ "sps_median": 3922.0,
+ "sps_all": [
+  3993.0,
+  3929.0,
+  3977.0,
+  3889.0,
+  3892.0,
+  3824.0,
+  3797.0,
+  4012.0,
+  3922.0,
+  3920.0,
+  3983.0,
+  3932.0
+ ],
+ "peak_mem_MiB": 28558,
+ "wall_s": 528.1,
+ "exit_code": 0,
+ "oom": false
+}

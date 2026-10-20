@@ -307,6 +307,46 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Compute budget (for moving work to a server)
 
+### 2026-10-20 — Server migration to mason (bootstrap passed; validation running)
+
+- Actual host: `mason`, 5 × Tesla V100-PCIE-32GB, driver 580.82.07, compute
+  capability 7.0. Setup is pinned to GPU 0 after repeated idle capacity checks;
+  all five GPUs initially used <50 MiB with 0% compute and no compute processes.
+- Branch: `jensen-runs`. Bootstrap completed in tmux `peg-setup`, log
+  `runs/bootstrap.log`; `runs/bootstrap.exit` is 0.
+- Pinned submodules and Menagerie installed. CUDA 12 stack: torch
+  `2.14.1+cu126`, Warp `1.18.0+cu12`, MuJoCo/MuJoCo Warp `3.12.0`.
+  Call `.venv/bin/python` directly; `uv run` / `uv sync` restore CUDA 13 binaries
+  that do not support V100.
+- Server verification passed all six checks, including GPU matrix multiplication,
+  EGL rendering and MuJoCo Warp stepping (`runs/_verify.json`).
+  `uv pip check` passed (151 packages); all 381 manifest commands passed parser
+  validation (`runs/manifest-check.log`). CPU assembly integration also passed
+  (`runs/check-setup.log`). Bootstrap blind training (2 PPO iterations), 64-episode checkpoint evaluation,
+  and visual training (2 PPO iterations) all passed; bootstrap ended `ALL OK`.
+- Full-size blind benchmark passed (12,288 worlds, 12 PPO iterations): median
+  **20,490 steps/s**, peak **10,706 MiB**, no OOM, 327.1 s including model build.
+  Estimated 300M-step runtime **4.07 hours**, about 1.83× the 37.5k local reference.
+  Evidence: `results/server_setup/mason/benchmark_blind_12288.json`.
+- Full-size visual benchmark passed (4,096 worlds, 12 PPO iterations): median
+  **3,922 steps/s**, peak **28,558 MiB**, no OOM, 528.1 s including model build.
+  Evidence: `results/server_setup/mason/benchmark_visual_4096.json`.
+  A 300M-step cap would take **21.25 hours**; 50M takes ~3.54 hours if the existing
+  stop-success rule triggers there. Peak memory is much higher than the manifest's
+  informational `mem=14` estimate; keep one visual job per 32 GB V100.
+  GPU 1 released on completion.
+- Prescribed 300M-step validation `B-peg-proprio-base-s3` started 17:59 UTC on
+  GPU 0 in tmux `peg-validation`. Runner state is `runs/queue_validation/`, log
+  `runs/B-peg-proprio-base-s3.log`; completion marker is written only on exit 0.
+  No retries (a failure needs inspection). Compare success >90% at 35–50M and
+  >=99% from 150M before starting a production batch.
+- All README test suites passed: mjfit **265 tests** (528.70 s), RoboSimStudio fast
+  **1,728 tests, 27 skipped** (160.19 s), RoboSimStudio CPU **19 tests** (111.59 s).
+  Logs: `runs/test-mjfit.log`, `runs/test-robosimstudio-fast.log`,
+  `runs/test-robosimstudio-cpu.log`.
+- No production batch has started. D/E retain their Gate C noise decision
+  requirement; local-queue jobs and missing local checkpoints must be skipped.
+
 One 300M-step run = ~2.3 h on the local RTX 3090 Ti (12,288 worlds, ~37k env steps/s).
 
 | Work | Runs | Local time | Where |

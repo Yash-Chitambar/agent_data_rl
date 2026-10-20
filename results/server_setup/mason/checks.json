@@ -1,0 +1,34 @@
+{
+  "date_utc": "2026-10-20",
+  "host": "mason",
+  "bootstrap_exit_code": 0,
+  "manifest_validation": {
+    "commands": 381,
+    "errors": 0,
+    "log": "runs/manifest-check.log"
+  },
+  "tests": [
+    {
+      "command": ".venv/bin/python scripts/test_mjfit.py -q",
+      "passed": 265,
+      "log": "runs/test-mjfit.log"
+    },
+    {
+      "command": "../.venv/bin/python scripts/testrun.py --tier fast",
+      "cwd": "robosimstudio",
+      "tests_run": 1728,
+      "skipped": 27,
+      "exit_code": 0,
+      "log": "runs/test-robosimstudio-fast.log"
+    },
+    {
+      "command": "../.venv/bin/python scripts/testrun.py --tier cpu",
+      "cwd": "robosimstudio",
+      "tests_run": 19,
+      "exit_code": 0,
+      "log": "runs/test-robosimstudio-cpu.log"
+    }
+  ],
+  "validation_run": "B-peg-proprio-base-s3",
+  "validation_state_at_recording": "running; full-batch gate has not yet passed"
+}
