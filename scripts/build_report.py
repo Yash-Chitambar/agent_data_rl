@@ -78,6 +78,9 @@ def curves():
         "blind": ("Proprioception (blind)", 0, "B-peg-proprio-base-s*"),
         "visual": ("Wrist RGB (visual)", 1, "B-peg-rgb-base-s*"),
         "nocontact": ("Blind, no contact loss", 2, "B-peg-proprio-nocontact-s*"),
+        "yam": ("YAM arm, blind peg", 3, "C-peg-proprio-base-s*"),
+        "usbc": ("USB-C on YAM, curriculum (running)", 4, "E-usbc-proprio-curr-s*"),
+        "gear": ("Gear meshing, 15-min smoke run", 5, "G-gear-proprio-smoke"),
     }
     series = {}
     for key, (label, color, pat) in groups.items():
@@ -92,7 +95,8 @@ def curves():
             series[key] = dict(label=label, color=color, seeds=seeds)
     write("curves.json", dict(xLabel="environment steps (millions)", yLabel="training success",
                               panels=[dict(title="(a) Blind and visual policies", keys=["blind", "visual"]),
-                                      dict(title="(b) Contact supervision", keys=["blind", "nocontact"])],
+                                      dict(title="(b) Contact supervision", keys=["blind", "nocontact"]),
+                                      dict(title="(c) Other robot and tasks", keys=["yam", "usbc", "gear"])],
                               series=series))
     return series
 
@@ -286,6 +290,24 @@ def images():
                                s6={k: json.load(open(RA / f"A-S6_dropin_{k}.json")) for k in ("flexiv", "yam_stiffpads")}))
 
 
+def gear():
+    RG = ROOT / "results" / "G"
+    if not RG.exists():
+        return
+    for f in ("G-geometry.png", "G-starts.png", "G-drop.png", "G-anchor_spin.png", "G-backlash.png",
+              "G-training_curve.png"):
+        if (RG / f).exists():
+            shutil.copy(RG / f, OUT / "images" / f)
+    out = dict(drop=json.load(open(RG / "G-drop.json")), backlash=json.load(open(RG / "G-backlash.json")),
+               scripted=json.load(open(RG / "G-scripted_privileged.json")))
+    for k in ("zero", "random"):
+        f = RG / f"baseline_{k}.parquet"
+        if f.exists():
+            s = pd.read_parquet(f).success
+            out[k] = rate(s.sum(), len(s))
+    write("gear.json", out)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-media", action="store_true")
@@ -296,6 +318,7 @@ def main():
     travel(dfs)
     probe()
     images()
+    gear()
     rollouts(media=not a.no_media)
 
 

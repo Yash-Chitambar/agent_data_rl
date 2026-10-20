@@ -14,11 +14,11 @@
 // ------------------------------------------------------------------ palette
 /** Series colors. Keep in sync with --c1…--c5 in style.css. */
 export const C = {
-  blue: '#2a78d6', orange: '#eb6834', aqua: '#1baf7a', yellow: '#eda100', magenta: '#e87ba4',
+  blue: '#2a78d6', orange: '#eb6834', aqua: '#1baf7a', yellow: '#eda100', magenta: '#e87ba4', violet: '#7e5bd6',
 };
-export const SERIES = [C.blue, C.orange, C.aqua, C.yellow, C.magenta];
+export const SERIES = [C.blue, C.orange, C.aqua, C.yellow, C.magenta, C.violet];
 /** CSS variable for series i, for SVG fills/strokes that should follow the theme. */
-export const cvar = (i) => `var(--c${(i % 5) + 1})`;
+export const cvar = (i) => `var(--c${(i % 6) + 1})`;
 /** Read a CSS custom property (e.g. '--ink') as a color string, for canvas/three.js. */
 export const cssColor = (name, el = document.documentElement) =>
   getComputedStyle(el).getPropertyValue(name).trim() || '#888';

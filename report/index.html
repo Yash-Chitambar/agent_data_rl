@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Reproduction report · 20 October 2026 · Phases A and B</div>
+    <div class="badge">Reproduction report · 20 October 2026 · Phases A, B, C, E and G</div>
     <h1>Blind Precise Assembly:<br><span class="sub">Results of the Simulation Reproduction</span></h1>
     <p class="authors">Prepared by Yash Chitambar</p>
     <p class="affil">Reproduction of Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -31,7 +31,7 @@
     <h2>Summary</h2>
     <p class="lede">We reproduce the simulation results of the paper on one desktop GPU. The paper trains a robot arm to put a peg into a tight hole. In the training set, the clearance is 1.0 to 1.5 mm on each side. The policy uses only joint angles and joint velocities. It does not use a camera or a force sensor.</p>
     <p>Our blind policy seats the peg on 99.9% of 2,048 test starts. The paper reports 99.4%. Our policy is faster than the paper's policy and moves a shorter distance. A linear probe finds the contact state in the policy's memory, as in the paper. On six families of unseen parts, our blind policy keeps a high success rate. These results agree with the main claims of the paper.</p>
-    <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The work on the second robot (YAM), the scale study and the USB-C task have started but are not complete.</p>
+    <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The blind peg policy also learns on a second robot, the 6-joint YAM arm, with 99.9% training success. The USB-C task is in training. We also built the paper's gear-meshing task, and its training starts next. The scale study and the camera study need a larger server.</p>
 
     <div class="tbl">
       <table>
@@ -39,9 +39,10 @@
         <tbody>
           <tr><td>A</td><td>Simulation, policy, PPO and evaluation code. Ten signal checks on the simulation.</td><td><span class="chip ok">Done</span></td></tr>
           <tr><td>B</td><td>Reproduction of the paper's peg results on the Flexiv Rizon 4S arm.</td><td><span class="chip run">Most results in</span></td></tr>
-          <tr><td>C</td><td>Port to the YAM arm, with sensor noise, backlash and latency.</td><td><span class="chip run">Set up, not trained</span></td></tr>
+          <tr><td>C</td><td>Port to the YAM arm, with sensor noise, backlash and latency.</td><td><span class="chip ok">Seed 0 trained</span> <span class="chip todo">Noise runs on server</span></td></tr>
           <tr><td>D</td><td>Scale study: part size against clearance.</td><td><span class="chip todo">Needs a server</span></td></tr>
-          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip run">Set up, not trained</span></td></tr>
+          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip run">Training, stage 1 of 5</span></td></tr>
+          <tr><td>G</td><td>Gear meshing (paper task 2), not in the original plan.</td><td><span class="chip ok">Built and checked</span> <span class="chip run">Training next</span></td></tr>
           <tr><td>F</td><td>Add RGB and depth cameras to the blind policy.</td><td><span class="chip todo">Needs a server</span></td></tr>
         </tbody>
       </table>
@@ -106,11 +107,12 @@
   <section id="training">
     <h2>Training takes approximately two hours on one GPU</h2>
     <p class="claim">The blind policy passes 90% training success after approximately 40 million steps.</p>
-    <p>Two blind seeds give almost the same curve. The visual policy learns faster in steps. It reaches 100% training success at 50 million steps, and then the run stops. The visual run is approximately 4.5 times slower per step, because each step renders 4,096 wrist images. The visual policy passes 90% after 7.9 million steps. Without the contact decoder loss, the blind policy needs 89 million steps to pass 90%. After 180 million steps, it has 97.8% training success. With the loss, the blind policy has more than 99% at the same step count. Thus, contact supervision decreases the necessary training steps by approximately half, as the paper reports. This run is not complete.</p>
+    <p>Two blind seeds give almost the same curve. The visual policy learns faster in steps. It reaches 100% training success at 50 million steps, and then the run stops. The visual run is approximately 4.5 times slower per step, because each step renders 4,096 wrist images. The visual policy passes 90% after 7.9 million steps. Without the contact decoder loss, the blind policy needs 89 million steps to pass 90%, which is 2.2 times as many. It passes 99% only after 262 million steps, and it ends at 99.1%. The paper reports 2.7 times as many steps. Thus, contact supervision makes training faster, as the paper reports.</p>
+    <p>Panel (c) shows the other robot and tasks. The YAM arm learns the peg task faster than the Flexiv arm: it passes 90% after 16 million steps. The USB-C and gear runs are described below.</p>
     <figure class="viz" data-fig="training">
       <div class="viz-tag">Interactive · hover to read every run</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Training success with stochastic actions (paper Figs. 8 and 14).</b> (a) Blind and visual policies. (b) The blind policy with and without the contact decoder loss. The dotted line is 90%. Use the buttons to show each seed or a log step axis. Hover to read every run at one step.</figcaption>
+      <figcaption><b>Training success with stochastic actions (paper Figs. 8 and 14).</b> (a) Blind and visual policies. (b) The blind policy with and without the contact decoder loss. (c) The blind peg policy on the YAM arm, the USB-C run (in progress) and a 15-minute gear smoke run. The dotted line is 90%. Use the buttons to show each seed or a log step axis. Hover to read every run at one step.</figcaption>
     </figure>
     <div class="tbl">
       <table>
@@ -222,23 +224,67 @@
     </div>
   </section>
 
-  <!-- ============================================================ phase C / E -->
+  <!-- ============================================================ phase C / E / G -->
+  <p class="finding">Finding 5</p>
   <section id="yam">
-    <h2>The YAM arm and the USB-C task are ready to train</h2>
-    <p>Phase C moves the task to the YAM arm. The YAM is approximately three times stiffer than the Flexiv under our gains. The peg makes the YAM sag only 14 mm, and a push of 0.79 N is visible. With stiff gripper pads, the drop-in signal on the YAM has a peak-to-noise ratio of 10.7. This is better than the 3.2 on the Flexiv.</p>
-    <p>Phase E uses USB-C flash drives with clearances of 0.02 to 0.1 mm. The first tests showed that soft gripper pads let the light drive move through the pads. Stiffer pad contacts decrease this event by a factor of 10.</p>
+    <h2>The blind policy also learns on the YAM arm</h2>
+    <p class="claim">On the 6-joint YAM arm, the blind peg policy reaches 99.9% training success. It passes 90% after 16 million steps.</p>
+    <p>Phase C uses the same pegs and holes as Phase B. Only the robot changes. The YAM cannot reach the paper's fixture positions, so the fixture is closer to the robot (x 0.25 to 0.45 m). The YAM uses a joint stiffness of 80 N·m/rad on the first three joints and 30 N·m/rad on the wrist joints, and an action scale of 0.04 rad.</p>
+    <p>The YAM learns faster than the Flexiv. It passes 90% after 16 million steps, and the Flexiv needs approximately 40 million steps. Its episodes are also shorter: 15 steps (0.3 s) against 36 steps on the Flexiv. A possible cause is the stiffer arm. The peg makes the YAM sag only 14 mm, against 48 mm on the Flexiv. With stiff gripper pads, the drop-in signal on the YAM has a peak-to-noise ratio of 10.7, against 3.2 on the Flexiv.</p>
+    <p>The test on 2,048 matched starts, with sensor noise and the gain sweep, is in the queue. The page will show it when it is complete.</p>
     <div class="gallery wide-block">
       <figure>
         <img src="static/images/yam_reset_and_0.5s.png" alt="YAM gripper holding pegs over plates in four worlds, at reset and after 0.5 s" loading="lazy">
         <figcaption><b>YAM resets.</b> Top row: four worlds at reset. Bottom row: the same worlds after 0.5 s with zero action. The grasp holds the peg.</figcaption>
       </figure>
       <figure>
-        <img src="static/images/usbc_yam_check.png" alt="YAM fingers holding USB-C flash drives over port housings" loading="lazy">
-        <figcaption><b>USB-C grasp check.</b> The YAM holds the drive near the top of its body. Thus, the fingertips stay clear of the port housing.</figcaption>
-      </figure>
-      <figure>
         <img src="static/images/A-S6_dropin_yam_stiffpads.png" alt="Joint data during a scripted slide into the hole on the YAM arm" loading="lazy">
         <figcaption><b>A-S6 on the YAM, stiff pads.</b> The peg drops in at 4.02 s. The joint-velocity peak-to-noise ratio is 10.7.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="usbc">
+    <h2>The USB-C policy stops at the first curriculum stage</h2>
+    <p class="claim">After 135 million steps, the USB-C policy has 77% training success on the first stage. The curriculum needs 90% to go to the next stage.</p>
+    <p>Phase E uses USB-C flash drives on the YAM. The final clearance is 0.02 to 0.1 mm. The curriculum has five stages. Each stage makes the clearance tighter and the start offset larger. The first stage has a clearance of 0.3 mm and a median start offset of 0.5 mm.</p>
+    <p>The training success increased quickly to approximately 75% and then stopped there. Thus, the run did not go to stage 2. We must find the cause of the failures before the next USB-C runs. The first tests showed that soft gripper pads let the light drive move through the pads. Stiffer pad contacts decrease this event by a factor of 10, but approximately 1% of tilted grasps still slip.</p>
+    <figure class="img">
+      <img src="static/images/usbc_yam_check.png" alt="YAM fingers holding USB-C flash drives over port housings" loading="lazy">
+      <figcaption><b>USB-C grasp check.</b> The YAM holds the drive near the top of its body. Thus, the fingertips stay clear of the port housing.</figcaption>
+    </figure>
+  </section>
+
+  <section id="gear">
+    <h2>The gear-meshing task is built and checked</h2>
+    <p class="claim">The gear task follows the paper's Table 1. In checks, out-of-phase teeth block the gear, and a privileged script seats 89% of unseen gear sets.</p>
+    <p>The paper has two more tasks: gear meshing and nut threading. We built the gear task to check our setup on a second task. The robot holds a spur gear by a boss on top. The gear must slide down a shaft and mesh with one or two anchor gears. The anchor gears turn on their own hinges. The module is 2.375 to 3.125 mm, with 16 to 24 teeth and 0.4 to 0.6 mm of backlash for each anchor. An episode has a limit of 10 s.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Drop test, gear aligned with the shaft (n = 256 for each value)</td><td>Tooth-phase error 0: 100% seated. 0.05 pitch: 98.4%. 0.1 pitch: 81%. 0.2 pitch: 10%. 0.3 pitch or more: 0%.</td></tr>
+          <tr><td>Anchor hinges</td><td>The anchors turn freely and stop as the hinge damping predicts.</td></tr>
+          <tr><td>Backlash</td><td>The measured play is 1.05 times the design value at a light torque (3 mN·m).</td></tr>
+          <tr><td>Privileged scripted controller (n = 1,024 unseen gear sets)</td><td>89.0% success: 92.4% with one anchor, 85.3% with two anchors. Median time 4.6 s.</td></tr>
+          <tr><td>Baselines (2,048 starts)</td><td>Zero action 0.05%. Random actions 0.73%.</td></tr>
+          <tr><td>15-minute smoke training (12 million steps)</td><td>Shaft capture increased from 2% to 50%. Full success stayed below 0.5%. The peg had 11% at the same step count.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The full 300-million-step run starts after the USB-C run. The paper reports more than 99.9% success for its blind gear policy. Our early training is slower than the peg's, so the result is not known yet.</p>
+    <div class="gallery wide-block">
+      <figure>
+        <img src="static/images/G-geometry.png" alt="Sixteen gear sets: an orange gear on a shaft, meshed with one or two anchor gears" loading="lazy">
+        <figcaption><b>Gear sets.</b> Each world has a different gear set. The orange gear sits on its shaft in mesh with one or two anchor gears (blue, green).</figcaption>
+      </figure>
+      <figure>
+        <img src="static/images/G-starts.png" alt="The gripper holding the gear by its boss above the shaft tip in eight worlds" loading="lazy">
+        <figcaption><b>Start states.</b> The gripper holds the gear by its boss. The gear rests on the shaft tip, off the shaft axis, with its teeth out of phase with the anchors.</figcaption>
+      </figure>
+      <figure>
+        <img src="static/images/G-drop.png" alt="Drop test: fraction of gears seated against tooth-phase error" loading="lazy">
+        <figcaption><b>Drop test.</b> A gear that is aligned with its shaft seats only when its teeth are almost in phase with the anchors. Thus, the policy must turn the gear into mesh.</figcaption>
       </figure>
     </div>
   </section>
@@ -283,8 +329,9 @@
     <h2>Next steps</h2>
     <ul class="facts">
       <li><b>Phase B.</b> Complete the third blind seed and two runs without the contact loss. Train two more visual seeds. Then give the B-R7 result with three seeds.</li>
-      <li><b>Phase C.</b> Train on the YAM. Then add joint noise, backlash and latency, and do the gain sweep.</li>
-      <li><b>Phase E.</b> Train the USB-C policy with the clearance curriculum. Then check the validity items (pad slip, contact penetration).</li>
+      <li><b>Phase C.</b> Test the YAM policy (queued). Then train with joint noise, backlash and latency, and do the gain sweep (server).</li>
+      <li><b>Phase E.</b> Find why the USB-C policy stops at 77% on the first stage. Then train again with the clearance curriculum.</li>
+      <li><b>Gear task.</b> Train the blind gear policy (queued), then test it on the training range and on six unseen gear families.</li>
       <li><b>Possible ablation.</b> Add a feed-forward term for the nominal peg weight. Then measure if the policy learns to lift the peg.</li>
     </ul>
     <div class="tbl">
