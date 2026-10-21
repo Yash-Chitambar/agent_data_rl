@@ -19,7 +19,8 @@ from blind_insertion.envs.gear_env import GearCfg, GearEnv
 from blind_insertion.policies.tcn_actor_critic import ActorCritic
 
 
-def evaluate_gear(env: GearEnv, policy, *, seed=12345, log_worlds=(), log_latent=False, max_steps=None):
+def evaluate_gear(env: GearEnv, policy, *, seed=12345, log_worlds=(), log_latent=False, max_steps=None,
+                  demo_k=0):
     dev, N = env.device, env.N
     gen = torch.Generator(device=dev)
     gen.manual_seed(seed)
@@ -36,6 +37,7 @@ def evaluate_gear(env: GearEnv, policy, *, seed=12345, log_worlds=(), log_latent
                                 "mocap_pos", "mocap_quat")} for w in log_worlds}
     hist, _ = env.observe()
     T = max_steps or env.max_steps
+    rec = {k: [] for k in ("qpos", "mocap_pos", "mocap_quat", "action", "peg_p", "peg_R", "labels")} if demo_k else None
     for _t in range(T + 1):
         with torch.no_grad():
             if isinstance(policy, ActorCritic):
@@ -56,6 +58,9 @@ def evaluate_gear(env: GearEnv, policy, *, seed=12345, log_worlds=(), log_latent
                 L["hist_obs"].append(hist[w, -1].cpu().numpy())
                 if z is not None and log_latent:
                     L["z"].append(z[w].cpu().numpy())
+        if rec is not None:
+            from blind_insertion.eval import record_step  # noqa: PLC0415
+            record_step(env, a, rec, env.current_labels())
         hist, _, _, done, info = env.step(a)
         new = done & ~finished
         if new.any():
@@ -89,6 +94,9 @@ def evaluate_gear(env: GearEnv, policy, *, seed=12345, log_worlds=(), log_latent
         ["success", "nan", "slipped", "left_fixture", "meshed_not_seated", "on_shaft_not_meshed"],
         "never_captured")
     logs = {w: {k_: np.asarray(v) for k_, v in L.items() if len(v)} for w, L in log.items()}
+    if rec is not None:
+        from blind_insertion.eval import select_demos  # noqa: PLC0415
+        logs.update(select_demos(df, rec, env.control_dt, demo_k))
     return df, logs
 
 
@@ -116,12 +124,12 @@ def run(args):
     else:
         pol = load_policy(args.policy, env, env.device)
     lw = [int(x) for x in args.log_worlds.split(",") if x]
-    df, logs = evaluate_gear(env, pol, seed=args.seed, log_worlds=lw, log_latent=True)
+    df, logs = evaluate_gear(env, pol, seed=args.seed, log_worlds=lw, log_latent=True, demo_k=args.demo_k)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out)
     if logs:
-        np.savez_compressed(out.with_suffix(".rollouts.npz"),
+        np.savez_compressed(out.with_suffix(".rollouts.npz"), meta=np.array(json.dumps(vars(args))),
                             **{f"w{w}_{k}": v for w, L in logs.items() for k, v in L.items()})
     s = df.success.mean()
     ok = df[df.success > 0]

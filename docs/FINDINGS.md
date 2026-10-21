@@ -83,6 +83,39 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (night, athena5) — USB-C under robot errors; wrist-camera view; demos
+
+- **The USB-C policy breaks under the robot errors that Phase C found** (athena5 E1 s0, sphere
+  pads, lab-table mount, final-stage distribution, 2,048 matched starts each;
+  `scripts/usbc_brittleness.sh`, `results/E/robust/`). Fine-tune `E-usbc-proprio-noiserandft-s0`:
+  100M steps from E1 with latency 0-2, backlash 0-5 arcmin, 0/16/14 bit and q noise 0-5e-4 drawn
+  per world at each reset.
+
+  | Test condition | E1 (no errors in training) | Fine-tuned, random errors |
+  |---|---|---|
+  | none | 78.0% | 31.1% |
+  | latency 1 step (20 ms) | 5.2% | 22.6% |
+  | latency 2 steps | 5.0% | 22.0% |
+  | backlash 1 arcmin | 8.6% | 45.4% |
+  | backlash 3 arcmin | 7.2% | 44.6% |
+  | q noise 5e-4 rad | 77.3% | 32.0% |
+  | 14-bit encoders | 78.4% | 29.6% |
+
+  E1's failures under latency/backlash are mostly "never found" plus slips. Noise and quantization
+  cost nothing (as in Phase C). The fine-tune is 4-6x more robust but loses more than half of the
+  clean success; its training success was 40% at 100M and still rising (not converged). As in
+  Phase C, covering every latency with one policy is costly, and at USB-C clearances very costly:
+  measure the real latency and train matched (or over a narrow measured range).
+- **The YAM wrist D405 does not see the port at the start states** (`results/F/camera_views.png`):
+  the camera sits behind the drive and looks along it, so the drive body hides the opening. The
+  housing shows behind the drive at ~9 cm; the gripper is closer than the 7 cm minimum range and
+  reads invalid. Phase F policies can use the housing edge and the drive's motion, not the port,
+  unless the mount changes (plan §12.1 asks to report the mount choice).
+- **Demonstrations.** `eval.py --demo_k K` records every world on the GPU and keeps K successes and
+  K episodes of each failure type; `viz/demos.py` renders a captioned grid video;
+  `scripts/make_demos.sh` builds 16 cases (`results/demos/`, report figure `demos`). A demo run is a
+  new run of the test, so its rate can differ slightly (e.g. blind in-dist 99.7% vs 99.9%).
+
 ### 2026-10-21 — Phase C on the lab-table YAM: noise and quantization are harmless; latency, backlash and gains are not
 
 15 seed-0 runs (12,288 worlds, `configs/phase_c_yam.json`, table mount, box pads) on mason. Every

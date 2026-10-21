@@ -1,0 +1,93 @@
+{
+ "title": "YAM (old mount): base policy with 1 arcmin backlash, not in training",
+ "source": "results/demos/data/C_yam_backlash1.parquet",
+ "n": 1024,
+ "success_rate": 0.376953125,
+ "failures": {
+  "never_found": 256,
+  "wedged_partial": 185,
+  "slipped": 105,
+  "left_fixture": 65,
+  "jammed_inside": 27
+ },
+ "shown": [
+  {
+   "world": 145,
+   "success": true,
+   "failure": "success",
+   "time": 0.09999999403953552
+  },
+  {
+   "world": 781,
+   "success": true,
+   "failure": "success",
+   "time": 0.7599999904632568
+  },
+  {
+   "world": 430,
+   "success": true,
+   "failure": "success",
+   "time": 4.980000019073486
+  },
+  {
+   "world": 32,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 62,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 135,
+   "success": false,
+   "failure": "slipped",
+   "time": 4.679999828338623
+  },
+  {
+   "world": 349,
+   "success": false,
+   "failure": "slipped",
+   "time": 4.639999866485596
+  },
+  {
+   "world": 152,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 2.7799999713897705
+  },
+  {
+   "world": 443,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 3.919999837875366
+  },
+  {
+   "world": 284,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 424,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 511,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  },
+  {
+   "world": 531,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  }
+ ]
+}

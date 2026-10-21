@@ -1,0 +1,27 @@
+{
+ "title": "Gear meshing: blind policy, unseen gear sets",
+ "source": "results/demos/data/G_gear_indist.parquet",
+ "n": 2048,
+ "success_rate": 1.0,
+ "failures": {},
+ "shown": [
+  {
+   "world": 1471,
+   "success": true,
+   "failure": "success",
+   "time": 0.41999998688697815
+  },
+  {
+   "world": 1662,
+   "success": true,
+   "failure": "success",
+   "time": 0.9199999570846558
+  },
+  {
+   "world": 1172,
+   "success": true,
+   "failure": "success",
+   "time": 7.019999980926514
+  }
+ ]
+}

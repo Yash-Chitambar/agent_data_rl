@@ -1,0 +1,80 @@
+{
+ "title": "Phase B: wrist-RGB policy, tighter clearance (OOD; blind 97%)",
+ "source": "results/demos/data/B_visual_tighter.parquet",
+ "n": 1024,
+ "success_rate": 0.84765625,
+ "failures": {
+  "wedged_partial": 135,
+  "jammed_inside": 14,
+  "never_found": 4,
+  "slipped": 3
+ },
+ "shown": [
+  {
+   "world": 853,
+   "success": true,
+   "failure": "success",
+   "time": 0.19999998807907104
+  },
+  {
+   "world": 328,
+   "success": true,
+   "failure": "success",
+   "time": 0.699999988079071
+  },
+  {
+   "world": 324,
+   "success": true,
+   "failure": "success",
+   "time": 5.0
+  },
+  {
+   "world": 75,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 138,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 334,
+   "success": false,
+   "failure": "slipped",
+   "time": 4.460000038146973
+  },
+  {
+   "world": 738,
+   "success": false,
+   "failure": "slipped",
+   "time": 3.6399998664855957
+  },
+  {
+   "world": 381,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  },
+  {
+   "world": 680,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  },
+  {
+   "world": 747,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 847,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  }
+ ]
+}

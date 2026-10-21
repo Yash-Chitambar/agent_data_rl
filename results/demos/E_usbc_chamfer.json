@@ -1,0 +1,93 @@
+{
+ "title": "USB-C E4: chamfered port, policy never trained on it",
+ "source": "results/demos/data/E_usbc_chamfer.parquet",
+ "n": 2048,
+ "success_rate": 0.8330078125,
+ "failures": {
+  "never_found": 259,
+  "left_fixture": 47,
+  "wedged_partial": 22,
+  "slipped": 11,
+  "jammed_inside": 3
+ },
+ "shown": [
+  {
+   "world": 1002,
+   "success": true,
+   "failure": "success",
+   "time": 0.6399999856948853
+  },
+  {
+   "world": 1540,
+   "success": true,
+   "failure": "success",
+   "time": 2.5
+  },
+  {
+   "world": 1274,
+   "success": true,
+   "failure": "success",
+   "time": 7.960000038146973
+  },
+  {
+   "world": 8,
+   "success": false,
+   "failure": "slipped",
+   "time": 5.920000076293945
+  },
+  {
+   "world": 420,
+   "success": false,
+   "failure": "slipped",
+   "time": 4.21999979019165
+  },
+  {
+   "world": 54,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 1078,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 257,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 353,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 287,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 1476,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 912,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 6.099999904632568
+  },
+  {
+   "world": 941,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 6.699999809265137
+  }
+ ]
+}

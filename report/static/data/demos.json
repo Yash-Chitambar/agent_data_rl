@@ -1,0 +1,279 @@
+{
+ "groups": [
+  {
+   "name": "Peg, Flexiv",
+   "items": [
+    {
+     "id": "B_blind_indist",
+     "label": "Blind",
+     "title": "Blind policy, unseen pegs of the training family",
+     "text": "The policy slides the peg on the plate until it feels the hole, then it drops the peg in. The rare failures do not find the hole in 5 s or push the peg off the plate.",
+     "video": "videos/demos/B_blind_indist.mp4",
+     "poster": "images/demos/B_blind_indist.png",
+     "n": 2048,
+     "rate": 0.9970703125,
+     "failures": {
+      "never_found": 4,
+      "left_fixture": 2
+     }
+    },
+    {
+     "id": "B_visual_indist",
+     "label": "Wrist RGB",
+     "title": "Wrist-camera policy, unseen pegs of the training family",
+     "text": "The visual policy moves almost directly to the hole. It is faster than the blind policy on familiar parts.",
+     "video": "videos/demos/B_visual_indist.mp4",
+     "poster": "images/demos/B_visual_indist.png",
+     "n": 1024,
+     "rate": 0.9990234375,
+     "failures": {
+      "wedged_partial": 1
+     }
+    },
+    {
+     "id": "B_visual_tighter",
+     "label": "RGB, tighter fit",
+     "title": "Wrist-camera policy, tighter clearance (held out)",
+     "text": "With 0.5 to 0.6 mm clearance, the visual policy often stops partly inside the hole. The blind policy seats 97% of the same parts.",
+     "video": "videos/demos/B_visual_tighter.mp4",
+     "poster": "images/demos/B_visual_tighter.png",
+     "n": 1024,
+     "rate": 0.84765625,
+     "failures": {
+      "wedged_partial": 135,
+      "jammed_inside": 14,
+      "never_found": 4,
+      "slipped": 3
+     }
+    },
+    {
+     "id": "B_blind_extreme_size",
+     "label": "Blind, extreme size",
+     "title": "Blind policy, extreme part sizes (held out)",
+     "text": "Very small and very large parts. Most failures leave the plate or do not find the hole.",
+     "video": "videos/demos/B_blind_extreme_size.mp4",
+     "poster": "images/demos/B_blind_extreme_size.png",
+     "n": 1024,
+     "rate": 0.8583984375,
+     "failures": {
+      "left_fixture": 77,
+      "never_found": 43,
+      "wedged_partial": 11,
+      "captured_then_lost": 8,
+      "jammed_inside": 5,
+      "slipped": 1
+     }
+    },
+    {
+     "id": "B_blind_random_convex",
+     "label": "Blind, random convex",
+     "title": "Blind policy, random convex shapes (held out)",
+     "text": "These shapes have corners that the training pegs do not have. The peg often slips in the grasp or stops partly inside the hole.",
+     "video": "videos/demos/B_blind_random_convex.mp4",
+     "poster": "images/demos/B_blind_random_convex.png",
+     "n": 1024,
+     "rate": 0.2373046875,
+     "failures": {
+      "slipped": 449,
+      "wedged_partial": 173,
+      "never_found": 157,
+      "left_fixture": 1,
+      "jammed_inside": 1
+     }
+    },
+    {
+     "id": "B_spiral",
+     "label": "Spiral search",
+     "title": "Scripted spiral search with the true hole position",
+     "text": "The spiral covers the area around the hole in circles. It moves much farther than the learned policies.",
+     "video": "videos/demos/B_spiral.mp4",
+     "poster": "images/demos/B_spiral.png",
+     "n": 512,
+     "rate": 0.775390625,
+     "failures": {
+      "never_found": 67,
+      "wedged_partial": 23,
+      "slipped": 19,
+      "left_fixture": 4,
+      "jammed_inside": 2
+     }
+    }
+   ]
+  },
+  {
+   "name": "Gear",
+   "items": [
+    {
+     "id": "G_gear_indist",
+     "label": "Unseen gear sets",
+     "title": "Blind gear policy, unseen gear sets",
+     "text": "The policy slides the gear down the shaft and turns it until the teeth mesh with the anchor gears.",
+     "video": "videos/demos/G_gear_indist.mp4",
+     "poster": "images/demos/G_gear_indist.png",
+     "n": 2048,
+     "rate": 1.0,
+     "failures": {}
+    },
+    {
+     "id": "G_gear_random_tooth",
+     "label": "Random tooth shape",
+     "title": "Blind gear policy, random tooth shapes (held out)",
+     "text": "The tooth shapes are different from training. The policy meshes them as well.",
+     "video": "videos/demos/G_gear_random_tooth.mp4",
+     "poster": "images/demos/G_gear_random_tooth.png",
+     "n": 1024,
+     "rate": 1.0,
+     "failures": {}
+    }
+   ]
+  },
+  {
+   "name": "YAM robot errors",
+   "items": [
+    {
+     "id": "C_yam_latency1",
+     "label": "1-step latency",
+     "title": "YAM peg policy with 20 ms of latency it did not train with",
+     "text": "Old mount (fixture below the base); the lab-table runs show the same result. The policy overshoots and pushes the peg off the plate or past the hole.",
+     "video": "videos/demos/C_yam_latency1.mp4",
+     "poster": "images/demos/C_yam_latency1.png",
+     "n": 1024,
+     "rate": 0.1005859375,
+     "failures": {
+      "left_fixture": 412,
+      "wedged_partial": 285,
+      "never_found": 179,
+      "slipped": 27,
+      "jammed_inside": 16,
+      "captured_then_lost": 2
+     }
+    },
+    {
+     "id": "C_yam_backlash1",
+     "label": "1 arcmin backlash",
+     "title": "YAM peg policy with backlash it did not train with",
+     "text": "Old mount. With a small dead zone in each joint, the policy often does not find the hole.",
+     "video": "videos/demos/C_yam_backlash1.mp4",
+     "poster": "images/demos/C_yam_backlash1.png",
+     "n": 1024,
+     "rate": 0.376953125,
+     "failures": {
+      "never_found": 256,
+      "wedged_partial": 185,
+      "slipped": 105,
+      "left_fixture": 65,
+      "jammed_inside": 27
+     }
+    }
+   ]
+  },
+  {
+   "name": "USB-C",
+   "items": [
+    {
+     "id": "E_usbc_final",
+     "label": "Final stage",
+     "title": "USB-C, final stage: 0.02 to 0.1 mm clearance, 3 mm median start",
+     "text": "Lab-table mount. The policy presses the plug on the housing and searches in small steps. Most failures start far from the port and do not find it in 8 s.",
+     "video": "videos/demos/E_usbc_final.mp4",
+     "poster": "images/demos/E_usbc_final.png",
+     "n": 2048,
+     "rate": 0.77490234375,
+     "failures": {
+      "never_found": 367,
+      "left_fixture": 53,
+      "wedged_partial": 30,
+      "slipped": 11
+     }
+    },
+    {
+     "id": "E_usbc_far",
+     "label": "Far starts",
+     "title": "USB-C, starts up to 9 mm from the port, 0.05 mm clearance",
+     "text": "The capture radius is approximately 6 mm. Starts farther away usually time out.",
+     "video": "videos/demos/E_usbc_far.mp4",
+     "poster": "images/demos/E_usbc_far.png",
+     "n": 2048,
+     "rate": 0.34521484375,
+     "failures": {
+      "never_found": 1000,
+      "left_fixture": 294,
+      "wedged_partial": 35,
+      "jammed_inside": 8,
+      "slipped": 4
+     }
+    },
+    {
+     "id": "E_usbc_latency1",
+     "label": "1-step latency",
+     "title": "USB-C policy with 20 ms of latency it did not train with",
+     "text": "Success decreases from 78% to 5%. The search becomes unstable and the drive slips or leaves the housing.",
+     "video": "videos/demos/E_usbc_latency1.mp4",
+     "poster": "images/demos/E_usbc_latency1.png",
+     "n": 2048,
+     "rate": 0.04150390625,
+     "failures": {
+      "never_found": 1215,
+      "slipped": 338,
+      "left_fixture": 235,
+      "wedged_partial": 173,
+      "jammed_inside": 2
+     }
+    }
+   ]
+  },
+  {
+   "name": "USB-C variants",
+   "items": [
+    {
+     "id": "E_usbc_chamfer",
+     "label": "Chamfered port",
+     "title": "USB-C, port with a 0.2 to 0.5 mm lead-in (not in training)",
+     "text": "The lead-in guides the plug. The policy that never saw a chamfer seats more drives than without it.",
+     "video": "videos/demos/E_usbc_chamfer.mp4",
+     "poster": "images/demos/E_usbc_chamfer.png",
+     "n": 2048,
+     "rate": 0.8330078125,
+     "failures": {
+      "never_found": 259,
+      "left_fixture": 47,
+      "wedged_partial": 22,
+      "slipped": 11,
+      "jammed_inside": 3
+     }
+    },
+    {
+     "id": "E_usbc_latch",
+     "label": "Latch",
+     "title": "USB-C, latch spring of 5 to 15 N over the last 1.5 mm (not in training)",
+     "text": "The policy does not push hard enough. The drive slips in the grasp or stays partly inside.",
+     "video": "videos/demos/E_usbc_latch.mp4",
+     "poster": "images/demos/E_usbc_latch.png",
+     "n": 2048,
+     "rate": 0.28173828125,
+     "failures": {
+      "wedged_partial": 459,
+      "slipped": 449,
+      "never_found": 238,
+      "left_fixture": 185,
+      "jammed_inside": 140
+     }
+    },
+    {
+     "id": "E_usbc_side",
+     "label": "Side port",
+     "title": "USB-C, port facing the robot (port-up policy, not trained for it)",
+     "text": "The arm pose is different, so the port-up policy moves the plug off the housing. This task needs its own training.",
+     "video": "videos/demos/E_usbc_side.mp4",
+     "poster": "images/demos/E_usbc_side.png",
+     "n": 1024,
+     "rate": 0.0,
+     "failures": {
+      "left_fixture": 1020,
+      "slipped": 4
+     }
+    }
+   ]
+  }
+ ]
+}

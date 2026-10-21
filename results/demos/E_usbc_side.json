@@ -1,0 +1,36 @@
+{
+ "title": "USB-C E6: port facing the robot, port-up policy",
+ "source": "results/demos/data/E_usbc_side.parquet",
+ "n": 1024,
+ "success_rate": 0.0,
+ "failures": {
+  "left_fixture": 1020,
+  "slipped": 4
+ },
+ "shown": [
+  {
+   "world": 317,
+   "success": false,
+   "failure": "slipped",
+   "time": 0.9199999570846558
+  },
+  {
+   "world": 651,
+   "success": false,
+   "failure": "slipped",
+   "time": 0.8999999761581421
+  },
+  {
+   "world": 523,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 0.8799999952316284
+  },
+  {
+   "world": 652,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 0.2199999988079071
+  }
+ ]
+}

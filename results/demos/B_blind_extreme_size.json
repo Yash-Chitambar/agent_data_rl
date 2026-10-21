@@ -1,0 +1,94 @@
+{
+ "title": "Phase B: blind policy, extreme sizes (OOD)",
+ "source": "results/demos/data/B_blind_extreme_size.parquet",
+ "n": 1024,
+ "success_rate": 0.8583984375,
+ "failures": {
+  "left_fixture": 77,
+  "never_found": 43,
+  "wedged_partial": 11,
+  "captured_then_lost": 8,
+  "jammed_inside": 5,
+  "slipped": 1
+ },
+ "shown": [
+  {
+   "world": 433,
+   "success": true,
+   "failure": "success",
+   "time": 0.14000000059604645
+  },
+  {
+   "world": 773,
+   "success": true,
+   "failure": "success",
+   "time": 0.7199999690055847
+  },
+  {
+   "world": 478,
+   "success": true,
+   "failure": "success",
+   "time": 4.019999980926514
+  },
+  {
+   "world": 149,
+   "success": false,
+   "failure": "captured_then_lost",
+   "time": 5.0
+  },
+  {
+   "world": 210,
+   "success": false,
+   "failure": "captured_then_lost",
+   "time": 5.0
+  },
+  {
+   "world": 220,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 311,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 254,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 0.8999999761581421
+  },
+  {
+   "world": 685,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 2.0
+  },
+  {
+   "world": 277,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 452,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 756,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  },
+  {
+   "world": 814,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  }
+ ]
+}

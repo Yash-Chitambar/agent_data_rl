@@ -1,0 +1,81 @@
+{
+ "title": "Phase B: blind policy, random convex pegs (OOD)",
+ "source": "results/demos/data/B_blind_random_convex.parquet",
+ "n": 1024,
+ "success_rate": 0.2373046875,
+ "failures": {
+  "slipped": 449,
+  "wedged_partial": 173,
+  "never_found": 157,
+  "left_fixture": 1,
+  "jammed_inside": 1
+ },
+ "shown": [
+  {
+   "world": 195,
+   "success": true,
+   "failure": "success",
+   "time": 0.25999999046325684
+  },
+  {
+   "world": 885,
+   "success": true,
+   "failure": "success",
+   "time": 1.3799999952316284
+  },
+  {
+   "world": 842,
+   "success": true,
+   "failure": "success",
+   "time": 4.940000057220459
+  },
+  {
+   "world": 12,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 344,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 321,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 523,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 496,
+   "success": false,
+   "failure": "slipped",
+   "time": 0.7199999690055847
+  },
+  {
+   "world": 654,
+   "success": false,
+   "failure": "slipped",
+   "time": 1.7799999713897705
+  },
+  {
+   "world": 555,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 4.940000057220459
+  },
+  {
+   "world": 685,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  }
+ ]
+}

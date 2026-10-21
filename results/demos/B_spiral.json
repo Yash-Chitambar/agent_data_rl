@@ -1,0 +1,93 @@
+{
+ "title": "Phase B: scripted spiral search (privileged hole pose)",
+ "source": "results/demos/data/B_spiral.parquet",
+ "n": 512,
+ "success_rate": 0.775390625,
+ "failures": {
+  "never_found": 67,
+  "wedged_partial": 23,
+  "slipped": 19,
+  "left_fixture": 4,
+  "jammed_inside": 2
+ },
+ "shown": [
+  {
+   "world": 246,
+   "success": true,
+   "failure": "success",
+   "time": 0.29999998211860657
+  },
+  {
+   "world": 141,
+   "success": true,
+   "failure": "success",
+   "time": 3.6999998092651367
+  },
+  {
+   "world": 143,
+   "success": true,
+   "failure": "success",
+   "time": 14.819999694824219
+  },
+  {
+   "world": 25,
+   "success": false,
+   "failure": "slipped",
+   "time": 6.279999732971191
+  },
+  {
+   "world": 427,
+   "success": false,
+   "failure": "slipped",
+   "time": 6.739999771118164
+  },
+  {
+   "world": 123,
+   "success": false,
+   "failure": "never_found",
+   "time": 15.0
+  },
+  {
+   "world": 165,
+   "success": false,
+   "failure": "never_found",
+   "time": 15.0
+  },
+  {
+   "world": 171,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 15.0
+  },
+  {
+   "world": 401,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 15.0
+  },
+  {
+   "world": 255,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 14.299999237060547
+  },
+  {
+   "world": 318,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 7.759999752044678
+  },
+  {
+   "world": 294,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 15.0
+  },
+  {
+   "world": 422,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 15.0
+  }
+ ]
+}

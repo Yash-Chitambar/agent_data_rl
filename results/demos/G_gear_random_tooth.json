@@ -1,0 +1,27 @@
+{
+ "title": "Gear meshing: blind policy, random tooth profiles (OOD)",
+ "source": "results/demos/data/G_gear_random_tooth.parquet",
+ "n": 1024,
+ "success_rate": 1.0,
+ "failures": {},
+ "shown": [
+  {
+   "world": 158,
+   "success": true,
+   "failure": "success",
+   "time": 0.3799999952316284
+  },
+  {
+   "world": 834,
+   "success": true,
+   "failure": "success",
+   "time": 0.8199999928474426
+  },
+  {
+   "world": 200,
+   "success": true,
+   "failure": "success",
+   "time": 3.2200000286102295
+  }
+ ]
+}

@@ -1,0 +1,93 @@
+{
+ "title": "USB-C, far starts (up to 9 mm per axis), 50 um",
+ "source": "results/demos/data/E_usbc_far.parquet",
+ "n": 2048,
+ "success_rate": 0.34521484375,
+ "failures": {
+  "never_found": 1000,
+  "left_fixture": 294,
+  "wedged_partial": 35,
+  "jammed_inside": 8,
+  "slipped": 4
+ },
+ "shown": [
+  {
+   "world": 1452,
+   "success": true,
+   "failure": "success",
+   "time": 0.5399999618530273
+  },
+  {
+   "world": 582,
+   "success": true,
+   "failure": "success",
+   "time": 3.0399999618530273
+  },
+  {
+   "world": 45,
+   "success": true,
+   "failure": "success",
+   "time": 7.980000019073486
+  },
+  {
+   "world": 150,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 862,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 330,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 6.819999694824219
+  },
+  {
+   "world": 1011,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 3.4800000190734863
+  },
+  {
+   "world": 385,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 1012,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 389,
+   "success": false,
+   "failure": "slipped",
+   "time": 7.859999656677246
+  },
+  {
+   "world": 613,
+   "success": false,
+   "failure": "slipped",
+   "time": 6.420000076293945
+  },
+  {
+   "world": 465,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 622,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  }
+ ]
+}
