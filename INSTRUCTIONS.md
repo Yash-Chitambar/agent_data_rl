@@ -114,7 +114,7 @@ the batch.
 > reached the final stage at 200M steps and seats 91.5% there (capture radius 6.0 mm).
 
 ```bash
-tmux new -d -s jobs "python3 scripts/server/run_jobs.py --gpus <free indices> \
+tmux new -d -s jobs "python3 scripts/server/run_jobs.py --gpus <free indices> --require-idle-gpus \
     --skip-tag also_in_local_queue --skip-tag needs_local_ckpt \
     scripts/server/jobs/B_train.txt scripts/server/jobs/B_eval.txt \
     scripts/server/jobs/C_train.txt scripts/server/jobs/C_eval.txt"
@@ -157,7 +157,7 @@ and report to Yash.
 Work on a branch, never directly on `main`:
 
 ```bash
-git switch -c jensen-runs        # once
+git switch -c mason-runs        # once
 ```
 
 Commit and push **after each phase's evaluations finish, and at least once a day:**
@@ -176,10 +176,10 @@ git add results docs/FINDINGS.md scripts/server/jobs
 git -c user.name="Yash Chitambar" -c user.email="yash_chitambar@berkeley.edu" commit -m "<phase>: <what finished>
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-git push -u origin jensen-runs
+git push -u origin mason-runs
 ```
 
-Yash merges `jensen-runs` into `main`. Before each push, `git pull --rebase origin main` into the
+Yash merges `mason-runs` into `main`. Before each push, `git pull --rebase origin main` into the
 branch if `main` moved, and resolve conflicts in `docs/FINDINGS.md` by keeping both sides' entries.
 
 ## 8. When to stop and ask Yash
@@ -196,4 +196,9 @@ branch if `main` moved, and resolve conflicts in `docs/FINDINGS.md` by keeping b
 | Date | Host | What | GPUs | tmux session | Log | State |
 |---|---|---|---|---|---|---|
 | 2026-10-20 | athena5 | Local queue: C-peg-proprio-base-s0, then E1 s0, B blind s2, no-contact s1 (and the gear task when its agent adds it) | 0 | (queue.sh) | runs/queue/queue.log | running |
-| | jensen | Setup + benchmark | | | | not started |
+| 2026-10-20 | mason (actual migration host; 5 × V100 32 GB) | CUDA 12 bootstrap + all smoke tests | 0 | peg-setup (finished) | runs/bootstrap.log | passed, exit 0 |
+| 2026-10-20 | mason | Blind benchmark, 12,288 worlds | 0 | peg-bench-blind (finished) | runs/benchmark-blind.log | passed: 20,490 steps/s, 10,706 MiB |
+| 2026-10-20 | mason | Visual benchmark, 4,096 worlds | 1 (released) | peg-bench-visual (finished) | runs/benchmark-visual.log | passed: 3,922 steps/s, 28,558 MiB |
+| 2026-10-20 | mason | 300M-step validation, B-peg-proprio-base-s3 | 0 (released) | peg-validation (finished) | runs/B-peg-proprio-base-s3.log | passed: 90% at 37.4M, >=99.2% from 150M, 99.8% at 300M |
+| 2026-10-20 | mason | YAM lab-table scene (builder.YAM_TABLE, EnvCfg.table_top) + 25M smoke | 1 (released) | - | runs/_smoke-C-yam-table | passed: 90% at 18.1M |
+| 2026-10-20 | mason | Batch: B_train, B_eval, C_train, C_eval (+ C base s0 on the table setup) | 0–4 (Yash OK) | jobs | runs/queue_server/runner.log | running |

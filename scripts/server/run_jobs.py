@@ -133,6 +133,27 @@ def detect_gpus() -> list[str]:
         sys.exit(f"[run_jobs] cannot detect GPUs ({e}); pass --gpus")
 
 
+def gpu_idle(gpu: str, samples=3, interval=1.0) -> tuple[bool, str]:
+    """Fail closed if a named GPU is busy or its capacity cannot be established."""
+    for sample in range(samples):
+        try:
+            capacity = subprocess.check_output(
+                ["nvidia-smi", "-i", str(gpu),
+                 "--query-gpu=memory.used,utilization.gpu", "--format=csv,noheader,nounits"],
+                text=True, timeout=30).strip()
+            memory, utilization = (float(x.strip()) for x in capacity.split(","))
+            processes = subprocess.check_output(
+                ["nvidia-smi", "-i", str(gpu), "--query-compute-apps=pid",
+                 "--format=csv,noheader,nounits"], text=True, timeout=30).strip()
+            if not (0 <= memory < 1024 and 0 <= utilization <= 1) or processes:
+                return False, f"{memory:g} MiB, {utilization:g}% compute, pids={processes or 'none'}"
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            return False, f"capacity check failed: {exc}"
+        if sample + 1 < samples:
+            time.sleep(interval)
+    return True, f"idle over {samples} sample(s)"
+
+
 class Runner:
     def __init__(self, args):
         self.a = args
@@ -220,6 +241,16 @@ class Runner:
 
     def start(self, j: Job, slot):
         gpu = slot[0]
+        if self.a.require_idle_gpus:
+            idle, reason = gpu_idle(gpu)
+            if not idle:
+                self.log(f"WAIT gpu={gpu}: {reason}")
+                return False
+            # Recheck immediately before changing run state and launching the job.
+            idle, reason = gpu_idle(gpu, samples=1)
+            if not idle:
+                self.log(f"WAIT gpu={gpu}: {reason}")
+                return False
         n = self.attempts.get(j.cmd, 0) + 1
         self.attempts[j.cmd] = n
         if j.is_train:
@@ -247,6 +278,7 @@ class Runner:
                                   is_train=j.is_train, gpu=gpu, attempt=n, t0=time.time(),
                                   start=now(), log=str(logp), rc_file=str(rcp))
         self.save_running()
+        return True
 
     def reap(self):
         for slot, info in list(self.running.items()):
@@ -340,10 +372,16 @@ class Runner:
                     print(f"would START gpu={slot[0]} {jb.label}: {jb.cmd}")
                 self.print_status(done, header="dry-run (state before starting)")
                 return 0
-            for jb, slot in zip(ready, free):
-                self.start(jb, slot)
-                started += 1
-            if not self.running and not self.a.watch:
+            waiting_for_gpu = False
+            for slot in free:
+                if not ready:
+                    break
+                if self.start(ready[0], slot):
+                    ready.pop(0)
+                    started += 1
+                else:
+                    waiting_for_gpu = True
+            if not self.running and not self.a.watch and not waiting_for_gpu:
                 waiting = [jb for jb in self.jobs if states[jb.idx] == "waiting"]
                 if waiting:
                     missing = sorted({n for jb in waiting for n in jb.after if not self.complete(n)})
@@ -373,6 +411,9 @@ def main():
     ap.add_argument("manifests", nargs="*")
     ap.add_argument("--gpus", default="auto", help="comma list of GPU ids, or auto (CUDA_VISIBLE_DEVICES / nvidia-smi)")
     ap.add_argument("--per-gpu", type=int, default=1, help="concurrent jobs per GPU")
+    ap.add_argument("--require-idle-gpus", action="store_true",
+                    help="before each launch require <1 GiB, <=1%% compute and no compute PIDs "
+                         "over repeated samples; wait when busy (requires --per-gpu 1)")
     ap.add_argument("--retries", type=int, default=1)
     ap.add_argument("--state-dir", default=str(REPO / "runs" / "queue_server"))
     ap.add_argument("--runs-dir", default=str(REPO / "runs"))
@@ -389,6 +430,8 @@ def main():
     ap.add_argument("--mark-complete", nargs="+", metavar="NAME",
                     help="write runs/NAME/.complete for runs finished elsewhere, then exit")
     a = ap.parse_args()
+    if a.require_idle_gpus and a.per_gpu != 1:
+        ap.error("--require-idle-gpus requires --per-gpu 1")
     if a.mark_complete:
         r = Runner(argparse.Namespace(**{**vars(a), "gpus": "0", "per_gpu": 1}))
         for n in a.mark_complete:

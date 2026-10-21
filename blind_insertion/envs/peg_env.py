@@ -34,7 +34,8 @@ class EnvCfg:
     # poses (Table 1, peg column)
     fix_x: tuple = (0.54, 0.76)
     fix_y: tuple = (-0.29, 0.17)
-    fix_z: tuple = (-0.20, 0.29)
+    fix_z: tuple = (-0.20, 0.29)       # top face; with table_top: lift of the lowest corner
+    table_top: float | None = None     # YAM lab workcell table (builder.YAM_TABLE); fixture rests on it
     fix_tilt_deg: float = 5.0
     grip_rot_deg: float = 5.0
     peg_offset: float = 0.0125          # per axis, uniform
@@ -106,7 +107,8 @@ class PegEnv:
             sampler = cfg.variant_sampler or B.sample_study_pegs
             variants = sampler(cfg.n_variants, cfg.variant_seed)
         self.mjm, self.lay = B.build(cfg.robot, variants, gains=cfg.gains,
-                                     backlash_arcmin=cfg.backlash_arcmin, pad_spheres=cfg.pad_spheres)
+                                     backlash_arcmin=cfg.backlash_arcmin, pad_spheres=cfg.pad_spheres,
+                                     table_top=cfg.table_top)
         lay = self.lay
         if cfg.pad_solimp is not None:
             self.mjm.geom_solimp[lay.pad_geoms, :3] = cfg.pad_solimp
@@ -153,6 +155,7 @@ class PegEnv:
         self.grasp_z = tt(lay.grasp_z)
         self.plate_half = tt([v.plate_size / 2 for v in variants])
         self.hole_r = tt([np.abs(p).max() for p in lay.hole_polys])
+        self.fix_corners = tt(lay.fix_corners)                       # (K,8,3)
 
         self.chain = K.Chain(self.mjm, lay.tcp_site, lay.arm_qadr, device=dev)
         self.qpos0 = torch.as_tensor(self.mjm.qpos0, dtype=torch.float32, device=dev)
@@ -254,6 +257,9 @@ class PegEnv:
             fp = torch.stack([_uniform(*cfg.fix_x, m_, gen, dev), _uniform(*cfg.fix_y, m_, gen, dev),
                               _uniform(*cfg.fix_z, m_, gen, dev)], 1)
             fR = K.rpy_mat(_uniform(-cfg.fix_tilt_deg, cfg.fix_tilt_deg, (m_, 3), gen, dev) * deg)
+            if cfg.table_top is not None:   # lowest corner of the tilted fixture on the table
+                low = (self.fix_corners[kk] @ fR.transpose(1, 2))[..., 2].min(1).values
+                fp[:, 2] += cfg.table_top - low
             R_tf = self.R_nom @ K.rpy_mat(
                 _uniform(-cfg.grip_rot_deg, cfg.grip_rot_deg, (m_, 3), gen, dev) * deg)
             # peg in tcp frame: peg z = -tcp z, tilted about the closing axis (tcp y)

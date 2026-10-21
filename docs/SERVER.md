@@ -76,6 +76,7 @@ without EGL run `bootstrap.sh --no-egl`; if importing `mujoco` then fails, expor
 |---|---|---|---|
 | Blind train (Flexiv or YAM; Phases B, C, D) | 12,288 | **10.9 GB** | measured (nvidia-smi, C-peg-proprio-base-s0) |
 | Visual train (RGB 64x64) | 4,096 | ~8-14 GB (est.) | frame buffer (32+29) x 4096 x 3 x 64 x 64 B = 3.1 GB + render BVHs + CNN update on 204-world minibatches; not measured |
+| Visual train on mason V100, CUDA 12 | 4,096 | **28,558 MiB** | measured 2026-10-20; `results/server_setup/mason/benchmark_visual_4096.json`; one job per 32 GB GPU |
 | USB-C train (Phase E) | 8,192 | ~12-20 GB (est.) | `njmax` 2048 / `nconmax` 256 (4x the peg config) per world; not measured |
 | Eval (`eval.py`) | = episodes (1,024-2,048) | ~2-4 GB (est.) | |
 | Smoke runs | 128-256 | < 1 GB | |
@@ -173,6 +174,12 @@ python3 scripts/server/run_jobs.py scripts/server/jobs/B_train.txt scripts/serve
   helps when the GPU is much larger than the job, and for small eval jobs).
 - Each job runs as `bash -c "<line>"` from the repo root with `env.sh` sourced and
   `CUDA_VISIBLE_DEVICES=<gpu>`. The code always uses `cuda:0`, which is then that GPU.
+- On shared servers, pass explicit `--gpus 0,1 --require-idle-gpus`. Before each launch,
+  the runner checks three samples one second apart, then rechecks immediately before
+  changing run state. A GPU needs <1 GiB allocated, <=1% compute and no compute PIDs.
+  Busy GPUs or failed capacity queries leave the job queued; the runner waits and checks
+  again. This option requires `--per-gpu 1`. It does not reserve a GPU against other
+  users; use the cluster scheduler when one is available.
 - Lines may end with annotations after ` # ` (ignored by bash, so the format stays the same as
   `runs/queue/jobs.txt`): `after=RUN[,RUN]` (start only after `runs/RUN/.complete` exists),
   `visual`, `mem=GB`, `est_h=hours`. Manifests are re-read every poll, so appended lines are picked

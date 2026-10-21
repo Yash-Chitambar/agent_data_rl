@@ -85,6 +85,31 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-20 — YAM on the lab workcell table (mason)
+
+- **The YAM scene now matches the lab mount** (Yash's instruction): RoboSimStudio's
+  `yam_i2rt` workcell, without its background. The arm base is level with the table top, at
+  0.3475 m behind the table centre and 0.31 m to its right (the task arm of the bimanual
+  mount; we use it for one arm too). In the arm frame the table centre is (0.3475, 0.31),
+  half size 0.2975 x 0.65 m, height 0.75 m (`builder.YAM_TABLE`). The Menagerie and i2rt YAM
+  base frames are the same (arm along +x, z up; joint origins agree to ~8 mm), so only the
+  mount height changed.
+- **Before, the YAM was effectively mounted 10–30 cm above the work**: Phase C fixture tops were
+  at z −0.30 to −0.10 m in the base frame. Now `EnvCfg.table_top = 0` puts the table top
+  level with the base, and the (tilted) fixture rests on the table at its lowest corner
+  (`fix_z` = extra lift, now 0). Fixture tops are then at z +19 to +45 mm. x 0.25–0.45 and
+  y ±0.2 m stay. The table collides like the fixture (peg, pads, fingertips). Also applied to
+  `phase_e_usbc_up.json` and `phase_e_usbc_spheres.json`.
+- Checks (GPU 1, 2,048 starts): 0 IK failures; lowest fixture corner at z = 0 in every
+  world; all arm links stay ≥ 63 mm above the table top. IK failure at table height is
+  0–0.5% for x ≤ 0.45 m (3% at x 0.40–0.50, top 50 mm). Image:
+  `results/C/yam_table_reset.png`.
+- Smoke training (12,288 worlds, 25M steps, `_smoke-C-yam-table`): 90% training success at
+  18.1M steps, 97.4% at 25.2M, 19.2k steps/s on a V100. The YAM learns faster than the
+  Flexiv (90% at ~40M).
+- **Runs trained before this change use the old (floating) YAM setup**: athena5's
+  C-peg-proprio-base-s0 and E1 s0. They are not comparable with the new C/D/E runs.
+
 ### 2026-10-20 — Gear meshing (Phase G)
 
 - **One mesh per gear, rotated by geom slots.** All teeth of a gear are identical, so each
@@ -298,6 +323,7 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 | Item | Paper / plan | Ours | Why |
 |---|---|---|---|
+| Seeds and run length, C/D/E (2026-10-20) | 3 seeds, 300M steps | Seed 0 only; blind runs stop at training success >= 99% after >= 50M steps (`--stop_success 0.99 --min_steps 50e6`). C base s0 and C qnoise1e-4 s0 were already running and keep 300M | Yash: initial results first; ~815 -> ~160 GPU-h (3090 Ti-eq.). Add seeds 1-2 where a result is close or surprising |
 | Gear: bore clearance | "bore 0.75–1.0 mm" | Diametral (0.375–0.5 mm radial play) | Radial 1 mm play would exceed the 0.25-module tip–root clearance and let teeth jam into anchor roots |
 | Gear: backlash | 0.4–0.6 mm per flank | Centre distance solved so the circular backlash on the operating pitch circles is 2x the per-flank value (exact involute relations); verified 1.05x in sim at low torque | Concrete definition |
 | Gear: anchors | 1–2 anchors, tooth count not stated | 1 or 2 (50/50), 16–24 teeth, tooth width 0.45–0.47, same module, pressure angle and face width as the gear; azimuth 70–290 deg apart; printed density 1,250 kg/m^3 | Not stated |
@@ -328,6 +354,80 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 | Resets | not specified | Per-world start-state pool (4 per world, IK on GPU), refreshed every PPO iteration | Per-step IK made rollouts 3x slower |
 
 ## Compute budget (for moving work to a server)
+
+### 2026-10-20 — Server migration to mason (bootstrap passed; validation running)
+
+- Actual host: `mason`, 5 × Tesla V100-PCIE-32GB, driver 580.82.07, compute
+  capability 7.0. Setup is pinned to GPU 0 after repeated idle capacity checks;
+  all five GPUs initially used <50 MiB with 0% compute and no compute processes.
+- Branch: `mason-runs` (renamed from `jensen-runs` on 2026-10-20; the host is mason). Bootstrap completed in tmux `peg-setup`, log
+  `runs/bootstrap.log`; `runs/bootstrap.exit` is 0.
+- Pinned submodules and Menagerie installed. CUDA 12 stack: torch
+  `2.14.1+cu126`, Warp `1.18.0+cu12`, MuJoCo/MuJoCo Warp `3.12.0`.
+  Call `.venv/bin/python` directly; `uv run` / `uv sync` restore CUDA 13 binaries
+  that do not support V100.
+- Server verification passed all six checks, including GPU matrix multiplication,
+  EGL rendering and MuJoCo Warp stepping (`runs/_verify.json`).
+  `uv pip check` passed (151 packages); all 381 manifest commands passed parser
+  validation (`runs/manifest-check.log`). CPU assembly integration also passed
+  (`runs/check-setup.log`). Bootstrap blind training (2 PPO iterations), 64-episode checkpoint evaluation,
+  and visual training (2 PPO iterations) all passed; bootstrap ended `ALL OK`.
+- Full-size blind benchmark passed (12,288 worlds, 12 PPO iterations): median
+  **20,490 steps/s**, peak **10,706 MiB**, no OOM, 327.1 s including model build.
+  Estimated 300M-step runtime **4.07 hours**, about 1.83× the 37.5k local reference.
+  Evidence: `results/server_setup/mason/benchmark_blind_12288.json`.
+- Full-size visual benchmark passed (4,096 worlds, 12 PPO iterations): median
+  **3,922 steps/s**, peak **28,558 MiB**, no OOM, 528.1 s including model build.
+  Evidence: `results/server_setup/mason/benchmark_visual_4096.json`.
+  A 300M-step cap would take **21.25 hours**; 50M takes ~3.54 hours if the existing
+  stop-success rule triggers there. Peak memory is much higher than the manifest's
+  informational `mem=14` estimate; keep one visual job per 32 GB V100.
+  GPU 1 released on completion.
+- Prescribed 300M-step validation `B-peg-proprio-base-s3` started 17:59 UTC on
+  GPU 0 in tmux `peg-validation`. Runner state is `runs/queue_validation/`, log
+  `runs/B-peg-proprio-base-s3.log`; completion marker is written only on exit 0.
+  No retries (a failure needs inspection). Compare success >90% at 35–50M and
+  >=99% from 150M before starting a production batch.
+  First checkpoint at 9,830,400 steps (iteration 25) loaded strictly on CPU;
+  all model tensors and policy/value forward outputs were finite. Training success
+  at this checkpoint was 40.2%. Evidence:
+  `results/server_setup/mason/validation_checkpoint_smoke.json`. This is a checkpoint
+  integrity check; the learning-curve gate is still pending.
+- All README test suites passed: mjfit **265 tests** (528.70 s), RoboSimStudio fast
+  **1,728 tests, 27 skipped** (160.19 s), RoboSimStudio CPU **19 tests** (111.59 s).
+  Logs: `runs/test-mjfit.log`, `runs/test-robosimstudio-fast.log`,
+  `runs/test-robosimstudio-cpu.log`.
+- Shared-server runner hardened with opt-in `--require-idle-gpus`: three idle
+  samples followed by a launch-time recheck; busy or unreadable GPUs keep jobs
+  queued without moving partial runs or counting failed attempts. Six regression
+  tests passed. Live queue smoke skipped the active validation GPU 0 and dispatched
+  a CPU-only environment check on idle GPU 1; recorded `CUDA_VISIBLE_DEVICES=1`
+  and exited 0 (`runs/_runner-idle-smoke/runner.log`). Training code is unchanged.
+- Validation crossed **90% training success at 37.36M steps** (iteration 95,
+  success 90.47%), within the required 35–50M window and comparable to local seeds
+  (39.7M, 41.7M). Early learning gate passed; >=99% from 150M and completion
+  of the 300M run are still pending. Evidence:
+  `results/server_setup/mason/validation_early_gate.json`.
+- **Validation passed both gates** and finished 300M steps (exit 0, 4.08 h): min training
+  success 99.21% from 150M (mean 99.64%), final 99.79%. Logs:
+  `results/B/train_logs/B-peg-proprio-base-s3/`; summary
+  `results/server_setup/mason/validation_final.json`.
+- **Production batch started 2026-10-20 22:06 UTC on GPUs 0,1** (Yash's OK: 2 GPUs), tmux
+  `jobs`: B_train, B_eval, C_train, C_eval with `--require-idle-gpus --skip-tag
+  also_in_local_queue --skip-tag needs_local_ckpt`. First jobs: B-peg-rgb-base-s1 (28.6 GB,
+  ~4.0k steps/s) and B-peg-proprio-nocontact-s2 (10.7 GB, ~21.4k steps/s), as benchmarked.
+  C jobs use the new YAM table scene.
+- **2026-10-20 22:17 UTC: batch widened to GPUs 0–4** (Yash's OK). The runner was restarted
+  and adopted the two running jobs. **C-peg-proprio-base-s0 now trains on mason** on the
+  table setup (removed from `LOCAL_DONE` in `make_manifests.py`: athena5's run used the old
+  mount). Yash's plan: athena5's old-setup YAM runs are not re-validated; mason's
+  table-setup C runs confirm the result, then D and E. New jobs start as benchmarked
+  (visual 28.6 GB / 4.1k steps/s, YAM blind 10.7 GB / 20.3–20.7k steps/s).
+- **Plan cut to initial results** (Yash, 2026-10-20 ~22:40 UTC): C, D, E seed 0 only, with a
+  99% stop rule (ported from `train_visual.py` to `train.py`). 136 jobs, ~161 GPU-h
+  3090 Ti-equivalent (~290 V100 GPU-h, ~2.5 days on 5 GPUs; less where the stop rule fires).
+- No production batch has started. D/E retain their Gate C noise decision
+  requirement; local-queue jobs and missing local checkpoints must be skipped.
 
 One 300M-step run = ~2.3 h on the local RTX 3090 Ti (12,288 worlds, ~37k env steps/s).
 

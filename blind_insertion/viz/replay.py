@@ -83,6 +83,7 @@ def main():
     ap.add_argument("--n_variants", type=int, default=1024)
     ap.add_argument("--variant_seed", type=int, default=1000)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--table_top", type=float, default=None, help="YAM workcell table (EnvCfg.table_top)")
     ap.add_argument("--every", type=int, default=1)
     ap.add_argument("--family", default="study", help="study | usbc (as in eval.py)")
     ap.add_argument("--clearance", default="", help="usbc: fixed clearance (m) or lo,hi, as in eval.py")
@@ -98,7 +99,7 @@ def main():
         vs = B.sample_usbc(args.n_variants, args.variant_seed, **kw)
     else:
         vs = B.sample_study_pegs(args.n_variants, args.variant_seed)
-    m, lay = B.build(args.robot, vs)
+    m, lay = B.build(args.robot, vs, table_top=args.table_top)
     z = np.load(args.rollouts)
     for w in [int(x) for x in args.worlds.split(",")]:
         roll = {k.split("_", 1)[1]: z[k] for k in z.files if k.startswith(f"w{w}_")}

@@ -1,0 +1,9 @@
+{
+  "run": "B-peg-proprio-base-s3",
+  "checkpoint_iteration": 25,
+  "checkpoint_steps": 9830400,
+  "device": "cpu",
+  "state_dict_load": "strict passed",
+  "all_model_tensors_finite": true,
+  "policy_and_value_forward_finite": true
+}
