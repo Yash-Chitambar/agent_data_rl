@@ -38,10 +38,11 @@ STOP = "--stop_success 0.99 --min_steps 50e6"
 # runner matches running jobs by command text (a changed line would start a duplicate).
 STARTED_FULL = {"C-peg-proprio-base-s0", "C-peg-proprio-qnoise1e-4-s0"}
 # Phase C noise model carried into Phases D and E (plan §10: "with the Phase C noise model on").
-# PLACEHOLDER until Gate C picks it from the robustness plots; regenerate D/E after changing.
-NOISE = {"q_noise": 1e-4}
+# Gate C (2026-10-21): per-world randomized levels. C-peg-proprio-randall-s0 keeps 96-98% under every
+# noise, quantization, backlash and latency test level, while each fixed level transfers poorly.
 NOISE_RAND = {"q_noise": [0, 1e-4, 5e-4], "q_quant_bits": [0, 16, 14], "backlash_arcmin": [0, 1, 3, 5],
               "latency": [0, 1, 2]}
+NOISE = {"noise_rand": NOISE_RAND}
 MED_PER_HALF = 0.765          # train.MEDIAN_RADIAL_PER_HALFWIDTH: median |xy| = 0.765 a for U(-a,a)^2
 
 # GPU-hour assumptions, from runs on the local RTX 3090 Ti (runs/queue/queue.log):
@@ -218,9 +219,8 @@ E_CONDS = [  # variant, env_file, env_json (train and eval), variant_kw, eval mo
     ("h10", USBC, {"history": 10}, {}, "indist"),
     ("h60", USBC, {"history": 60}, {}, "indist"),
     # E1 trains WITHOUT the noise model, so the plan's "no noise model" ablation is E1 itself and
-    # these are the "with noise" counterparts (fixed placeholder level; randomized levels)
+    # this is the "with noise" counterpart (the Gate C randomized model)
     ("noise", USBC, NOISE, {}, "full"),
-    ("noiserand", USBC, {"noise_rand": NOISE_RAND}, {}, "indist"),
     ("chamfer", USBC, {}, CHAMFER, "full"),                        # E4 with chamfer
     ("latch", USBC_LATCH, {}, {}, "full"),                         # E5
     ("side", USBC_SIDE, {}, {}, "full"),                           # E6
@@ -405,7 +405,7 @@ def main():
     dup = ("# Lines tagged also_in_local_queue are ALSO in the local runs/queue/jobs.txt: remove them\n"
            "# from one side first. Lines tagged needs_local_ckpt evaluate runs trained on the local\n"
            "# machine: sync_up.sh --runs NAME and run_jobs.py --mark-complete NAME first, or run there.\n")
-    noise = f"# Phase C noise model used here (PLACEHOLDER until Gate C): {json.dumps(NOISE)}\n"
+    noise = f"# Phase C noise model used here (Gate C): {json.dumps(NOISE)}\n"
     summary = [
         write("B_train.txt", "Phase B remaining training: blind s2, no-contact s1/s2, visual s1/s2", b_tr, dup),
         write("B_eval.txt", "Phase B evals (eval_phase_b.sh: in-dist 2,048 + 6 OOD bins x 1,024 [+ probe]) "

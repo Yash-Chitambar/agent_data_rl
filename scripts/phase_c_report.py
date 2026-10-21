@@ -77,7 +77,7 @@ def main():
     cell = {(r.train, r.test): dict(mean=r.success, lo=r.lo, hi=r.hi, k=r.k, n=r.n) for r in df.itertuples()}
     pols = [("base", "Trained without the condition"), ("own", "Trained with the condition")]
     if any(k[0] == "randall" for k in cell):
-        pols.append(("randall", "Trained with all conditions randomized"))
+        pols.append(("randall", "Trained with random noise, backlash and latency"))
     robust = dict(policies=[dict(key=k, label=lb) for k, lb in pols], conditions=[])
     for test, label, own in ROBUST:
         vals = {"base": cell.get(("base", test)), "own": cell.get((own, test)), "randall": cell.get(("randall", test))}

@@ -120,7 +120,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     vs = B.sample_study_pegs(1024, 1000)
     m, lay = B.build("yam", vs, table_top=0.0)
-    d = mujoco.MjData(m)
+    d, m_bl = mujoco.MjData(m), 0.0
     size = (480, 360)
     cam = Cam(m, size)
     cap = int(MAX_T * 50)
@@ -153,6 +153,12 @@ def main():
         if any(not (EX / f"{p}_on_{test}.parquet").exists() for p, _ in pols):
             print("skip", clip, "(rollouts missing)")
             continue
+        bl = float(test[len("backlash"):]) if test.startswith("backlash") else 0.0
+        if bl != m_bl:   # logged qpos includes the hidden backlash hinges
+            m, lay = B.build("yam", vs, table_top=0.0, backlash_arcmin=bl)
+            d, m_bl = mujoco.MjData(m), bl
+            cam.r.close()
+            cam = Cam(m, size)
         (df0, z0), (df1, z1) = loaded[0][0], loaded[1][0]
         logged = sorted({int(k.split("_")[0][1:]) for k in z0.files} & {int(k.split("_")[0][1:]) for k in z1.files})
         cand = [w for w in logged if not df0.loc[w].success and df1.loc[w].success]
