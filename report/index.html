@@ -1,6 +1,6 @@
 <title>Blind Precise Assembly Reproduction</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Results so far of a simulation reproduction of Bronars et al., Blind Precise Assembly (arXiv:2610.23849), written in ASD-STE100 Simplified Technical English.">
+<meta name="description" content="Blind proprioceptive insertion: a reproduction of Bronars et al. (arXiv:2610.23849) and its extension to the YAM arm and USB-C, organized by research question. ASD-STE100 text.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="static/css/style.css">
@@ -10,432 +10,304 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Reproduction report · 21 October 2026, 08:00 UTC · Phases A, B, C, E and G · Phase C complete</div>
-    <h1>Blind Precise Assembly:<br><span class="sub">Results of the Simulation Reproduction</span></h1>
-    <p class="authors">Prepared by Yash Chitambar</p>
-    <p class="affil">Reproduction of Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
+    <div class="badge">Status report · 21 October 2026 · Simulation results</div>
+    <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
+    <p class="authors">Yash Chitambar</p>
+    <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
     <nav class="links">
       <a class="btn" href="https://arxiv.org/abs/2610.23849">Original paper</a>
       <a class="btn" href="https://younghyopark.me/blind-proprioceptive-assembly/">Original project page</a>
+      <a class="btn" href="https://claude.ai/artifact/CjxtoUaw6MhSsYZLwnPVEh">USB-C report</a>
     </nav>
   </header>
 
   <figure class="teaser">
-    <video autoplay muted loop playsinline poster="static/images/teaser_poster.jpg">
-      <source src="static/videos/teaser.mp4" type="video/mp4">
+    <video autoplay muted loop playsinline poster="static/images/yam_hero_poster.jpg">
+      <source src="static/videos/yam_hero.mp4" type="video/mp4">
     </video>
-    <figcaption><b>The blind policy puts the peg in the hole without a camera.</b> Each panel shows a different peg, hole and start position from the evaluation set. The policy did not see these parts in training. The video plays at ¼ of real time. The full insertion takes approximately 0.5 s.</figcaption>
+    <figcaption><b>The YAM arm puts a peg into a hole with no camera and no force sensor.</b> The arm stands on the lab table. Top: the full arm. Bottom: a close-up of the same episode. The two starts are the farthest of 64 logged starts (15 and 16 mm from the hole). The policy did not see these parts in training. The video plays at ¼ of real time.</figcaption>
   </figure>
 
-  <section id="summary">
-    <h2>Summary</h2>
-    <p class="lede">We reproduce the simulation results of the paper on one desktop GPU. The paper trains a robot arm to put a peg into a tight hole. In the training set, the clearance is 1.0 to 1.5 mm on each side. The policy uses only joint angles and joint velocities. It does not use a camera or a force sensor.</p>
-    <p>Our blind policy seats the peg on 99.9% of 2,048 test starts. The paper reports 99.4%. Our policy is faster than the paper's policy and moves a shorter distance. A linear probe finds the contact state in the policy's memory, as in the paper. On six families of unseen parts, our blind policy keeps a high success rate. These results agree with the main claims of the paper.</p>
-    <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The blind peg policy also learns on a second robot, the 6-joint YAM arm, with 99.9% training success. The first USB-C run found a grasp problem in the simulation, which we corrected. After the correction, the USB-C policy completes its curriculum and seats 91.5% of the drives at 0.02 to 0.1 mm clearance. We also built the paper's gear-meshing task. The blind gear policy seats 99.94% of 8,192 unseen gear sets and 99.7 to 100% in six unseen gear families, as the paper reports.</p>
-    <p>The remaining training now runs on a server with five V100 GPUs. A control run on the server gives the same learning curve as the two local seeds. Thus, the results do not depend on the machine. On the server, the YAM arm now stands on a table, as in the lab. To get first results quickly, Phases C, D and E train one seed for each condition.</p>
-    <p>Phase C is complete. We trained the YAM policy with 15 robot conditions and tested each policy under 13 conditions. Sensor noise and encoder quantization do not decrease the success rate. Backlash, latency and gain errors decrease it to 16 to 80%, if the policy did not train with them. Latency must match within one control step of 20 ms. Thus, the next step is to measure the latency and the backlash of the real YAM.</p>
-
+  <!-- ============================================================ question -->
+  <section id="question">
+    <h2>The question</h2>
+    <p class="lede">Can a policy that senses only the robot's own joints insert connector-scale parts on a low-cost arm? A USB-C port has an opening of 8.3 × 2.6 mm and a clearance of approximately 0.05 mm on each side.</p>
+    <p>The paper shows blind insertion for large pegs (openings of 30 to 90 mm, 0.5 to 1.5 mm clearance) on a 7-joint Flexiv arm. It does not test small parts or a low-cost arm. We answer five questions in order. Each step uses the result of the step before it.</p>
     <div class="tbl">
       <table>
-        <thead><tr><th>Phase</th><th>Content</th><th>Status</th></tr></thead>
+        <thead><tr><th>Question</th><th>Result so far</th><th>Status</th></tr></thead>
         <tbody>
-          <tr><td>A</td><td>Simulation, policy, PPO and evaluation code. Ten signal checks on the simulation.</td><td><span class="chip ok">Done</span></td></tr>
-          <tr><td>B</td><td>Reproduction of the paper's peg results on the Flexiv Rizon 4S arm.</td><td><span class="chip ok">Server seeds done</span> <span class="chip run">2 seeds in local queue</span></td></tr>
-          <tr><td>C</td><td>Port to the YAM arm, with sensor noise, backlash and latency.</td><td><span class="chip ok">15 conditions trained and tested</span> <span class="chip run">Randomized noise run</span></td></tr>
-          <tr><td>D</td><td>Scale study: part size against clearance.</td><td><span class="chip todo">Starts after the randomized noise run</span></td></tr>
-          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip ok">Seed 0 trained: 91.5% at 0.02–0.1 mm</span> <span class="chip todo">Server runs start after the randomized noise run</span></td></tr>
-          <tr><td>G</td><td>Gear meshing (paper task 2), not in the original plan.</td><td><span class="chip ok">Seed 0 trained and tested</span></td></tr>
-          <tr><td>F</td><td>Add RGB and depth cameras to the blind policy.</td><td><span class="chip todo">Code ready. Starts after E</span></td></tr>
+          <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
+          <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency, backlash and gain errors break a policy that did not train with them. One policy trained with random levels keeps 96 to 98% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
+          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>40-cell grid from 60 mm to 8 mm openings and 1.0 to 0.05 mm clearance.</td><td><span class="chip run">Training</span></td></tr>
+          <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away.</td><td><span class="chip ok">First result</span> <span class="chip run">Lab table runs training</span></td></tr>
+          <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <!-- ============================================================ headline -->
-  <p class="finding">Finding 1</p>
-  <section id="headline">
-    <h2>The blind policy matches the paper</h2>
-    <p class="claim">The blind policy seats the peg on 2,046 of 2,048 starts. The median time to seat is 0.64 s.</p>
-    <p>All policies use the same 2,048 matched starts. Each start has a peg and a hole that training did not use. At the start, the peg is up to 12.5 mm from the hole centre in x and in y. The peg has a tilt of up to 10° in the hand, and the fixture has a tilt of up to 5°. Each episode has a limit of 5 s. The spiral search knows the true hole position, so it is an optimistic baseline. It has a limit of 15 s.</p>
-    <figure class="viz" data-fig="headline">
-      <div class="viz-tag">Interactive · hover a bar</div>
-      <div class="viz-mount"></div>
-      <figcaption><b>Success rate on 2,048 matched starts.</b> The whiskers show the 95% Wilson interval. The black mark shows the paper's value. Hover a bar to see the time to seat, the lateral travel and the paper's value.</figcaption>
-    </figure>
-
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Metric (successful episodes)</th><th class="n">Blind, ours</th><th class="n">Blind, paper</th><th class="n">Visual, ours</th><th class="n">Visual, paper</th></tr></thead>
-        <tbody>
-          <tr><td>Success rate</td><td class="n">99.9%</td><td class="n">99.4%</td><td class="n">99.95%</td><td class="n">97.2%</td></tr>
-          <tr><td>Median time to seat</td><td class="n">0.64 s</td><td class="n">0.80 s</td><td class="n">0.38 s</td><td class="n">0.44 s</td></tr>
-          <tr><td>Insertions per minute</td><td class="n">88</td><td class="n">65</td><td class="n">139</td><td class="n">82</td></tr>
-          <tr><td>Median lateral travel</td><td class="n">26 mm</td><td class="n">37 mm</td><td class="n">15 mm</td><td class="n">20 mm</td></tr>
-          <tr><td>Median time partly inside</td><td class="n">0.28 s</td><td class="n">0.38 s</td><td class="n">0.10 s</td><td class="n">0.22 s</td></tr>
-          <tr><td>Median tilt while partly inside</td><td class="n">5.3°</td><td class="n">6.7°</td><td class="n">4.9°</td><td class="n">5.2°</td></tr>
-          <tr><td>Median tilt when seated</td><td class="n">1.5°</td><td class="n">1.1°</td><td class="n">1.4°</td><td class="n">1.1°</td></tr>
-        </tbody>
-        <caption>Paper Table 5 layout. Ours: seed 0, deterministic actions, 2,048 starts. Failed episodes count as 5 s for the insertion rate.</caption>
-      </table>
-    </div>
-    <p>The blind policy has two failures. In one, the policy does not find the hole. In the other, the peg stops partly inside the hole. The visual policy has one failure. In it, the peg stops partly inside the hole.</p>
-    <p>On parts like the training parts, the visual policy is faster than the blind policy. It seats the peg in a median of 0.38 s and moves 15 mm. The paper shows the same result: vision helps on familiar parts. Finding 3 shows the opposite result on unseen parts.</p>
-  </section>
-
-  <!-- ============================================================ method -->
-  <section id="method">
-    <h2>Method</h2>
-    <p>We follow the paper's setup. The changes are in the section "Differences from the paper".</p>
+  <!-- ============================================================ approach -->
+  <section id="approach">
+    <h2>Approach</h2>
+    <p>All phases use the same simulation, policy, training and test procedure. Only the robot and the parts change. This lets us compare results across phases.</p>
     <figure class="viz" data-fig="diagram">
       <div class="viz-tag">Interactive · hover a block</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Policy architecture.</b> Data moves from left to right. A temporal convolution network (TCN) encodes 30 steps of joint data into a 32-value latent. The actor uses the latent and the current step. The amber blocks are for training only. Hover a block to see its function and its size.</figcaption>
+      <figcaption><b>Policy.</b> A temporal convolution network (TCN) encodes the last 30 steps (0.6 s) of joint angles, joint velocities and actions into a 32-value latent. The actor uses the latent and the current step. The amber blocks are for training only: a critic with the true peg pose, and a contact decoder that predicts which edge points touch. Hover a block for its size.</figcaption>
     </figure>
     <div class="cols2">
       <ul class="facts">
-        <li><b>Robot.</b> Flexiv Rizon 4S (7 joints) from MuJoCo Menagerie, with a simplified Robotiq 2F-85 gripper.</li>
-        <li><b>Control.</b> The action is a joint-target offset of 0.02 rad per unit. A PD controller holds the target for 20 physics steps of 1 ms.</li>
-        <li><b>Parts.</b> 1,024 random peg and hole pairs (paper Table 1). Each pair is in 12 of the 12,288 parallel worlds.</li>
+        <li><b>Simulation.</b> MuJoCo Warp on the GPU, 12,288 worlds in parallel. Physics at 1 kHz, control at 50 Hz.</li>
+        <li><b>Action.</b> A joint-target offset. A PD controller holds the target for 20 ms. The low joint stiffness lets contact forces bend the arm, and the joint encoders sense this.</li>
+        <li><b>Parts.</b> 1,024 random peg and hole pairs in each run (paper Table 1). Fixture pose, grasp, friction and contact stiffness change in each episode.</li>
       </ul>
       <ul class="facts">
-        <li><b>Randomization.</b> Fixture pose, peg pose in the hand, friction, contact stiffness and grip force change for each episode.</li>
-        <li><b>Training.</b> PPO, 32-step rollouts, 5 epochs of 20 minibatches, learning rate 3·10⁻⁴. The contact decoder adds a cross-entropy loss.</li>
-        <li><b>Success.</b> All 64 points on the peg's bottom edge are inside the opening and less than 1.5 mm above the hole floor.</li>
+        <li><b>Training.</b> PPO with a contact-prediction loss. 300 million steps (2.3 h on an RTX 3090 Ti). Phases C to E stop at 99% training success after at least 50 million steps.</li>
+        <li><b>Test.</b> 2,048 starts with parts that training did not use, the same starts for every policy. Deterministic actions. 95% Wilson intervals.</li>
+        <li><b>Sim checks.</b> Before training, ten checks test the contact signal. For example, a 0.3 N push is visible in the joints, and a peg drop-in shows as a joint-velocity peak.</li>
       </ul>
     </div>
   </section>
 
-  <!-- ============================================================ training -->
-  <section id="training">
-    <h2>Training takes approximately two hours on one GPU</h2>
-    <p class="claim">The blind policy passes 90% training success after approximately 40 million steps.</p>
-    <p>Three blind seeds give almost the same curve. Seeds 0 and 1 ran on the local RTX 3090 Ti. Seed 3 ran on a V100 server as a control run (see "The server gives the same results"). The visual policy learns faster in steps. It reaches 100% training success at 50 million steps, and then the run stops. The visual run is approximately 4.5 times slower per step, because each step renders 4,096 wrist images. The visual policy passes 90% after 7.9 million steps. Without the contact decoder loss, the blind policy needs 89 million steps to pass 90%, which is 2.2 times as many. It passes 99% only after 262 million steps, and it ends at 99.1%. The paper reports 2.7 times as many steps. Thus, contact supervision makes training faster, as the paper reports.</p>
-    <p>Panel (c) shows the other robot and tasks. The YAM arm learns the peg task faster than the Flexiv arm: it passes 90% after approximately 17 million steps. The blue line is the YAM on the lab table setup (300 million steps, server). The USB-C and gear runs are described below.</p>
-    <figure class="viz" data-fig="training">
-      <div class="viz-tag">Interactive · hover to read every run</div>
+  <!-- ============================================================ RQ1 -->
+  <p class="finding">RQ1 · Validation</p>
+  <section id="rq1">
+    <h2>The reproduction matches the paper</h2>
+    <p class="claim">The blind policy seats the peg on 2,046 of 2,048 unseen starts (99.9%). The paper reports 99.4%. It is also faster and moves less.</p>
+    <figure class="viz" data-fig="headline">
+      <div class="viz-tag">Interactive · hover a bar</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Training success with stochastic actions (paper Figs. 8 and 14).</b> (a) Blind and visual policies. (b) The blind policy with and without the contact decoder loss. (c) The blind peg policy on the YAM arm (old mount and lab table), the first USB-C run with box pads (stopped at 160 million steps), the USB-C run with sphere pads (all five stages, see below) and the blind gear policy. The dotted line is 90%. Use the buttons to show each seed or a log step axis. Hover to read every run at one step.</figcaption>
+      <figcaption><b>Success on 2,048 matched starts (Flexiv arm, 1.0 to 1.5 mm clearance).</b> Whiskers: 95% Wilson interval. Black mark: the paper's value. The spiral search knows the true hole position, so it is an optimistic baseline. Hover for time and travel.</figcaption>
     </figure>
     <div class="tbl">
       <table>
-        <thead><tr><th>Simulated worlds</th><th class="n">1,024</th><th class="n">4,096</th><th class="n">8,192</th><th class="n">12,288</th></tr></thead>
-        <tbody><tr><td>Physics steps per second (20 ms control steps)</td><td class="n">18,275</td><td class="n">34,441</td><td class="n">42,959</td><td class="n">42,975</td></tr></tbody>
-        <caption>Check A-S9, simulation only. With PPO updates, training runs at 36,000 to 38,000 steps per second.</caption>
+        <thead><tr><th>Metric</th><th class="n">Blind, ours</th><th class="n">Blind, paper</th><th class="n">Camera, ours</th><th class="n">Camera, paper</th></tr></thead>
+        <tbody>
+          <tr><td>Success rate</td><td class="n">99.9%</td><td class="n">99.4%</td><td class="n">99.95%</td><td class="n">97.2%</td></tr>
+          <tr><td>Median time to seat</td><td class="n">0.64 s</td><td class="n">0.80 s</td><td class="n">0.38 s</td><td class="n">0.44 s</td></tr>
+          <tr><td>Median lateral travel</td><td class="n">26 mm</td><td class="n">37 mm</td><td class="n">15 mm</td><td class="n">20 mm</td></tr>
+        </tbody>
+        <caption>Paper Table 5 metrics, seed 0. The spiral search moves 147 mm (paper: 95 mm). Three camera seeds give 99.9 to 100%.</caption>
       </table>
     </div>
-  </section>
-
-  <!-- ============================================================ behavior -->
-  <p class="finding">Finding 2</p>
-  <section id="search">
-    <h2>Blind search is short and direct</h2>
-    <p class="claim">The blind policy moves less than the spiral search on 96% of matched starts.</p>
-    <p>The spiral search has the true hole position. It still moves a median of 147 mm, because it must cover the area around the hole. The blind policy moves a median of 26 mm. It slides the peg on the plate and feels the edge of the hole through the joints. The paper reports 37 mm for its blind policy and 95 mm for its spiral.</p>
-    <figure class="viz" data-fig="travel">
-      <div class="viz-tag">Interactive · hover a bin</div>
-      <div class="viz-mount"></div>
-      <figcaption><b>Lateral distance before the peg is seated (paper Fig. 9).</b> Only starts where all policies succeed are in the histogram. The dashed lines are the medians. Hover a bin to see the number of episodes for each policy.</figcaption>
-    </figure>
+    <p>The policy does not search in a pattern. It presses the peg on the plate, slides it, and feels the edge of the hole through the joints. Then it drops the peg in.</p>
     <figure class="viz" data-fig="paths">
       <div class="viz-tag">Interactive · select a start, play the timeline</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Search paths on the same start.</b> (a) The path of the peg's bottom centre over the hole opening (grey). The open circle is the start. The dashed outline is the peg at the current time. The peg is only 1 to 1.5 mm smaller than the hole on each side, so the two outlines must align almost exactly. (b) The height of the peg's bottom centre. The policy pushes the peg into the plate, finds the hole, and then drops in. Select a start with the buttons. Push Play to move the dots along the paths. Hover panel (b) to read the height and the fraction of the bottom edge inside the hole.</figcaption>
+      <figcaption><b>Search paths on the same start.</b> (a) The path of the peg's bottom centre over the hole (grey). The open circle is the start. (b) The height of the peg: the policy presses, finds the hole, and drops in. Select a start and push Play.</figcaption>
     </figure>
-    <figure class="teaser">
-      <video autoplay muted loop playsinline poster="static/images/compare_w0_poster.jpg">
-        <source src="static/videos/compare_w0.mp4" type="video/mp4">
-      </video>
-      <figcaption><b>Three policies on start 1.</b> The policies start with the same peg, hole and pose. The video plays at ¼ of real time. The spiral search moves in a circle around the hole. The learned policies move almost directly to the hole.</figcaption>
-    </figure>
-    <p class="note">Our blind policy never lifts the peg from the plate. The paper's policy lifts the peg in some states (84% probe recall for "lifted"). A possible cause is the weight of the peg. The arm does not compensate for it, so the arm sags approximately 48 mm. Thus, a lift costs a large action.</p>
-  </section>
-
-  <!-- ============================================================ generalization -->
-  <p class="finding">Finding 3</p>
-  <section id="ood">
-    <h2>Proprioception generalizes to unseen part families</h2>
-    <p class="claim">The blind policy seats more than 85% of parts in five of six held-out families.</p>
-    <p>The held-out families come from paper Table 6. They have tighter fits, more slender pegs, other sizes and random convex shapes. Training did not use these families. Each bar has 1,024 starts. The blind policy has a higher success rate than the visual policy in all six families. The difference is 12 to 54 percentage points. The largest difference is for extreme sizes: 85.8% blind against 31.4% visual. In the training range, the two policies are almost equal (99.9% and 99.95%). Thus, the camera helps on familiar parts, but it does not generalize as well as proprioception. The paper reports the same result.</p>
     <figure class="viz" data-fig="ood">
       <div class="viz-tag">Interactive · hover a bar</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Success on the training range and on six held-out families (paper Fig. 11, peg row).</b> The whiskers show the 95% Wilson interval. The dashed marks show the paper's values for the same type of policy. Use the button to hide the paper's values. Hover a bar for exact values.</figcaption>
+      <figcaption><b>Success on six part families that training did not use (paper Fig. 11).</b> 1,024 starts for each bar. Dashed marks: the paper's values. The blind policy beats the camera policy in every family, by 12 to 54 points, as in the paper. Camera seeds 1 and 2 agree with seed 0 (extreme size: 29% and 30%).</figcaption>
     </figure>
-    <p>Our visual policy is better than the paper's visual policy on unseen parts. For example, it seats 63.8% of very slender pegs. The paper reports 40.1%. A possible cause is that our simulated images are simple and have no lighting randomization.</p>
-    <p>Random convex parts are the hardest family for both studies. Our blind policy seats 22.8% of them, and our visual policy seats 3.0%. The paper reports 36.2% and 3.9%. These parts have corners and shapes that the cylinder-like training pegs do not have.</p>
-  </section>
-
-  <!-- ============================================================ probe -->
-  <p class="finding">Finding 4</p>
-  <section id="probe">
-    <h2>The policy's memory holds the contact state</h2>
-    <p class="claim">A linear probe reads the contact mode from the latent with 70% mean recall. The paper reports 70%.</p>
-    <p>We record 52,289 states from 1,536 worlds. Each state has a contact mode, for example "near search" or "inside, stuck". We train a linear classifier on half of the worlds and test it on the other half. The latent gives better recall than the current observation alone (53%) or a latent from an untrained encoder (52%). Thus, the history encoder adds contact information.</p>
-    <p>In the swap test, we give a state the latent of a different state. If the two states have different modes, the action changes more. Far search and near search are almost the same for the actor (ratio 0.99 to 1.01). A swap between search and inside changes the action 1.2 to 2.2 times as much. The paper reports the same pattern.</p>
+    <figure class="viz" data-fig="training">
+      <div class="viz-tag">Interactive · hover to read every run</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>Training success (paper Figs. 8 and 14).</b> (a) Three blind seeds pass 90% after approximately 40 million steps. The camera policy needs fewer steps, but each step is 4.5 times slower. (b) Without the contact-prediction loss, learning needs 2.2 times as many steps (paper: 2.7). (c) The YAM, USB-C and gear runs. Dotted line: 90%.</figcaption>
+    </figure>
     <figure class="viz" data-fig="probe">
       <div class="viz-tag">Interactive · hover a bar or a cell</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Probe and latent swap (paper Fig. 10 and Fig. 15).</b> (a) Probe recall for each contact mode, on test worlds. The modes "lifted" and "off the plate" are not shown: "lifted" never occurs, and "off" has only 23 states. (b) Rows are the state that receives the latent. Columns are the mode of the latent. A value of 1 means "no more change than a swap in the same mode". Hover for exact values.</figcaption>
+      <figcaption><b>The latent holds the contact state (paper Figs. 10 and 15).</b> (a) A linear probe reads the contact mode from the latent with 70% mean recall (paper 70%). The current observation alone gives 53%. (b) If a state receives the latent of a different contact mode, the action changes up to 2.2 times as much as for the same mode.</figcaption>
     </figure>
-    <figure class="viz" data-fig="heatmap">
-      <div class="viz-tag">Interactive · play or drag the timeline</div>
+    <p><b>A second task also reproduces.</b> We built the paper's gear-meshing task: a gear must slide down a shaft and mesh with one or two free anchor gears. The blind policy seats 99.94% of 8,192 unseen gear sets and 99.7 to 100% in six unseen gear families. The paper reports more than 99.9%.</p>
+  </section>
+
+  <!-- ============================================================ RQ2 -->
+  <p class="finding">RQ2 · Transfer to the YAM</p>
+  <section id="rq2">
+    <h2>The policy transfers to the YAM, if training includes the robot's latency and backlash</h2>
+    <p class="claim">On the lab table, the YAM policy seats 99.8% of 2,048 unseen starts. It learns 2.3 times faster than on the Flexiv arm.</p>
+    <p>The YAM is a low-cost 6-joint arm. We use the YAM workcell from RoboSimStudio: the base is level with the table top, at the position of the lab arm. The fixture lies on the table, 0.25 to 0.45 m in front of the base. The joint stiffness is 80 N·m/rad (first three joints) and 30 N·m/rad (wrist), from the Damiao motor model. Only the robot changes from RQ1: same pegs, same policy, same training.</p>
+    <div class="cols2">
+      <figure class="img">
+        <img src="static/images/yam_table_reset.png" alt="Four views of the YAM arm on a table, holding a peg above a fixture plate" loading="lazy">
+        <figcaption><b>The lab table setup.</b> Four start states from different angles.</figcaption>
+      </figure>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>YAM, seed 0</th><th class="n">Value</th></tr></thead>
+          <tbody>
+            <tr><td>Test success (2,048 starts)</td><td class="n">99.8%</td></tr>
+            <tr><td>Steps to 90% training success</td><td class="n">17 M (Flexiv: 40 M)</td></tr>
+            <tr><td>Median time to seat</td><td class="n">0.28 s</td></tr>
+            <tr><td>Unseen families: tighter, slender, very slender, mild size, extreme size</td><td class="n">97.0 to 99.7%</td></tr>
+            <tr><td>Unseen family: random convex</td><td class="n">0.5% (Flexiv: 22.8%)</td></tr>
+          </tbody>
+          <caption>Most random-convex failures are slips: the part turns out of the YAM's light grasp.</caption>
+        </table>
+      </div>
+    </div>
+
+    <h3>What a real arm adds: latency, backlash and gain errors</h3>
+    <p>A real arm is not the simulation. We trained one YAM policy for each of 15 robot conditions, and tested each policy under 13 conditions (2,048 starts for each test). One more policy trained with all conditions at random levels: each world draws its own noise, encoder resolution, backlash and latency.</p>
+    <figure class="viz" data-fig="robust">
+      <div class="viz-tag">Interactive · hover a group</div>
       <div class="viz-mount"></div>
-      <figcaption><b>The policy's input during one insertion.</b> Each row is one of the 33 observation values. The colours show the value in standard deviations (blue is low, orange is high). The window shows the last 30 steps (0.6 s) that the encoder reads. The line below shows the fraction of the peg's bottom edge that is inside the hole. Push Play or drag the slider.</figcaption>
+      <figcaption><b>Success under each test condition (YAM, seed 0, 2,048 unseen starts for each bar).</b> Orange: the base policy, trained with none of the conditions. Blue: the policy trained with that condition. Green: the policy trained with random levels of noise, encoder resolution, backlash and latency (not gains). Whiskers: 95% Wilson interval. Latency of 20 and 40 ms is 1 and 2 steps of the control loop. Backlash is in arcminutes (′). Hover a group for exact values.</figcaption>
     </figure>
-  </section>
-
-  <!-- ============================================================ phase A -->
-  <section id="checks">
-    <h2>The simulation passes its signal checks</h2>
-    <p>Before training, we test that the simulation gives a useful contact signal. The research plan has ten checks (A-S1 to A-S10). The table gives the results for the Flexiv arm.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Check</th><th>Result</th><th>Status</th></tr></thead>
-        <tbody>
-          <tr><td>A-S1 GPU against CPU</td><td>One 20 ms step: difference ≤ 0.04 mm. Arm alone for 2 s: median 0.048 mm. With a grasped peg, the paths diverge (stick-slip in the grasp is chaotic).</td><td><span class="chip ok">Pass (arm)</span></td></tr>
-          <tr><td>A-S2 Drop test</td><td>1,024 of 1,024 pegs drop into their holes and stay. Drift 5 µm.</td><td><span class="chip ok">Pass</span></td></tr>
-          <tr><td>A-S3 Step response</td><td>0.05 rad steps settle in 1 cycle. Maximum overshoot 12%.</td><td><span class="chip ok">Pass</span></td></tr>
-          <tr><td>A-S4 Gravity sag</td><td>The peg's weight bends joint 2 by 0.045 rad and joint 4 by 0.029 rad.</td><td><span class="chip ok">Report</span></td></tr>
-          <tr><td>A-S5 Contact signal</td><td>A vertical push of 0.30 N is visible above joint noise (σ = 10⁻⁴ rad). A lateral push gives a signal that is not monotonic.</td><td><span class="chip warn">Pass (vertical)</span></td></tr>
-          <tr><td>A-S6 Drop-in signal</td><td>When the peg drops into the hole, the joint velocities change. Peak-to-noise ratio 3.2.</td><td><span class="chip ok">Pass</span></td></tr>
-          <tr><td>A-S7 Leak test</td><td>Changes to the privileged state do not change the actor's input or output.</td><td><span class="chip ok">Pass</span></td></tr>
-          <tr><td>A-S8 Determinism</td><td>Two runs from the same state are not bitwise equal. The difference is 10⁻³ after 20 ms.</td><td><span class="chip bad">Fail (engine)</span></td></tr>
-          <tr><td>A-S9 Speed</td><td>43,000 steps per second at 8,192 worlds and more.</td><td><span class="chip ok">Report</span></td></tr>
-          <tr><td>A-S10 Baselines</td><td>Zero action 2.9%. Random actions 6.1%. Spiral search 77.3%.</td><td><span class="chip ok">Report</span></td></tr>
-        </tbody>
-        <caption>A-S8 is a property of MuJoCo Warp, not of our code. Thus, we compare distributions of results, not single rollouts.</caption>
-      </table>
-    </div>
-    <div class="gallery wide-block">
-      <figure>
-        <img src="static/images/A-S6_dropin_flexiv.png" alt="Joint angles, joint velocities, height and lateral position of the peg during a scripted slide into the hole" loading="lazy">
-        <figcaption><b>A-S6: the drop-in event is visible in the joints.</b> A script slides the peg over the hole. At 1.72 s (red line), the peg drops in. The joint velocities (second panel) change at the same time.</figcaption>
-      </figure>
-      <figure>
-        <img src="static/images/A-S5_contact_signal_flexiv.png" alt="Joint deflection against contact force for vertical and lateral pushes" loading="lazy">
-        <figcaption><b>A-S5: joint deflection against contact force.</b> For a vertical push, the deflection increases with the force (left). For a lateral push, the peg turns in the grasp, so the signal is not monotonic (centre).</figcaption>
-      </figure>
-      <figure>
-        <img src="static/images/A-S2_drop_study.png" alt="Drop test results for 1,024 study pegs" loading="lazy">
-        <figcaption><b>A-S2: drop test.</b> All 1,024 pegs fall into their holes and stay seated. The clearances are 1.0 to 1.5 mm on each side.</figcaption>
-      </figure>
-      <figure>
-        <img src="static/images/wrist_gpu_nv4.png" alt="Four wrist camera images from four simulated worlds" loading="lazy">
-        <figcaption><b>Wrist camera for the visual policy.</b> Four worlds render at the same time on the GPU. Each world has a different part. The renderer gives approximately 160,000 to 200,000 frames per second at 64 × 64 pixels.</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <!-- ============================================================ phase C / E / G -->
-  <p class="finding">Finding 5</p>
-  <section id="yam">
-    <h2>The blind policy also learns on the YAM arm</h2>
-    <p class="claim">On the 6-joint YAM arm, the blind peg policy reaches 99.9% training success. It passes 90% after 16 million steps.</p>
-    <p>Phase C uses the same pegs and holes as Phase B. Only the robot changes. The YAM cannot reach the paper's fixture positions, so the fixture is closer to the robot (x 0.25 to 0.45 m). The YAM uses a joint stiffness of 80 N·m/rad on the first three joints and 30 N·m/rad on the wrist joints, and an action scale of 0.04 rad.</p>
-    <p>The YAM learns faster than the Flexiv. It passes 90% after 16 million steps, and the Flexiv needs approximately 40 million steps. Its episodes are also shorter: 15 steps (0.3 s) against 36 steps on the Flexiv. A possible cause is the stiffer arm. The peg makes the YAM sag only 14 mm, against 48 mm on the Flexiv. With stiff gripper pads, the drop-in signal on the YAM has a peak-to-noise ratio of 10.7, against 3.2 on the Flexiv.</p>
-    <h3>The YAM now stands on a table, as in the lab</h3>
-    <p class="claim">On the lab table setup, the YAM passes 90% training success after 16.5 million steps. On the old mount, it needed 17.3 million steps.</p>
-    <p>In the first YAM setup, the fixture was 10 to 30 cm below the robot base. The real robot does not work like this. In the lab, the base is on the table top. Thus, we changed the simulation to the lab setup. We use the YAM workcell from RoboSimStudio, without its background:</p>
     <ul class="facts">
-      <li><b>Base.</b> The base is level with the table top. It is 0.3475 m behind the table centre and 0.31 m to the right. This is the position of the right arm in the two-arm setup. We use the same position for one arm.</li>
-      <li><b>Orientation.</b> The arm reaches along +x, with z up. The YAM models in MuJoCo Menagerie and in RoboSimStudio have the same base frame. Their joint origins agree to approximately 8 mm.</li>
-      <li><b>Table.</b> 0.595 × 1.30 m, 0.75 m high. The peg, the gripper pads and the fingertips touch the table, as they touch the fixture.</li>
-      <li><b>Fixture.</b> The fixture lies on the table. When the fixture has a tilt, its lowest corner touches the table. The fixture top is 19 to 45 mm above the base. The fixture is 0.25 to 0.45 m in front of the base, as before.</li>
+      <li><b>Sensor noise and encoder resolution do not matter.</b> With joint noise up to 5·10⁻⁴ rad or 14-bit encoders, no policy loses more than 1 point.</li>
+      <li><b>Backlash halves the success</b> of the base policy (43 to 47%). Training with any backlash level from 1 to 5 arcmin gives 98.5 to 99.6% at all three levels.</li>
+      <li><b>Latency is the worst condition.</b> With 20 ms of latency, the base policy seats only 16%. A policy trained with 20 ms seats 99%, but only 33% when there is no latency. Thus, the latency in training must match the robot, or vary over a range that contains it.</li>
+      <li><b>Stiffer gains cause slips.</b> At 4 times the gains, the base policy seats 20%. Most of its failures are slips.</li>
+      <li><b>One randomized policy covers all levels.</b> The policy trained with random levels seats 96 to 98% under every noise, encoder, backlash and latency test, including 0, 20 and 40 ms. It costs 3.6 points on the ideal arm (96.2% against 99.8%). Gains were not randomized: at 4 times the gains it seats 52%.</li>
     </ul>
-    <p>We did these checks on 2,048 start states. Inverse kinematics found a start pose for all of them. In each world, the lowest corner of the fixture is at the table top. All arm links stay at least 63 mm above the table. A short training run (25 million steps) passed 90% after 18.1 million steps. Old-mount YAM runs from the local machine are not used for comparisons with the new runs.</p>
-    <h3>Latency and backlash decide if a policy works on the robot</h3>
-    <p class="claim">Sensor noise and encoder quantization do not decrease the success rate. Latency, backlash and gain errors decrease it to 16 to 80% if the policy did not train with them.</p>
-    <p>We trained 15 YAM policies on the lab table (seed 0). Each policy trained with one robot condition. Then we tested each policy under 13 conditions, with 2,048 unseen starts for each test. All 15 policies passed 99% training success. Most runs stopped at the minimum of 50 million steps. Each run took approximately 46 minutes on a V100.</p>
-    <ul class="facts">
-      <li><b>Noise and quantization.</b> Joint noise of 10⁻⁴ and 5·10⁻⁴ rad and 14 or 16 bit encoders have no effect. The base policy keeps 99.8 to 100%.</li>
-      <li><b>Backlash.</b> The base policy seats 43 to 47% with 1 to 5 arcmin of backlash. A policy that trained with any of these levels seats 98.5 to 99.6% at all three levels. Without backlash, it loses only 2 to 3 points.</li>
-      <li><b>Latency.</b> The base policy seats 16% with one step of latency (20 ms) and 24% with two steps. A policy that trained with one step seats 99% at one step, but only 33% without latency. Thus, the latency in training must match the robot. The runs "allmid" and "allmax" also have latency, so they fail without it (45% and 21%). Under their own conditions, they seat 99.0% and 98.5%.</li>
-      <li><b>Gains.</b> At 4 times the training gains, the base policy seats 20%. Most failures are slips. Each gain policy seats 99% at its own gain. No policy covers all gains.</li>
-    </ul>
+    <p><b>Why: the base policy uses bang-bang control.</b> In the ideal simulation, the base policy sends full-scale commands: 27% of its action values are at the limit. With no delay and no play, this is fast and accurate. With 20 ms of latency, each command arrives one step late, so the actions oscillate with a 2-step period (lag-1 autocorrelation −0.29) and the peg drifts away. All policies that trained with a condition use small, smooth actions instead: 0% at the limit and an RMS action of 1.0 against 2.1.</p>
     <figure class="img">
-      <img src="static/images/C-matrix.png" alt="Heat map of success rate: 15 training conditions in rows, 13 test conditions in columns" loading="lazy">
-      <figcaption><b>Success rate (%) for each training condition (rows) and test condition (columns).</b> YAM on the lab table, seed 0, 2,048 unseen starts in each cell, deterministic actions. Backlash is in arcmin. Latency is in control steps of 20 ms. "allmid": noise 10⁻⁴ rad, 16 bit, 1 arcmin, 1 step. "allmax": 5·10⁻⁴ rad, 14 bit, 5 arcmin, 2 steps. Gains are multiples of the training gains. "own": the policy's own training condition (only for "allmid" and "allmax").</figcaption>
+      <img src="static/images/C-why-latency.png" alt="Left: peg paths from one start. Right: joint 1 action over time for three policy and test combinations" loading="lazy">
+      <figcaption><b>One start, three cases.</b> Grey: base policy without latency (seated in 0.2 s, actions at ±3). Orange: the same policy with 20 ms latency. The actions oscillate and the peg drifts 22 mm away. Blue: the policy trained with 20 ms latency, seated in 0.46 s with smooth actions. 64 logged starts give the same pattern (<code>scripts/analysis_c_failures.py</code>).</figcaption>
     </figure>
-    <p>On the unseen part families, the YAM base policy seats 97.0 to 99.7% in five families. On random convex parts, it seats 0.5%. Most failures there are slips. The Flexiv blind policy seats 22.8% of these parts.</p>
-    <p>A new run trains with all conditions at random levels in each world. If this policy covers the full table, Phases D and E use the same randomization. We also wrote a procedure to measure the latency, the backlash and the gains of the real YAM. The measured values will set the ranges.</p>
-    <div class="gallery wide-block">
-      <figure>
-        <img src="static/images/yam_table_reset.png" alt="Four views of the YAM arm on a brown table, with a peg above a fixture plate that lies on the table" loading="lazy">
-        <figcaption><b>The lab table setup.</b> Four start states, each from a different angle. The base is at the back edge of the table. The table extends to the front and to the left of the arm. The fixture lies flat on the table. The peg pose in this image is only a placeholder.</figcaption>
+    <div class="clips">
+      <figure class="teaser">
+        <video autoplay muted loop playsinline poster="static/images/yam_latency_poster.jpg">
+          <source src="static/videos/yam_latency.mp4" type="video/mp4">
+        </video>
+        <figcaption><b>Same start, 20 ms latency.</b> Left: the base policy. Right: the policy trained with 20 ms latency. ¼ of real time.</figcaption>
       </figure>
-      <figure>
-        <img src="static/images/yam_reset_and_0.5s.png" alt="YAM gripper holding pegs over plates in four worlds, at reset and after 0.5 s" loading="lazy">
-        <figcaption><b>YAM resets, old mount.</b> Top row: four worlds at reset. Bottom row: the same worlds after 0.5 s with zero action. The grasp holds the peg.</figcaption>
+      <figure class="teaser">
+        <video autoplay muted loop playsinline poster="static/images/yam_backlash_poster.jpg">
+          <source src="static/videos/yam_backlash.mp4" type="video/mp4">
+        </video>
+        <figcaption><b>Same start, 3 arcmin of backlash.</b> Left: the base policy. Right: the policy trained with backlash. ¼ of real time.</figcaption>
       </figure>
-      <figure>
-        <img src="static/images/A-S6_dropin_yam_stiffpads.png" alt="Joint data during a scripted slide into the hole on the YAM arm" loading="lazy">
-        <figcaption><b>A-S6 on the YAM, stiff pads.</b> The peg drops in at 4.02 s. The joint-velocity peak-to-noise ratio is 10.7.</figcaption>
+      <figure class="teaser">
+        <video autoplay muted loop playsinline poster="static/images/yam_gain4_poster.jpg">
+          <source src="static/videos/yam_gain4.mp4" type="video/mp4">
+        </video>
+        <figcaption><b>Same start, 4 times the joint gains.</b> Left: the base policy; the peg turns in the hand. Right: the policy trained at 4 times the gains. ¼ of real time.</figcaption>
       </figure>
+    </div>
+    <details class="more">
+      <summary>Full table: 16 training conditions × 14 test conditions</summary>
+      <figure class="img">
+        <img src="static/images/C-matrix.png" alt="Heat map of success rate: training conditions in rows, test conditions in columns" loading="lazy">
+        <figcaption><b>Success (%) for each training condition (rows) and test condition (columns).</b> 2,048 starts in each cell. "randall": random levels in each world. "allmid": noise 10⁻⁴ rad, 16 bit, 1 arcmin, 20 ms. "allmax": 5·10⁻⁴ rad, 14 bit, 5 arcmin, 40 ms. "own": the policy's own condition. A policy trained with latency fails without it, in every row.</figcaption>
+      </figure>
+    </details>
+    <div class="note">
+      <p><b>Next: measure the real arm.</b> The simulation needs the real YAM's latency (to ±10 ms), backlash and joint gains. We wrote a 1 to 2 hour procedure: a timing log, joint step tests and a dial-indicator test. A script fits the simulated arm to the step data and gives the latency in control steps (<code>docs/REAL_YAM_LATENCY_BACKLASH.md</code>). Until we have these values, Phases D and E train with the random levels above. If the real latency is fixed and known, a policy trained with that latency only can gain back the 3.6 points.</p>
     </div>
   </section>
 
-  <section id="usbc">
-    <h2>After a grasp correction, the blind policy inserts USB-C drives</h2>
-    <p class="claim">With sphere pads, the blind USB-C policy seats 91.5% of 2,048 unseen drives at the final clearance of 0.02 to 0.1 mm. Its capture radius (50% success) is 6.0 mm.</p>
-    <p>Phase E uses USB-C flash drives on the YAM. The final clearance is 0.02 to 0.1 mm. The curriculum has five stages, and the first stage has a clearance of 0.3 mm. The run stayed at stage 1 because it needs 90% to go to stage 2. We stopped it early and examined the failures.</p>
-    <p>87% of the failures are slips: the drive falls out of the gripper, a median of 0.18 s after the start. With zero action, 12.5% of the drives also slip. The cause is missing contact points. When the drive is turned in the hand, its face overlaps the pad face only partly. Then the contact calculation gives an edge or no contact. With a grid of 4 × 4 small spheres on each pad, no drive slips, and the same policy seats 98.3% on stage 1.</p>
-    <p>A new run with sphere pads completed all five stages. It reached the final stage after 200 million steps. With 2,048 matched starts for each stage, it seats 99.0%, 98.9% and 98.1% on stages 2 to 4. The plan's gate (80% at 0.05 mm and 2 mm offset) is passed. On the final stage, it seats 91.5%. Most failures come from start offsets of more than 4 mm. The success changes smoothly with the clearance: 93.9% at 0.02 mm and 98.5% at 0.1 mm.</p>
-    <p><a href="https://claude.ai/artifact/CjxtoUaw6MhSsYZLwnPVEh">Read the full USB-C report: the grasp failure, the correction and the new results.</a></p>
-    <figure class="img">
-      <img src="static/images/usbc_yam_check.png" alt="YAM fingers holding USB-C flash drives over port housings" loading="lazy">
-      <figcaption><b>USB-C grasp check.</b> The YAM holds the drive near the top of its body. Thus, the fingertips stay clear of the port housing.</figcaption>
+  <!-- ============================================================ RQ3 -->
+  <p class="finding">RQ3 · Scale</p>
+  <section id="rq3">
+    <h2>Scale study: from 60 mm pegs to connector size</h2>
+    <p class="claim">The grid trains one YAM policy for each part size and clearance. Each run trains with the random robot conditions from RQ2.</p>
+    <p>The pegs have a 2:1 stadium shape. The opening is 60, 30, 15 or 8 mm long. The clearance is 1.0, 0.5, 0.2, 0.1 or 0.05 mm on each side. There are two start regimes. In the scaled regime, the start offset is proportional to the part size (10 mm median at 60 mm). In the fixed regime, the median offset is 3 mm for all sizes. If both regimes fail at the same size, the contact signal is the limit. If only the fixed regime fails, the search area is the limit.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Opening</th><th class="n">1.0 mm</th><th class="n">0.5 mm</th><th class="n">0.2 mm</th><th class="n">0.1 mm</th><th class="n">0.05 mm</th></tr></thead>
+        <tbody>
+          <tr><td>60 mm</td><td class="n">first</td><td class="n">·</td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
+          <tr><td>30 mm</td><td class="n">·</td><td class="n">first</td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
+          <tr><td>15 mm</td><td class="n">·</td><td class="n">·</td><td class="n">first</td><td class="n">·</td><td class="n">·</td></tr>
+          <tr><td>8 mm</td><td class="n">first</td><td class="n">first</td><td class="n">first</td><td class="n">first</td><td class="n">first</td></tr>
+        </tbody>
+        <caption>Training order. "first": the diagonal from large and loose to small and tight, and the 8 mm row (16 runs with both regimes). Then the other 24 cells. Results come as each run completes.</caption>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================================ RQ4 -->
+  <p class="finding">RQ4 · USB-C</p>
+  <section id="rq4">
+    <h2>The blind policy plugs in USB-C drives</h2>
+    <p class="claim">At the final clearance of 0.02 to 0.1 mm, the blind policy seats 91.5% of 2,048 unseen USB-C drives. It seats 50% from 6.0 mm away.</p>
+    <p>The YAM holds a USB-C flash drive and must plug it into a blind port. Training uses a curriculum: the clearance starts at 0.3 mm and decreases in five stages. The first run failed because the drive slipped out of the gripper. A box-shaped pad gives only one edge of contact when the drive turns in the hand. With 4 × 4 small spheres on each pad, no drive slips. After this correction, the policy completed the curriculum (200 million steps).</p>
+    <div class="cols2">
+      <figure class="teaser">
+        <video autoplay muted loop playsinline poster="static/images/usbc_final_stage_poster.jpg">
+          <source src="static/videos/usbc_final_stage.mp4" type="video/mp4">
+        </video>
+        <figcaption><b>Four final-stage episodes.</b> Labels: start offset, clearance and result. Three drives are seated, one from 5.1 mm. One stops tilted. ⅕ of real time.</figcaption>
+      </figure>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>USB-C test (2,048 starts)</th><th class="n">Success</th></tr></thead>
+          <tbody>
+            <tr><td>Curriculum stages 2, 3, 4</td><td class="n">99.0, 98.9, 98.1%</td></tr>
+            <tr><td>Final stage, 0.02 to 0.1 mm</td><td class="n">91.5%</td></tr>
+            <tr><td>Clearance 0.02 / 0.05 / 0.1 mm (2 mm offset)</td><td class="n">93.9 / 98.0 / 98.5%</td></tr>
+            <tr><td>Port with a 0.2 to 0.5 mm chamfer (no retraining)</td><td class="n">83.6%</td></tr>
+            <tr><td>Port with a 5 to 15 N latch (no retraining)</td><td class="n">28.0%</td></tr>
+            <tr><td>Port that faces the robot (no retraining)</td><td class="n">0%</td></tr>
+          </tbody>
+          <caption>Most final-stage failures (105 of 175) are search failures: the policy does not find the port in 8 s. The last three rows use the policy from the old mount on the lab table (reference: 77.9%).</caption>
+        </table>
+      </div>
+    </div>
+    <figure class="viz" data-fig="capture">
+      <div class="viz-tag">Interactive · hover a point</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>Capture radius: success against the start distance (0.05 mm clearance, n = 8,192).</b> Points: 0.5 mm bins with 95% Wilson intervals. Orange: logistic fit. Dashed line and band: the 50% radius (5.98 mm, 95% interval 5.91 to 6.04 mm). Up to 3 mm, success is 98 to 100%.</figcaption>
     </figure>
+    <p>Now the YAM trains on the lab table with USB-C, a chamfered port, a latched port and a port that faces the robot. The latch and the side port need their own training, because the first policy fails on them.</p>
   </section>
 
-  <section id="gear">
-    <p class="finding">Finding 6</p>
-    <h2>The blind policy also meshes gears</h2>
-    <p class="claim">The blind gear policy seats 99.94% of 8,192 unseen gear sets. On six unseen gear families, it seats 99.7 to 100%. The paper reports more than 99.9%.</p>
-    <p>The paper has two more tasks: gear meshing and nut threading. We built the gear task to check our setup on a second task. The robot holds a spur gear by a boss on top. The gear must slide down a shaft and mesh with one or two anchor gears. The anchor gears turn on their own hinges. The module is 2.375 to 3.125 mm, with 16 to 24 teeth and 0.4 to 0.6 mm of backlash for each anchor. An episode has a limit of 10 s.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Check</th><th>Result</th></tr></thead>
-        <tbody>
-          <tr><td>Drop test, gear aligned with the shaft (n = 256 for each value)</td><td>Tooth-phase error 0: 100% seated. 0.05 pitch: 98.4%. 0.1 pitch: 81%. 0.2 pitch: 10%. 0.3 pitch or more: 0%.</td></tr>
-          <tr><td>Anchor hinges</td><td>The anchors turn freely and stop as the hinge damping predicts.</td></tr>
-          <tr><td>Backlash</td><td>The measured play is 1.05 times the design value at a light torque (3 mN·m).</td></tr>
-          <tr><td>Privileged scripted controller (n = 1,024 unseen gear sets)</td><td>89.0% success: 92.4% with one anchor, 85.3% with two anchors. Median time 4.6 s.</td></tr>
-          <tr><td>Baselines (2,048 starts)</td><td>Zero action 0.05%. Random actions 0.73%.</td></tr>
-          <tr><td>15-minute smoke training (12 million steps)</td><td>Shaft capture increased from 2% to 50%. Full success stayed below 0.5%.</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p>The early training was slower than for the peg: after 12 million steps, almost no episode was a success. After 75 million steps, the training success was 99.5%, and after 300 million steps it was 100%.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Test (seed 0, deterministic actions)</th><th class="n">Episodes</th><th class="n">Success, ours</th><th class="n">Success, paper</th></tr></thead>
-        <tbody>
-          <tr><td>Training range (unseen gear sets)</td><td class="n">8,192</td><td class="n">99.94%</td><td class="n">&gt;99.9%</td></tr>
-          <tr><td>Tighter backlash (0.2 to 0.25 mm)</td><td class="n">1,024</td><td class="n">99.71%</td><td class="n">&gt;99.9%</td></tr>
-          <tr><td>Taller teeth (1.1 to 1.2 modules)</td><td class="n">1,024</td><td class="n">100%</td><td class="n">&gt;99.9%</td></tr>
-          <tr><td>Much taller teeth (1.2 to 1.3 modules)</td><td class="n">1,024</td><td class="n">100%</td><td class="n">&gt;99.9%</td></tr>
-          <tr><td>Mild size change (module 2.19 to 2.375 or 3.125 to 3.31 mm)</td><td class="n">1,024</td><td class="n">100%</td><td class="n">&gt;99.9%</td></tr>
-          <tr><td>Extreme size change (module 2.0 to 2.19 or 3.31 to 3.5 mm)</td><td class="n">1,024</td><td class="n">99.90%</td><td class="n">&gt;99.9%</td></tr>
-          <tr><td>Random tooth shape</td><td class="n">1,024</td><td class="n">100%</td><td class="n">&gt;99.9%</td></tr>
-        </tbody>
-        <caption>Median time to seat on the training range: 0.90 s (paper: 0.58 s). The 5 failures in 8,192 are 2 slips, 2 gears on the shaft but not in mesh, and 1 gear that left the fixture.</caption>
-      </table>
-    </div>
-    <div class="gallery wide-block">
-      <figure>
-        <img src="static/images/G-geometry.png" alt="Sixteen gear sets: an orange gear on a shaft, meshed with one or two anchor gears" loading="lazy">
-        <figcaption><b>Gear sets.</b> Each world has a different gear set. The orange gear sits on its shaft in mesh with one or two anchor gears (blue, green).</figcaption>
-      </figure>
-      <figure>
-        <img src="static/images/G-starts.png" alt="The gripper holding the gear by its boss above the shaft tip in eight worlds" loading="lazy">
-        <figcaption><b>Start states.</b> The gripper holds the gear by its boss. The gear rests on the shaft tip, off the shaft axis, with its teeth out of phase with the anchors.</figcaption>
-      </figure>
-      <figure>
-        <img src="static/images/G-drop.png" alt="Drop test: fraction of gears seated against tooth-phase error" loading="lazy">
-        <figcaption><b>Drop test.</b> A gear that is aligned with its shaft seats only when its teeth are almost in phase with the anchors. Thus, the policy must turn the gear into mesh.</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <!-- ============================================================ server -->
-  <section id="server">
-    <h2>The server gives the same results</h2>
-    <p class="claim">A control run on a V100 GPU passes 90% after 37.4 million steps. The two local seeds pass 90% after 39.7 and 41.7 million steps.</p>
-    <p>The remaining training needs approximately 800 GPU hours. One desktop GPU is not sufficient for this. Thus, we moved the training to a shared server with five Tesla V100 GPUs (32 GB). The server uses CUDA 12, because the V100 is too old for CUDA 13. The code and the library versions are the same.</p>
-    <p>Before the main batch, we trained one known configuration on the server: the blind Flexiv policy with seed 3. The plan gave two pass criteria. Training success must pass 90% between 35 and 50 million steps. It must stay at 99% or more after 150 million steps. The run passed both criteria. After 150 million steps, its lowest training success was 99.2%, and its mean was 99.6%. At 300 million steps, it had 99.8%. MuJoCo Warp is not bitwise deterministic, so we compare curves and not single numbers.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Measurement</th><th class="n">RTX 3090 Ti (local)</th><th class="n">V100 (server)</th></tr></thead>
-        <tbody>
-          <tr><td>Blind training, 12,288 worlds, steps per second</td><td class="n">37,500</td><td class="n">20,490</td></tr>
-          <tr><td>Blind training, GPU memory</td><td class="n">10.9 GB</td><td class="n">10.7 GB</td></tr>
-          <tr><td>Visual training, 4,096 worlds, steps per second</td><td class="n">8,500</td><td class="n">3,922</td></tr>
-          <tr><td>Visual training, GPU memory</td><td class="n">—</td><td class="n">28.6 GB</td></tr>
-          <tr><td>One blind run of 300 million steps</td><td class="n">2.3 h</td><td class="n">4.1 h</td></tr>
-          <tr><td>Control run: steps to 90% (smoothed as in the figure)</td><td class="n">39.7 M, 41.7 M</td><td class="n">39.7 M</td></tr>
-          <tr><td>Control run: training success at 300 million steps</td><td class="n">99.8%, 99.7%</td><td class="n">99.7%</td></tr>
-        </tbody>
-        <caption>Benchmark with PPO updates included. The V100 is approximately 1.8 times slower for blind training and 2.2 times slower for visual training. Each training job uses one GPU.</caption>
-      </table>
-    </div>
-    <p>The batch started at 22:06 UTC on 20 October. It used all five GPUs. A job runner gives one job to each free GPU. Before each start, it makes sure that no other user has the GPU. All 39 jobs of Phases B and C were complete at 07:04 UTC on 21 October. No job failed.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Run</th><th class="n">Steps</th><th class="n">Test success</th><th>Note</th></tr></thead>
-        <tbody>
-          <tr><td>B visual, seed 1</td><td class="n">50 M</td><td class="n">99.9%</td><td>Passed 90% at 7.9 M. Seed 0: 7.9 M.</td></tr>
-          <tr><td>B visual, seed 2</td><td class="n">50 M</td><td class="n">100%</td><td>Passed 90% at 7.3 M</td></tr>
-          <tr><td>B blind, no contact loss, seed 2</td><td class="n">300 M</td><td class="n">99.0%</td><td>Passed 90% at 92.4 M. Seed 0: 88.9 M.</td></tr>
-          <tr><td>C YAM base, seed 0, lab table</td><td class="n">300 M</td><td class="n">99.8%</td><td>Passed 90% at 17.3 M</td></tr>
-          <tr><td>C YAM, 14 more conditions, seed 0</td><td class="n">50 to 57 M</td><td class="n">98.3 to 100%</td><td>Own condition. See the table in the YAM section.</td></tr>
-        </tbody>
-        <caption>Test success: deterministic actions, 2,048 unseen starts. Steps to 90%: training success smoothed over 10 iterations.</caption>
-      </table>
-    </div>
-    <p>The visual seeds 1 and 2 confirm seed 0 on the unseen part families. The blind policy has a higher success rate in all six families, for all three visual seeds.</p>
-  </section>
-
-  <!-- ============================================================ discoveries -->
-  <section id="discoveries">
-    <h2>Discoveries</h2>
-    <ul class="facts">
-      <li><b>One compiled model can hold a different part in each world.</b> MuJoCo Warp keeps the mesh index for each world. We put all 1,024 part meshes in one model and select one in each world. No rebuild is necessary.</li>
-      <li><b>MuJoCo Warp calculates static geometry poses only one time.</b> A fixture that is welded to the world does not move when you change its position. The first pegs fell through their plates. We make the fixture a mocap body.</li>
-      <li><b>The model build time increases with the square of the number of meshes.</b> 1,024 parts take 36 s. 2,048 parts take 132 s. Thus, we use 1,024 parts and not 12,288.</li>
-      <li><b>The arm sags approximately 48 mm under the peg.</b> The joint gains are low (80 N·m/rad), and the controller does not know the peg's weight. The peg always pushes on the plate with its full weight.</li>
-      <li><b>Soft contacts are normalized by mass.</b> A light part with a strong grip acts like a soft spring. The gripper pads must be stiff (time constant 2 ms) for 3 to 15 g USB-C drives.</li>
-      <li><b>Training needs episodes that are not synchronized.</b> If all worlds start together, the training success changes from 2% to 75% between iterations. Random start phases correct this.</li>
-      <li><b>A batched renderer is fast enough for visual RL.</b> 4,096 worlds render in approximately 25 ms. The visual run is slower mostly because of the CNN update.</li>
-      <li><b>The visual history must be encoded again after each update.</b> Old embeddings from the previous CNN weights gave log-probability errors to 0.4 nats. When we encode the carried window again, the error decreases to less than 10⁻⁶.</li>
-    </ul>
-  </section>
-
-  <!-- ============================================================ deviations -->
-  <section id="deviations">
-    <h2>Differences from the paper</h2>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Item</th><th>Paper</th><th>This reproduction</th><th>Reason</th></tr></thead>
-        <tbody>
-          <tr><td>Framework</td><td>mjlab and rsl_rl</td><td>MuJoCo Warp and our own PPO</td><td>mjlab needs MuJoCo 3.11. We use 3.12.</td></tr>
-          <tr><td>Gripper</td><td>Robotiq 2F-85</td><td>Two slide fingers with constant-force motors</td><td>The linkage gripper is slow to simulate.</td></tr>
-          <tr><td>Different parts</td><td>12,288 (one for each world)</td><td>1,024 (each in 12 worlds)</td><td>Build time</td></tr>
-          <tr><td>Hole</td><td>Not stated</td><td>Closed hole with a 5 mm floor</td><td>"Seated" needs a floor.</td></tr>
-          <tr><td>Success</td><td>"Entire bottom face seated"</td><td>64 edge points inside, less than 1.5 mm above the floor</td><td>A precise definition</td></tr>
-          <tr><td>Arm parameters</td><td>Identified on the real arm</td><td>Menagerie values, no identified friction</td><td>No real arm</td></tr>
-          <tr><td>TCN size</td><td>Not stated</td><td>3 Conv1d layers, 64 channels, kernel 5</td><td>Our choice</td></tr>
-          <tr><td>Reset</td><td>Not stated</td><td>A pool of 4 start states for each world, solved by GPU inverse kinematics</td><td>Inverse kinematics at each reset made rollouts 3 times slower.</td></tr>
-          <tr><td>Seeds, Phases C, D and E</td><td>Plan: 3 seeds</td><td>Seed 0 only, at first</td><td>First results sooner. We add seeds 1 and 2 where a result is close or not expected.</td></tr>
-          <tr><td>Run length, Phases C, D and E</td><td>Plan: 300 million steps</td><td>Stop at 99% training success, after at least 50 million steps</td><td>Most YAM runs pass 99% early. Phase B keeps the full 300 million steps.</td></tr>
-          <tr><td>YAM mount</td><td>Plan: fixture where the YAM can reach</td><td>Lab table setup from RoboSimStudio</td><td>The simulation must match the real robot cell.</td></tr>
-        </tbody>
-      </table>
-    </div>
+  <!-- ============================================================ RQ5 -->
+  <p class="finding">RQ5 · Vision</p>
+  <section id="rq5">
+    <h2>A camera helps on familiar parts, not on new parts</h2>
+    <p>On large pegs, the camera policy is faster (0.38 s against 0.64 s). On unseen part families, it loses 12 to 54 points against the blind policy (RQ1 figure). The question for USB-C is different: the port is only a few pixels wide in a 64 × 64 wrist image, and the plug tip is at the minimum range of the D405 depth camera. Five camera policies are ready to train: RGB, depth, and each with joint data. They start after the USB-C runs.</p>
   </section>
 
   <!-- ============================================================ next -->
   <section id="next">
     <h2>Next steps</h2>
-    <ul class="facts">
-      <li><b>Real YAM.</b> Measure the latency, the backlash, the gains and the encoder noise of the real arm. The procedure takes 1 to 2 hours. A script fits the sim to the step data.</li>
-      <li><b>Noise model for D and E.</b> The randomized run tells if one policy can cover all conditions. If it can, D and E use randomized latency, backlash and noise. The real measurements then set the ranges.</li>
-      <li><b>Phases D and E.</b> Start on the server after the randomized run. E trains USB-C on the lab table with sphere pads, and the chamfer, latch and side-port variants.</li>
-      <li><b>Phase B.</b> The local machine trains blind seed 2 and a second run without the contact loss.</li>
-      <li><b>Phase F.</b> The camera code is ready. It starts after E, with approval (approximately 70 GPU hours).</li>
-    </ul>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Work on the server</th><th class="n">Training runs</th><th class="n">V100 GPU hours</th><th class="n">Time on 5 GPUs</th><th>Status</th></tr></thead>
-        <tbody>
-          <tr><td>Phase B, remaining seeds</td><td class="n">3</td><td class="n">approximately 12</td><td class="n">with Phase C</td><td><span class="chip ok">Done</span></td></tr>
-          <tr><td>Phase C, 16 conditions, seed 0</td><td class="n">16</td><td class="n">approximately 25</td><td class="n">9 hours</td><td><span class="chip ok">15 done</span> <span class="chip run">1 running</span></td></tr>
-          <tr><td>Phase D, 40 cells, seed 0</td><td class="n">40</td><td class="n">approximately 170</td><td class="n">approximately 1.5 days</td><td><span class="chip todo">Next</span></td></tr>
-          <tr><td>Phase E, USB-C and ablations, seed 0</td><td class="n">5</td><td class="n">approximately 30</td><td class="n">approximately 6 h</td><td><span class="chip todo">Next</span></td></tr>
-          <tr><td>Phase F, cameras</td><td class="n">5</td><td class="n">approximately 70</td><td class="n">approximately 14 h</td><td><span class="chip todo">Needs approval</span></td></tr>
-        </tbody>
-        <caption>Upper limits with seed 0 only. Runs that pass 99% training success stop early, so most runs take less time. With three seeds, the same work needs approximately 800 GPU hours.</caption>
-      </table>
-    </div>
+    <ol class="facts">
+      <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
+      <li><b>RQ3 grid.</b> Complete the diagonal and the 8 mm row, then the other cells. Answer: at what size does success fall below 90%, and is the cause the search area or the signal?</li>
+      <li><b>RQ4 on the lab table.</b> USB-C, chamfer, latch and side port, then the ablations (no contact loss, history length, noise).</li>
+      <li><b>RQ5.</b> Train the five camera policies on USB-C (approximately 70 GPU hours).</li>
+      <li><b>More seeds</b> where a result is close.</li>
+    </ol>
+  </section>
+
+  <!-- ============================================================ appendix -->
+  <section id="appendix">
+    <h2>Details</h2>
+    <details class="more">
+      <summary>Differences from the paper</summary>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Item</th><th>Paper</th><th>Ours</th><th>Reason</th></tr></thead>
+          <tbody>
+            <tr><td>Framework</td><td>mjlab and rsl_rl</td><td>MuJoCo Warp and our own PPO</td><td>mjlab needs MuJoCo 3.11. We use 3.12.</td></tr>
+            <tr><td>Gripper</td><td>Robotiq 2F-85</td><td>Two slide fingers with constant force</td><td>The linkage is slow to simulate.</td></tr>
+            <tr><td>Different parts</td><td>12,288</td><td>1,024 (each in 12 worlds)</td><td>Model build time</td></tr>
+            <tr><td>Success</td><td>"Entire bottom face seated"</td><td>64 edge points inside, less than 1.5 mm above the floor</td><td>A precise definition</td></tr>
+            <tr><td>Arm parameters</td><td>Identified on the real arm</td><td>Menagerie values</td><td>No real arm yet</td></tr>
+            <tr><td>Seeds and run length, RQ2 to RQ4</td><td>Plan: 3 seeds, 300 M steps</td><td>Seed 0, stop at 99% after 50 M</td><td>First results sooner</td></tr>
+            <tr><td>USB-C gripper pads</td><td>—</td><td>4 × 4 contact spheres</td><td>Box pads drop the drive</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+    <details class="more">
+      <summary>Simulation checks</summary>
+      <div class="tbl">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr><td>GPU against CPU MuJoCo</td><td>One 20 ms step: ≤ 0.04 mm. A grasped peg diverges later (the grasp stick-slip is chaotic), so we compare distributions.</td></tr>
+            <tr><td>Drop test</td><td>1,024 of 1,024 pegs drop into their holes and stay.</td></tr>
+            <tr><td>Contact signal</td><td>Flexiv: a 0.30 N vertical push is visible above 10⁻⁴ rad joint noise. YAM USB-C: 0.13 N.</td></tr>
+            <tr><td>Drop-in signal</td><td>Joint-velocity peak-to-noise ratio 3.2 (Flexiv peg), 5.0 (YAM USB-C at 10⁻⁴ rad noise), 1.0 at 5·10⁻⁴ rad.</td></tr>
+            <tr><td>Leak test</td><td>The actor's input does not change when the privileged state changes.</td></tr>
+            <tr><td>Determinism</td><td>MuJoCo Warp is not bitwise deterministic (10⁻³ after 20 ms). We compare distributions.</td></tr>
+            <tr><td>Baselines</td><td>Zero action 2.9%, random actions 6.1%, spiral search 77.3%.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+    <details class="more">
+      <summary>Compute</summary>
+      <p>Local: one RTX 3090 Ti, 37,500 steps per second (a 300 M run takes 2.3 h). Server: five Tesla V100 GPUs, 20,500 steps per second for the peg and 11,000 for USB-C. A control run on the server gave the same curve as the local seeds (90% after 37.4 M steps against 39.7 and 41.7 M).</p>
+    </details>
   </section>
 
   <section id="bibtex">
@@ -456,8 +328,7 @@
   </section>
 
   <footer>
-    This report uses ASD-STE100 Simplified Technical English. All numbers come from simulation. Videos are rendered from logged rollouts with CPU MuJoCo.<br>
-    Page template from the research-figures skill. Simulation with MuJoCo and MuJoCo Warp.
+    Text in ASD-STE100 Simplified Technical English. All numbers come from simulation. Videos are replays of logged rollouts in CPU MuJoCo.
   </footer>
 </main>
 
@@ -471,4 +342,3 @@
     });
   });
 </script>
-
