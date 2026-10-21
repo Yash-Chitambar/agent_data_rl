@@ -1,0 +1,380 @@
+{
+ "E2": {
+  "clearance_mm": 0.05,
+  "episodes": 8192,
+  "a": 5.770131095147291,
+  "b": 0.9652328675429532,
+  "r50_mm": 5.977967896840726,
+  "r50_ci": [
+   5.913534068141637,
+   6.042534656654076
+  ],
+  "bins": [
+   {
+    "r_lo": 0.0,
+    "r_hi": 0.5,
+    "n": 38,
+    "k": 38,
+    "rate": 1.0,
+    "ci": [
+     0.90818706741616,
+     0.9999999999999999
+    ],
+    "failures": {}
+   },
+   {
+    "r_lo": 0.5,
+    "r_hi": 1.0,
+    "n": 119,
+    "k": 119,
+    "rate": 1.0,
+    "ci": [
+     0.9687272064186726,
+     1.0
+    ],
+    "failures": {}
+   },
+   {
+    "r_lo": 1.0,
+    "r_hi": 1.5,
+    "n": 207,
+    "k": 206,
+    "rate": 0.9951690821256038,
+    "ci": [
+     0.9731471559571057,
+     0.9991467367092373
+    ],
+    "failures": {
+     "slipped": 1
+    }
+   },
+   {
+    "r_lo": 1.5,
+    "r_hi": 2.0,
+    "n": 299,
+    "k": 296,
+    "rate": 0.9899665551839465,
+    "ci": [
+     0.9709204523251133,
+     0.9965820308211918
+    ],
+    "failures": {
+     "never_found": 2,
+     "slipped": 1
+    }
+   },
+   {
+    "r_lo": 2.0,
+    "r_hi": 2.5,
+    "n": 424,
+    "k": 422,
+    "rate": 0.9952830188679245,
+    "ci": [
+     0.9829662152859071,
+     0.9987055062110206
+    ],
+    "failures": {
+     "left_fixture": 1,
+     "never_found": 1
+    }
+   },
+   {
+    "r_lo": 2.5,
+    "r_hi": 3.0,
+    "n": 499,
+    "k": 485,
+    "rate": 0.9719438877755511,
+    "ci": [
+     0.9534612118495746,
+     0.9832154672477792
+    ],
+    "failures": {
+     "never_found": 7,
+     "left_fixture": 6,
+     "slipped": 1
+    }
+   },
+   {
+    "r_lo": 3.0,
+    "r_hi": 3.5,
+    "n": 594,
+    "k": 569,
+    "rate": 0.9579124579124579,
+    "ci": [
+     0.9386078304017057,
+     0.9713321938455196
+    ],
+    "failures": {
+     "never_found": 12,
+     "left_fixture": 9,
+     "slipped": 2,
+     "wedged_partial": 2
+    }
+   },
+   {
+    "r_lo": 3.5,
+    "r_hi": 4.0,
+    "n": 643,
+    "k": 582,
+    "rate": 0.9051321928460342,
+    "ci": [
+     0.880015762961234,
+     0.9254364528517254
+    ],
+    "failures": {
+     "never_found": 39,
+     "left_fixture": 15,
+     "wedged_partial": 4,
+     "slipped": 3
+    }
+   },
+   {
+    "r_lo": 4.0,
+    "r_hi": 4.5,
+    "n": 735,
+    "k": 611,
+    "rate": 0.8312925170068027,
+    "ci": [
+     0.802511303403789,
+     0.8566286259125895
+    ],
+    "failures": {
+     "never_found": 79,
+     "left_fixture": 35,
+     "wedged_partial": 8,
+     "slipped": 2
+    }
+   },
+   {
+    "r_lo": 4.5,
+    "r_hi": 5.0,
+    "n": 839,
+    "k": 615,
+    "rate": 0.733015494636472,
+    "ci": [
+     0.702068164549843,
+     0.7618386952919114
+    ],
+    "failures": {
+     "never_found": 145,
+     "left_fixture": 60,
+     "wedged_partial": 16,
+     "slipped": 3
+    }
+   },
+   {
+    "r_lo": 5.0,
+    "r_hi": 5.5,
+    "n": 912,
+    "k": 575,
+    "rate": 0.6304824561403509,
+    "ci": [
+     0.5986695538068278,
+     0.6612007119683894
+    ],
+    "failures": {
+     "never_found": 229,
+     "left_fixture": 96,
+     "wedged_partial": 11,
+     "slipped": 1
+    }
+   },
+   {
+    "r_lo": 5.5,
+    "r_hi": 6.0,
+    "n": 1057,
+    "k": 563,
+    "rate": 0.532639545884579,
+    "ci": [
+     0.5024967753607479,
+     0.5625459228139842
+    ],
+    "failures": {
+     "never_found": 317,
+     "left_fixture": 149,
+     "wedged_partial": 25,
+     "slipped": 2,
+     "jammed_inside": 1
+    }
+   },
+   {
+    "r_lo": 6.0,
+    "r_hi": 6.5,
+    "n": 759,
+    "k": 328,
+    "rate": 0.4321475625823452,
+    "ci": [
+     0.3973337689520635,
+     0.46764475345678247
+    ],
+    "failures": {
+     "never_found": 291,
+     "left_fixture": 117,
+     "wedged_partial": 19,
+     "slipped": 4
+    }
+   },
+   {
+    "r_lo": 6.5,
+    "r_hi": 7.0,
+    "n": 509,
+    "k": 175,
+    "rate": 0.343811394891945,
+    "ci": [
+     0.30385553839404966,
+     0.38610721033772255
+    ],
+    "failures": {
+     "never_found": 211,
+     "left_fixture": 103,
+     "wedged_partial": 17,
+     "slipped": 2,
+     "jammed_inside": 1
+    }
+   },
+   {
+    "r_lo": 7.0,
+    "r_hi": 7.5,
+    "n": 306,
+    "k": 93,
+    "rate": 0.30392156862745096,
+    "ci": [
+     0.2550801295014341,
+     0.3576252012223937
+    ],
+    "failures": {
+     "never_found": 138,
+     "left_fixture": 65,
+     "wedged_partial": 9,
+     "slipped": 1
+    }
+   },
+   {
+    "r_lo": 7.5,
+    "r_hi": 8.0,
+    "n": 197,
+    "k": 48,
+    "rate": 0.2436548223350254,
+    "ci": [
+     0.18898461399229727,
+     0.3081315213103492
+    ],
+    "failures": {
+     "never_found": 96,
+     "left_fixture": 48,
+     "wedged_partial": 3,
+     "slipped": 1,
+     "jammed_inside": 1
+    }
+   }
+  ]
+ },
+ "E3": [
+  {
+   "clearance_um": 20.0,
+   "n": 2048,
+   "k": 1922,
+   "rate": 0.9384765625,
+   "ci": [
+    0.9272260618562064,
+    0.9480851707457644
+   ],
+   "failures": {
+    "wedged_partial": 54,
+    "never_found": 30,
+    "slipped": 26,
+    "left_fixture": 15,
+    "jammed_inside": 1
+   },
+   "median_time_s": 2.119999885559082
+  },
+  {
+   "clearance_um": 40.0,
+   "n": 2048,
+   "k": 1987,
+   "rate": 0.97021484375,
+   "ci": [
+    0.9619263788097656,
+    0.9767425710740849
+   ],
+   "failures": {
+    "never_found": 31,
+    "wedged_partial": 12,
+    "slipped": 8,
+    "left_fixture": 8,
+    "jammed_inside": 2
+   },
+   "median_time_s": 1.8600000143051147
+  },
+  {
+   "clearance_um": 50.0,
+   "n": 2048,
+   "k": 2007,
+   "rate": 0.97998046875,
+   "ci": [
+    0.9729548952268483,
+    0.9852087368975806
+   ],
+   "failures": {
+    "never_found": 23,
+    "left_fixture": 8,
+    "slipped": 7,
+    "wedged_partial": 2,
+    "jammed_inside": 1
+   },
+   "median_time_s": 1.6999999284744263
+  },
+  {
+   "clearance_um": 70.0,
+   "n": 2048,
+   "k": 2015,
+   "rate": 0.98388671875,
+   "ci": [
+    0.977457794569912,
+    0.9885037104507485
+   ],
+   "failures": {
+    "never_found": 22,
+    "slipped": 5,
+    "left_fixture": 4,
+    "wedged_partial": 2
+   },
+   "median_time_s": 1.6200000047683716
+  },
+  {
+   "clearance_um": 100.0,
+   "n": 2048,
+   "k": 2017,
+   "rate": 0.98486328125,
+   "ci": [
+    0.9785949708054625,
+    0.9893160024392557
+   ],
+   "failures": {
+    "never_found": 19,
+    "left_fixture": 5,
+    "slipped": 5,
+    "wedged_partial": 2
+   },
+   "median_time_s": 1.5799999237060547
+  },
+  {
+   "clearance_um": 200.0,
+   "n": 2048,
+   "k": 1960,
+   "rate": 0.95703125,
+   "ci": [
+    0.9473594160349599,
+    0.9649917128241099
+   ],
+   "failures": {
+    "slipped": 37,
+    "never_found": 23,
+    "wedged_partial": 15,
+    "jammed_inside": 7,
+    "left_fixture": 6
+   },
+   "median_time_s": 2.059999942779541
+  }
+ ]
+}

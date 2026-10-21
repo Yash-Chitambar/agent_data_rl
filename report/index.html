@@ -31,7 +31,7 @@
     <h2>Summary</h2>
     <p class="lede">We reproduce the simulation results of the paper on one desktop GPU. The paper trains a robot arm to put a peg into a tight hole. In the training set, the clearance is 1.0 to 1.5 mm on each side. The policy uses only joint angles and joint velocities. It does not use a camera or a force sensor.</p>
     <p>Our blind policy seats the peg on 99.9% of 2,048 test starts. The paper reports 99.4%. Our policy is faster than the paper's policy and moves a shorter distance. A linear probe finds the contact state in the policy's memory, as in the paper. On six families of unseen parts, our blind policy keeps a high success rate. These results agree with the main claims of the paper.</p>
-    <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The blind peg policy also learns on a second robot, the 6-joint YAM arm, with 99.9% training success. The first USB-C run found a grasp problem in the simulation, which we corrected. We also built the paper's gear-meshing task. The blind gear policy seats 99.94% of 8,192 unseen gear sets and 99.7 to 100% in six unseen gear families, as the paper reports.</p>
+    <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The blind peg policy also learns on a second robot, the 6-joint YAM arm, with 99.9% training success. The first USB-C run found a grasp problem in the simulation, which we corrected. After the correction, the USB-C policy completes its curriculum and seats 91.5% of the drives at 0.02 to 0.1 mm clearance. We also built the paper's gear-meshing task. The blind gear policy seats 99.94% of 8,192 unseen gear sets and 99.7 to 100% in six unseen gear families, as the paper reports.</p>
     <p>The remaining training now runs on a server with five V100 GPUs. A control run on the server gives the same learning curve as the two local seeds. Thus, the results do not depend on the machine. On the server, the YAM arm now stands on a table, as in the lab. The first YAM runs on this setup learn as fast as before. To get first results quickly, Phases C, D and E train one seed for each condition.</p>
 
     <div class="tbl">
@@ -42,7 +42,7 @@
           <tr><td>B</td><td>Reproduction of the paper's peg results on the Flexiv Rizon 4S arm.</td><td><span class="chip ok">Most results in</span> <span class="chip run">Last seeds on server</span></td></tr>
           <tr><td>C</td><td>Port to the YAM arm, with sensor noise, backlash and latency.</td><td><span class="chip ok">Lab table setup</span> <span class="chip run">15 runs on server</span></td></tr>
           <tr><td>D</td><td>Scale study: part size against clearance.</td><td><span class="chip todo">Waits for the noise level from C</span></td></tr>
-          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip warn">Grasp bug found and fixed</span> <span class="chip run">Retraining queued</span></td></tr>
+          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip ok">Seed 0 trained: 91.5% at 0.02–0.1 mm</span> <span class="chip todo">Server seeds wait for the noise level</span></td></tr>
           <tr><td>G</td><td>Gear meshing (paper task 2), not in the original plan.</td><td><span class="chip ok">Seed 0 trained and tested</span></td></tr>
           <tr><td>F</td><td>Add RGB and depth cameras to the blind policy.</td><td><span class="chip todo">Needs a server</span></td></tr>
         </tbody>
@@ -113,7 +113,7 @@
     <figure class="viz" data-fig="training">
       <div class="viz-tag">Interactive · hover to read every run</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Training success with stochastic actions (paper Figs. 8 and 14).</b> (a) Blind and visual policies. (b) The blind policy with and without the contact decoder loss. (c) The blind peg policy on the YAM arm (old mount and lab table), the first USB-C run (stopped at 160 million steps, see below) and the blind gear policy. The dotted line is 90%. Use the buttons to show each seed or a log step axis. Hover to read every run at one step.</figcaption>
+      <figcaption><b>Training success with stochastic actions (paper Figs. 8 and 14).</b> (a) Blind and visual policies. (b) The blind policy with and without the contact decoder loss. (c) The blind peg policy on the YAM arm (old mount and lab table), the first USB-C run with box pads (stopped at 160 million steps), the USB-C run with sphere pads (all five stages, see below) and the blind gear policy. The dotted line is 90%. Use the buttons to show each seed or a log step axis. Hover to read every run at one step.</figcaption>
     </figure>
     <div class="tbl">
       <table>
@@ -260,11 +260,12 @@
   </section>
 
   <section id="usbc">
-    <h2>The USB-C policy stopped because the simulated grasp failed</h2>
-    <p class="claim">After 160 million steps, the USB-C policy had 78% training success on the first stage. The cause is a contact problem in the simulation, not the task.</p>
+    <h2>After a grasp correction, the blind policy inserts USB-C drives</h2>
+    <p class="claim">With sphere pads, the blind USB-C policy seats 91.5% of 2,048 unseen drives at the final clearance of 0.02 to 0.1 mm. Its capture radius (50% success) is 6.0 mm.</p>
     <p>Phase E uses USB-C flash drives on the YAM. The final clearance is 0.02 to 0.1 mm. The curriculum has five stages, and the first stage has a clearance of 0.3 mm. The run stayed at stage 1 because it needs 90% to go to stage 2. We stopped it early and examined the failures.</p>
-    <p>87% of the failures are slips: the drive falls out of the gripper, a median of 0.18 s after the start. With zero action, 12.5% of the drives also slip. The cause is missing contact points. When the drive is turned in the hand, its face overlaps the pad face only partly. Then the contact calculation gives an edge or no contact. With a grid of 4 × 4 small spheres on each pad, no drive slips, and the same policy seats 98.3% on stage 1. A new training run with sphere pads is in the queue.</p>
-    <p><a href="https://claude.ai/artifact/CjxtoUaw6MhSsYZLwnPVEh">Read the full USB-C failure report.</a></p>
+    <p>87% of the failures are slips: the drive falls out of the gripper, a median of 0.18 s after the start. With zero action, 12.5% of the drives also slip. The cause is missing contact points. When the drive is turned in the hand, its face overlaps the pad face only partly. Then the contact calculation gives an edge or no contact. With a grid of 4 × 4 small spheres on each pad, no drive slips, and the same policy seats 98.3% on stage 1.</p>
+    <p>A new run with sphere pads completed all five stages. It reached the final stage after 200 million steps. With 2,048 matched starts for each stage, it seats 99.0%, 98.9% and 98.1% on stages 2 to 4. The plan's gate (80% at 0.05 mm and 2 mm offset) is passed. On the final stage, it seats 91.5%. Most failures come from start offsets of more than 4 mm. The success changes smoothly with the clearance: 93.9% at 0.02 mm and 98.5% at 0.1 mm.</p>
+    <p><a href="https://claude.ai/artifact/CjxtoUaw6MhSsYZLwnPVEh">Read the full USB-C report: the grasp failure, the correction and the new results.</a></p>
     <figure class="img">
       <img src="static/images/usbc_yam_check.png" alt="YAM fingers holding USB-C flash drives over port housings" loading="lazy">
       <figcaption><b>USB-C grasp check.</b> The YAM holds the drive near the top of its body. Thus, the fingertips stay clear of the port housing.</figcaption>

@@ -1,0 +1,5 @@
+runs/E-usbc-proprio-currsph-s0/last.pt: success 0.817 (n=2048), median time 2.78s, median travel 13.5 mm; failures: {'success': 1673, 'slipped': 132, 'jammed_inside': 122, 'wedged_partial': 112, 'never_found': 5, 'left_fixture': 4}
+runs/E-usbc-proprio-currsph-s0/last.pt: success 0.990 (n=2048), median time 1.52s, median travel 16.5 mm; failures: {'success': 2027, 'slipped': 9, 'left_fixture': 8, 'never_found': 3, 'wedged_partial': 1}
+runs/E-usbc-proprio-currsph-s0/last.pt: success 0.989 (n=2048), median time 1.52s, median travel 17.9 mm; failures: {'success': 2026, 'never_found': 13, 'left_fixture': 4, 'slipped': 2, 'wedged_partial': 2, 'jammed_inside': 1}
+runs/E-usbc-proprio-currsph-s0/last.pt: success 0.981 (n=2048), median time 1.70s, median travel 18.7 mm; failures: {'success': 2010, 'never_found': 19, 'left_fixture': 8, 'slipped': 7, 'wedged_partial': 4}
+runs/E-usbc-proprio-currsph-s0/last.pt: success 0.915 (n=2048), median time 1.98s, median travel 23.1 mm; failures: {'success': 1873, 'never_found': 105, 'left_fixture': 40, 'wedged_partial': 19, 'slipped': 11}

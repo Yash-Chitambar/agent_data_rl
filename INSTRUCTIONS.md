@@ -105,6 +105,14 @@ the batch.
 
 ## 5. The training batch (only after Yash's OK on the GPU count)
 
+> **Phase E must use sphere pads (2026-10-20).** With box pads, 11–14% of USB-C resets drop the
+> drive out of the grasp, and training stalls at about 78% on curriculum stage 1 (full analysis:
+> `report_usbc/`, `docs/FINDINGS.md`). Use `blind_insertion/configs/phase_e_usbc_spheres.json`
+> (`pad_spheres: 4`) for every USB-C run. `make_manifests.py` on `main` now sets `USBC` to it:
+> rebase onto `main`, keep your table-mount changes in that config, then regenerate `E_train.txt`
+> and `E_eval.txt` and run `make_manifests.py --check`. With sphere pads, athena5's E1 seed 0
+> reached the final stage at 200M steps and seats 91.5% there (capture radius 6.0 mm).
+
 ```bash
 tmux new -d -s jobs "python3 scripts/server/run_jobs.py --gpus <free indices> \
     --skip-tag also_in_local_queue --skip-tag needs_local_ckpt \

@@ -142,8 +142,64 @@ def main():
                               series={"succ": dict(label="Seated", color=0, seeds=[dict(name="E-usbc-s0", x=x, y=s.values[idx], steps=float(x[-1]), to90=None)]),
                                       "cap": dict(label="Entered the port", color=2, seeds=[dict(name="E-usbc-s0", x=x, y=sc.values[idx], steps=float(x[-1]), to90=None)])}))
 
+    retrain()
     if not a.no_media:
         media()
+
+
+def retrain():
+    """Results of the sphere-pad retraining (E-usbc-proprio-currsph-s0)."""
+    run = ROOT / "runs" / "E-usbc-proprio-currsph-s0"
+    if not (run / "train_log.csv").exists():
+        return
+    d = pd.read_csv(run / "train_log.csv")
+    k = d.success.fillna(0) * d.episodes
+    s = k.rolling(10, min_periods=1).sum() / d.episodes.rolling(10, min_periods=1).sum()
+    idx = np.unique(np.linspace(0, len(d) - 1, 200).astype(int))
+    cur = json.loads((OUT / "data" / "curves.json").read_text())
+    cur["series"]["sph"] = dict(label="Seated, sphere pads", color=1,
+                                seeds=[dict(name="E-usbc-sph-s0", x=(d.env_steps.values / 1e6)[idx], y=s.values[idx],
+                                            steps=float(d.env_steps.iloc[-1] / 1e6), to90=None)])
+    cur["series"]["succ"]["label"] = "Seated, box pads"
+    cur["series"]["cap"]["label"] = "Entered the port, box pads"
+    cur["panels"] = [dict(title="(a) Box pads: stage 1 for the whole run", keys=["succ", "cap"]),
+                     dict(title="(b) Sphere pads: all five stages", keys=["sph"])]
+    cur["stages"] = json.loads((run / "curriculum.json").read_text())
+    write("curves.json", cur)
+    st = ROOT / "results" / "E" / "stages"
+    names = {1: "Stage 1: 0.3 mm, 0.5 mm offset", 2: "Stage 2: 0.15 mm, 1.0 mm offset",
+             3: "Stage 3: 0.08 mm, 1.5 mm offset", 4: "Stage 4: 0.05 mm, 2.0 mm offset",
+             5: "Stage 5 (final): 0.02–0.1 mm, 3.0 mm offset"}
+    rows = []
+    for i in range(1, 6):
+        f = st / f"sph_s0_stage{i}.parquet"
+        if f.exists():
+            dd = pd.read_parquet(f)
+            rows.append(bar(names[i], dd, "success", 0 if i > 1 else 3,
+                            note=", ".join(f"{k.replace('_', ' ')} {v}" for k, v in
+                                           dd[dd.success == 0].failure.value_counts().items())))
+    write("stages.json", dict(title="Success of the sphere-pad policy on each stage (2,048 matched starts each)",
+                              xlabel="success", rows=rows))
+    f5 = st / "sph_s0_stage5.parquet"
+    if f5.exists():
+        dd = pd.read_parquet(f5)
+        dd["mm"] = 1000 * dd.start_dist
+        rows = []
+        for lo, hi in ((0, 2), (2, 3), (3, 4), (4, 5), (5, 6)):
+            m = dd[(dd.mm > lo) & (dd.mm <= hi)]
+            if len(m):
+                rows.append(dict(label=f"{lo}–{hi} mm start offset · {len(m)} episodes", color=0 if hi <= 4 else 3,
+                                 note=f"did not find the port {(m.failure == 'never_found').mean():.1%}",
+                                 **rate(int(m.success.sum()), len(m))))
+        write("dist.json", dict(title="Final stage: success against the start distance", xlabel="success", rows=rows))
+    cj = ROOT / "results" / "E" / "capture" / "sph_s0_capture.json"
+    if cj.exists():
+        c = json.loads(cj.read_text())
+        write("capture.json", c)
+        rows = [dict(label=f"{e['clearance_um']:.0f} µm clearance", color=0, mean=e["rate"], lo=e["ci"][0], hi=e["ci"][1],
+                     k=e["k"], n=e["n"], note=f"median time to seat {e['median_time_s']:.2f} s") for e in c["E3"]]
+        write("e3.json", dict(title="E3: success against clearance at a 2 mm median start offset", xlabel="success",
+                              rows=rows))
 
 
 def media():

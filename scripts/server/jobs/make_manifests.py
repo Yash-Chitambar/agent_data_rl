@@ -27,7 +27,7 @@ REPO = HERE.parents[2]
 # ------------------------------------------------------------------------------- constants
 PY = ".venv/bin/python"
 YAM = "blind_insertion/configs/phase_c_yam.json"
-USBC = "blind_insertion/configs/phase_e_usbc_up.json"
+USBC = "blind_insertion/configs/phase_e_usbc_spheres.json"   # sphere pads: box pads drop the drive (report_usbc/)
 SEEDS = (0, 1, 2)
 # Phase C noise model carried into Phases D and E (plan §10: "with the Phase C noise model on").
 # PLACEHOLDER until Gate C picks it from the robustness plots; regenerate D/E after changing.

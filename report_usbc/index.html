@@ -8,7 +8,7 @@
 
 <main>
   <header class="hero">
-    <div class="badge">Failure analysis · 20 October 2026 · Phase E, USB-C on the YAM arm</div>
+    <div class="badge">Failure analysis and retraining · 20 October 2026 · Phase E, USB-C on the YAM arm</div>
     <h1>USB-C Grasp Failure:<br><span class="sub">Why the policy stopped at 77% on the first stage</span></h1>
     <p class="authors">Prepared by Yash Chitambar</p>
     <p class="affil">Part of the reproduction of Bronars et al., <i>Blind Precise Assembly</i> (arXiv:2610.23849)</p>
@@ -32,18 +32,18 @@
       <li><b>The slip occurs with zero action.</b> If the robot does not move, 12.5% of the drives slip, a median of 0.08 s after the reset.</li>
       <li><b>The cause is missing contact points.</b> When the drive is turned in the gripper (in-hand tilt), the pad and the drive face overlap only partly. Then the contact calculation gives an edge (2 points) or no contact, not the full face (8 points). With 8 points, 1.3% of the worlds slip. With fewer points, 75% slip.</li>
       <li><b>Sphere pads correct the grasp.</b> With a grid of 4 × 4 spheres on each pad, no drive slips with zero action (0 of 2,048). The same trained policy then seats 98.3% of the drives on stage 1, against 80.9% before.</li>
-      <li><b>A new training run with sphere pads is in the queue.</b></li>
+      <li><b>With sphere pads, the policy completes the curriculum.</b> A new run reached the final stage (0.02 to 0.1 mm) after 200 million steps. On the final stage, it seats 91.5% of 2,048 unseen drives. Its capture radius (50% success) is 6.0 mm.</li>
     </ul>
   </section>
 
   <section id="plateau">
     <h2>The policy stopped at the first curriculum stage</h2>
-    <p class="claim">After 160 million steps, the training success was 78%. The curriculum needs 90% to go to stage 2.</p>
+    <p class="claim">After 160 million steps, the training success was 78%. The curriculum needs 90% to go to stage 2. With sphere pads, a new run passed stage 1 after 20 million steps.</p>
     <p>The curriculum has five stages. Each stage makes the clearance tighter and the start offset larger. Stage 1 has a clearance of 0.3 mm and a median start offset of 0.5 mm. The final stage has a clearance of 0.02 to 0.1 mm and a median offset of 3 mm. The run stayed at stage 1 for all 160 million steps. We stopped it early.</p>
     <figure class="viz" data-fig="training">
       <div class="viz-tag">Interactive · hover to read the curve</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Training curve of E-usbc-proprio-curr-s0 (stochastic actions).</b> The blue line is the share of episodes that seat the drive. The green line is the share where the drive enters the port. The gap between the lines is small: if the drive enters, it usually seats. The dotted line is 90%, the level that the curriculum needs.</figcaption>
+      <figcaption><b>Training curves (stochastic actions).</b> (a) The first run, with box pads (E-usbc-proprio-curr-s0). The blue line is the share of episodes that seat the drive. The green line is the share where the drive enters the port. (b) The new run, with sphere pads (E-usbc-proprio-currsph-s0). It went to stage 2 at 20.2 million steps, stage 3 at 96.5 M, stage 4 at 164.4 M and stage 5 at 200.3 M. Each drop in the curve is a stage change. The dotted line is 90%, the level that the curriculum needs.</figcaption>
     </figure>
   </section>
 
@@ -133,11 +133,63 @@
     <p class="note">A grid of 3 × 3 spheres does not work: it gives no contact at all, and every drive falls. A possible cause is that the middle spheres are exactly on the plane of symmetry of the drive. The 4 × 4 grid has no sphere on that plane.</p>
   </section>
 
+  <p class="finding">After the fix</p>
+  <section id="retrain">
+    <h2>With sphere pads, the policy completes the curriculum</h2>
+    <p class="claim">The new run reached the final stage after 200 million steps. On the final stage (clearance 0.02 to 0.1 mm), it seats 91.5% of 2,048 unseen drives.</p>
+    <p>The new run uses the same curriculum, the same settings and the same 300 million steps as the first run. The only change is the sphere pads. We tested the final checkpoint on each stage, with 2,048 matched starts and deterministic actions. Stages 2 to 4 have a success of 98 to 99%. The gate of the research plan is 80% on stage 4 (0.05 mm clearance, 2 mm offset). The policy gets 98.1%.</p>
+    <figure class="viz" data-fig="hbars" data-src="stages.json">
+      <div class="viz-tag">Interactive · hover a bar for the failures</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>Success of the sphere-pad policy on each curriculum stage (n = 2,048 for each bar).</b> Each label gives the clearance and the median start offset. Hover a bar to see the failure types.</figcaption>
+    </figure>
+    <p>Stage 1 has the loosest fit but a lower success (81.7%). The policy last trained on stage 1 280 million steps before the end of the run. With 0.3 mm of play, the drive can tilt in the port. In 122 episodes, the drive is fully inside, but its tilt (median 3.9°) is more than the 2° limit for success. The tight final fits keep the drive straight, so the policy did not learn to straighten it. The final task does not have this problem.</p>
+  </section>
+
+  <section id="final">
+    <h2>On the final stage, far starts cause most failures</h2>
+    <p class="claim">From start offsets of 3 mm or less, the policy seats 96 to 99% of the drives. From 5 to 6 mm, it seats 55%.</p>
+    <p>On the final stage, 105 of the 175 failures are episodes where the policy does not find the port in 8 s. The success depends on the start distance, not on the clearance (90 to 93% in each quarter of the clearance range). A time limit of 16 s does not help (91.9% against 91.5%): with more time, more drives leave the port housing. The training success was 89 to 90% for the last 25 million steps, so longer training gives only a small increase.</p>
+    <figure class="viz" data-fig="hbars" data-src="dist.json">
+      <div class="viz-tag">Interactive · hover a bar</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>Final stage: success against the start distance (2,048 episodes in total).</b> Hover a bar for the share of episodes where the policy did not find the port.</figcaption>
+    </figure>
+    <figure class="teaser">
+      <video autoplay muted loop playsinline poster="static/images/final_stage_poster.jpg">
+        <source src="static/videos/final_stage.mp4" type="video/mp4">
+      </video>
+      <figcaption><b>Four final-stage episodes.</b> Each label gives the start offset, the clearance and the result. Three drives are seated, one of them from 5.1 mm. The fourth drive stops tilted, partly in the port. The video plays at ⅕ of real time.</figcaption>
+    </figure>
+  </section>
+
+  <section id="capture">
+    <h2>The capture radius is 6.0 mm</h2>
+    <p class="claim">At a clearance of 0.05 mm, the policy seats 50% of the drives from a start offset of 5.98 mm (95% interval 5.91 to 6.04 mm).</p>
+    <p>This is experiment E2 of the research plan, its main result for USB-C. We started 8,192 episodes from offsets of up to 6 mm in x and in y, and we sorted them by the start distance. Up to 3 mm, the success is 98 to 100%. After that, it decreases slowly: 93% at 3 to 4 mm, 78% at 4 to 5 mm and 28% at 7 to 8 mm. The training starts are 5.5 mm or less, so the policy also finds some ports from farther away.</p>
+    <figure class="viz" data-fig="capture">
+      <div class="viz-tag">Interactive · hover a point</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>E2: success against the radial start offset (n = 8,192).</b> The points are 0.5 mm bins with 95% Wilson intervals. The orange line is a logistic fit. The dashed line and the grey band show the 50% radius and its bootstrap interval. Hover a point for the failure types.</figcaption>
+    </figure>
+  </section>
+
+  <section id="clearance">
+    <h2>The success changes smoothly with the clearance</h2>
+    <p class="claim">From 0.02 to 0.2 mm, the success stays between 93.9% and 98.5%. There is no sudden drop.</p>
+    <p>This is experiment E3, with a median start offset of 2 mm. The 0.04 and 0.07 mm values are the validity check of the plan (0.05 mm, −10 and +20 µm). The success at these values is 97.0% and 98.4%. Thus, no result depends on geometry below 20 µm. At 0.02 mm, more drives stop partly in the port (54 of 2,048). At 0.2 mm, the fit is looser than in training, and more drives slip or tilt, as on stage 1.</p>
+    <figure class="viz" data-fig="hbars" data-src="e3.json">
+      <div class="viz-tag">Interactive · hover a bar</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>E3: success against clearance (2 mm median start offset, n = 2,048 for each bar).</b> Hover a bar for the median time to seat.</figcaption>
+    </figure>
+  </section>
+
   <section id="next">
     <h2>Next steps</h2>
     <ul class="facts">
-      <li><b>Train again with sphere pads.</b> The run E-usbc-proprio-currsph-s0 is in the queue after the gear run. It uses the same curriculum with <code>pad_spheres: 4</code> (configuration <code>phase_e_usbc_spheres.json</code>).</li>
-      <li><b>Examine the new policy.</b> When the new run is complete, we test it on each curriculum stage and on the final USB-C clearances, and we examine its failures.</li>
+      <li><b>Server runs use sphere pads.</b> All Phase E runs on the server (seeds 1 and 2 and the ablations) must use <code>phase_e_usbc_spheres.json</code>. The job generator on <code>main</code> now does this.</li>
+      <li><b>Larger capture radius.</b> Most final-stage failures come from starts of more than 4 mm. A final curriculum stage with larger start offsets can increase the capture radius.</li>
     </ul>
     <div class="tbl">
       <table>
@@ -147,6 +199,7 @@
           <tr><td><code>results/E/fail/slip_gpu_cpu*.parquet</code></td><td>Contact counts, slip and CPU replay for each world</td></tr>
           <tr><td><code>blind_insertion/checks/e_slip_gpu_cpu.py</code></td><td>GPU zero-action test, contact count and CPU replay</td></tr>
           <tr><td><code>scripts/usbc_diag.sh</code></td><td>One-change-at-a-time evaluation of a checkpoint</td></tr>
+          <tr><td><code>scripts/usbc_stage_eval.sh</code>, <code>scripts/usbc_capture.py</code></td><td>Evaluation on each stage, E2 capture radius and E3 clearance sweep (<code>results/E/stages/</code>, <code>results/E/capture/</code>)</td></tr>
           <tr><td><code>blind_insertion/assets/builder.py</code> (<code>sphere_pads</code>)</td><td>The sphere-pad grasp model (option <code>pad_spheres</code>)</td></tr>
         </tbody>
       </table>

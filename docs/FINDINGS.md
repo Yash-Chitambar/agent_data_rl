@@ -137,6 +137,23 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ### 2026-10-20 — Visual pipeline, YAM, USB-C
 
+- **USB-C with sphere pads (E-usbc-proprio-currsph-s0) completes the curriculum.** Stage 2 at
+  20.2M, 3 at 96.5M, 4 at 164.4M, 5 (final, 20-100 um, 3 mm median offset) at 200.3M steps;
+  final training success 89% (plateau over the last 25M). Deterministic eval, 2,048 matched starts
+  per stage (results/E/stages/): stage 1 81.7%, 2 99.0%, 3 98.9%, 4 98.1% (Gate E: >= 80%, pass),
+  5 91.5%.
+  - Final-stage failures are search failures: 105/175 never find the port (all 8 s timeouts);
+    success by start distance 98-99% (<= 2 mm), 96% (2-3), 92% (3-4), 82% (4-5), 55% (5-6);
+    clearance quartiles 90-93%. A 16 s limit gives 91.9% (never_found 46, but left_fixture 92).
+  - E2 capture radius (50 um, 8,192 starts in a +-6 mm square, results/E/capture/): r50 =
+    5.98 mm (bootstrap 95% CI 5.91-6.04); 98-100% up to 3 mm, 28% at 7-8 mm.
+  - E3 clearance sweep (2 mm median offset, 2,048 each): 20 um 93.9%, 40 um 97.0%, 50 um 98.0%,
+    70 um 98.4%, 100 um 98.5%, 200 um 95.7%. Validity check (50 um -10/+20) passes: smooth.
+  - Stage 1 drop (81.7%): with 0.3 mm play the drive tilts inside the port (jammed_inside, median
+    tilt 3.9 deg > 2 deg success limit); the tight-fit policy no longer straightens it.
+  - Server E manifests pointed at the box-pad config; `make_manifests.py` on main now uses
+    `phase_e_usbc_spheres.json` (note added to INSTRUCTIONS.md for the mason agent).
+
 - **Blind gear policy (G-gear-proprio-base-s0) reproduces the paper's gear row.** 300M steps in
   3.2 h; training success 0.1% at 12M, 99.5% at 75M, 100% at 299M. Deterministic eval: 99.94% of
   8,192 unseen gear sets (median 0.90 s; paper 0.58 s), OOD bins 99.71% (tighter), 100% (taller,
