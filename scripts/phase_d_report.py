@@ -50,9 +50,9 @@ def main():
             d = pd.read_parquet(ev)
             k, n = int(d.success.sum()), len(d)
             r.update(source="eval", k=k, n=n, success=k / n, lo=S.wilson(k, n)[0], hi=S.wilson(k, n)[1],
-                     time_med=float(d.time[d.success].median()) if k else np.nan,
+                     time_med=float(d.time[d.success.astype(bool)].median()) if k else np.nan,
                      travel_med_mm=1000 * float(d.travel.median()))
-            vc = d.failure[~d.success].value_counts()
+            vc = d.failure[~d.success.astype(bool)].value_counts()
             r.update({f"fail_{f}": int(vc.get(f, 0)) for f in FAILS})
         else:
             r.update(source="train", success=r["train_success"])
