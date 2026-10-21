@@ -76,9 +76,9 @@ def ann(**kw) -> str:
     return "  # " + " ".join(parts) if parts else ""
 
 
-def train_line(name, seed, args, *, visual=False, mem=11, est=H_BLIND, nworld=12288):
+def train_line(name, seed, args, *, visual=False, mem=11, est=H_BLIND, nworld=12288, steps="300e6"):
     mod = "train_visual" if visual else "train"
-    cmd = f"{PY} -m blind_insertion.{mod} --name {name} --seed {seed} --nworld {nworld} --steps 300e6 {args}".strip()
+    cmd = f"{PY} -m blind_insertion.{mod} --name {name} --seed {seed} --nworld {nworld} --steps {steps} {args}".strip()
     flags = dict(visual=visual, mem=mem, est_h=est)
     if name in LOCAL_QUEUE:
         flags["also_in_local_queue"] = True
@@ -143,7 +143,12 @@ C_CONDS = [  # variant, env_json overrides (training with that factor on, §9.3 
     # §9.3 "training with the noise randomized": every factor's level drawn per world at each
     # reset (EnvCfg.noise_rand); eval_phase_c.sh then gives its success at each fixed level
     ("randall", {"noise_rand": NOISE_RAND}),
+    # 2026-10-21: the base policy is bang-bang (27% of actions at the +-3 clip) and that is what
+    # latency/backlash break (results/C/analysis/). Same task with the action clip at 1: does a
+    # smooth policy transfer without knowing the latency? Evaluated with the same clip.
+    ("clip1", {"action_clip": 1.0}),
 ]
+C_EVAL_BASE = {"clip1": {"action_clip": 1.0}}   # env JSON merged under every eval_phase_c.sh condition
 
 
 def phase_c():
@@ -156,7 +161,8 @@ def phase_c():
                 tr.append(train_line(name, s, args if name in STARTED_FULL else f"{args} {STOP}"))
             tag = f"yam_{var}_s{s}"
             # full brittleness matrix: base + each factor alone + gain sweep (scripts/eval_phase_c.sh)
-            ev.append(eval_line(f"scripts/eval_phase_c.sh {name} {tag}", f"eval_{tag}", name, H_EVAL_C))
+            base = f" {jq(C_EVAL_BASE[var])}" if var in C_EVAL_BASE else ""
+            ev.append(eval_line(f"scripts/eval_phase_c.sh {name} {tag}{base}", f"eval_{tag}", name, H_EVAL_C))
             if var.startswith("all"):     # also under its own combined training condition
                 ev.append(eval_line(f"{PY} -m blind_insertion.eval --policy runs/{name}/last.pt --env_file {YAM} "
                                     f"--episodes 2048 --env_json {jq(ej)} --out results/C/eval_{tag}_own.parquet",
@@ -171,6 +177,9 @@ def phase_c():
 D_OPENINGS_MM = (60, 30, 15, 8)
 D_CLEARANCES_MM = (1.0, 0.5, 0.2, 0.1, 0.05)
 D_DIAGONAL = {(60, 1.0), (30, 0.5), (15, 0.2), (8, 0.05)}     # large-loose -> small-tight
+# 2026-10-21: D cells cap at 150M steps (small/tight cells may never reach the 99% stop rule; a
+# 300M cap would push tier 1 past the first results review). Extend with --resume where needed.
+D_STEPS = "150e6"
 
 
 def d_offset(opening_mm, regime):
@@ -190,7 +199,8 @@ def phase_d():
             name = f"D-peg-proprio-{var}-s{s}"
             fam = f"scale:{o / 1000:g}:{c / 1000:g}"
             ej = dict(NOISE, peg_offset=d_offset(o, r))
-            tiers[tier].append(train_line(name, s, f"--env_file {YAM} --family {fam} --env_json {jq(ej)} {STOP}"))
+            tiers[tier].append(train_line(name, s, f"--env_file {YAM} --family {fam} --env_json {jq(ej)} {STOP}",
+                                          steps=D_STEPS, est=H_BLIND / 2))
             ev.append(eval_line(f"{PY} -m blind_insertion.eval --policy runs/{name}/last.pt --env_file {YAM} "
                                 f"--family {fam} --env_json {jq(ej)} --episodes 2048 "
                                 f"--out results/D/eval_{var}_s{s}.parquet", f"eval_{name}", name, H_EVAL1))

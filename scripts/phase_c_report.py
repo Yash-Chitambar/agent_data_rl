@@ -1,6 +1,7 @@
 """Phase C (YAM robustness) train-condition x test-condition matrix from eval_phase_c.sh parquets.
 
-python scripts/phase_c_report.py  -> results/C/C-matrix.csv, C-matrix.png, C-summary.json
+python scripts/phase_c_report.py  -> results/C/C-matrix.csv, C-matrix.png, C-summary.json,
+                                     report/static/data/robust.json (report figure "robust")
 """
 from __future__ import annotations
 
@@ -23,6 +24,12 @@ from blind_insertion.analysis import stats as S  # noqa: E402
 OUT = ROOT / "results" / "C"
 TRAIN = ["base", "qnoise1e-4", "qnoise5e-4", "quant16", "quant14", "backlash1", "backlash3", "backlash5",
          "latency1", "latency2", "allmid", "allmax", "randall", "gain0.5x", "gain2x", "gain4x"]
+# report figure: test condition -> (label, policy trained with that condition)
+ROBUST = [("base", "None", "base"), ("qnoise5e-4", "Joint noise 5·10⁻⁴ rad", "qnoise5e-4"),
+          ("quant14", "14-bit encoder", "quant14"), ("backlash1", "Backlash 1′", "backlash1"),
+          ("backlash3", "Backlash 3′", "backlash3"), ("backlash5", "Backlash 5′", "backlash5"),
+          ("latency1", "Latency 20 ms", "latency1"), ("latency2", "Latency 40 ms", "latency2"),
+          ("gain0.5", "Gains ×0.5", "gain0.5x"), ("gain2", "Gains ×2", "gain2x"), ("gain4", "Gains ×4", "gain4x")]
 TEST = ["base", "qnoise1e-4", "qnoise5e-4", "quant16", "quant14", "backlash1", "backlash3", "backlash5",
         "latency1", "latency2", "gain0.5", "gain2", "gain4", "own"]
 
@@ -66,6 +73,17 @@ def main():
     summary = dict(matrix={r: {c: round(float(v), 4) for c, v in t.loc[r].dropna().items()} for r in t.index},
                    ood=ood)
     (OUT / "C-summary.json").write_text(json.dumps(summary, indent=1))
+
+    cell = {(r.train, r.test): dict(mean=r.success, lo=r.lo, hi=r.hi, k=r.k, n=r.n) for r in df.itertuples()}
+    pols = [("base", "Trained without the condition"), ("own", "Trained with the condition")]
+    if any(k[0] == "randall" for k in cell):
+        pols.append(("randall", "Trained with all conditions randomized"))
+    robust = dict(policies=[dict(key=k, label=lb) for k, lb in pols], conditions=[])
+    for test, label, own in ROBUST:
+        vals = {"base": cell.get(("base", test)), "own": cell.get((own, test)), "randall": cell.get(("randall", test))}
+        robust["conditions"].append(dict(key=test, label=label, own_run=own,
+                                         values={k: v for k, v in vals.items() if v is not None}))
+    (ROOT / "report" / "static" / "data" / "robust.json").write_text(json.dumps(robust, separators=(",", ":")))
     print(f"{len(df)} cells, {len(t)} training conditions -> {OUT}/C-matrix.{{csv,png}}, C-summary.json")
 
 
