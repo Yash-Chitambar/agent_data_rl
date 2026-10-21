@@ -117,10 +117,12 @@ def make_env(args, **over) -> PegEnv:
 
 
 class Curriculum:
-    """Advance a stage when rolling training success >= thr over `window` env steps."""
+    """Advance a stage when rolling training success >= thr over `window` env steps, or (if
+    `max_stage_steps`) after that many env steps in the stage."""
 
-    def __init__(self, env, stages, thr=0.9, window=5e6):
+    def __init__(self, env, stages, thr=0.9, window=5e6, max_stage_steps=None):
         self.env, self.stages, self.thr, self.window = env, stages, thr, window
+        self.max_stage_steps, self.t_stage = max_stage_steps, 0
         self.stage = -1
         self.per = env.nK // len(stages)
         self.hist = []      # (env_steps, successes, episodes)
@@ -129,6 +131,7 @@ class Curriculum:
 
     def advance(self, total):
         self.stage += 1
+        self.t_stage = total
         c, med = self.stages[self.stage]
         env = self.env
         base = self.stage * self.per
@@ -146,7 +149,9 @@ class Curriculum:
         recent = [h for h in self.hist if h[0] > total - self.window]
         span = total - (recent[0][0] if recent else total)
         K_, N_ = sum(h[1] for h in recent), sum(h[2] for h in recent)
-        if self.stage < len(self.stages) - 1 and span >= self.window * 0.95 and N_ > 0 and K_ / N_ >= self.thr:
+        timed_out = self.max_stage_steps is not None and total - self.t_stage >= self.max_stage_steps
+        if self.stage < len(self.stages) - 1 and (timed_out or (span >= self.window * 0.95 and N_ > 0
+                                                                 and K_ / N_ >= self.thr)):
             self.advance(total)
             return True
         return False
@@ -166,7 +171,8 @@ def train(args):
     env = make_env(args)
     dev = env.device
     cur = (Curriculum(env, USBC_STAGES) if args.curriculum == "usbc" else
-           Curriculum(env, scale_stages(args.family, env.cfg.peg_offset)) if args.curriculum == "scale" else None)
+           Curriculum(env, st := scale_stages(args.family, env.cfg.peg_offset),   # final stage keeps >= 40%
+                      max_stage_steps=0.6 * args.steps / max(len(st) - 1, 1)) if args.curriculum == "scale" else None)
     pc = PPOCfg()
     pc.contact_coef = args.contact_coef
     task = getattr(args, "task", "peg")
