@@ -48,6 +48,18 @@ def _latch_force(qpos: wp.array2d[float], qvel: wp.array2d[float], mocap_pos: wp
     xfrc[w, body] = wp.spatial_vector(f * zw[0], f * zw[1], f * zw[2], 0.0, 0.0, 0.0)
 
 
+@wp.kernel
+def _delayed_ctrl(ctrl: wp.array2d[float], old: wp.array2d[float], new: wp.array2d[float],
+                  switch: wp.array[int], act: wp.array[int], sub: int):
+    """Sub-step command latency: before substep switch[w] the arm actuators keep the previous
+    step's targets (old), from it on they take this step's targets (new)."""
+    w, j = wp.tid()
+    if sub < switch[w]:
+        ctrl[w, act[j]] = old[w, j]
+    else:
+        ctrl[w, act[j]] = new[w, j]
+
+
 @dataclass
 class EnvCfg:
     robot: str = "flexiv"
@@ -109,6 +121,10 @@ class EnvCfg:
     qd_noise: float = 0.0
     q_quant_bits: int = 0
     latency: int = 0
+    # extra command latency in ms (sub-step resolution, 1 physics step); adds to `latency`:
+    # total delay = 20 ms * latency + latency_ms. The part beyond whole control steps holds the
+    # previous step's joint targets for that many substeps; 0 keeps the integer model unchanged
+    latency_ms: float = 0.0
     # per-world levels drawn at every reset (plan §9.3 "training with the noise randomized"), e.g.
     # {"q_noise": [0, 1e-4, 5e-4], "q_quant_bits": [0, 16, 14], "backlash_arcmin": [0, 1, 3, 5],
     #  "latency": [0, 1, 2]}; each key replaces the fixed field above (qd_noise works too)
@@ -151,7 +167,7 @@ class PegEnv:
             sampler = cfg.variant_sampler or B.sample_study_pegs
             variants = sampler(cfg.n_variants, cfg.variant_seed)
         nr = cfg.noise_rand or {}
-        bad_keys = set(nr) - {"q_noise", "qd_noise", "q_quant_bits", "backlash_arcmin", "latency"}
+        bad_keys = set(nr) - {"q_noise", "qd_noise", "q_quant_bits", "backlash_arcmin", "latency", "latency_ms"}
         assert not bad_keys, f"noise_rand: unknown keys {bad_keys}"
         bl_build = max([cfg.backlash_arcmin, *nr.get("backlash_arcmin", [])])
         self.mjm, self.lay = B.build(cfg.robot, variants, gains=cfg.gains,
@@ -228,6 +244,12 @@ class PegEnv:
         self.hist = torch.zeros(N, H, self.obs_dim, device=dev)
         self.prev_action = torch.zeros(N, A, device=dev)
         self.max_lat = max([cfg.latency, *nr.get("latency", [])])
+        # sub-step latency: whole control steps of latency_ms join the action queue
+        ms_levels = [cfg.latency_ms, *nr.get("latency_ms", [])]
+        self.lat_ms_on = any(x > 0 for x in ms_levels)
+        if self.lat_ms_on:
+            ctrl_ms = 1e3 * cfg.substeps * self.mjm.opt.timestep
+            self.max_lat += int(max(ms_levels) // ctrl_ms) + 1
         self.act_queue = torch.zeros(N, self.max_lat + 1, A, device=dev)
         # per-world noise levels (only the keys in noise_rand; the rest use the fixed fields)
         self.w_noise = {k_: torch.zeros(N, device=dev) for k_ in nr}
@@ -463,7 +485,10 @@ class PegEnv:
         self.hist[ids] = o[:, None, :].expand(-1, self.cfg.history, -1)
 
     # ------------------------------------------------------------------ physics
-    def _substep(self):
+    def _substep(self, sub: int = 0):
+        if getattr(self, "lat_ms_on", False):
+            wp.launch(_delayed_ctrl, dim=(self.N, len(self.lay.arm_act)),
+                      inputs=[self.d.ctrl, self.lat_old, self.lat_new, self.lat_switch, self.lat_act, sub])
         if getattr(self.cfg, "latch", None):
             lt, lay = self.cfg.latch, self.lay
             wp.launch(_latch_force, dim=self.N,
@@ -482,12 +507,24 @@ class PegEnv:
                 self.t_latch_peak = wp.to_torch(self.latch_peak)
                 self.t_latch_depth = wp.to_torch(self.latch_depth)
                 self.t_latch_depth[:] = self.depth[self.variant]
+            if getattr(self, "lat_ms_on", False):
+                A = len(self.lay.arm_act)
+                with wp.ScopedDevice(self.cfg.device):
+                    self.lat_old = wp.zeros((self.N, A), dtype=float)
+                    self.lat_new = wp.zeros((self.N, A), dtype=float)
+                    self.lat_switch = wp.zeros(self.N, dtype=int)
+                    self.lat_act = wp.array(list(map(int, self.lay.arm_act)), dtype=int)
+                self.t_lat_old, self.t_lat_new = wp.to_torch(self.lat_old), wp.to_torch(self.lat_new)
+                self.t_lat_switch = wp.to_torch(self.lat_switch)
+                arm = torch.as_tensor(self.lay.arm_act, device=self.device)
+                self.t_lat_old[:] = self.t_ctrl[:, arm]
+                self.t_lat_new[:] = self.t_ctrl[:, arm]
             with wp.ScopedDevice(self.cfg.device):
                 for _ in range(2):  # warm-up compiles kernels
-                    self._substep()
+                    self._substep(self.cfg.substeps)   # switch <= substeps: applies `new`
                 with wp.ScopedCapture() as cap:
-                    for _ in range(self.cfg.substeps):
-                        self._substep()
+                    for i in range(self.cfg.substeps):
+                        self._substep(i)
                 self._graph = cap.graph
         if launch:
             wp.capture_launch(self._graph)
@@ -642,7 +679,22 @@ class PegEnv:
     def step(self, action: torch.Tensor):
         cfg, lay, dev = self.cfg, self.lay, self.device
         a = action.clamp(-cfg.action_clip, cfg.action_clip)
-        if "latency" in self.w_noise:
+        arm = torch.as_tensor(lay.arm_act, device=dev)
+        if self.lat_ms_on:
+            ctrl_ms = 1e3 * cfg.substeps * self.mjm.opt.timestep
+            ms = self.w_noise["latency_ms"] if "latency_ms" in self.w_noise else torch.full(
+                (self.N,), float(cfg.latency_ms), device=dev)
+            k = self.w_noise["latency"].long() if "latency" in self.w_noise else torch.full(
+                (self.N,), cfg.latency, dtype=torch.long, device=dev)
+            whole = k + torch.div(ms, ctrl_ms, rounding_mode="floor").long()
+            rem = ms - torch.div(ms, ctrl_ms, rounding_mode="floor") * ctrl_ms
+            self.t_lat_switch[:] = torch.round(rem / (1e3 * self.mjm.opt.timestep)).int().clamp(0, cfg.substeps)
+            self.act_queue = torch.cat([self.act_queue[:, 1:], a[:, None]], 1)
+            a_apply = self.act_queue[torch.arange(self.N, device=dev), self.max_lat - whole]
+            self.t_lat_old[:] = self.t_ctrl[:, arm]
+            self.t_lat_new[:] = self._q_meas + self.scale * a_apply
+            a_apply = None
+        elif "latency" in self.w_noise:
             self.act_queue = torch.cat([self.act_queue[:, 1:], a[:, None]], 1)
             lat = self.w_noise["latency"].long()
             a_apply = self.act_queue[torch.arange(self.N, device=dev), self.max_lat - lat]
@@ -651,8 +703,8 @@ class PegEnv:
             a_apply = self.act_queue[:, 0]
         else:
             a_apply = a
-        q_t = self._q_meas + self.scale * a_apply
-        self.t_ctrl[:, torch.as_tensor(lay.arm_act, device=dev)] = q_t
+        q_t = self.t_lat_new.clone() if a_apply is None else self._q_meas + self.scale * a_apply
+        self.t_ctrl[:, arm] = q_t
         torch.cuda.synchronize(dev)
         self._physics()
         wp.synchronize_device(cfg.device)

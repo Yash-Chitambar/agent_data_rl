@@ -19,6 +19,7 @@ give the real gains and the encoder noise at no extra cost. The tests take about
 | Control | 50 Hz (20 ms steps). Each step: `q_target = q_measured + 0.04 * action`, held for 20 ms | `envs/peg_env.py` `step()` |
 | Joint servo | PD per joint, `kp = 80, 80, 80, 30, 30, 30` N·m/rad, `kd = 6, 6, 6, 2, 2, 2` N·m·s/rad; full gravity compensation | `assets/builder.py` (`"yam"`) |
 | Latency `k` | The action applied now was computed `k` steps (k x 20 ms) earlier. `k` is an integer; 0 means "the command acts the instant the encoders are read" | `EnvCfg.latency` |
+| Sub-step latency | `latency_ms` more: for that many 1 ms substeps the arm keeps the previous step's targets. Total delay = 20 ms x `latency` + `latency_ms` | `EnvCfg.latency_ms` |
 | Backlash | A free play of ±(arcmin/2) between each motor and its link. The encoder reads the motor side only | `builder.add_backlash`, `EnvCfg.backlash_arcmin` |
 
 So **latency** = (age of the encoder reading when the policy uses it) + (time to compute the
@@ -135,7 +136,8 @@ Total latency per joint: `L = mean(t_send - t_obs) + delay_ms`. In control steps
 | Measurement | Training setting for D/E |
 |---|---|
 | `k` within ±0.25 of an integer **and** jitter (std) < 5 ms | Fixed `latency = round(k)` |
-| `k` between integers (for example 0.5) or jitter ≥ 5 ms | Randomize `latency` over the integers around `k` (`noise_rand`); if needed, I add sub-step delays to the env |
+| `k` between integers (for example 0.5) | Fixed sub-step delay: `latency = floor(k)`, `latency_ms` = the rest (1 ms resolution) |
+| Jitter ≥ 5 ms | Randomize `latency_ms` per world over the measured range (`noise_rand: {"latency_ms": [...]}`) |
 | Backlash ≤ 5 arcmin on all joints | `backlash_arcmin` randomized over 0 to the max measured (C shows any level covers 1–5) |
 | Backlash > 5 arcmin | Outside what C tested: I add a C run at the measured level before D |
 | Gain scale outside 0.7–1.4 | The sim gains are wrong: I change the YAM gains in the builder and retrain (the gain column of the C matrix shows the risk) |

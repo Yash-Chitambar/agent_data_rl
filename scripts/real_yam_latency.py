@@ -101,6 +101,10 @@ def fit(paths, out=None):
                                     rms_fit=round(err ** 0.5, 4), final_fraction=round(y_mean_late, 3))
         print(f"joint{j + 1}: {len(S)} steps, delay {tau * 1e3:.0f} ms "
               f"({tau / CONTROL_DT:.2f} control steps), gain scale {sc}, rms {err ** 0.5:.3f}")
+    tau_ms = float(np.median([r["delay_ms"] for r in res.values()]))
+    k = int(tau_ms // (CONTROL_DT * 1e3))
+    print(f"median delay {tau_ms:.0f} ms -> EnvCfg latency={k}, latency_ms={tau_ms - 1e3 * CONTROL_DT * k:.0f} "
+          "(add the loop delay t_send - t_obs from Test 1 first)")
     if out:
         Path(out).write_text(json.dumps(res, indent=1))
     return res

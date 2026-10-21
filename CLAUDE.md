@@ -99,6 +99,9 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
 - USB-C variants (Phase E): chamfer via `--variant_kw '{"chamfer": [2e-4, 5e-4]}'` (train and eval);
   latch `EnvCfg.latch` (`configs/phase_e_usbc_latch.json`), side port `EnvCfg.fix_base_rpy_deg`
   (`configs/phase_e_usbc_side.json`). Per-world noise levels: `EnvCfg.noise_rand`.
+- Sub-step command latency: `EnvCfg.latency_ms` (adds to `latency`; also a `noise_rand` key). The arm
+  keeps the previous targets for that many 1 ms substeps (warp kernel in the CUDA graph);
+  check: `python -m blind_insertion.checks.latency_ms_check`. GearEnv does not support it.
 - Visual: `EnvCfg.cam_modality` rgb|depth|rgbd (frame channels), `depth_model` (D405-like sensor),
   `cam_rand`; the YAM camera is Menagerie's `wrist_cam` (D405). `train_visual --proprio` fuses joints.
 - `load_robot` adds backlash hinges before `sphere_pads` (which compiles the spec): the other order
