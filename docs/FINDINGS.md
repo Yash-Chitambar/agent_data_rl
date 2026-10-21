@@ -84,6 +84,16 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C E5 latch: a 100M fine-tune pushes through it (28 -> 90%)
+
+- `E-usbc-proprio-latchft-s0`: 100M steps from E1 on `phase_e_usbc_latch.json` (lab table, final
+  stage, 3 mm median start, latch 5-15 N over the last 1.5 mm). Training success 88% at the end.
+- On the latch port (2,048 starts): **89.7%** (E1 zero-shot: 28.0%), median 1.96 s; failures
+  slipped 84, never found 55, left fixture 32. q noise 5e-4: 90.5%, 14-bit: 90.8%. Latency 1 / 2:
+  3.0 / 1.0%, backlash 1 / 3: 2.3 / 2.2% (no robot errors in this fine-tune).
+- The 6 N grip base holds a 15 N latch: slips are 4% of episodes, so `grip_force_base` does not
+  need to rise. The server's E5 run (from scratch, with the stop rule) is the main result.
+
 ### 2026-10-21 (athena5) — USB-C: fine-tuning on wider starts grows the capture radius to 7.1 mm
 
 - `E-usbc-proprio-wide-s0`: 100M steps from E1 (old mount) on the lab table, final-stage parts

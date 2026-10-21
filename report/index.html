@@ -246,9 +246,11 @@
             <tr><td>Clearance 0.02 / 0.05 / 0.1 mm (2 mm offset)</td><td class="n">93.9 / 98.0 / 98.5%</td></tr>
             <tr><td>Port with a 0.2 to 0.5 mm chamfer (no retraining)</td><td class="n">83.6%</td></tr>
             <tr><td>Port with a 5 to 15 N latch (no retraining)</td><td class="n">28.0%</td></tr>
+            <tr><td>Port with a 5 to 15 N latch, after a 100 M-step fine-tune</td><td class="n">89.7%</td></tr>
+            <tr><td>Final stage, after a fine-tune on wider starts</td><td class="n">91.4%</td></tr>
             <tr><td>Port that faces the robot (no retraining)</td><td class="n">0%</td></tr>
           </tbody>
-          <caption>Most final-stage failures (105 of 175) are search failures: the policy does not find the port in 8 s. The last three rows use the policy from the old mount on the lab table (reference: 77.9%).</caption>
+          <caption>Most final-stage failures (105 of 175) are search failures: the policy does not find the port in 8 s. The last five rows run on the lab table (reference: 77.9%). The fine-tunes start from the old-mount policy.</caption>
         </table>
       </div>
     </div>
