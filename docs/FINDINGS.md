@@ -125,6 +125,13 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   than 1 mm use it from now on, except o30_c0.5_scaled-s0 (already done). The failed run is kept
   as `runs/D-peg-proprio-o15_c0.2_scaled-s0_nocurriculum`. So the steps-to-90% numbers of
   curriculum cells are not comparable with from-scratch cells.
+- **D small cells with box pads: the peg slips in the grasp.** With the clearance curriculum all
+  8 mm cells and the 15 mm rerun stayed at stage 1 (1 mm clearance) at 53-70% training success.
+  A 1,024-start test of o8_c1_scaled at 143M steps: 73.7%; failures slipped 159, left fixture 85,
+  never found 24. So at 8 mm the limit was the box-pad grasp (as for USB-C), not the search. Cells
+  <= 15 mm now use the USB-C sphere pads (`pad_spheres` 4, nconmax 256, njmax 2048) under new
+  names `*_sph`; the box-pad runs keep the old names and are excluded from `phase_d_report.py`.
+  The scale curriculum also advances a stage after 0.6 x steps / (stages - 1) at the latest.
 - **E5 latch from scratch (E-usbc-proprio-latch-s0):** 0.0% training success in 300M steps,
   never past curriculum stage 1 (0.3 mm clearance). The final-stage eval is 0% (never found 1,576,
   wedged partial 265, slipped 139 of 2,048). Without the latch, stage 1 reaches 90% in 16M steps.
