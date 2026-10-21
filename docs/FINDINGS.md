@@ -84,6 +84,16 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C: training over a 1-step latency range covers both steps
+
+- `E-usbc-proprio-lat12ft-s0`: 100M steps from the matched 20 ms policy with latency drawn from
+  {1, 2} steps per world (resumed once after the reboot). Training success 72%.
+- Test (2,048 each), latency 0 / 1 / 2 steps: **20.8 / 78.8 / 74.8%** (matched 1-step policy:
+  10.9 / 78.3 / 38.1%). Covering the extra step costs nothing at 1 step and gains 37 points at 2.
+- So the real latency must be known to within one control step (20 ms), not exactly: train over
+  [L, L+1]. Backlash still breaks it (1 / 3 arcmin: 0.3-0.7%, ~1,100 slips of 2,048), which the
+  stiff-friction fine-tune (queued) tests.
+
 ### 2026-10-21 (athena5) — Resume after a real crash: one bug fixed
 
 - athena5 rebooted at ~13:10 while `E-usbc-proprio-lat12ft-s0` trained (7.9M steps). `--resume`
