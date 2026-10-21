@@ -156,10 +156,11 @@ o15_c0.2 97.6% (0.68 s, 19.6 mm travel; never found 20, wedged 27). Fixed regime
 | 0.5 mm | 98.6% (98.0-99.1) | 0.26 s | 26 | 2 |
 | 0.2 mm | 95.6% (94.6-96.4) | 0.54 s | 62 | 26 |
 | 0.1 mm | 93.0% (91.8-94.0) | 0.84 s | 64 | 80 |
+| 0.05 mm | 89.7% (88.3-90.9) | 1.28 s | 88 | 115 |
 
 At fixed size, tighter clearance makes the seat slower and turns failures from search (never
 found) into alignment (wedged partial). This is the trend the USB-C runs (0.02-0.1 mm) continue.
-o8_c0.05 trains (stage 5, 85%). Demo grids D_o60_c1 / D_o8_c1 / D_o8_c0.1 are in the report's
+o8_c0.05 (USB-C clearance) reached its final stage by the step cap and 92% training success. Fixed regime o30_c0.5: 98.4% (0.52 s, 20.9 mm). The 12 tier-2 scaled cells are queued in E_later_train.txt after the latch/side fine-tunes and the random-error USB-C run, before the E ablations. Demo grids D_o60_c1 / D_o8_c1 / D_o8_c0.1 are in the report's
 example figure (8 mm uses a close camera, DEMO_CAM in make_demos.sh). build_demos_data.py now keeps
 items rendered on the other host instead of dropping them.
 

@@ -39,7 +39,7 @@
         <tbody>
           <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
           <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency, backlash and gain errors break a policy that did not train with them. One policy trained with random levels keeps 96 to 98% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
-          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>97 to 98% from 60 mm to 15 mm (1.0 to 0.2 mm clearance). At 8 mm: 98.6% at 0.5 mm, 93.0% at 0.1 mm clearance. At tight clearance, the peg wedges more often. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
+          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>97 to 98% from 60 mm to 15 mm (1.0 to 0.2 mm clearance). At 8 mm: 98.6% at 0.5 mm, 89.7% at 0.05 mm clearance (USB-C). At tight clearance, the peg wedges more often. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
           <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. But 20 ms of latency or 1 arcmin of backlash drops it to 5 to 9%.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
           <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
         </tbody>
@@ -208,7 +208,7 @@
   <p class="finding">RQ3 · Scale</p>
   <section id="rq3">
     <h2>Scale study: from 60 mm pegs to connector size</h2>
-    <p class="claim">At 1.0 mm clearance, success stays at 97 to 98% from a 60 mm peg down to an 8 mm peg. At 8 mm, success decreases to 93.0% at 0.1 mm clearance. Each run trains with the random robot conditions from RQ2.</p>
+    <p class="claim">At 1.0 mm clearance, success stays at 97 to 98% from a 60 mm peg down to an 8 mm peg. At 8 mm, success decreases to 89.7% at 0.05 mm clearance, the USB-C fit. Each run trains with the random robot conditions from RQ2.</p>
     <p>The pegs have a 2:1 stadium shape. The opening is 60, 30, 15 or 8 mm long. The clearance is 1.0, 0.5, 0.2, 0.1 or 0.05 mm on each side. There are two start regimes. In the scaled regime, the start offset is proportional to the part size (10 mm median at 60 mm). In the fixed regime, the median offset is 3 mm for all sizes. If both regimes fail at the same size, the contact signal is the limit. If only the fixed regime fails, the search area is the limit.</p>
     <div class="tbl">
       <table>
@@ -217,12 +217,12 @@
           <tr><td>60 mm</td><td class="n"><b>98.2%</b></td><td class="n">·</td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
           <tr><td>30 mm</td><td class="n">·</td><td class="n"><b>96.9%</b></td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
           <tr><td>15 mm</td><td class="n">·</td><td class="n">·</td><td class="n"><b>97.6%</b></td><td class="n">·</td><td class="n">·</td></tr>
-          <tr><td>8 mm</td><td class="n"><b>97.0%</b></td><td class="n"><b>98.6%</b></td><td class="n"><b>95.6%</b></td><td class="n"><b>93.0%</b></td><td class="n">training</td></tr>
+          <tr><td>8 mm</td><td class="n"><b>97.0%</b></td><td class="n"><b>98.6%</b></td><td class="n"><b>95.6%</b></td><td class="n"><b>93.0%</b></td><td class="n"><b>89.7%</b></td></tr>
         </tbody>
-        <caption>Scaled regime. Bold: test success on 2,048 unseen starts with random robot conditions (95% intervals ±0.5 to 1.1 points). "·": later. In the fixed regime (3 mm median offset), the 60 mm, 1.0 mm cell seats 99.7%; the other cells train now.</caption>
+        <caption>Scaled regime. Bold: test success on 2,048 unseen starts with random robot conditions (95% intervals ±0.5 to 1.1 points). "·": later. In the fixed regime (3 mm median offset), the 60 mm, 1.0 mm cell seats 99.7% and the 30 mm, 0.5 mm cell 98.4%; the other cells train now.</caption>
       </table>
     </div>
-    <p><b>Size alone does not decrease success. Clearance does.</b> Along the diagonal (60, 30 and 15 mm with 1.0, 0.5 and 0.2 mm), success stays at 97 to 98%. At 8 mm, success decreases from 98.6% at 0.5 mm clearance to 93.0% at 0.1 mm. The failure type also changes. At 1.0 mm, 55 of 62 failures did not find the hole. At 0.1 mm, 80 of 144 failures stopped partly inside the hole (wedged). Thus, at tight clearance the limit is the alignment in the hole, not the search.</p>
+    <p><b>Size alone does not decrease success. Clearance does.</b> Along the diagonal (60, 30 and 15 mm with 1.0, 0.5 and 0.2 mm), success stays at 97 to 98%. At 8 mm, success decreases from 98.6% at 0.5 mm clearance to 89.7% at 0.05 mm, the USB-C clearance. The failure type also changes. At 1.0 mm, 55 of 62 failures did not find the hole. At 0.05 mm, 115 of 211 failures stopped partly inside the hole (wedged). Thus, at tight clearance the limit is the alignment in the hole, not the search.</p>
     <div class="tbl">
       <table>
         <thead><tr><th>8 mm peg, clearance</th><th class="n">Success</th><th class="n">Median time</th><th class="n">Did not find the hole</th><th class="n">Wedged</th></tr></thead>
@@ -231,6 +231,7 @@
           <tr><td>0.5 mm</td><td class="n">98.6%</td><td class="n">0.26 s</td><td class="n">26</td><td class="n">2</td></tr>
           <tr><td>0.2 mm</td><td class="n">95.6%</td><td class="n">0.54 s</td><td class="n">62</td><td class="n">26</td></tr>
           <tr><td>0.1 mm</td><td class="n">93.0%</td><td class="n">0.84 s</td><td class="n">64</td><td class="n">80</td></tr>
+          <tr><td>0.05 mm</td><td class="n">89.7%</td><td class="n">1.28 s</td><td class="n">88</td><td class="n">115</td></tr>
         </tbody>
         <caption>Failure counts of 2,048 starts. Median start offset 1.3 mm. The "Examples from every test" videos show the 60 mm and 8 mm cells.</caption>
       </table>
@@ -338,7 +339,7 @@
     <h2>Next steps</h2>
     <ol class="facts">
       <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
-      <li><b>RQ3 grid.</b> Test 8 mm at 0.05 mm (USB-C clearance) and the fixed regime, then the other cells. Answer: at what size does success fall below 90%, and is the cause the search area or the signal?</li>
+      <li><b>RQ3 grid.</b> Test the fixed regime, then train the other 12 scaled cells (queued tonight). Answer: at what size does success fall below 90%, and is the cause the search area or the signal?</li>
       <li><b>RQ4 on the lab table.</b> USB-C, chamfer, latch and side port (training now), then USB-C with random robot errors from the start, and the ablations (no contact loss, history length).</li>
       <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
       <li><b>More seeds</b> where a result is close.</li>
