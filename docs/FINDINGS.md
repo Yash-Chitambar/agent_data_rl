@@ -84,6 +84,39 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C adapts to stiffer friction; under it, backlash breaks the search
+
+- `E-usbc-proprio-stiffft-s0`: 100M steps from the wide-start policy with `mj_opt` cone elliptic +
+  impratio 10 (grasp creep point ~7 -> ~12 N per mason's CPU test). Training success 87%.
+- Final stage (2,048 each), wide-start policy -> stiff fine-tune: soft friction 91.0 -> 60.0%,
+  **stiff friction 36.1 -> 89.8%**; stiff + 1 / 3 arcmin backlash 0.3 / 0.2 -> 2.5 / 1.7% (never
+  found ~1,650); stiff + 20 ms latency 0.2 -> 0.1%; latch with stiff friction 6.2 -> 21.5%
+  (wedged partial 1,183). Soft + 1 arcmin: 4.3 -> 8.3% (slips 718).
+- So the soft-friction dependence is removable in 100M steps (a policy for the stiffer, more
+  realistic grasp exists). Under stiff friction, backlash failures are search failures, not slips.
+  Next (queued): `E-usbc-proprio-stiffblft-s0`, stiff friction + backlash {0, 1, 3} per world, to
+  test whether training with backlash works for USB-C once the slips are gone (it does for the
+  YAM peg: 98.5-99.6%).
+
+### 2026-10-21 (athena5) — USB-C: training over a 1-step latency range covers both steps
+
+- `E-usbc-proprio-lat12ft-s0`: 100M steps from the matched 20 ms policy with latency drawn from
+  {1, 2} steps per world (resumed once after the reboot). Training success 72%.
+- Test (2,048 each), latency 0 / 1 / 2 steps: **20.8 / 78.8 / 74.8%** (matched 1-step policy:
+  10.9 / 78.3 / 38.1%). Covering the extra step costs nothing at 1 step and gains 37 points at 2.
+- So the real latency must be known to within one control step (20 ms), not exactly: train over
+  [L, L+1]. Backlash still breaks it (1 / 3 arcmin: 0.3-0.7%, ~1,100 slips of 2,048), which the
+  stiff-friction fine-tune (queued) tests.
+
+### 2026-10-21 (athena5) — Resume after a real crash: one bug fixed
+
+- athena5 rebooted at ~13:10 while `E-usbc-proprio-lat12ft-s0` trained (7.9M steps). `--resume`
+  first crashed: the kill left a partial last row in `train_log.csv` (`int(None)`). Fixed in
+  `train.py` / `train_visual.py`: rows whose `iter` is missing or not a number are dropped. The run
+  then resumed at it 25 (6.6M steps, the last checkpoint) with a continuous log. Lost: ~2 h of GPU
+  time (the local queue runner does not restart after a reboot; restart it with
+  `setsid nohup bash scripts/queue.sh &`).
+
 ### 2026-10-21 (athena5) — USB-C: backlash breaks the grasp and the search; the policy leans on soft friction
 
 - **Matched 20 ms policy under backlash** (`scripts/usbc_latency_eval.sh`, 2,048 each): latency

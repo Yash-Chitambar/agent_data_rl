@@ -108,7 +108,8 @@ def train(args):
     if resuming and log_path.exists() and log_path.stat().st_size:
         with open(log_path) as f_:
             fields = next(csv.reader(f_))
-        rows = [r for r in csv.DictReader(open(log_path)) if int(r["iter"]) <= it]
+        rows = [r for r in csv.DictReader(open(log_path))   # a kill mid-write can leave a partial last row
+                if (r.get("iter") or "").strip().isdigit() and int(r["iter"]) <= it]
         log_f = open(log_path, "w", newline="")
         log = csv.DictWriter(log_f, fieldnames=fields)
         log.writeheader()
