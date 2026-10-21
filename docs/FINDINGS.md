@@ -84,6 +84,15 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — Resume after a real crash: one bug fixed
+
+- athena5 rebooted at ~13:10 while `E-usbc-proprio-lat12ft-s0` trained (7.9M steps). `--resume`
+  first crashed: the kill left a partial last row in `train_log.csv` (`int(None)`). Fixed in
+  `train.py` / `train_visual.py`: rows whose `iter` is missing or not a number are dropped. The run
+  then resumed at it 25 (6.6M steps, the last checkpoint) with a continuous log. Lost: ~2 h of GPU
+  time (the local queue runner does not restart after a reboot; restart it with
+  `setsid nohup bash scripts/queue.sh &`).
+
 ### 2026-10-21 (athena5) — USB-C: backlash breaks the grasp and the search; the policy leans on soft friction
 
 - **Matched 20 ms policy under backlash** (`scripts/usbc_latency_eval.sh`, 2,048 each): latency
