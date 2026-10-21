@@ -311,13 +311,31 @@
     <p><b>A matched latency recovers USB-C.</b> We fine-tuned the wide-start policy (91.4% without latency) for 100 million steps with a fixed latency of 20 ms. At 20 ms, it seats 78.9%. Before the fine-tune, it seated only 0.7% at 20 ms. But the fine-tuned policy seats only 11.1% without latency and 38.8% at 40 ms. This is the same pattern as the YAM peg: the policy works at its training latency only. Thus, for USB-C, the real latency of the YAM must be known. Then the policy can train at that latency.</p>
     <div class="tbl">
       <table>
-        <thead><tr><th>Test latency</th><th class="n">Wide-start policy, no latency in training</th><th class="n">Fine-tuned at 20 ms</th></tr></thead>
+        <thead><tr><th>Test latency</th><th class="n">Wide-start policy, no latency in training</th><th class="n">Fine-tuned at 20 ms</th><th class="n">Then fine-tuned at 20 or 40 ms</th></tr></thead>
         <tbody>
-          <tr><td>0 ms</td><td class="n">91.4%</td><td class="n">11.1%</td></tr>
-          <tr><td>20 ms</td><td class="n">0.7%</td><td class="n">78.9%</td></tr>
-          <tr><td>40 ms</td><td class="n">0.6%</td><td class="n">38.8%</td></tr>
+          <tr><td>0 ms</td><td class="n">91.4%</td><td class="n">11.1%</td><td class="n">20.8%</td></tr>
+          <tr><td>20 ms</td><td class="n">0.7%</td><td class="n">78.9%</td><td class="n">78.8%</td></tr>
+          <tr><td>40 ms</td><td class="n">0.6%</td><td class="n">38.8%</td><td class="n">74.8%</td></tr>
         </tbody>
-        <caption>Lab table, final clearance (0.02 to 0.1 mm), 3 mm median start offset, 2,048 matched starts. The fine-tune's training success was 75% and still increasing.</caption>
+        <caption>Lab table, final clearance (0.02 to 0.1 mm), 3 mm median start offset, 2,048 matched starts. Each fine-tune is 100 million steps. In the last column, each world draws a latency of 20 or 40 ms at each reset.</caption>
+      </table>
+    </div>
+    <p><b>The latency must be known to within one control step.</b> A second fine-tune drew the latency from 20 or 40 ms in each world. It seats 78.8% at 20 ms and 74.8% at 40 ms. Thus, a range of one step (20 ms) costs almost nothing. The real YAM's latency must be measured to within 20 ms, and then the policy trains over that range.</p>
+
+    <h3>Backlash and the grasp friction</h3>
+    <p class="claim">Backlash still breaks the USB-C policy. The simulated grasp friction is part of the cause, and a fine-tune removes this dependence.</p>
+    <p>With 1 arcmin of backlash, the 20 ms policies seat only 0.3 to 2.6%. Most of their failures are slips: the drive turns out of the grasp. A fine-tune with random backlash (0 to 5 arcmin) did not learn: its training success stayed at 13%. The default MuJoCo friction lets the drive creep in the grasp at 6 to 8 N. A real rubber pad with 8 to 17 N of grip holds much more. With a stiffer friction model (elliptic cone, impratio 10), the slips stop. But the policy also changes: without backlash, it seats only 36% under the stiffer friction. After a fine-tune of 100 million steps with the stiffer friction, it seats 89.8%. Thus, the policy can learn the stiffer grasp. Under the stiffer friction, backlash still makes the search fail (2.5% at 1 arcmin; most failures do not find the port). A fine-tune with stiffer friction and random backlash is in training.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Test</th><th class="n">Wide-start policy</th><th class="n">Fine-tuned with stiffer friction</th></tr></thead>
+        <tbody>
+          <tr><td>Default friction</td><td class="n">91.0%</td><td class="n">60.0%</td></tr>
+          <tr><td>Stiffer friction</td><td class="n">36.1%</td><td class="n">89.8%</td></tr>
+          <tr><td>Stiffer friction, 1 arcmin backlash</td><td class="n">0.3%</td><td class="n">2.5%</td></tr>
+          <tr><td>Stiffer friction, 20 ms latency</td><td class="n">0.2%</td><td class="n">0.1%</td></tr>
+          <tr><td>Stiffer friction, 5 to 15 N latch</td><td class="n">6.2%</td><td class="n">21.5%</td></tr>
+        </tbody>
+        <caption>Final stage, lab table, 2,048 matched starts. Stiffer friction: MuJoCo elliptic friction cone with impratio 10. The fine-tune trained 100 million steps without latency, backlash or latch.</caption>
       </table>
     </div>
   </section>
