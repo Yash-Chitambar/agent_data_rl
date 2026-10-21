@@ -1,0 +1,257 @@
+{
+ "matrix": {
+  "base": {
+   "base": 0.998,
+   "qnoise1e-4": 0.999,
+   "qnoise5e-4": 0.9985,
+   "quant16": 1.0,
+   "quant14": 0.9995,
+   "backlash1": 0.4673,
+   "backlash3": 0.4434,
+   "backlash5": 0.4312,
+   "latency1": 0.1631,
+   "latency2": 0.2373,
+   "gain0.5": 0.6084,
+   "gain2": 0.8008,
+   "gain4": 0.1987
+  },
+  "qnoise1e-4": {
+   "base": 1.0,
+   "qnoise1e-4": 0.999,
+   "qnoise5e-4": 0.999,
+   "quant16": 0.999,
+   "quant14": 0.9995,
+   "backlash1": 0.5176,
+   "backlash3": 0.4883,
+   "backlash5": 0.4546,
+   "latency1": 0.1045,
+   "latency2": 0.1987,
+   "gain0.5": 0.6538,
+   "gain2": 0.7715,
+   "gain4": 0.207
+  },
+  "qnoise5e-4": {
+   "base": 0.9941,
+   "qnoise1e-4": 0.9922,
+   "qnoise5e-4": 0.9932,
+   "quant16": 0.9917,
+   "quant14": 0.9961,
+   "backlash1": 0.4526,
+   "backlash3": 0.3896,
+   "backlash5": 0.3569,
+   "latency1": 0.0669,
+   "latency2": 0.2783,
+   "gain0.5": 0.7451,
+   "gain2": 0.8008,
+   "gain4": 0.415
+  },
+  "quant16": {
+   "base": 0.9893,
+   "qnoise1e-4": 0.9902,
+   "qnoise5e-4": 0.9907,
+   "quant16": 0.9893,
+   "quant14": 0.9893,
+   "backlash1": 0.4219,
+   "backlash3": 0.356,
+   "backlash5": 0.3271,
+   "latency1": 0.1841,
+   "latency2": 0.3076,
+   "gain0.5": 0.814,
+   "gain2": 0.8774,
+   "gain4": 0.4551
+  },
+  "quant14": {
+   "base": 0.9868,
+   "qnoise1e-4": 0.9868,
+   "qnoise5e-4": 0.9829,
+   "quant16": 0.9839,
+   "quant14": 0.9829,
+   "backlash1": 0.4072,
+   "backlash3": 0.356,
+   "backlash5": 0.3311,
+   "latency1": 0.2935,
+   "latency2": 0.4043,
+   "gain0.5": 0.7876,
+   "gain2": 0.7817,
+   "gain4": 0.4463
+  },
+  "backlash1": {
+   "base": 0.9746,
+   "qnoise1e-4": 0.9731,
+   "qnoise5e-4": 0.9722,
+   "quant16": 0.9692,
+   "quant14": 0.9692,
+   "backlash1": 0.9961,
+   "backlash3": 0.9937,
+   "backlash5": 0.9897,
+   "latency1": 0.5122,
+   "latency2": 0.6504,
+   "gain0.5": 0.7129,
+   "gain2": 0.918,
+   "gain4": 0.5488
+  },
+  "backlash3": {
+   "base": 0.96,
+   "qnoise1e-4": 0.9673,
+   "qnoise5e-4": 0.9673,
+   "quant16": 0.9678,
+   "quant14": 0.9653,
+   "backlash1": 0.9849,
+   "backlash3": 0.9873,
+   "backlash5": 0.9868,
+   "latency1": 0.4897,
+   "latency2": 0.5786,
+   "gain0.5": 0.749,
+   "gain2": 0.9014,
+   "gain4": 0.4819
+  },
+  "backlash5": {
+   "base": 0.9746,
+   "qnoise1e-4": 0.9688,
+   "qnoise5e-4": 0.9707,
+   "quant16": 0.9746,
+   "quant14": 0.9761,
+   "backlash1": 0.9897,
+   "backlash3": 0.9907,
+   "backlash5": 0.9902,
+   "latency1": 0.5947,
+   "latency2": 0.6519,
+   "gain0.5": 0.769,
+   "gain2": 0.9116,
+   "gain4": 0.5557
+  },
+  "latency1": {
+   "base": 0.3325,
+   "qnoise1e-4": 0.355,
+   "qnoise5e-4": 0.3516,
+   "quant16": 0.3462,
+   "quant14": 0.3564,
+   "backlash1": 0.2124,
+   "backlash3": 0.1909,
+   "backlash5": 0.1909,
+   "latency1": 0.9858,
+   "latency2": 0.6929,
+   "gain0.5": 0.3267,
+   "gain2": 0.3291,
+   "gain4": 0.2759
+  },
+  "latency2": {
+   "base": 0.2554,
+   "qnoise1e-4": 0.2549,
+   "qnoise5e-4": 0.2593,
+   "quant16": 0.2554,
+   "quant14": 0.2568,
+   "backlash1": 0.1768,
+   "backlash3": 0.1802,
+   "backlash5": 0.1719,
+   "latency1": 0.4497,
+   "latency2": 0.9927,
+   "gain0.5": 0.1924,
+   "gain2": 0.2627,
+   "gain4": 0.2021
+  },
+  "allmid": {
+   "base": 0.4536,
+   "qnoise1e-4": 0.4424,
+   "qnoise5e-4": 0.4541,
+   "quant16": 0.4458,
+   "quant14": 0.4609,
+   "backlash1": 0.3281,
+   "backlash3": 0.3096,
+   "backlash5": 0.2998,
+   "latency1": 0.9868,
+   "latency2": 0.7759,
+   "gain0.5": 0.3672,
+   "gain2": 0.3682,
+   "gain4": 0.2329
+  },
+  "allmax": {
+   "base": 0.207,
+   "qnoise1e-4": 0.2046,
+   "qnoise5e-4": 0.2041,
+   "quant16": 0.2061,
+   "quant14": 0.2129,
+   "backlash1": 0.1855,
+   "backlash3": 0.1973,
+   "backlash5": 0.1943,
+   "latency1": 0.7329,
+   "latency2": 0.9731,
+   "gain0.5": 0.2578,
+   "gain2": 0.1597,
+   "gain4": 0.1196
+  },
+  "gain0.5x": {
+   "base": 0.5562,
+   "qnoise1e-4": 0.5581,
+   "qnoise5e-4": 0.5454,
+   "quant16": 0.5591,
+   "quant14": 0.5464,
+   "backlash1": 0.3428,
+   "backlash3": 0.3115,
+   "backlash5": 0.3071,
+   "latency1": 0.3774,
+   "latency2": 0.4229,
+   "gain0.5": 0.9883,
+   "gain2": 0.3047,
+   "gain4": 0.2275
+  },
+  "gain2x": {
+   "base": 0.8516,
+   "qnoise1e-4": 0.8457,
+   "qnoise5e-4": 0.8511,
+   "quant16": 0.8506,
+   "quant14": 0.8555,
+   "backlash1": 0.6753,
+   "backlash3": 0.6392,
+   "backlash5": 0.604,
+   "latency1": 0.0103,
+   "latency2": 0.1685,
+   "gain0.5": 0.5244,
+   "gain2": 0.9902,
+   "gain4": 0.8921
+  },
+  "gain4x": {
+   "base": 0.5493,
+   "qnoise1e-4": 0.5444,
+   "qnoise5e-4": 0.5464,
+   "quant16": 0.5488,
+   "quant14": 0.5586,
+   "backlash1": 0.4482,
+   "backlash3": 0.4609,
+   "backlash5": 0.4399,
+   "latency1": 0.0366,
+   "latency2": 0.1558,
+   "gain0.5": 0.1611,
+   "gain2": 0.9443,
+   "gain4": 0.9937
+  }
+ },
+ "ood": {
+  "base": {
+   "extreme_size": {
+    "k": 993,
+    "n": 1024
+   },
+   "mild_size": {
+    "k": 1021,
+    "n": 1024
+   },
+   "random_convex": {
+    "k": 5,
+    "n": 1024
+   },
+   "slender": {
+    "k": 1014,
+    "n": 1024
+   },
+   "tighter": {
+    "k": 1020,
+    "n": 1024
+   },
+   "very_slender": {
+    "k": 999,
+    "n": 1024
+   }
+  }
+ }
+}

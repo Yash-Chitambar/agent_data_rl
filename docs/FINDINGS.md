@@ -9,9 +9,9 @@ Figures and data referenced here live in `results/<phase>/`.
 |---|---|
 | 0 | Passed (per plan). The Phase 0 scripts/configs (`blind_usbc/`, `configs/usbc_flash_drive.yaml`) are **not in this repo**; recreated as needed. |
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
-| B | Blind s0, s1 (300M) and visual s0 (50M, stop rule) trained and evaluated; no-contact s0 running; s2 and no-contact s1 queued. Results match the paper (table below). |
-| C | YAM model, workspace and fixture ranges set up (`configs/phase_c_yam.json`); A-S3..A-S6 run on YAM. |
-| E | USB-C flash-drive variants + pool sampler in the builder; visual check done. |
+| B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
+| C | 15 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 15 x 13 train/test matrix (`results/C/C-matrix.*`). `randall` (all factors randomized per world) running. Gate C (noise level for D/E) open: see 2026-10-21 entry. |
+| E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Server E waits for Gate C. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
 
@@ -72,18 +72,54 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 | A-S9 throughput | 18k / 34k / 43k / 43k env steps/s at N = 1k / 4k / 8k / 12k (physics only); 36–38k with PPO at 12,288 worlds -> 300M steps in about 2.3 h | Report |
 | Baselines | 2,048 matched starts: zero action 2.9%, random (σ 0.5) 6.1% success | Report |
 
-## Next steps (as of 2026-10-20 ~03:15)
+## Next steps (as of 2026-10-21 07:45 UTC)
 
-- Queue (`runs/queue/jobs.txt`, runner `scripts/queue.sh` in background): eval + probe of
-  blind s0 and `scripts/phase_b_report.py` -> blind s1 -> visual s0 -> no-contact s0 ->
-  YAM C-R1 s0 -> USB-C E1 s0 (curriculum) -> blind s2 -> no-contact s1.
-- After each run: `scripts/eval_phase_b.sh <run> <tag>` (Phase B) or
-  `scripts/eval_phase_c.sh <run> <tag>` (Phase C robustness + gain sweep), then the report.
-- Not yet done: visual-policy evaluation and B-R2/B-R6 comparisons (need the visual run),
-  Phase C training-with-noise runs, Phase D grid (`--family scale:<o>:<c>`; ~12 GPU-days,
-  server), Phase E E2–E8, Phase F, RoboSimStudio replay (no `MjfitSpec` in this checkout).
+- Gate C: choose the D/E noise model. The matrix says latency and backlash must be in training,
+  matched or randomized; `C-peg-proprio-randall-s0` (running on mason) tests randomization.
+  Then set `NOISE` in `make_manifests.py`, regenerate, `--check`, start D tier 1 and E.
+- Measure the real YAM's command-to-encoder latency (in 20 ms control steps) and backlash: these
+  two set the D/E noise model more than q noise does.
+- Blind s2 and no-contact s1 (local queue) for the 3-seed B tables.
+- Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 — Phase C on the lab-table YAM: noise and quantization are harmless; latency, backlash and gains are not
+
+15 seed-0 runs (12,288 worlds, `configs/phase_c_yam.json`, table mount, box pads) on mason. Every
+run cross-evaluated on 13 test conditions, 2,048 unseen starts per cell (`scripts/phase_c_report.py`
+-> `results/C/C-matrix.{csv,png}`, `C-summary.json`).
+
+- **Training.** All 15 reach >= 99% training success. 90% at 14.2M (base) to 24.8M (allmax) steps;
+  backlash and latency slow learning a little (16-21M). The 99% stop rule works: 13 runs stop at
+  the 50M minimum (~46 min each on a V100), allmax at 56.6M. Base and qnoise1e-4 ran the full 300M.
+- **Joint noise (1e-4, 5e-4 rad) and encoder quantization (14, 16 bit) cost nothing**: every
+  policy keeps its own level under them (base: 99.8-100%).
+- **Backlash breaks a policy that never felt it**: base 47 / 44 / 43% at 1 / 3 / 5 arcmin
+  (failures: never found 479, wedged 405 of 2,048 at 1 arcmin). Training with any backlash level
+  covers all three (98.5-99.6%) and costs only 2-3 points without backlash.
+- **Latency is the worst factor, and it does not transfer in either direction.** Base: 16% at 1
+  step, 24% at 2 steps (never found, left fixture, wedged). A latency-1 policy gets 99% at latency
+  1 but 33% without latency and 69% at latency 2; latency-2 gets 99% / 26% / 45%. allmid (latency 1)
+  and allmax (latency 2) behave the same way: they are latency-matched policies (allmax 20.7% on
+  base). So a fixed latency must match the robot to within one 20 ms step.
+- **Gain mismatch**: base at 0.5x / 2x / 4x gains: 61 / 80 / 20% (4x: 1,556 slips). Gain-trained
+  policies are 99% at their own gain; 2x and 4x transfer to each other (89%, 94%), but no gain
+  policy covers the whole range (gain0.5x: 55% at 1x).
+- **OOD (base s0)**: tighter 99.6, slender 99.0, very slender 97.6, mild size 99.7, extreme size
+  97.0, random convex 0.5% (1,024 each). The YAM generalizes better than the Flexiv blind policy
+  on every geometric bin except random convex (Flexiv 22.8%; failures there are mostly slips).
+- **Implication for Gate C**: q noise is not the decision. D/E need latency and backlash in
+  training, either matched to the measured robot or randomized per world; `randall` (running)
+  answers whether one randomized policy covers the whole matrix. A single fixed setting such as
+  allmid is the wrong choice: it fails at 45% on a robot without latency.
+
+### 2026-10-21 — Phase B server runs (mason)
+
+- Visual s1 / s2 (50M, stop rule): 99.9 / 100% in distribution, 90% at 6.9M steps both.
+  OOD tighter 87.7 / 89.3, slender 84.2 / 79.6, very slender 67.6 / 62.1, mild 88.6 / 88.1,
+  extreme 29.2 / 29.9, random convex 2.3 / 2.3%: seeds agree with s0 (blind still wins every bin).
+- No-contact s2 (300M): 90% at 88.9M (blind ~40M), 98.8% at 300M, eval 99.0%; OOD tighter 92.3,
+  slender 95.4, very slender 93.4, mild 94.1, extreme 82.7, random convex 15.9%.
 
 ### 2026-10-21 — Server unblock: resume, Phase E variants (E4-E6), Phase F code, USB-C validity checks
 
