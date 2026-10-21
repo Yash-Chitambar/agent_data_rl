@@ -18,8 +18,10 @@ State (default runs/queue_server/):
     jobs/           one stdout/stderr log per attempt; rc/ exit codes; running.json
 A training job (has `--name X`) that exits 0 also gets runs/X/.complete (JSON). Jobs listed in
 done.txt or whose run has .complete are skipped (use --force to rerun). A failed job is retried
-`--retries` times (default 1). There is no resume in train.py yet, so a retry restarts the run
-from scratch; the partial run dir is first renamed to runs/X.failed-<time>.
+`--retries` times (default 1). A training job whose run dir exists without .complete is started
+with `--resume` appended (train.py / train_visual.py continue from runs/X/last.pt); the manifest
+line is unchanged, so running jobs still match by command text. A partial dir without last.pt is
+renamed to runs/X.failed-<time> and the run starts from scratch.
 
 Manifests are re-read every poll, so lines appended while the runner is active are picked up.
 The runner ignores SIGHUP and starts every job in its own session, but use tmux or nohup:
@@ -154,6 +156,12 @@ def gpu_idle(gpu: str, samples=3, interval=1.0) -> tuple[bool, str]:
     return True, f"idle over {samples} sample(s)"
 
 
+def with_resume(cmd: str) -> str:
+    """Insert --resume before the first output redirection (or append it)."""
+    m = re.search(r"\s(\d?>|&>)", cmd)
+    return f"{cmd[:m.start()]} --resume{cmd[m.start():]}" if m else f"{cmd} --resume"
+
+
 class Runner:
     def __init__(self, args):
         self.a = args
@@ -253,13 +261,18 @@ class Runner:
                 return False
         n = self.attempts.get(j.cmd, 0) + 1
         self.attempts[j.cmd] = n
+        cmd = j.cmd
         if j.is_train:
             d = self.runs / j.name
             if d.exists() and not self.complete(j.name):
-                bak = self.runs / f"{j.name}.failed-{dt.datetime.now():%Y%m%d-%H%M%S}"
-                self.log(f"partial run dir {d} (no .complete) -> {bak}")
-                if not self.a.dry_run:
-                    d.rename(bak)
+                if (d / "last.pt").exists() and "--resume" not in cmd:
+                    cmd = with_resume(cmd)
+                    self.log(f"partial run dir {d} has last.pt: resuming")
+                elif not (d / "last.pt").exists():
+                    bak = self.runs / f"{j.name}.failed-{dt.datetime.now():%Y%m%d-%H%M%S}"
+                    self.log(f"partial run dir {d} (no .complete, no last.pt) -> {bak}")
+                    if not self.a.dry_run:
+                        d.rename(bak)
         slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", j.label)[:80]
         logp = self.jobdir / f"{j.idx:04d}-{slug}-a{n}.log"
         rcp = self.rcdir / f"{j.idx:04d}-{slug}-a{n}.rc"
@@ -272,7 +285,7 @@ class Runner:
         with open(logp, "w") as lf:
             lf.write(f"# {now()} host={socket.gethostname()} gpu={gpu} attempt={n}\n# {j.cmd}\n")
             lf.flush()
-            p = subprocess.Popen(["bash", "-c", wrapper, "job", j.cmd, str(rcp)], cwd=REPO, env=env,
+            p = subprocess.Popen(["bash", "-c", wrapper, "job", cmd, str(rcp)], cwd=REPO, env=env,
                                  stdout=lf, stderr=subprocess.STDOUT, start_new_session=True)
         self.running[slot] = dict(proc=p, pid=p.pid, cmd=j.cmd, label=j.label, name=j.name,
                                   is_train=j.is_train, gpu=gpu, attempt=n, t0=time.time(),

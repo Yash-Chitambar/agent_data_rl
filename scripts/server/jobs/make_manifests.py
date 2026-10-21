@@ -40,6 +40,8 @@ STARTED_FULL = {"C-peg-proprio-base-s0", "C-peg-proprio-qnoise1e-4-s0"}
 # Phase C noise model carried into Phases D and E (plan §10: "with the Phase C noise model on").
 # PLACEHOLDER until Gate C picks it from the robustness plots; regenerate D/E after changing.
 NOISE = {"q_noise": 1e-4}
+NOISE_RAND = {"q_noise": [0, 1e-4, 5e-4], "q_quant_bits": [0, 16, 14], "backlash_arcmin": [0, 1, 3, 5],
+              "latency": [0, 1, 2]}
 MED_PER_HALF = 0.765          # train.MEDIAN_RADIAL_PER_HALFWIDTH: median |xy| = 0.765 a for U(-a,a)^2
 
 # GPU-hour assumptions, from runs on the local RTX 3090 Ti (runs/queue/queue.log):
@@ -138,6 +140,9 @@ C_CONDS = [  # variant, env_json overrides (training with that factor on, §9.3 
     ("allmid", {"q_noise": 1e-4, "q_quant_bits": 16, "backlash_arcmin": 1, "latency": 1}),
     ("allmax", {"q_noise": 5e-4, "q_quant_bits": 14, "backlash_arcmin": 5, "latency": 2}),
     ("gain0.5x", gains(0.5)), ("gain2x", gains(2)), ("gain4x", gains(4)),
+    # §9.3 "training with the noise randomized": every factor's level drawn per world at each
+    # reset (EnvCfg.noise_rand); eval_phase_c.sh then gives its success at each fixed level
+    ("randall", {"noise_rand": NOISE_RAND}),
 ]
 
 
@@ -193,53 +198,77 @@ def phase_d():
 
 
 # ------------------------------------------------------------------------------- Phase E
-E_BASE = f"--family usbc --curriculum usbc --n_variants 320 --env_file {USBC}"
-E_CONDS = [  # variant, extra train args, eval env_json (must repeat EnvCfg overrides), eval mode
-    ("curr", "", {}, "full"),                                    # E1 (+E2/E3 evals)
-    ("nocontact", "--contact_coef 0", {}, "indist"),             # E4 ablations
-    ("h10", f"--env_json {jq({'history': 10})}", {"history": 10}, "indist"),
-    ("h60", f"--env_json {jq({'history': 60})}", {"history": 60}, "indist"),
-    # E1 is currently trained WITHOUT the noise model (phase_e_usbc_up.json has none), so the
-    # plan's "no noise model" ablation is E1 itself and this is the "with noise" counterpart.
-    ("noise", f"--env_json {jq(NOISE)}", NOISE, "full"),
+E_BASE = "--family usbc --curriculum usbc --n_variants 320"
+USBC_LATCH = "blind_insertion/configs/phase_e_usbc_latch.json"   # E5: + latch spring, 5-15 N
+USBC_SIDE = "blind_insertion/configs/phase_e_usbc_side.json"     # E6: port faces the robot
+CHAMFER = {"chamfer": [2e-4, 5e-4]}                              # E4: 0.2-0.5 mm lead-in
+E_CONDS = [  # variant, env_file, env_json (train and eval), variant_kw, eval mode
+    ("curr", USBC, {}, {}, "full"),                                # E1 (+E2/E3 evals)
+    ("nocontact", USBC, {}, {}, "indist"),                         # E4 ablations (+ --contact_coef 0)
+    ("h10", USBC, {"history": 10}, {}, "indist"),
+    ("h60", USBC, {"history": 60}, {}, "indist"),
+    # E1 trains WITHOUT the noise model, so the plan's "no noise model" ablation is E1 itself and
+    # these are the "with noise" counterparts (fixed placeholder level; randomized levels)
+    ("noise", USBC, NOISE, {}, "full"),
+    ("noiserand", USBC, {"noise_rand": NOISE_RAND}, {}, "indist"),
+    ("chamfer", USBC, {}, CHAMFER, "full"),                        # E4 with chamfer
+    ("latch", USBC_LATCH, {}, {}, "full"),                         # E5
+    ("side", USBC_SIDE, {}, {}, "full"),                           # E6
 ]
+# E1's policy evaluated zero-shot on the E4/E5/E6 assemblies ("with vs without" for the paper
+# comparison): tag, env_file, variant_kw
+E1_CROSS = [("chamfer", USBC, CHAMFER), ("latch", USBC_LATCH, {}), ("side", USBC_SIDE, {})]
+
+
+def e_eval_opts(ef, ej, vk):
+    return (f" --env_file {ef}" + (f" --env_json {jq(ej)}" if ej else "")
+            + (f" --variant_kw {jq(vk)}" if vk else ""))
 
 
 def phase_e():
     tr, ev = [], []
     for s in SEEDS_CDE:
-        for var, extra, ej, mode in E_CONDS:
+        for var, ef, ej, vk, mode in E_CONDS:
             name = f"E-usbc-proprio-{var}-s{s}"
-            tr.append(train_line(name, s, f"{E_BASE} {extra} {STOP}".replace("  ", " "), nworld=8192, mem=16, est=H_USBC))
+            extra = (" --contact_coef 0" if var == "nocontact" else "") + e_eval_opts(ef, ej, vk)
+            tr.append(train_line(name, s, f"{E_BASE}{extra} {STOP}", nworld=8192, mem=16, est=H_USBC))
             tag = f"{var}_s{s}"
-            ejs = f" {jq(ej)}" if ej else ""
-            ev.append(eval_line(f"scripts/server/eval/eval_phase_e.sh {name} {tag} {mode}{ejs}", f"eval_{name}",
-                                name, H_EVAL_E_FULL if mode == "full" else H_EVAL1))
+            ev.append(eval_line(f"scripts/server/eval/eval_phase_e.sh {name} {tag} {mode}{e_eval_opts(ef, ej, vk)}",
+                                f"eval_{name}", name, H_EVAL_E_FULL if mode == "full" else H_EVAL1))
+        e1 = f"E-usbc-proprio-curr-s{s}"
+        for tag, ef, vk in E1_CROSS:
+            ev.append(eval_line(f"scripts/server/eval/eval_phase_e.sh {e1} curr_on_{tag}_s{s} indist"
+                                f"{e_eval_opts(ef, {}, vk)}", f"eval_curr_on_{tag}_s{s}", e1, H_EVAL1))
     return tr, ev
 
 
 # ------------------------------------------------------------------------------- Phase F
-F_TEXT = """\
-# Phase F (plan §12): BLOCKED. No line below is runnable yet; every one needs a code change
-# in blind_insertion/ (see docs/SERVER.md "Code changes needed"):
-#   - train_visual.py has no --env_file / --family / --curriculum, so it cannot train on the
-#     YAM USB-C task (it only builds the default Flexiv + study-peg env).
-#   - only an RGB-only policy exists (policies/visual.py). Depth (EnvCfg.cam_depth renders it,
-#     but no policy reads it), proprio+image fusion, and the depth sensor model (min range,
-#     noise, dropout) are not implemented.
-#   - no lighting/texture/camera-pose randomization (plan §12.1).
-# Intended runs once those exist (all visual, need the CUDA ray tracer, not EGL), 3 seeds each:
-#   F-usbc-rgb-curr-s{0,1,2}   F-R   (RGB only)
-#   F-usbc-depth-curr-s{0,1,2} F-D   (depth only)
-#   F-usbc-pr-curr-s{0,1,2}    F-PR  (proprio + RGB)
-#   F-usbc-pd-curr-s{0,1,2}    F-PD  (proprio + depth)
-#   F-usbc-prd-curr-s{0,1,2}   F-PRD (proprio + RGB + depth)
-#   (F-P = E-usbc-proprio-curr-s*, already in E_train.txt)
-# Sketch of the F-R line after train_visual.py gains --env_file/--family/--curriculum:
-# .venv/bin/python -m blind_insertion.train_visual --name F-usbc-rgb-curr-s0 --seed 0 --nworld 4096 --steps 300e6 --family usbc --curriculum usbc --n_variants 320 --env_file blind_insertion/configs/phase_e_usbc_up.json > runs/F-usbc-rgb-curr-s0.log 2>&1  # visual mem=16 est_h=10
-# Estimated cost: 15 runs x ~10 h (8.5k steps/s, 300M; less if a stop rule is used) = ~150 GPU-h,
-# plus F2 capture-radius evals out to 15 mm.
-"""
+USBC_F = "blind_insertion/configs/phase_f_usbc.json"   # USB-C spheres + camera/light/color randomization
+F_CONDS = [  # plan §12.2 (F-P = E-usbc-proprio-curr-s*): id, --modality, --proprio
+    ("rgb", "rgb", False), ("depth", "depth", False), ("pr", "rgb", True), ("pd", "depth", True),
+    ("prd", "rgbd", True),
+]
+# Direct RL (plan §12.3 route 1). USB-C success plateaus near 90% in training, so the 0.99 stop rule
+# would not fire: cap at 150M steps (E1 reached its final stage at 200M; vision may need fewer).
+F_STEPS = "150e6"
+H_F = 14.0   # 150M steps at ~3k steps/s (1,024 worlds RGB-D+proprio: 10.3 GB, 1.75k steps/s on a shared 3090 Ti)
+
+
+def phase_f():
+    tr, ev = [], []
+    for s in SEEDS_CDE:
+        for var, mod, prop in F_CONDS:
+            name = f"F-usbc-{var}-curr-s{s}"
+            args = (f"{E_BASE} --env_file {USBC_F} --modality {mod}" + (" --proprio" if prop else "")
+                    + f" --stop_success 0.99 --min_steps 50e6")
+            tr.append(train_line(name, s, args, visual=True, mem=20, est=H_F, nworld=2048).replace(
+                "--steps 300e6", f"--steps {F_STEPS}"))
+            ev.append(eval_line(f"scripts/server/eval/eval_phase_f.sh {name} {var}_s{s}", f"eval_{name}", name,
+                                1.0, visual=True, mem=8))
+        # F-P on the same scenes (its camera is unused; same starts as the visual policies)
+        e1 = f"E-usbc-proprio-curr-s{s}"
+        ev.append(eval_line(f"scripts/server/eval/eval_phase_f.sh {e1} p_s{s}", f"eval_F-P_s{s}", e1, 0.3))
+    return tr, ev
 
 
 HEADER = """\
@@ -331,8 +360,10 @@ def check(paths):
                 elif toks[0].endswith(".sh"):
                     if not (REPO / toks[0]).exists():
                         raise FileNotFoundError(toks[0])
-                    for t in toks[1:]:
-                        if t.startswith("{"):
+                    for prev, t in zip(toks, toks[1:]):
+                        if prev == "--env_file" and not (REPO / t).exists():
+                            raise FileNotFoundError(t)
+                        if t.startswith("{") and prev != "--variant_kw":
                             bad = set(json.loads(t)) - fields
                             if bad:
                                 raise ValueError(f"unknown EnvCfg fields {bad}")
@@ -360,6 +391,7 @@ def main():
     c_tr, c_ev = phase_c()
     d1, d2, d_ev = phase_d()
     e_tr, e_ev = phase_e()
+    f_tr, f_ev = phase_f()
     dup = ("# Lines tagged also_in_local_queue are ALSO in the local runs/queue/jobs.txt: remove them\n"
            "# from one side first. Lines tagged needs_local_ckpt evaluate runs trained on the local\n"
            "# machine: sync_up.sh --runs NAME and run_jobs.py --mark-complete NAME first, or run there.\n")
@@ -375,11 +407,15 @@ def main():
         write("D_train_tier1.txt", "Phase D tier 1: diagonal + 8 mm row, both start regimes, 3 seeds", d1, noise),
         write("D_train_tier2.txt", "Phase D tier 2: remaining grid cells, both start regimes, 3 seeds", d2, noise),
         write("D_eval.txt", "Phase D in-dist evals (2,048 matched starts per run)", d_ev, noise),
-        write("E_train.txt", "Phase E USB-C E-up: E1 curriculum + E4 ablations, 3 seeds", e_tr, dup + noise),
-        write("E_eval.txt", "Phase E evals: final-stage in-dist; E2 capture radius + E3 clearance for E1/noise", e_ev,
-              dup + noise),
+        write("E_train.txt", "Phase E USB-C (sphere pads): E1 curriculum, E4 ablations + chamfer, E5 latch, "
+              "E6 side port", e_tr, dup + noise),
+        write("E_eval.txt", "Phase E evals: final-stage in-dist; E2 capture radius + E3 clearance (full mode); "
+              "E1 zero-shot on chamfer/latch/side", e_ev, dup + noise),
+        write("F_train.txt", "Phase F USB-C vision (direct RL, 2,048 worlds): F-R, F-D, F-PR, F-PD, F-PRD", f_tr),
+        write("F_eval.txt", "Phase F evals: F1 in-dist, F2 capture radius to 15 mm, F4 degradation; F-P = E1",
+              f_ev),
     ]
-    (HERE / "F_blocked.txt").write_text(F_TEXT)
+    (HERE / "F_blocked.txt").unlink(missing_ok=True)
     print(f"{'manifest':22s} {'jobs':>5s} {'GPU-h':>7s}")
     for f, n, h in summary:
         print(f"{f:22s} {n:5d} {h:7.1f}")

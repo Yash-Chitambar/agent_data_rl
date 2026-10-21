@@ -16,13 +16,13 @@
 #   - skips (exit 0) if the line trains run X and runs/X/.complete exists;
 #   - fails (exit 3) if an `after=` dependency has no runs/<dep>/.complete (submit eval arrays
 #     with `submit.sh ... --after <train array job id>`);
-#   - moves a partial runs/X (no .complete, e.g. from a preempted attempt) to runs/X.failed-<time>
-#     because train.py cannot resume yet;
+#   - resumes a partial runs/X (no .complete, e.g. a preempted attempt) by appending --resume when
+#     runs/X/last.pt exists, else moves it to runs/X.failed-<time>;
 #   - writes runs/X/.complete (JSON) when a training command exits 0.
 # Preemption: with --requeue, SLURM requeues the task if the cluster preempts it (PreemptMode=
-# REQUEUE); it then restarts from scratch (no resume). The USR1 sent 300 s before the time
-# limit only logs a warning unless BI_REQUEUE_ON_TIMEOUT=1 (only useful once train.py resumes;
-# otherwise a too-short --time would loop forever).
+# REQUEUE); it then resumes from runs/X/last.pt (checkpoints every 25 iterations, ~10M steps).
+# The USR1 sent 300 s before the time limit only logs a warning unless BI_REQUEUE_ON_TIMEOUT=1
+# (set it on clusters with short time limits: each requeue continues from the last checkpoint).
 set -uo pipefail
 MANIFEST=${1:?usage: sbatch job_array.sbatch FROZEN_MANIFEST}
 cd "${SLURM_SUBMIT_DIR:-$(dirname "$0")/../../..}"
@@ -55,9 +55,12 @@ for tok in $ann; do
     done
   fi
 done
-if [ "$is_train" = 1 ] && [ -d "runs/$name" ]; then
+if [ "$is_train" = 1 ] && [ -f "runs/$name/last.pt" ]; then
+  echo "[$(ts)] partial runs/$name has last.pt: resuming"
+  cmd=$("$PY" -c 'import sys; sys.path.insert(0, "scripts/server"); from run_jobs import with_resume; print(with_resume(sys.argv[1]))' "$cmd")
+elif [ "$is_train" = 1 ] && [ -d "runs/$name" ]; then
   bak="runs/$name.failed-$(date +%Y%m%d-%H%M%S)"
-  echo "[$(ts)] partial runs/$name (no .complete) -> $bak"; mv "runs/$name" "$bak"
+  echo "[$(ts)] partial runs/$name (no .complete, no last.pt) -> $bak"; mv "runs/$name" "$bak"
 fi
 
 child=""

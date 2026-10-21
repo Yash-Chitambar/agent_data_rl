@@ -186,8 +186,8 @@ python3 scripts/server/run_jobs.py scripts/server/jobs/B_train.txt scripts/serve
   up; `--watch` keeps the runner alive when idle.
 - A training job that exits 0 gets `runs/<name>/.complete` (JSON). Jobs in
   `runs/queue_server/done.txt` or with a `.complete` marker are skipped (`--force` overrides).
-  Failed jobs are retried once (`--retries`); a training retry first moves the partial run dir to
-  `runs/<name>.failed-<time>` (no resume yet). Permanent failures go to `failed.txt`, and jobs
+  Failed jobs are retried once (`--retries`); a training retry resumes from `runs/<name>/last.pt`
+  (`--resume` is appended at launch), or moves a dir without `last.pt` to `runs/<name>.failed-<time>`. Permanent failures go to `failed.txt`, and jobs
   depending on them are reported as `blocked`.
 - Logs: `runs/queue_server/runner.log` (events, and the tail of the job's log on failure),
   `runs/queue_server/jobs/NNNN-<name>-aK.log` (per attempt), and the job's own `runs/<name>.log`.
@@ -239,11 +239,9 @@ command without submitting.)
   Use `--only visual` / `--only 'train_visual'` to submit the visual lines separately with a longer
   limit.
 - **Preemption / requeue:** the template sets `--requeue`, so a preempted task is requeued by
-  SLURM (if the cluster's `PreemptMode=REQUEUE`), and restarts the run from step 0 because
-  `train.py` cannot resume (§9.1). `--signal=B:USR1@300` delivers USR1 300 s before the time
-  limit; the task only logs it, unless `BI_REQUEUE_ON_TIMEOUT=1` is exported, which requeues
-  the task (useful only after resume exists; otherwise a too-short limit loops forever).
-  Prefer non-preemptible partitions until resume is implemented.
+  SLURM (if the cluster's `PreemptMode=REQUEUE`) and resumes from its last checkpoint (§9.1).
+  `--signal=B:USR1@300` delivers USR1 300 s before the time limit; the task only logs it, unless
+  `BI_REQUEUE_ON_TIMEOUT=1` is exported, which requeues the task to continue from the checkpoint.
 - One task = one GPU. To pack several jobs per GPU, or if the cluster prefers whole nodes, use
   `sbatch --gres=gpu:8 ... scripts/server/slurm/node_runner.sbatch MANIFEST... [--per-gpu 2]`, which
   runs `run_jobs.py` inside the allocation (shared state in `runs/queue_server/`).
@@ -327,7 +325,7 @@ figures of Phases A-B).
 - evals/probes of runs trained locally that are not yet evaluated: blind s1 (eval + probe),
   no-contact s0 (eval + probe), C base s0 (eval_phase_c + OOD) -- the `needs_local_ckpt` lines;
 - `scripts/phase_b_report.py`, which reads every `runs/B-*/train_log.csv`.
-Not needed for resuming (there is no resume), and the finished s0 evals are already in
+Not needed for resuming (server runs resume from their own checkpoints), and the finished s0 evals are already in
 `results/B`. Cheapest: run those few evals and the report **locally** after `sync_down.sh`. Or:
 ```bash
 scripts/server/sync_up.sh --no-code --runs 'B-peg-proprio-base-s1,B-peg-proprio-nocontact-s0' user@host:~/peg_test
@@ -352,94 +350,52 @@ commit `results/`. `SYNC_SSH="ssh -p 2222 -i key"` sets ssh options for both scr
 excludes `.git`, `.venv`, `.cache`, `.python`, `runs/`, `third_party/`, `outputs/`, `__pycache__`,
 and files > 50 MB (~190 MB, mostly the mjfit/robosimstudio submodule trees).
 
-## 9. Code changes needed (in `blind_insertion/`, not made here)
+## 9. Code changes for the migration (done 2026-10-21 on `main`)
 
-Found while preparing this; ordered by importance for the migration.
+All items below were open when this file was written; they are now implemented and tested on
+athena5 (small runs; see `docs/FINDINGS.md` 2026-10-21).
 
-### 9.1 Resume (needed for preemptible clusters and time limits)
+### 9.1 Resume -- done
+`train.py` and `train_visual.py --resume` continue from `runs/<name>/last.pt`: model, Adam state,
+iteration, env steps, best score, wall time, curriculum stage, and the torch / CUDA / env RNG states.
+`train_log.csv` is rewritten up to the checkpoint's iteration and then appended (no duplicate rows).
+Checkpoints written before this change (no optimizer or RNG state) resume too: the curriculum stage
+is then read from `curriculum.json`. With `--resume`, a run that has `DONE` with at least `--steps`
+steps (or stopped by the success rule) exits at once; a larger `--steps` extends it.
+`run_jobs.py` and `slurm/job_array.sbatch` append `--resume` at launch when a run dir without
+`.complete` holds `last.pt` (the manifest text is unchanged, so running jobs still match); a partial
+dir without `last.pt` is still moved to `runs/<name>.failed-<time>`. `BI_REQUEUE_ON_TIMEOUT=1` is
+now safe on SLURM: each requeue continues from the last checkpoint (every 25 iterations).
 
-Neither `train.py` nor `train_visual.py` can resume: `last.pt` holds only `model` (incl. the
-RunningNorm buffers), `iter`, `steps`; no optimizer state, RNG, best score or curriculum stage;
-`train_log.csv` is opened with `"w"`; `total`, `it`, `best` start at 0. Suggested diff for
-`train.py` (the same pattern applies to `train_visual.py`):
+### 9.2 Atomic checkpoint writes -- done
+`train.save_atomic`: `last.pt`, `best.pt` and `ckpt_*.pt` go through `<file>.tmp` + `os.replace`.
 
-```diff
-@@ def train(args):
--    log_f = open(run / "train_log.csv", "w", newline="")
--    log = None
--    total = 0
--    it = 0
-+    total, it, best, resumed = 0, 0, -1, False
-+    if args.resume and (run / "last.pt").exists():
-+        ck = torch.load(run / "last.pt", map_location=dev, weights_only=False)
-+        ac.load_state_dict(ck["model"])
-+        if "opt" in ck:
-+            opt.load_state_dict(ck["opt"])
-+        it, total, best = ck["iter"], ck["steps"], ck.get("best", -1)
-+        if "rng" in ck:
-+            torch.set_rng_state(ck["rng"]["torch"]); torch.cuda.set_rng_state(ck["rng"]["cuda"])
-+            env.gen.set_state(ck["rng"]["env"])
-+        if cur is not None:
-+            while cur.stage + 1 < ck.get("stage", 1):
-+                cur.advance(total)
-+            env.reset_all(desync=True)
-+            hist, crit = env.observe()
-+        resumed = True
-+        print(f"[{args.name}] resumed at it {it}, {total/1e6:.1f}M steps", flush=True)
-+    log_f = open(run / "train_log.csv", "a" if resumed else "w", newline="")
-+    log = csv.DictWriter(log_f, fieldnames=...) if resumed else None   # do not rewrite the header
-@@
--    best = -1
-@@  (every torch.save of last.pt / best.pt / ckpt_*.pt)
--            torch.save({"model": ac.state_dict(), "iter": it, "steps": total, ...}, run / "last.pt")
-+            ck = {"model": ac.state_dict(), "iter": it, "steps": total, ..., "opt": opt.state_dict(),
-+                  "best": best, "stage": (cur.stage + 1) if cur else None,
-+                  "rng": {"torch": torch.get_rng_state(), "cuda": torch.cuda.get_rng_state(),
-+                          "env": env.gen.get_state()}}
-+            tmp = run / "last.pt.tmp"; torch.save(ck, tmp); os.replace(tmp, run / "last.pt")
-@@ def parser():
-+    ap.add_argument("--resume", action="store_true", help="continue from runs/<name>/last.pt")
-```
-Notes: the `DictWriter` on resume needs the header field order (read the first line of the
-existing CSV). Checkpoints are every 25 iterations (blind: 25 x 393k steps = 9.8M steps,
-~4.5 min), so a preemption loses at most that. With `--resume` in place, change the "partial run
-dir" handling in `run_jobs.py` and `job_array.sbatch` from "move aside" to "pass `--resume`", and
-set `BI_REQUEUE_ON_TIMEOUT=1` on SLURM.
+### 9.3 Completion marker and run directory -- done
+`runs/<name>/DONE` (JSON: steps, iter, wall_s, reason `steps` | `stop_success`, success) is written
+at the end of training. `BI_RUNS_DIR` moves the run directory (default `runs/`). The runners still
+write their own `.complete`.
 
-### 9.2 Atomic checkpoint writes
-`torch.save(..., run / "last.pt")` writes in place; a kill mid-write (preemption, time limit)
-leaves a truncated `last.pt`. Write to `last.pt.tmp` and `os.replace` (as in the diff above), for
-`best.pt` and `ckpt_*.pt` too.
-
-### 9.3 Completion marker and run directory
-- No marker says a run finished (`last.pt` is rewritten every 25 iterations; the visual stop rule
-  ends early). The runners write `runs/<name>/.complete` themselves; better: at the end of
-  `train()` write `run / "DONE"` (JSON: steps, wall time, reason "steps" or "stop_success").
-- The run dir is fixed to `ROOT / "runs"`. Suggest
-  `RUNS = Path(os.environ.get("BI_RUNS_DIR", ROOT / "runs"))` in `train.py` / `train_visual.py`
-  for clusters where checkpoints should go to scratch.
-
-### 9.4 Flags missing for the remaining phases
-- `train_visual.py` has no `--env_file`, `--family`, `--curriculum` (it builds `EnvCfg` itself and
-  never calls `train.make_variants` / `Curriculum`). **Blocks all of Phase F** (USB-C on the YAM)
-  and a visual YAM baseline. Fix: reuse `train.make_env(args, camera=True, cam_res=args.res)` and
-  `train.Curriculum`.
-- Phase F also needs depth and fusion policies: only `VisualActorCritic` (RGB only) exists;
-  `EnvCfg.cam_depth` renders depth but nothing consumes it; no depth sensor model (min range,
-  noise, dropout) or lighting/texture/camera-pose randomization (§12.1).
-- `analysis/probes.py` takes only `--policy --robot --worlds --variant_seed --out`: no
-  `--env_file`, `--env_json`, `--family`. Blocks C-R3 (probe on YAM: `--robot yam` alone misses the
-  YAM fixture ranges and pad settings), D probe accuracy, E7. Fix: mirror `eval.py`'s env
-  construction.
-- `checks/signal_checks.py` has no `--family`/`--env_file`: needed for §10.2 F_min / drop-in PNR
-  per D cell and §11.5 USB-C checks (CPU, so not server work).
-- Per-world randomized noise levels (plan §9.3 "training with the noise randomized"): `EnvCfg`
-  holds one fixed `q_noise`, `q_quant_bits`, `latency`, `backlash_arcmin` for all worlds. The
-  manifests train at fixed levels instead.
-- Phase E: no chamfer option in `builder.sample_usbc` (E4 chamfer ablation), no latch/detent
-  model (E5), no sideways port (E6).
-- `eval.py`: `--peg_offset` is the per-axis half-width; a `--median_offset_mm` option would avoid
-  the 0.765 conversion in the manifests (cosmetic).
+### 9.4 Flags for the remaining phases -- done
+- `train_visual.py`: `--env_file --family --curriculum --variant_kw` (built with `train.make_env`
+  and `train.Curriculum`), `--modality rgb|depth|rgbd`, `--proprio` (joint-history TCN fused with the
+  image TCN, latents concatenated before the actor and the contact decoder, plan §12.2), `--resume`.
+  Depth uses `EnvCfg.depth_model` (min range 7 cm as the D405 on the YAM, noise growing with d^2,
+  random and edge dropout; invalid = 0) and `EnvCfg.cam_rand` (camera mount +-2 mm / +-2 deg, light
+  pose and intensity, part colors). The YAM uses Menagerie's wrist D405 (`wrist_cam`). Config:
+  `blind_insertion/configs/phase_f_usbc.json`. Route: direct RL (plan §12.3 route 1); measured
+  10.3 GB at 1,024 worlds (RGB-D + proprio, USB-C).
+- `analysis/probes.py` and `eval.py` share `eval.add_env_args` / `eval.env_kwargs`: `--env_file
+  --env_json --family --clearance --peg_offset --ood --variant_kw`.
+- `checks/signal_checks.py`: `--env_file --env_json --family study|usbc|scale:o:c --clearance
+  --press --noise` (robot, gains, pads and grip force from the env config).
+- `EnvCfg.noise_rand`: per-world levels drawn at every reset for `q_noise`, `qd_noise`,
+  `q_quant_bits`, `backlash_arcmin` (per-world `jnt_range` of the backlash hinges) and `latency`.
+- Phase E: `builder.sample_usbc(chamfer=(lo, hi))` (E4, 45 deg lead-in cut into the plate wedges;
+  train/eval `--variant_kw '{"chamfer": [2e-4, 5e-4]}'`), `EnvCfg.latch` (E5, spring along the port
+  axis over the last 1.5 mm, peak 5-15 N per reset, applied inside the CUDA graph;
+  `configs/phase_e_usbc_latch.json`), `EnvCfg.fix_base_rpy_deg` (E6, port facing the robot;
+  `configs/phase_e_usbc_side.json`, housing lifted 10-15 cm: the YAM reaches every start there).
+- Not done (cosmetic): `eval.py --median_offset_mm`.
 
 ### 9.5 GPU selection, caches, machine-specific bits
 - GPU choice: only through `CUDA_VISIBLE_DEVICES` (what both runners set). `EnvCfg.device`

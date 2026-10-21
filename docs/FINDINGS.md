@@ -85,6 +85,76 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-21 — Server unblock: resume, Phase E variants (E4-E6), Phase F code, USB-C validity checks
+
+- **Merged `mason-runs` into `main`** (YAM lab table, stop rule, idle-GPU runner), then built the
+  missing code on top. The server can now run all of Phases B-F from `main`
+  (`docs/SERVER.md` §9 lists what changed; `make_manifests.py --check`: 160 commands, 0 errors).
+- **Resume.** `--resume` restores model, Adam, RNG, curriculum stage and log; tested by stopping a
+  USB-C curriculum run at 57k steps and continuing to 106k (log rows continuous, no duplicates).
+  Checkpoints are written atomically; `runs/<name>/DONE` marks a finished run. The runners append
+  `--resume` for partial runs instead of discarding them.
+- **Per-world noise randomization** (`EnvCfg.noise_rand`, plan §9.3). Verified: per-world levels,
+  per-world backlash `jnt_range`, per-world latency queue. New C line `C-peg-proprio-randall-s0`.
+- **Bug found: backlash + sphere pads did not compile** ("more than 6 dofs in body link_1"):
+  `sphere_pads` compiles the spec, and joints added afterwards land on the wrong body. Backlash is
+  now added first. No finished run was affected (Phase C used box pads; E used no backlash), but
+  any USB-C run with backlash in the noise model would have crashed at start.
+- **E4 chamfer** (`sample_usbc(chamfer=...)`): the plate wedges' inner top edge is cut at 45 deg;
+  neighbouring wedges share the new vertices, so the lead-in has no gaps
+  (`results/E/variants/views.png`). Drawing the chamfer last keeps the same parts as the no-chamfer
+  pool for the same seed.
+- **E5 latch** (`EnvCfg.latch`): a spring along the port axis over the last 1.5 mm, peak 5-15 N per
+  reset, plus 5 N s/m damping, launched inside the 20-substep CUDA graph before each step. Force
+  read back from `xfrc_applied` matches the law to 4 uN with no lateral component.
+- **E6 side port** (`EnvCfg.fix_base_rpy_deg = (0, -90, 0)`, port facing the robot). YAM IK reach
+  map (256 starts per cell): housing lifted <= 6 cm above the table fails 3-97% of starts; lifted
+  10-15 cm at x = 0.30-0.45 m reaches 100%. The config uses that range (a stand under the housing,
+  not modelled; the fixture is fixed in space).
+- **Phase F code.** Depth and RGB-D frames (`cam_modality`), a D405-like depth model (7 cm minimum
+  range, noise ~ d^2, random and edge dropout), camera/light/colour randomization (`cam_rand`), and
+  fused policies (`--proprio`: joint TCN + image TCN, latents concatenated). The YAM uses
+  Menagerie's wrist D405 (`wrist_cam`). From that mount the scene spans 7-18 cm, **so the plug tip is
+  at the edge of the D405's minimum range**, and the port is only a few pixels wide at 64 x 64
+  (plan §12.1 asks to report this; the 128 x 128 ablation matters here). Memory: 10.3 GB at 1,024
+  worlds (RGB-D + proprio), after cutting the rollout re-embedding chunk from 1,024 to 256 worlds
+  (the 1,024 chunk needed a 3.75 GiB activation and ran out of memory). Two bugs fixed while
+  testing: `"depth" in "rgbd"` is False (depth was never rendered for RGB-D), and
+  `train_visual.py` reshaped frames to 3 channels.
+- **§11.5 validity checks, USB-C on the YAM (CPU, sphere pads, 50 um).**
+  A-S5: the contact signal is strong: F_min = 0.13 N vertical and 0.036 N lateral at
+  sigma_q = 1e-4 (0.46 / 0.17 N at 5e-4), against 0.79 / 1.13 N for the YAM peg; the light 6 N
+  grip and the soft USB-C gains make the arm deflect more per newton.
+  A-S6 (scripted slide into the port): with the default 0.5 N press the plug never drops, at 50 um
+  or 300 um: through the soft gains 0.5 N lowers the target only ~0.5 mm, and the plug stops 0.34 mm
+  down (the YAM peg's A-S6 also never captured). With a 2 N press at 300 um the drop-in shows as
+  a joint-velocity spike at 3.7 s: **peak-to-noise 5.0 at sigma_q = 1e-4 and 1.0 at 5e-4** (Flexiv
+  peg: 3.2 at 1e-4). So the drop-in event is visible at 1e-4 and buried at 5e-4. At 50 um the
+  scripted slide still does not drop (a constant-orientation slide must align within ~0.4 deg);
+  the trained policy does (91.5%), so this is a limit of the script, not of the signal.
+  Two check fixes: `CpuScene.place` gripped at 0.75 x plug length (the YAM fingertips then hit the
+  housing before the plug); it now uses the variant's grasp height, as the GPU env does. The A-S6
+  signal window is anchored at the drop onset (plug 0.2 mm down), not at the 1 mm capture time.
+- **E1 zero-shot on the new assemblies** (athena5 sphere-pad E1 s0, trained on the old mount;
+  2,048 matched final-stage starts):
+
+  | Assembly | Success | Main failures (of 2,048) |
+  |---|---|---|
+  | Port up, lab-table mount (reference) | 77.9% | never found 363, left fixture 55 |
+  | E4 chamfer 0.2-0.5 mm | 83.6% | never found 263 |
+  | E5 latch 5-15 N | 28.0% | slipped 466, wedged partial 430, never found 246 |
+  | E6 port facing the robot | 0.0% | left fixture 2,045 (median 0.4 s) |
+
+  The reference drops from 91.5% (old mount, fixture 12-25 cm below the base) to 77.9% on the
+  table mount: the fixture pose shift alone costs 14 points, so the server's E1 retrains on the
+  table. The chamfer helps (+5.7 points, fewer "never found"). The latch defeats a policy that never
+  felt it: it slips the drive in the grasp or wedges. **If E5 training stalls on slips, the 6 N grip
+  base may be too weak for a 15 N latch**: raise `grip_force_base` rather than lower the latch.
+  The side port fails at once: the port-up policy drives the plug ~14 mm along the housing in
+  0.25 s (joint-space actions do not transfer to the rotated arm pose); zero action holds still, so
+  the env is sound. E6 needs its own training (as the plan expects). Script:
+  `scripts/usbc_variants_zeroshot.sh`; data `results/E/variants/`.
+
 ### 2026-10-20 — YAM on the lab workcell table (mason)
 
 - **The YAM scene now matches the lab mount** (Yash's instruction): RoboSimStudio's

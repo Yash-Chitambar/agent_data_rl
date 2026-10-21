@@ -1,6 +1,8 @@
 """Linear probe of the history latent (B-R4) and latent-swap test (B-R5), paper §3.2 / App. C.
 
 python -m blind_insertion.analysis.probes --policy runs/X/last.pt --out results/B/probe_s0
+Other tasks take eval.py's env flags, e.g. the YAM (C-R3):
+python -m blind_insertion.analysis.probes --policy runs/C-.../last.pt --env_file blind_insertion/configs/phase_c_yam.json ...
 """
 from __future__ import annotations
 
@@ -17,7 +19,7 @@ import torch  # noqa: E402
 import torch.nn.functional as F  # noqa: E402
 
 from blind_insertion.envs.peg_env import FREE, INSIDE, EnvCfg, PegEnv  # noqa: E402
-from blind_insertion.eval import load_policy  # noqa: E402
+from blind_insertion.eval import add_env_args, env_kwargs, load_policy  # noqa: E402
 from blind_insertion.policies.tcn_actor_critic import ActorCritic  # noqa: E402
 
 MODES = ["lifted", "off", "far", "near", "partial", "moving", "stuck"]
@@ -150,15 +152,14 @@ def latent_swap(ac, data, n_pairs=20000, seed=0, device="cuda"):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--policy", required=True)
-    ap.add_argument("--robot", default="flexiv")
     ap.add_argument("--worlds", type=int, default=1536)
-    ap.add_argument("--variant_seed", type=int, default=2000)
     ap.add_argument("--out", required=True)
+    add_env_args(ap, n_variants=0, variant_seed=2000, seed=11)   # n_variants 0: one per world
     args = ap.parse_args()
+    args.n_variants = args.n_variants or args.worlds
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    env = PegEnv(EnvCfg(robot=args.robot, nworld=args.worlds, n_variants=args.worlds,
-                        variant_seed=args.variant_seed, seed=11))
+    env = PegEnv(EnvCfg(**env_kwargs(args, args.worlds)))
     ac = load_policy(args.policy, env, env.device)
     data = collect(env, ac)
     y, worlds = data["mode"], data["world"]

@@ -22,6 +22,32 @@ from blind_insertion.envs import kinematics as K
 FREE, CONTACT, INSIDE = 0, 1, 2
 
 
+@wp.kernel
+def _latch_force(qpos: wp.array2d[float], qvel: wp.array2d[float], mocap_pos: wp.array2d[wp.vec3],
+                 mocap_quat: wp.array2d[wp.quat], peak: wp.array[float], depth: wp.array[float],
+                 travel: float, damping: float, qadr: int, dadr: int, body: int,
+                 xfrc: wp.array2d[wp.spatial_vector]):
+    """E5 latch (plan §11.4): a spring along the port axis resisting the last `travel` of
+    insertion, rising linearly to `peak` N at the seat, plus damping on the inward speed.
+    Peg origin = centre of its bottom face; fixture origin = opening centre, z out of the port.
+    Quaternions are MuJoCo order (w, x, y, z)."""
+    w = wp.tid()
+    q = mocap_quat[w, 0]
+    s, u = q[0], wp.vec3(-q[1], -q[2], -q[3])           # inverse rotation
+    rel = wp.vec3(qpos[w, qadr], qpos[w, qadr + 1], qpos[w, qadr + 2]) - mocap_pos[w, 0]
+    r = 2.0 * (wp.dot(u, rel) * u) + (s * s - wp.dot(u, u)) * rel + 2.0 * s * wp.cross(u, rel)
+    e = -r[2] - (depth[w] - travel)                      # engagement (m)
+    f = float(0.0)
+    if e > 0.0:
+        v = wp.vec3(qvel[w, dadr], qvel[w, dadr + 1], qvel[w, dadr + 2])
+        vz = 2.0 * (wp.dot(u, v) * u)[2] + (s * s - wp.dot(u, u)) * v[2] + 2.0 * s * wp.cross(u, v)[2]
+        f = wp.max(peak[w] * wp.min(e / travel, 1.0) - damping * vz, 0.0)
+    uf = wp.vec3(q[1], q[2], q[3])                       # fixture z axis in world
+    z = wp.vec3(0.0, 0.0, 1.0)
+    zw = 2.0 * (wp.dot(uf, z) * uf) + (s * s - wp.dot(uf, uf)) * z + 2.0 * s * wp.cross(uf, z)
+    xfrc[w, body] = wp.spatial_vector(f * zw[0], f * zw[1], f * zw[2], 0.0, 0.0, 0.0)
+
+
 @dataclass
 class EnvCfg:
     robot: str = "flexiv"
@@ -70,11 +96,29 @@ class EnvCfg:
     camera: bool = False                # render the wrist camera every step (visual policies)
     cam_res: int = 64
     cam_depth: bool = False
+    cam_modality: str = "rgb"           # self.frame channels: rgb (3) | depth (1) | rgbd (4), uint8
+    # depth sensor model (plan §12.1), metres: invalid (0) closer than `min` or beyond `max`;
+    # Gaussian noise sigma = noise * (d / 0.1 m)^2; random pixel dropout; dropout at depth edges
+    depth_model: dict = field(default_factory=lambda: dict(min=0.07, max=0.5, noise=0.0005,
+                                                           dropout=0.02, edge_dropout=0.5, edge=0.005))
+    # per-reset render randomization (plan §12.1), off by default, e.g. {"cam_pos": 0.002,
+    # "cam_rot_deg": 2, "light": true, "colors": true}
+    cam_rand: dict | None = None
     # observation corruption (Phase C); 0 = off
     q_noise: float = 0.0
     qd_noise: float = 0.0
     q_quant_bits: int = 0
     latency: int = 0
+    # per-world levels drawn at every reset (plan §9.3 "training with the noise randomized"), e.g.
+    # {"q_noise": [0, 1e-4, 5e-4], "q_quant_bits": [0, 16, 14], "backlash_arcmin": [0, 1, 3, 5],
+    #  "latency": [0, 1, 2]}; each key replaces the fixed field above (qd_noise works too)
+    noise_rand: dict | None = None
+    # E5 latch/detent (plan §11.4): {"peak": [5, 15] (N, uniform per reset), "travel": 0.0015 (m),
+    # "damping": 5.0 (N s/m)}; None = off
+    latch: dict | None = None
+    # fixture base orientation applied before the random tilt (deg, rpy). E6 sideways port:
+    # (0, -90, 0) turns the port to face the robot (fixture z -> world -x)
+    fix_base_rpy_deg: tuple = (0.0, 0.0, 0.0)
     # buffers
     nconmax: int = 64
     njmax: int = 512
@@ -106,8 +150,12 @@ class PegEnv:
         if variants is None:
             sampler = cfg.variant_sampler or B.sample_study_pegs
             variants = sampler(cfg.n_variants, cfg.variant_seed)
+        nr = cfg.noise_rand or {}
+        bad_keys = set(nr) - {"q_noise", "qd_noise", "q_quant_bits", "backlash_arcmin", "latency"}
+        assert not bad_keys, f"noise_rand: unknown keys {bad_keys}"
+        bl_build = max([cfg.backlash_arcmin, *nr.get("backlash_arcmin", [])])
         self.mjm, self.lay = B.build(cfg.robot, variants, gains=cfg.gains,
-                                     backlash_arcmin=cfg.backlash_arcmin, pad_spheres=cfg.pad_spheres,
+                                     backlash_arcmin=bl_build, pad_spheres=cfg.pad_spheres,
                                      table_top=cfg.table_top)
         lay = self.lay
         if cfg.pad_solimp is not None:
@@ -124,6 +172,15 @@ class PegEnv:
         batched = ["geom_dataid", "geom_pos", "geom_quat", "geom_size", "geom_aabb", "geom_rbound",
                    "geom_friction", "geom_solref", "body_pos", "body_quat", "body_mass",
                    "body_inertia", "body_ipos", "body_iquat", "body_invweight0", "dof_invweight0"]
+        if "backlash_arcmin" in nr:
+            batched.append("jnt_range")
+        cr = cfg.cam_rand or {}
+        if cr.get("cam_pos") or cr.get("cam_rot_deg"):
+            batched += ["cam_pos", "cam_quat"]
+        if cr.get("light"):
+            batched += ["light_pos", "light_dir", "light_diffuse"]
+        if cr.get("colors"):
+            batched += ["geom_rgba"]
         with wp.ScopedDevice(cfg.device):
             self.m = mjw.put_model(self.mjm, batch_sizes={f: N for f in batched})
             self.d = mjw.make_data(self.mjm, nworld=N, nconmax=cfg.nconmax, njmax=cfg.njmax)
@@ -170,7 +227,13 @@ class PegEnv:
         self.obs_dim = 2 * A + 12 + A
         self.hist = torch.zeros(N, H, self.obs_dim, device=dev)
         self.prev_action = torch.zeros(N, A, device=dev)
-        self.act_queue = torch.zeros(N, max(cfg.latency, 0) + 1, A, device=dev)
+        self.max_lat = max([cfg.latency, *nr.get("latency", [])])
+        self.act_queue = torch.zeros(N, self.max_lat + 1, A, device=dev)
+        # per-world noise levels (only the keys in noise_rand; the rest use the fixed fields)
+        self.w_noise = {k_: torch.zeros(N, device=dev) for k_ in nr}
+        if "backlash_arcmin" in nr:
+            self.bl_jnt = torch.as_tensor([mujoco.mj_name2id(self.mjm, mujoco.mjtObj.mjOBJ_JOINT, f"{j}_backlash")
+                                           for j in lay.robot.arm_joints], device=dev)
         self.steps = torch.zeros(N, dtype=torch.long, device=dev)
         self.captured = torch.zeros(N, dtype=torch.bool, device=dev)
         self.max_steps = int(round(cfg.episode_s / (cfg.substeps * self.mjm.opt.timestep)))
@@ -189,14 +252,21 @@ class PegEnv:
 
         self._graph = None
         if cfg.camera:
+            self.want_depth = cfg.cam_depth or cfg.cam_modality in ("depth", "rgbd")
             with wp.ScopedDevice(cfg.device):
                 self.rc = mjw.create_render_context(
                     self.mjm, nworld=N, cam_res=(cfg.cam_res, cfg.cam_res), render_rgb=True,
-                    render_depth=cfg.cam_depth, use_textures=False, use_shadows=False)
+                    render_depth=self.want_depth, use_textures=False, use_shadows=False)
                 self._rgb = wp.zeros((N, cfg.cam_res, cfg.cam_res), dtype=wp.vec3)
                 self._dep = wp.zeros((N, cfg.cam_res, cfg.cam_res), dtype=float)
-            self.cam_id = mujoco.mj_name2id(self.mjm, mujoco.mjtObj.mjOBJ_CAMERA, "wrist")
-            self.frame = torch.zeros(N, 3, cfg.cam_res, cfg.cam_res, dtype=torch.uint8, device=dev)
+            # Flexiv: our gripper camera; YAM: Menagerie's wrist D405 ("wrist_cam")
+            self.cam_id = max(mujoco.mj_name2id(self.mjm, mujoco.mjtObj.mjOBJ_CAMERA, n_)
+                              for n_ in ("wrist", "wrist_cam"))
+            assert self.cam_id >= 0, "no wrist camera in the model"
+            nch = {"rgb": 3, "depth": 1, "rgbd": 4}[cfg.cam_modality]
+            self.frame = torch.zeros(N, nch, cfg.cam_res, cfg.cam_res, dtype=torch.uint8, device=dev)
+            self.cam_pos0 = torch.as_tensor(self.mjm.cam_pos[self.cam_id], dtype=torch.float32, device=dev)
+            self.cam_quat0 = torch.as_tensor(self.mjm.cam_quat[self.cam_id], dtype=torch.float32, device=dev)
         self._physics(launch=False)   # compile + capture before the first reset (warm-up steps
         self.reset_all()              # must not advance real episodes)
 
@@ -257,6 +327,8 @@ class PegEnv:
             fp = torch.stack([_uniform(*cfg.fix_x, m_, gen, dev), _uniform(*cfg.fix_y, m_, gen, dev),
                               _uniform(*cfg.fix_z, m_, gen, dev)], 1)
             fR = K.rpy_mat(_uniform(-cfg.fix_tilt_deg, cfg.fix_tilt_deg, (m_, 3), gen, dev) * deg)
+            if any(cfg.fix_base_rpy_deg):
+                fR = K.rpy_mat(torch.tensor(cfg.fix_base_rpy_deg, device=dev) * deg) @ fR
             if cfg.table_top is not None:   # lowest corner of the tilted fixture on the table
                 low = (self.fix_corners[kk] @ fR.transpose(1, 2))[..., 2].min(1).values
                 fp[:, 2] += cfg.table_top - low
@@ -320,6 +392,8 @@ class PegEnv:
             starts = {k_: v[ids, ptr] for k_, v in self.pool.items()}
             self.pool_ptr[ids] += 1
         self._apply_starts(ids, starts)
+        if self.cfg.camera and self.cfg.cam_rand:
+            self._randomize_render(ids)
         if render and self.cfg.camera and hasattr(self, "rc"):
             self.render()
 
@@ -373,18 +447,47 @@ class PegEnv:
         self.prev_xy[ids] = p0[:, :2]
         self.prev_action[ids] = 0
         self.act_queue[ids] = 0
+        if cfg.latch:
+            pk = cfg.latch.get("peak", [5.0, 15.0])
+            self.t_latch_peak[ids] = _uniform(pk[0], pk[-1], ids.numel(), self.gen, dev)
+            self.t_latch_depth[ids] = self.depth[k]
+        for key, levels in (cfg.noise_rand or {}).items():
+            lv = torch.as_tensor(levels, dtype=torch.float32, device=dev)
+            self.w_noise[key][ids] = lv[torch.randint(len(levels), (ids.numel(),), generator=self.gen, device=dev)]
+        if "backlash_arcmin" in self.w_noise:   # dead zone +-arcmin/2; "0" keeps a 0.01' zone
+            half = torch.deg2rad(self.w_noise["backlash_arcmin"][ids].clamp(min=0.01) / 60) / 2
+            jr = self.f["jnt_range"]
+            jr[ids[:, None], self.bl_jnt, 0] = -half[:, None]
+            jr[ids[:, None], self.bl_jnt, 1] = half[:, None]
         o = self._actor_obs_now()[ids]
         self.hist[ids] = o[:, None, :].expand(-1, self.cfg.history, -1)
 
     # ------------------------------------------------------------------ physics
+    def _substep(self):
+        if getattr(self.cfg, "latch", None):
+            lt, lay = self.cfg.latch, self.lay
+            wp.launch(_latch_force, dim=self.N,
+                      inputs=[self.d.qpos, self.d.qvel, self.d.mocap_pos, self.d.mocap_quat, self.latch_peak,
+                              self.latch_depth, float(lt.get("travel", 0.0015)), float(lt.get("damping", 5.0)),
+                              int(lay.peg_qadr), int(lay.peg_dofadr), int(lay.peg_body)],
+                      outputs=[self.d.xfrc_applied])
+        mjw.step(self.m, self.d)
+
     def _physics(self, launch: bool = True):
         if self._graph is None:
+            if getattr(self.cfg, "latch", None):
+                with wp.ScopedDevice(self.cfg.device):
+                    self.latch_peak = wp.zeros(self.N, dtype=float)
+                    self.latch_depth = wp.zeros(self.N, dtype=float)
+                self.t_latch_peak = wp.to_torch(self.latch_peak)
+                self.t_latch_depth = wp.to_torch(self.latch_depth)
+                self.t_latch_depth[:] = self.depth[self.variant]
             with wp.ScopedDevice(self.cfg.device):
                 for _ in range(2):  # warm-up compiles kernels
-                    mjw.step(self.m, self.d)
+                    self._substep()
                 with wp.ScopedCapture() as cap:
                     for _ in range(self.cfg.substeps):
-                        mjw.step(self.m, self.d)
+                        self._substep()
                 self._graph = cap.graph
         if launch:
             wp.capture_launch(self._graph)
@@ -394,6 +497,8 @@ class PegEnv:
         cfg, lay = self.cfg, self.lay
         q = self.t_qpos[:, torch.as_tensor(lay.arm_qadr, device=self.device)]
         qd = self.t_qvel[:, torch.as_tensor(lay.arm_dofadr, device=self.device)]
+        if getattr(self, "w_noise", None):   # (GearEnv has no per-world noise)
+            return self._measured_rand(q, qd)
         if cfg.q_quant_bits > 0:
             res = 2 * math.pi / (2 ** cfg.q_quant_bits)
             q = torch.round(q / res) * res
@@ -403,21 +508,84 @@ class PegEnv:
             qd = qd + cfg.qd_noise * torch.randn(qd.shape, generator=self.gen, device=self.device)
         return q, qd
 
+    def _measured_rand(self, q, qd):
+        """_measured with per-world levels (EnvCfg.noise_rand); bits 0 / sigma 0 = off."""
+        cfg, w = self.cfg, self.w_noise
+        bits = w["q_quant_bits"] if "q_quant_bits" in w else torch.full_like(q[:, 0], cfg.q_quant_bits)
+        res = torch.where(bits > 0, 2 * math.pi / torch.exp2(bits), torch.zeros_like(bits))[:, None]
+        q = torch.where(res > 0, torch.round(q / res.clamp(min=1e-12)) * res, q)
+        sq = (w["q_noise"] if "q_noise" in w else torch.full_like(q[:, 0], cfg.q_noise))[:, None]
+        sqd = (w["qd_noise"] if "qd_noise" in w else torch.full_like(q[:, 0], cfg.qd_noise))[:, None]
+        q = q + sq * torch.randn(q.shape, generator=self.gen, device=self.device)
+        qd = qd + sqd * torch.randn(qd.shape, generator=self.gen, device=self.device)
+        return q, qd
+
     def render(self):
-        """Wrist RGB (and depth) for every world at the current state -> self.frame (uint8)."""
-        with wp.ScopedDevice(self.cfg.device):
+        """Wrist camera for every world at the current state -> self.frame (uint8, cam_modality
+        channels). Depth goes through the sensor model (depth_model) and is stored as
+        d / max * 255 with 0 = invalid; self.depth_img keeps the metric depth (0 = invalid)."""
+        cfg = self.cfg
+        dm = cfg.depth_model
+        with wp.ScopedDevice(cfg.device):
             mjw.kinematics(self.m, self.d)
             mjw.camlight(self.m, self.d)
             mjw.refit_bvh(self.m, self.d, self.rc)
             mjw.render(self.m, self.d, self.rc)
             mjw.get_rgb(self.rc, self.cam_id, self._rgb)
-            if self.cfg.cam_depth:
-                mjw.get_depth(self.rc, self.cam_id, 1.0, self._dep)
-        img = wp.to_torch(self._rgb)
-        self.frame = (img.clamp(0, 1) * 255).to(torch.uint8).permute(0, 3, 1, 2).contiguous()
-        if self.cfg.cam_depth:
-            self.depth_img = wp.to_torch(self._dep).clone()
+            if self.want_depth:
+                mjw.get_depth(self.rc, self.cam_id, float(dm["max"]), self._dep)
+        chans = []
+        if cfg.cam_modality in ("rgb", "rgbd"):
+            img = wp.to_torch(self._rgb)
+            chans.append((img.clamp(0, 1) * 255).to(torch.uint8).permute(0, 3, 1, 2))
+        if self.want_depth:
+            self.depth_img = self._depth_sensor(wp.to_torch(self._dep) * dm["max"])
+        if cfg.cam_modality in ("depth", "rgbd"):
+            chans.append((self.depth_img / dm["max"] * 255).round().clamp(0, 255).to(torch.uint8)[:, None])
+        self.frame = torch.cat(chans, 1).contiguous() if len(chans) > 1 else chans[0].contiguous()
         return self.frame
+
+    def _depth_sensor(self, d):
+        """Close-range stereo depth model (plan §12.1) on metric depth d (N, R, R)."""
+        dm, gen, dev = self.cfg.depth_model, self.gen, self.device
+        valid = (d >= dm["min"]) & (d < dm["max"] * 0.999)
+        d = d + dm["noise"] * (d / 0.1) ** 2 * torch.randn(d.shape, generator=gen, device=dev)
+        if dm.get("edge_dropout", 0) > 0:   # stereo fails at depth discontinuities
+            gx = torch.zeros_like(d)
+            gy = torch.zeros_like(d)
+            gx[:, :, 1:] = (d[:, :, 1:] - d[:, :, :-1]).abs()
+            gy[:, 1:] = (d[:, 1:] - d[:, :-1]).abs()
+            edge = torch.maximum(gx, gy) > dm["edge"]
+            valid &= ~(edge & (torch.rand(d.shape, generator=gen, device=dev) < dm["edge_dropout"]))
+        if dm.get("dropout", 0) > 0:
+            valid &= torch.rand(d.shape, generator=gen, device=dev) >= dm["dropout"]
+        return torch.where(valid, d, torch.zeros_like(d))
+
+    def _randomize_render(self, ids):
+        """Per-reset camera mount offset, light and colors (cfg.cam_rand)."""
+        cr, gen, dev, n = self.cfg.cam_rand, self.gen, self.device, ids.numel()
+        f, c = self.f, self.cam_id
+        if cr.get("cam_pos") or cr.get("cam_rot_deg"):
+            f["cam_pos"][ids, c] = self.cam_pos0 + _uniform(-cr.get("cam_pos", 0), cr.get("cam_pos", 0),
+                                                            (n, 3), gen, dev)
+            rpy = _uniform(-cr.get("cam_rot_deg", 0), cr.get("cam_rot_deg", 0), (n, 3), gen, dev) * math.pi / 180
+            R0 = K.quat_to_mat(self.cam_quat0.expand(n, 4))
+            f["cam_quat"][ids, c] = K.mat_to_quat(R0 @ K.rpy_mat(rpy))
+        if cr.get("light"):
+            nl = self.mjm.nlight
+            f["light_pos"][ids] = torch.as_tensor(self.mjm.light_pos, dtype=torch.float32, device=dev) + \
+                _uniform(-0.5, 0.5, (n, nl, 3), gen, dev)
+            dirs = torch.as_tensor(self.mjm.light_dir, dtype=torch.float32, device=dev) + \
+                _uniform(-0.4, 0.4, (n, nl, 3), gen, dev)
+            f["light_dir"][ids] = dirs / dirs.norm(dim=-1, keepdim=True)
+            f["light_diffuse"][ids] = torch.as_tensor(self.mjm.light_diffuse, dtype=torch.float32, device=dev) * \
+                _uniform(0.4, 1.4, (n, nl, 1), gen, dev)
+        if cr.get("colors"):
+            lay = self.lay
+            for slots in (lay.fixture_slots, lay.peg_slots):
+                sl = torch.as_tensor(slots, device=dev)
+                rgb = _uniform(0.15, 0.95, (n, 1, 3), gen, dev).expand(n, len(slots), 3)
+                f["geom_rgba"][ids[:, None], sl, :3] = rgb
 
     def _actor_obs_now(self):
         q, qd = self._measured()
@@ -474,7 +642,11 @@ class PegEnv:
     def step(self, action: torch.Tensor):
         cfg, lay, dev = self.cfg, self.lay, self.device
         a = action.clamp(-cfg.action_clip, cfg.action_clip)
-        if cfg.latency > 0:
+        if "latency" in self.w_noise:
+            self.act_queue = torch.cat([self.act_queue[:, 1:], a[:, None]], 1)
+            lat = self.w_noise["latency"].long()
+            a_apply = self.act_queue[torch.arange(self.N, device=dev), self.max_lat - lat]
+        elif cfg.latency > 0:
             self.act_queue = torch.cat([self.act_queue[:, 1:], a[:, None]], 1)
             a_apply = self.act_queue[:, 0]
         else:

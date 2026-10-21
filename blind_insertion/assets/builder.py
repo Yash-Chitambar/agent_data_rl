@@ -60,6 +60,7 @@ class Variant:
     handle_height: float = 0.0
     grasp_z: float | None = None   # pad centre height above the peg bottom (default 0.75 L)
     grip_half: float | None = None # half width across the pads (default: peg width at x=0)
+    chamfer: float = 0.0           # 45 deg lead-in on the hole's top edge (m), plan §11.1 / E4
 
     def hole(self):
         if self.hole_spec is not None:
@@ -159,7 +160,7 @@ def sample_ood_pegs(n: int, seed: int, bin: str, n_sides: int = 24) -> list[Vari
 
 
 def usbc_variant(clearance=5e-5, housing=0.025, recess=0.0, body=(0.020, 0.0065, 0.030),
-                 mass=0.008, n_sides=16) -> Variant:
+                 mass=0.008, n_sides=16, chamfer=0.0) -> Variant:
     """USB-C flash drive in a blind receptacle (plan §11.1, Type-C R2.0 dims).
 
     Receptacle opening 8.34 x 2.56 mm stadium with a 6.5 x 0.7 mm tongue, 6.6 mm deep,
@@ -173,19 +174,26 @@ def usbc_variant(clearance=5e-5, housing=0.025, recess=0.0, body=(0.020, 0.0065,
                    islands=[{"type": "stadium", "width": 0.0065, "height": 0.0007, "n": 8}],
                    hole_spec={"type": "stadium", "width": 0.00834, "height": 0.00256, "n": n_sides},
                    handle={"type": "rect", "width": bw, "height": bt}, handle_height=bl,
-                   grasp_z=0.0085 + bl - 0.009, grip_half=bt / 2)   # pads near the body's top
+                   grasp_z=0.0085 + bl - 0.009, grip_half=bt / 2,   # pads near the body's top
+                   chamfer=chamfer)
 
 
 def sample_usbc(n: int, seed: int, *, clearance=(2e-5, 1e-4), housing=(0.015, 0.040),
                 recess=(0.0, 0.0015), body_w=(0.012, 0.025), body_t=(0.0045, 0.009),
-                body_l=(0.025, 0.040), mass=(0.003, 0.015)) -> list[Variant]:
-    """Plan §11.1 pool; clearance log-uniform. Pass fixed tuples (a, a) to pin a value."""
+                body_l=(0.025, 0.040), mass=(0.003, 0.015), chamfer=(0.0, 0.0)) -> list[Variant]:
+    """Plan §11.1 pool; clearance log-uniform. Pass fixed tuples (a, a) to pin a value.
+    chamfer (E4): uniform lead-in size, drawn after the other parameters (so (0, 0) keeps the
+    original pool and a chamfer range gives the same parts with a lead-in)."""
     rng = np.random.default_rng(seed)
     lu = lambda r: math.exp(rng.uniform(math.log(r[0]), math.log(r[1]))) if r[0] != r[1] else r[0]  # noqa: E731
-    return [usbc_variant(clearance=lu(clearance), housing=rng.uniform(*housing),
-                         recess=rng.uniform(*recess),
-                         body=(rng.uniform(*body_w), rng.uniform(*body_t), rng.uniform(*body_l)),
-                         mass=rng.uniform(*mass)) for _ in range(n)]
+    out = [usbc_variant(clearance=lu(clearance), housing=rng.uniform(*housing),
+                        recess=rng.uniform(*recess),
+                        body=(rng.uniform(*body_w), rng.uniform(*body_t), rng.uniform(*body_l)),
+                        mass=rng.uniform(*mass)) for _ in range(n)]
+    if chamfer[1] > 0:
+        for v in out:
+            v.chamfer = float(rng.uniform(*chamfer))
+    return out
 
 
 def scale_variant(opening: float, clearance: float, rng=None) -> Variant:
@@ -248,7 +256,32 @@ def extract_pieces(v: Variant) -> Pieces:
     peg_poly = pg.offset_inward(hole_poly, v.clearance)
     isl = [mjfit.shapes.from_spec(s, name="island") - shift for s in v.islands]
     del plate_z
+    if v.chamfer > 0:
+        fixture = _chamfer(fixture, hole_poly, v.chamfer)
     return Pieces(fixture, peg, hole_poly, peg_poly, isl)
+
+
+def _chamfer(fixture: list[np.ndarray], hole_poly: np.ndarray, c: float) -> list[np.ndarray]:
+    """45 deg lead-in of size c: in every plate piece, each top vertex on the hole outline
+    becomes the outline point c lower plus its outward offset (miter) point on the top face.
+    Pieces are convex hulls, so this cuts the top inner edge of each wedge; neighbouring
+    wedges share the new vertices, so the chamfer surface has no gaps."""
+    from mjfit import _polygon as pg  # noqa: PLC0415
+    off = pg.offset_outward(hole_poly, c)
+    assert len(off) == len(hole_poly), "chamfer: offset changed the vertex count"
+    out = []
+    for f in fixture:
+        d = np.linalg.norm(f[:, None, :2] - hole_poly[None], axis=2)
+        j, dmin = d.argmin(1), d.min(1)
+        top_rim = (np.abs(f[:, 2]) < 1e-9) & (dmin < 1e-9)
+        if not top_rim.any():
+            out.append(f)
+            continue
+        new = [f[~top_rim]]
+        for jj in j[top_rim]:
+            new.append([[*hole_poly[jj], -c], [*off[jj], 0.0]])
+        out.append(np.vstack(new))
+    return out
 
 
 # ----------------------------------------------------------------------------- robots
@@ -402,10 +435,10 @@ def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: floa
 def load_robot(name: str, *, gains=None, backlash_arcmin: float = 0.0,
                pad_spheres: int = 0) -> tuple[mujoco.MjSpec, RobotInfo]:
     spec, info = _load_robot(name, gains=gains)
+    if backlash_arcmin > 0:   # before sphere_pads: joints added after its spec.compile() land on link_1
+        add_backlash(spec, info.arm_joints, backlash_arcmin)
     if pad_spheres > 0:
         info = sphere_pads(spec, info, pad_spheres)
-    if backlash_arcmin > 0:
-        add_backlash(spec, info.arm_joints, backlash_arcmin)
     return spec, info
 
 

@@ -22,6 +22,14 @@ from blind_insertion.envs.peg_env import EnvCfg, PegEnv
 from blind_insertion.policies.tcn_actor_critic import ActorCritic
 
 ROOT = Path(__file__).resolve().parents[1]
+RUNS = Path(os.environ.get("BI_RUNS_DIR", ROOT / "runs"))   # e.g. cluster scratch
+
+
+def save_atomic(obj, path: Path):
+    """torch.save via a temp file + rename, so a kill mid-write never leaves a truncated file."""
+    tmp = path.with_name(path.name + ".tmp")
+    torch.save(obj, tmp)
+    os.replace(tmp, path)
 
 
 def git_hash():
@@ -68,14 +76,15 @@ def make_variants(args):
     if args.family.startswith("ood:"):
         return B.sample_ood_pegs(args.n_variants, args.variant_seed, args.family[4:])
     if args.family == "usbc":
-        if args.curriculum == "usbc":
+        vkw = json.loads(getattr(args, "variant_kw", "") or "{}")   # e.g. {"chamfer": [2e-4, 5e-4]}
+        if getattr(args, "curriculum", "none") == "usbc":
             per = args.n_variants // len(USBC_STAGES)
             vs = []
             for i, (c, _) in enumerate(USBC_STAGES):
                 cr = c if isinstance(c, tuple) else (c, c)
-                vs += B.sample_usbc(per, args.variant_seed + i, clearance=cr)
+                vs += B.sample_usbc(per, args.variant_seed + i, clearance=cr, **vkw)
             return vs
-        return B.sample_usbc(args.n_variants, args.variant_seed)
+        return B.sample_usbc(args.n_variants, args.variant_seed, **vkw)
     raise ValueError(args.family)
 
 
@@ -132,8 +141,14 @@ class Curriculum:
 def train(args):
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-    run = ROOT / "runs" / args.name
+    run = RUNS / args.name
     run.mkdir(parents=True, exist_ok=True)
+    if (run / "DONE").exists() and args.resume:   # finished: skip, unless asked for more steps
+        done = json.loads((run / "DONE").read_text())
+        if done.get("reason") == "stop_success" or done.get("steps", 0) >= args.steps:
+            print(f"[{args.name}] already DONE: {done}", flush=True)
+            return
+        (run / "DONE").unlink()
     env = make_env(args)
     dev = env.device
     cur = Curriculum(env, USBC_STAGES) if args.curriculum == "usbc" else None
@@ -152,7 +167,8 @@ def train(args):
     meta = dict(args=vars(args), env=asdict(env.cfg) | {"variants": None, "variant_sampler": None},
                 git=git_hash(), versions={p: version(p) for p in ("mujoco", "mujoco-warp", "warp-lang",
                                                                    "torch", "mjfit")})
-    json.dump(meta, open(run / "config.json", "w"), indent=1, default=str)
+    resuming = args.resume and (run / "last.pt").exists()
+    json.dump(meta, open(run / ("config_resume.json" if resuming else "config.json"), "w"), indent=1, default=str)
 
     N, T, H, D, A = env.N, pc.rollout, env.cfg.history, env.obs_dim, env.n_arm
     buf = dict(hist=torch.zeros(T, N, H, D, device=dev), crit=torch.zeros(T, N, env.critic_dim, device=dev),
@@ -163,13 +179,53 @@ def train(args):
     env.reset_all(desync=True)
     hist, crit = env.observe()
     cw = torch.tensor(pc.class_w, device=dev)
-    log_f = open(run / "train_log.csv", "w", newline="")
+    total, it, best, wall0 = 0, 0, -1, 0.0
+    if resuming:
+        ck = torch.load(run / "last.pt", map_location=dev, weights_only=False)
+        ac.load_state_dict(ck["model"])
+        if "opt" in ck:
+            opt.load_state_dict(ck["opt"])
+        it, total, best, wall0 = ck["iter"], ck["steps"], ck.get("best", -1), ck.get("wall", 0.0)
+        stage = ck.get("stage")
+        if cur is not None and not stage and (run / "curriculum.json").exists():   # older checkpoints
+            stage = max(r["stage"] for r in json.load(open(run / "curriculum.json"))
+                        if r["env_steps"] <= total)
+        if cur is not None and stage:
+            while cur.stage + 1 < stage:
+                cur.advance(total)
+            if (run / "curriculum.json").exists():
+                cur.log = [r for r in json.load(open(run / "curriculum.json")) if r["stage"] <= stage]
+            env.reset_all(desync=True)
+        if "rng" in ck:
+            torch.set_rng_state(ck["rng"]["torch"].cpu())
+            torch.cuda.set_rng_state(ck["rng"]["cuda"].cpu(), dev)
+            env.gen.set_state(ck["rng"]["env"].cpu())
+        hist, crit = env.observe()
+        print(f"[{args.name}] resumed at it {it}, {total/1e6:.1f}M steps"
+              + (f", stage {cur.stage + 1}" if cur is not None else ""), flush=True)
+    log_path = run / "train_log.csv"
     log = None
-    total = 0
-    it = 0
-    t0 = time.time()
+    if resuming and log_path.exists() and log_path.stat().st_size:
+        with open(log_path) as f_:
+            fields = next(csv.reader(f_))
+        rows = [r for r in csv.DictReader(open(log_path)) if int(r["iter"]) <= it]   # drop rows past last.pt
+        log_f = open(log_path, "w", newline="")
+        log = csv.DictWriter(log_f, fieldnames=fields)
+        log.writeheader()
+        log.writerows(rows)
+    else:
+        log_f = open(log_path, "w", newline="")
+    t0 = time.time() - wall0
     ep_stats = {"succ": [], "len": [], "cap": []}
-    best = -1
+    reason, succ = "steps", float("nan")
+
+    def ckpt():
+        return {"model": ac.state_dict(), "iter": it, "steps": total, "obs_dim": env.obs_dim,
+                "act_dim": env.n_arm, "critic_dim": env.critic_dim, "encoder": args.encoder, "task": task,
+                "n_points": n_lab, "opt": opt.state_dict(), "best": best, "wall": time.time() - t0,
+                "stage": (cur.stage + 1) if cur is not None else None,
+                "rng": {"torch": torch.get_rng_state(), "cuda": torch.cuda.get_rng_state(dev),
+                        "env": env.gen.get_state()}}
     while total < args.steps:
         it += 1
         t_roll = time.time()
@@ -306,25 +362,21 @@ def train(args):
                   f"len {eplen:.0f} std {row['std']:.3f} vf {stats['vf']:.4f} ce {stats['ce']:.3f} "
                   f"acc {stats['acc']:.3f} kl {stats['kl']:.4f} sps {row['sps']:.0f}", flush=True)
         if it % args.ckpt_every == 0 or total >= args.steps:
-            torch.save({"model": ac.state_dict(), "iter": it, "steps": total,
-                        "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
-                        "encoder": args.encoder, "task": task, "n_points": n_lab}, run / "last.pt")
             if succ == succ and succ >= best:
                 best = succ
-                torch.save({"model": ac.state_dict(), "iter": it, "steps": total,
-                            "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
-                            "encoder": args.encoder, "task": task, "n_points": n_lab}, run / "best.pt")
+                save_atomic(ckpt(), run / "best.pt")
+            save_atomic(ckpt(), run / "last.pt")
         if it % (args.ckpt_every * 10) == 0:
-            torch.save({"model": ac.state_dict(), "iter": it, "steps": total, "encoder": args.encoder,
-                        "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
-                        "task": task, "n_points": n_lab}, run / f"ckpt_{total // 1_000_000:04d}M.pt")
+            save_atomic(ckpt(), run / f"ckpt_{total // 1_000_000:04d}M.pt")
         if args.stop_success and succ == succ and succ >= args.stop_success and total >= args.min_steps:
-            torch.save({"model": ac.state_dict(), "iter": it, "steps": total,
-                        "obs_dim": env.obs_dim, "act_dim": env.n_arm, "critic_dim": env.critic_dim,
-                        "encoder": args.encoder, "task": task, "n_points": n_lab}, run / "last.pt")
+            save_atomic(ckpt(), run / "last.pt")
             print(f"[{args.name}] reached training success {succ:.3f} at {total/1e6:.1f}M steps", flush=True)
+            reason = "stop_success"
             break
     log_f.close()
+    json.dump(dict(steps=total, iter=it, wall_s=time.time() - t0, reason=reason,
+                   success=succ if succ == succ else None),
+              open(run / "DONE", "w"))
 
 
 def _balanced_acc(pred, lab, n=3):
@@ -351,12 +403,16 @@ def parser():
     ap.add_argument("--env_file", default="")
     ap.add_argument("--family", default="study")
     ap.add_argument("--curriculum", default="none")
+    ap.add_argument("--variant_kw", default="", help="usbc: JSON kwargs for builder.sample_usbc, e.g. "
+                    "'{\"chamfer\": [2e-4, 5e-4]}'")
     ap.add_argument("--print_every", type=int, default=10)
     ap.add_argument("--ckpt_every", type=int, default=25)
     ap.add_argument("--task", default="peg", choices=["peg", "gear"])
     ap.add_argument("--minibatches", type=int, default=0, help="0: task default (peg 20, gear 24)")
     ap.add_argument("--stop_success", type=float, default=0.0, help="stop once training success >= this ...")
     ap.add_argument("--min_steps", type=float, default=0.0, help="... after at least this many env steps")
+    ap.add_argument("--resume", action="store_true",
+                    help="continue from runs/<name>/last.pt if it exists (else start fresh); no-op if DONE")
     return ap
 
 

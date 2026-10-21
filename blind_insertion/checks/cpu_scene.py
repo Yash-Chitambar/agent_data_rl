@@ -13,12 +13,13 @@ from blind_insertion.envs import kinematics as K
 
 class CpuScene:
     def __init__(self, robot="flexiv", variant: B.Variant | None = None, gains=None,
-                 fix_p=None, fix_rpy=(0, 0, 0), grip_force=None, pad_solref=None, pad_solimp=None):
+                 fix_p=None, fix_rpy=(0, 0, 0), grip_force=None, pad_solref=None, pad_solimp=None,
+                 pad_spheres=0):
         if fix_p is None:
             fix_p = (0.65, -0.05, 0.05) if robot == "flexiv" else (0.35, 0.0, -0.20)
         variant = variant or B.sample_study_pegs(1, 0)[0]
         self.v = variant
-        self.m, self.lay = B.build(robot, [variant], gains=gains)
+        self.m, self.lay = B.build(robot, [variant], gains=gains, pad_spheres=pad_spheres)
         B.apply_variant_cpu(self.m, self.lay, 0)
         if pad_solref is not None:
             self.m.geom_solref[self.lay.pad_geoms] = pad_solref
@@ -38,12 +39,15 @@ class CpuScene:
         self.edge = self.lay.edge_points[0]
 
     # placement ------------------------------------------------------------------
-    def place(self, xy=(0.0, 0.0), height=0.0005, tilt_deg=0.0, grasp_frac=0.75):
-        """Peg bottom centre at fixture-frame (x, y, z_lowest=height), held aligned (or tilted)."""
+    def place(self, xy=(0.0, 0.0), height=0.0005, tilt_deg=0.0, grasp_frac=None):
+        """Peg bottom centre at fixture-frame (x, y, z_lowest=height), held aligned (or tilted).
+        Grasp height: grasp_frac x peg length, default the variant's (Layout.grasp_z: 0.75 L for
+        study pegs, the handle's top for USB-C / D-cell parts, as in the GPU env)."""
         lay = self.lay
         tilt = math.radians(tilt_deg)
         Rpg = K.rpy_mat(torch.tensor([math.pi, tilt, 0.0])).numpy()
-        gp = np.array([0.0, 0.0, grasp_frac * self.v.peg_length])
+        gz = lay.grasp_z[0] if grasp_frac is None else grasp_frac * self.v.peg_length
+        gp = np.array([0.0, 0.0, gz])
         p_pt = -Rpg @ gp
         R_tf = self.R_nom
         R_pf = R_tf @ Rpg

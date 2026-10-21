@@ -1,0 +1,45 @@
+{
+ "robot": "yam",
+ "fix_x": [
+  0.3,
+  0.45
+ ],
+ "fix_y": [
+  -0.2,
+  0.2
+ ],
+ "fix_z": [
+  0.1,
+  0.15
+ ],
+ "fix_tilt_deg": 2.0,
+ "grip_rot_deg": 5.0,
+ "inhand_tilt_deg": 5.0,
+ "grasp_along": 0.003,
+ "start_gap": 0.0003,
+ "episode_s": 8.0,
+ "free_height": 0.0005,
+ "seat_tol": 0.0002,
+ "success_tilt_deg": 2.0,
+ "speed_cap": 0.05,
+ "far_xy_margin": 0.01,
+ "far_z": 0.02,
+ "slip_dist": 0.006,
+ "action_scale": 0.01,
+ "grip_force_base": 6.0,
+ "pad_timeconst": 0.002,
+ "pad_solimp": [
+  0.99,
+  0.999,
+  0.001
+ ],
+ "njmax": 2048,
+ "nconmax": 256,
+ "pad_spheres": 4,
+ "table_top": 0.0,
+ "fix_base_rpy_deg": [
+  0.0,
+  -90.0,
+  0.0
+ ]
+}

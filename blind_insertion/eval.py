@@ -21,10 +21,11 @@ from blind_insertion.policies.tcn_actor_critic import ActorCritic
 
 def load_policy(path, env, device):
     ck = torch.load(path, map_location=device, weights_only=False)
-    if ck.get("modality") == "rgb":
+    if ck.get("modality") in ("rgb", "depth", "rgbd"):
         from blind_insertion.policies.visual import VisualActorCritic  # noqa: PLC0415
         ac = VisualActorCritic(ck["obs_dim"], ck["act_dim"], ck["critic_dim"], history=env.cfg.history,
-                               res=ck.get("res", 64)).to(device)
+                               res=ck.get("res", 64), modality=ck["modality"],
+                               proprio=ck.get("proprio", False)).to(device)
         ac.load_state_dict(ck["model"])
         ac.eval()
         return ac
@@ -146,7 +147,7 @@ def evaluate(env: PegEnv, policy, *, seed=12345, episodes=None, log_worlds=(), l
     for t in range(T + 1):
         with torch.no_grad():
             if visual:
-                a, z = policy.act_from_emb(eh.h)
+                a, z = policy.act_from_emb(eh.h, hist)
             elif isinstance(policy, ActorCritic):
                 a, z = policy.act_mean(hist)
             else:
@@ -202,28 +203,24 @@ def evaluate(env: PegEnv, policy, *, seed=12345, episodes=None, log_worlds=(), l
     return df, logs
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--policy", required=True)
+def add_env_args(ap, n_variants=1024, variant_seed=1000, seed=12345):
+    """Environment flags shared by eval.py and analysis/probes.py."""
     ap.add_argument("--robot", default="flexiv")
-    ap.add_argument("--episodes", type=int, default=2048)
-    ap.add_argument("--n_variants", type=int, default=1024)
-    ap.add_argument("--variant_seed", type=int, default=1000)   # unseen geometries, same dist.
-    ap.add_argument("--seed", type=int, default=12345)
+    ap.add_argument("--n_variants", type=int, default=n_variants)
+    ap.add_argument("--variant_seed", type=int, default=variant_seed)   # unseen geometries, same dist.
+    ap.add_argument("--seed", type=int, default=seed)
     ap.add_argument("--env_json", default="")
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--log_worlds", default="")
     ap.add_argument("--ood", default="", help="OOD bin from builder.OOD_BINS")
     ap.add_argument("--env_file", default="")
     ap.add_argument("--family", default="", help="as in train.py (study | usbc | scale:o:c | ood:bin)")
     ap.add_argument("--clearance", default="", help="usbc: fixed clearance (m) or lo,hi")
+    ap.add_argument("--variant_kw", default="", help="usbc: JSON kwargs for builder.sample_usbc (as train.py)")
     ap.add_argument("--peg_offset", type=float, default=None)
-    ap.add_argument("--task", default="peg", choices=["peg", "gear"])
-    args = ap.parse_args()
-    if args.task == "gear":
-        from blind_insertion.eval_gear import run as run_gear  # noqa: PLC0415
-        return run_gear(args)
-    kw = dict(robot=args.robot, nworld=args.episodes, n_variants=args.n_variants,
+
+
+def env_kwargs(args, nworld) -> dict:
+    """EnvCfg kwargs from the add_env_args flags (env_file, then env_json, then the explicit flags)."""
+    kw = dict(robot=args.robot, nworld=nworld, n_variants=args.n_variants,
               variant_seed=args.variant_seed, seed=args.seed)
     if args.ood:
         from blind_insertion.assets import builder as B  # noqa: PLC0415
@@ -239,15 +236,31 @@ def main():
         if args.family == "usbc" and args.clearance:
             cr = [float(x) for x in args.clearance.split(",")]
             kw["variants"] = B.sample_usbc(args.n_variants, args.variant_seed,
-                                           clearance=(cr[0], cr[-1]))
+                                           clearance=(cr[0], cr[-1]), **json.loads(args.variant_kw or "{}"))
         else:
             kw["variants"] = make_variants(argparse.Namespace(
                 family=args.family, curriculum="none", n_variants=args.n_variants,
-                variant_seed=args.variant_seed))
+                variant_seed=args.variant_seed, variant_kw=args.variant_kw))
+    return kw
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--policy", required=True)
+    ap.add_argument("--episodes", type=int, default=2048)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--log_worlds", default="")
+    ap.add_argument("--task", default="peg", choices=["peg", "gear"])
+    add_env_args(ap)
+    args = ap.parse_args()
+    if args.task == "gear":
+        from blind_insertion.eval_gear import run as run_gear  # noqa: PLC0415
+        return run_gear(args)
+    kw = env_kwargs(args, args.episodes)
     if args.policy.endswith(".pt"):
         ck = torch.load(args.policy, map_location="cpu", weights_only=False)
-        if ck.get("modality") == "rgb":
-            kw.update(camera=True, cam_res=ck.get("res", 64))
+        if ck.get("modality") in ("rgb", "depth", "rgbd"):
+            kw.update(camera=True, cam_res=ck.get("res", 64), cam_modality=ck["modality"])
     env = PegEnv(EnvCfg(**kw))
     spiral = None
     if args.policy == "zero":

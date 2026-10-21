@@ -58,5 +58,13 @@ class CapacityTests(unittest.TestCase):
             self.assertEqual(runner.running, {})
 
 
+class ResumeTests(unittest.TestCase):
+    def test_resume_goes_before_the_redirect(self):
+        self.assertEqual(jobs.with_resume("py -m t --name X > runs/X.log 2>&1"),
+                         "py -m t --name X --resume > runs/X.log 2>&1")
+        self.assertEqual(jobs.with_resume("py -m t --name X"), "py -m t --name X --resume")
+        self.assertEqual(jobs.with_resume("py -m t --name X &> l"), "py -m t --name X --resume &> l")
+
+
 if __name__ == "__main__":
     unittest.main()

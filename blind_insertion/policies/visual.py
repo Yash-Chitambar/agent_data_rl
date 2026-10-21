@@ -1,8 +1,12 @@
-"""Wrist-RGB visual policy (paper §2.3): images only, same 30-step history, compact CNN.
+"""Wrist-camera visual policies (paper §2.3; plan §12.2): same 30-step history, compact CNNs.
 
 Each frame is embedded by a small CNN; a temporal convolution over the 30 embeddings gives
 the 32-d latent, and the actor MLP maps it to joint increments. The critic is privileged
 (proprioception + peg pose + contact labels), and the contact decoder supervises the latent.
+
+modality: "rgb" (3 channels), "depth" (1), "rgbd" (4: one CNN per image modality, embeddings
+concatenated per frame). proprio=True adds the blind policy's joint-history TCN; the two latents
+are concatenated before the actor MLP and the contact decoder (plan §12.2 fusion).
 """
 from __future__ import annotations
 
@@ -33,32 +37,58 @@ class FrameCNN(nn.Module):
         return self.head(self.net(x))
 
 
+class RGBDCNN(nn.Module):
+    """One FrameCNN per image modality; channels 0-2 RGB, channel 3 depth."""
+
+    def __init__(self, emb=64, res=64):
+        super().__init__()
+        self.rgb, self.depth = FrameCNN(emb, res, 3), FrameCNN(emb, res, 1)
+
+    def forward(self, frames_u8):
+        return torch.cat([self.rgb(frames_u8[:, :3]), self.depth(frames_u8[:, 3:])], 1)
+
+
+CHANNELS = {"rgb": 3, "depth": 1, "rgbd": 4}
+
+
 class VisualActorCritic(nn.Module):
     def __init__(self, obs_dim, act_dim, critic_extra_dim, *, history=30, latent=32, emb=64,
-                 res=64, n_points=64, n_classes=3, init_std=0.5):
+                 res=64, n_points=64, n_classes=3, init_std=0.5, modality="rgb", proprio=False):
         super().__init__()
-        self.obs_dim, self.act_dim, self.history, self.emb = obs_dim, act_dim, history, emb
+        self.obs_dim, self.act_dim, self.history = obs_dim, act_dim, history
         self.n_points, self.n_classes = n_points, n_classes
+        self.modality, self.proprio = modality, proprio
         self.obs_norm = RunningNorm(obs_dim)
         self.crit_norm = RunningNorm(critic_extra_dim)
-        self.cnn = FrameCNN(emb, res)
-        self.encoder = TCN(emb, history, latent)
-        self.actor = mlp(latent, (256, 256, 128), act_dim)
+        if modality == "rgbd":
+            self.cnn, self.emb = RGBDCNN(emb, res), 2 * emb
+        else:
+            self.cnn, self.emb = FrameCNN(emb, res, CHANNELS[modality]), emb
+        self.encoder = TCN(self.emb, history, latent)
+        z_dim = latent
+        if proprio:
+            self.prop_encoder = TCN(obs_dim, history, latent)
+            z_dim += latent
+        self.actor = mlp(z_dim, (256, 256, 128), act_dim)
         self.log_std = nn.Parameter(torch.full((act_dim,), math.log(init_std)))
-        self.decoder = mlp(latent, (128, 128), n_points * n_classes)
+        self.decoder = mlp(z_dim, (128, 128), n_points * n_classes)
         self.critic = mlp(obs_dim + critic_extra_dim, (512, 256, 128), 1)
         nn.init.zeros_(self.actor[-1].bias)
         self.actor[-1].weight.data *= 0.01
 
-    def latent_from_emb(self, emb_hist):
-        return self.encoder(emb_hist)
+    def latent_from_emb(self, emb_hist, hist=None):
+        """emb_hist (B, H, emb); hist (B, H, obs_dim) raw joint history, needed when proprio."""
+        z = self.encoder(emb_hist)
+        if self.proprio:
+            z = torch.cat([z, self.prop_encoder(self.obs_norm(hist))], 1)
+        return z
 
-    def act_from_emb(self, emb_hist):
-        z = self.latent_from_emb(emb_hist)
+    def act_from_emb(self, emb_hist, hist=None):
+        z = self.latent_from_emb(emb_hist, hist)
         return self.actor(z), z
 
-    def dist_from_emb(self, emb_hist):
-        mu, z = self.act_from_emb(emb_hist)
+    def dist_from_emb(self, emb_hist, hist=None):
+        mu, z = self.act_from_emb(emb_hist, hist)
         return torch.distributions.Normal(mu, self.log_std.exp().expand_as(mu)), z
 
     def value(self, obs_now, crit):

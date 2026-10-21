@@ -13,9 +13,10 @@ anything. When this file and another document disagree about the server, this fi
   `docs/FINDINGS.md`. Repo conventions and gotchas: `CLAUDE.md`. Server mechanics in depth:
   `docs/SERVER.md`.
 - Phase A (checks) and most of Phase B (paper reproduction on the Flexiv arm) are done and match the
-  paper. The server work is the rest of B, and Phases C (YAM arm), D (scale grid) and E (USB-C).
-- Every job is one command on one GPU. The job lists are in `scripts/server/jobs/*.txt` (381 jobs,
-  about 457 GPU-hours measured on the 3090 Ti).
+  paper. The server work is the rest of B, and Phases C (YAM arm), D (scale grid), E (USB-C) and F
+  (USB-C with a wrist camera).
+- Every job is one command on one GPU. The job lists are in `scripts/server/jobs/*.txt` (160 jobs with
+  seed 0 for C-F, about 252 GPU-hours on the 3090 Ti; `make_manifests.py` prints the table).
 - Nothing in this project needs a dataset. All training data comes from the simulator.
 
 ## 1. Rules for a shared server (Yash's rules; follow them exactly)
@@ -105,13 +106,21 @@ the batch.
 
 ## 5. The training batch (only after Yash's OK on the GPU count)
 
-> **Phase E must use sphere pads (2026-10-20).** With box pads, 11–14% of USB-C resets drop the
-> drive out of the grasp, and training stalls at about 78% on curriculum stage 1 (full analysis:
-> `report_usbc/`, `docs/FINDINGS.md`). Use `blind_insertion/configs/phase_e_usbc_spheres.json`
-> (`pad_spheres: 4`) for every USB-C run. `make_manifests.py` on `main` now sets `USBC` to it:
-> rebase onto `main`, keep your table-mount changes in that config, then regenerate `E_train.txt`
-> and `E_eval.txt` and run `make_manifests.py --check`. With sphere pads, athena5's E1 seed 0
-> reached the final stage at 200M steps and seats 91.5% there (capture radius 6.0 mm).
+> **Update 2026-10-21 (main): Phases E and F are unblocked. Pull `main` into `mason-runs`, then run
+> `make_manifests.py --check`.**
+> - **Resume exists.** `train.py` / `train_visual.py --resume`; `run_jobs.py` and the SLURM script add
+>   it at launch when a partial run has `last.pt` (manifest lines are unchanged). See `docs/SERVER.md` §9.
+> - **Phase E uses sphere pads** (`configs/phase_e_usbc_spheres.json`, your table mount kept): with
+>   box pads 11–14% of USB-C resets drop the drive (`report_usbc/`). `E_train.txt` now has E1, the E4
+>   ablations (no contact, history 10/60, noise fixed/randomized, chamfer), E5 latch and E6 side port;
+>   `E_eval.txt` has their evals and E1 zero-shot on chamfer/latch/side. `eval_phase_e.sh` now takes
+>   `--env_file/--env_json/--variant_kw` and defaults to the sphere-pad config (it used box pads before).
+> - **Phase F is runnable** (`F_train.txt`, `F_eval.txt`): five visual USB-C policies at 2,048 worlds,
+>   150M steps, ~14 GPU-h each on a V100 (estimate). Measure the first job's memory and steps/s, and
+>   ask Yash before you start F (it is the most expensive phase).
+> - **C has one new line**, `C-peg-proprio-randall-s0` (all noise factors randomized per world, plan
+>   §9.3); it is appended, so the running C batch is not affected.
+> - The noise gate for D and E is unchanged (placeholder `{"q_noise": 1e-4}` until Gate C).
 
 ```bash
 tmux new -d -s jobs "python3 scripts/server/run_jobs.py --gpus <free indices> --require-idle-gpus \
@@ -134,9 +143,9 @@ python3 scripts/server/run_jobs.py scripts/server/jobs/B_train.txt --status
   Phase C (Gate C in the plan). Do not start D or E before Yash or the local agent confirms the noise
   level. Then set `NOISE` in `scripts/server/jobs/make_manifests.py`, regenerate, and run
   `make_manifests.py --check`.
-- **Phase F is blocked** (`F_blocked.txt`): it needs code changes (`docs/SERVER.md` §9.4).
-- **There is no resume.** A crashed or interrupted run restarts from step 0 (the runner retries once).
-  If interruptions become common, implement `--resume` from `docs/SERVER.md` §9.1 on a branch first.
+- **Phase F** (`F_train.txt`, `F_eval.txt`) comes after E, with Yash's OK.
+- **Resume:** a crashed or interrupted run continues from its last checkpoint (every 25 iterations)
+  when the runner retries it. To continue a run by hand, rerun its manifest line with `--resume`.
 - **Check the first minutes of every new job type:** memory as in the benchmark, no OOM, and other
   users' GPUs not affected (capacity check again).
 

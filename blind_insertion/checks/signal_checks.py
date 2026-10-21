@@ -2,6 +2,10 @@
 
 python -m blind_insertion.checks.signal_checks --robot flexiv --out results/A
 Each check writes a CSV and a PNG and prints its pass/fail number.
+Other assemblies (plan §10.2 per D cell, §11.5 USB-C on the YAM): take the robot, gains, pad and
+grip settings from an env config and the part from --family, e.g.
+python -m blind_insertion.checks.signal_checks --env_file blind_insertion/configs/phase_e_usbc_spheres.json \
+    --family usbc --only 5,6 --out results/E/signal
 """
 from __future__ import annotations
 
@@ -124,9 +128,10 @@ def _settle(s, tgt, steps=1500):
         s.step_ctrl(tgt, 1)
 
 
-def a_s5_contact_signal(robot, out, variant=None, gains=None):
+def a_s5_contact_signal(robot, out, variant=None, gains=None, scene_kw=None, tag=""):
     """Static form: fixed joint targets pressing the peg into the plate / a hole wall."""
-    s = CpuScene(robot, variant, gains=gains)
+    s = CpuScene(robot, variant, gains=gains, **(scene_kw or {}))
+    robot = robot + tag
     v = s.v
     rows = []
     # vertical press on the top face, beside the hole. The arm sags under the peg's weight
@@ -221,7 +226,7 @@ def a_s6_dropin(robot, out, variant=None, gains=None, speed=0.01, press=0.5, dur
     s.place(xy=(x0, 0.0), height=0.0003)
     rec = []
     t = 0.0
-    capture_t = None
+    capture_t = onset_t = None
     tp0, tR0 = s.tcp()
     kp = s.lay.robot.kp
     g = 9.81 * v.peg_mass
@@ -241,9 +246,12 @@ def a_s6_dropin(robot, out, variant=None, gains=None, speed=0.01, press=0.5, dur
         p, R = s.peg_fixture()
         pts = np.c_[s.edge, np.zeros(64)] @ R.T + p
         # capture = the peg drops into the opening (bottom centre > 1 mm below the top face)
-        inside = p[2] < -0.001 and _in_poly(pts[:, :2], s.lay.hole_polys[0]).all()
+        in_xy = _in_poly(pts[:, :2], s.lay.hole_polys[0]).all()
+        inside = p[2] < -0.001 and in_xy
         if inside and capture_t is None:
             capture_t = t
+        if onset_t is None and in_xy and p[2] < -0.0002:   # start of the drop (slow drops: USB-C)
+            onset_t = t
         tp, _ = s.tcp()
         rec.append(dict(t=t, peg_x=p[0], peg_z=p[2], ee_z=(s.fix_R.T @ (tp - s.fix_p))[2],
                         **{f"q{j+1}": s.q[j] for j in range(len(s.q))},
@@ -257,8 +265,9 @@ def a_s6_dropin(robot, out, variant=None, gains=None, speed=0.01, press=0.5, dur
     noise_ee = noise * np.linalg.norm(s.jac()[2])
     pnr = pnr_qd = float("nan")
     if capture_t is not None:
-        pre = (df.t < capture_t - 0.1) & (df.t > capture_t - 0.6)
-        win = (df.t > capture_t - 0.1) & (df.t < capture_t + 0.3)
+        t_ev = min(capture_t, onset_t or capture_t)    # signal window anchored at the drop's onset
+        pre = (df.t < t_ev - 0.1) & (df.t > t_ev - 0.6)
+        win = (df.t > t_ev - 0.1) & (df.t < t_ev + 0.3)
         sig = np.abs(vz[win] - np.median(vz[pre])).max()
         nz = np.sqrt(np.std(vz[pre]) ** 2 + (np.sqrt(2) * noise_ee / 0.02) ** 2)
         pnr = float(sig / nz)
@@ -294,29 +303,69 @@ def a_s6_dropin(robot, out, variant=None, gains=None, speed=0.01, press=0.5, dur
     fig.savefig(out / f"A-S6_dropin_{robot_tag}.png", dpi=120)
     plt.close(fig)
     print(f"A-S6 {robot_tag}: capture {capture_t}, PNR EE-z {pnr:.1f}, joint-vel {pnr_qd:.1f}")
-    json.dump(dict(capture_t=capture_t, pnr_eez=pnr, pnr_qd=pnr_qd, sigma_q=noise),
+    json.dump(dict(capture_t=capture_t, onset_t=onset_t, pnr_eez=pnr, pnr_qd=pnr_qd, sigma_q=noise),
               open(out / f"A-S6_dropin_{robot_tag}.json", "w"), indent=1)
     return capture_t is not None, pnr_qd
 
 
+def scene_from_env(env_file: str, env_json: str = ""):
+    """(robot, gains, CpuScene kwargs) from an EnvCfg JSON: pads, sphere pads, and the grip force
+    at the middle of the training range (grip_force_base x geometric mean of grip_force_scale)."""
+    cfg = json.load(open(env_file)) if env_file else {}
+    cfg.update(json.loads(env_json) if env_json else {})
+    robot = cfg.get("robot", "flexiv")
+    kw = dict(pad_spheres=cfg.get("pad_spheres", 0))
+    if cfg.get("pad_solimp"):
+        kw["pad_solimp"] = cfg["pad_solimp"]
+    if cfg.get("pad_timeconst"):
+        kw["pad_solref"] = [cfg["pad_timeconst"], 1.0]
+    if cfg.get("grip_force_base") is not None:
+        sc = cfg.get("grip_force_scale", (1.41, 2.83))
+        sign = -1.0 if robot == "yam" else 1.0
+        kw["grip_force"] = sign * cfg["grip_force_base"] * float(np.sqrt(sc[0] * sc[-1]))
+    return robot, cfg.get("gains"), kw
+
+
+def family_variant(family: str, clearance: float | None = None):
+    """One representative part: study peg (default), USB-C (50 um), or a D cell scale:o:c."""
+    if family == "usbc":
+        return B.usbc_variant(clearance=clearance or 5e-5)
+    if family.startswith("scale:"):
+        _, o, c = family.split(":")
+        return B.scale_variant(float(o), float(c))
+    return B.sample_study_pegs(1, 0)[0]
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--robot", default="flexiv")
+    ap.add_argument("--robot", default="", help="default: from --env_file, else flexiv")
     ap.add_argument("--out", default="results/A")
     ap.add_argument("--only", default="3,4,5,6")
+    ap.add_argument("--env_file", default="")
+    ap.add_argument("--env_json", default="")
+    ap.add_argument("--family", default="study", help="study | usbc | scale:<opening m>:<clearance m>")
+    ap.add_argument("--noise", type=float, default=1e-4, help="sigma_q for the A-S6 peak-to-noise ratio")
+    ap.add_argument("--clearance", type=float, default=None, help="usbc: clearance per side (m), default 5e-5")
+    ap.add_argument("--press", type=float, default=0.5, help="A-S6 downward press (N) on top of the weight")
     args = ap.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    v = B.sample_study_pegs(1, 0)[0]
+    robot, gains, kw = scene_from_env(args.env_file, args.env_json)
+    robot = args.robot or robot
+    v = family_variant(args.family, args.clearance)
+    tag = "" if args.family == "study" and not args.env_file else "_" + args.family.replace(":", "_")
+    if args.clearance:
+        tag += f"_c{args.clearance * 1e6:.0f}um"
     only = args.only.split(",")
     if "3" in only:
-        a_s3_step_response(args.robot, out, v)
+        a_s3_step_response(robot, out, v, gains=gains)
     if "4" in only:
-        a_s4_gravity(args.robot, out, v)
+        a_s4_gravity(robot, out, v, gains=gains)
     if "5" in only:
-        a_s5_contact_signal(args.robot, out, v)
+        a_s5_contact_signal(robot, out, v, gains=gains, scene_kw=kw, tag=tag)
     if "6" in only:
-        a_s6_dropin(args.robot, out, v)
+        a_s6_dropin(robot, out, v, gains=gains, scene_kw=kw, tag=tag + (f"_press{args.press:g}N" if args.press != 0.5 else ""),
+                    noise=args.noise, press=args.press)
 
 
 if __name__ == "__main__":

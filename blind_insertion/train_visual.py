@@ -5,6 +5,10 @@ carried over; minibatches are drawn by world so each frame is embedded once per 
 and histories are reconstructed by index (clamped at episode starts, as in acting).
 
 python -m blind_insertion.train_visual --name B-peg-rgb-base-s0 --seed 0 --nworld 4096
+Phase F (USB-C on the YAM, plan §12): the env flags of train.py plus --modality rgb|depth|rgbd and
+--proprio (fusion with the joint-history encoder), e.g.
+python -m blind_insertion.train_visual --name F-usbc-pd-curr-s0 --modality depth --proprio \
+    --family usbc --curriculum usbc --n_variants 320 --env_file blind_insertion/configs/phase_f_usbc.json
 """
 from __future__ import annotations
 
@@ -14,17 +18,13 @@ import json
 import time
 from dataclasses import asdict
 from importlib.metadata import version
-from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from blind_insertion.envs.peg_env import EnvCfg, PegEnv
 from blind_insertion.policies.visual import EmbHistory, VisualActorCritic
-from blind_insertion.train import PPOCfg, _balanced_acc, git_hash
-
-ROOT = Path(__file__).resolve().parents[1]
+from blind_insertion.train import RUNS, USBC_STAGES, Curriculum, PPOCfg, _balanced_acc, git_hash, make_env, save_atomic
 
 
 def window_index(T, H, count):
@@ -39,31 +39,61 @@ def window_index(T, H, count):
 def train(args):
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-    run = ROOT / "runs" / args.name
+    run = RUNS / args.name
     run.mkdir(parents=True, exist_ok=True)
-    kw = dict(robot=args.robot, nworld=args.nworld, seed=args.seed, n_variants=args.n_variants,
-              variant_seed=args.variant_seed, camera=True, cam_res=args.res)
-    kw.update(json.loads(args.env_json) if args.env_json else {})
-    env = PegEnv(EnvCfg(**kw))
+    if (run / "DONE").exists() and args.resume:   # finished: skip, unless asked for more steps
+        done = json.loads((run / "DONE").read_text())
+        if done.get("reason") == "stop_success" or done.get("steps", 0) >= args.steps:
+            print(f"[{args.name}] already DONE: {done}", flush=True)
+            return
+        (run / "DONE").unlink()
+    env = make_env(args, camera=True, cam_res=args.res, cam_modality=args.modality)
     dev = env.device
+    cur = Curriculum(env, USBC_STAGES) if args.curriculum == "usbc" else None
     pc = PPOCfg()
     pc.contact_coef = args.contact_coef
     H = env.cfg.history
-    ac = VisualActorCritic(env.obs_dim, env.n_arm, env.critic_dim, history=H, res=args.res).to(dev)
+    ac = VisualActorCritic(env.obs_dim, env.n_arm, env.critic_dim, history=H, res=args.res,
+                           modality=args.modality, proprio=args.proprio).to(dev)
     opt = torch.optim.Adam(ac.parameters(), lr=pc.lr)
     meta = dict(args=vars(args), env=asdict(env.cfg) | {"variants": None, "variant_sampler": None},
-                git=git_hash(), modality="rgb",
+                git=git_hash(), modality=args.modality, proprio=args.proprio,
                 versions={p: version(p) for p in ("mujoco", "mujoco-warp", "torch", "mjfit")})
-    json.dump(meta, open(run / "config.json", "w"), indent=1, default=str)
+    resuming = args.resume and (run / "last.pt").exists()
+    json.dump(meta, open(run / ("config_resume.json" if resuming else "config.json"), "w"), indent=1, default=str)
 
     N, T, D, A, R = env.N, pc.rollout, env.obs_dim, env.n_arm, args.res
-    frames = torch.zeros(T + H - 1, N, 3, R, R, dtype=torch.uint8, device=dev)
+    C = env.frame.shape[1]
+    frames = torch.zeros(T + H - 1, N, C, R, R, dtype=torch.uint8, device=dev)
     buf = dict(obs=torch.zeros(T, N, D, device=dev), crit=torch.zeros(T, N, env.critic_dim, device=dev),
                act=torch.zeros(T, N, A, device=dev), logp=torch.zeros(T, N, device=dev),
                val=torch.zeros(T, N, device=dev), rew=torch.zeros(T, N, device=dev),
                done=torch.zeros(T, N, device=dev), tout=torch.zeros(T, N, device=dev),
                lab=torch.zeros(T, N, 64, dtype=torch.long, device=dev),
                count=torch.ones(T, N, dtype=torch.long, device=dev))
+    if args.proprio:   # joint histories for the fused policy's TCN
+        buf["hist"] = torch.zeros(T, N, H, D, device=dev)
+    total, it, best, wall0 = 0, 0, -1.0, 0.0
+    if resuming:
+        ck = torch.load(run / "last.pt", map_location=dev, weights_only=False)
+        ac.load_state_dict(ck["model"])
+        if "opt" in ck:
+            opt.load_state_dict(ck["opt"])
+        it, total, best, wall0 = ck["iter"], ck["steps"], ck.get("best", -1.0), ck.get("wall", 0.0)
+        stage = ck.get("stage")
+        if cur is not None and not stage and (run / "curriculum.json").exists():   # older checkpoints
+            stage = max(r["stage"] for r in json.load(open(run / "curriculum.json"))
+                        if r["env_steps"] <= total)
+        if cur is not None and stage:
+            while cur.stage + 1 < stage:
+                cur.advance(total)
+            if (run / "curriculum.json").exists():
+                cur.log = [r for r in json.load(open(run / "curriculum.json")) if r["stage"] <= stage]
+        if "rng" in ck:
+            torch.set_rng_state(ck["rng"]["torch"].cpu())
+            torch.cuda.set_rng_state(ck["rng"]["cuda"].cpu(), dev)
+            env.gen.set_state(ck["rng"]["env"].cpu())
+        print(f"[{args.name}] resumed at it {it}, {total/1e6:.1f}M steps", flush=True)
     env.reset_all(desync=True)
     env.render()
     hist, crit = env.observe()
@@ -73,9 +103,20 @@ def train(args):
     eh.push(e0, torch.ones(N, dtype=torch.bool, device=dev))
     frames[:] = env.frame[None]
     cw = torch.tensor(pc.class_w, device=dev)
-    log_f = open(run / "train_log.csv", "w", newline="")
+    log_path = run / "train_log.csv"
     log = None
-    total, it, t0, best = 0, 0, time.time(), -1.0
+    if resuming and log_path.exists() and log_path.stat().st_size:
+        with open(log_path) as f_:
+            fields = next(csv.reader(f_))
+        rows = [r for r in csv.DictReader(open(log_path)) if int(r["iter"]) <= it]
+        log_f = open(log_path, "w", newline="")
+        log = csv.DictWriter(log_f, fieldnames=fields)
+        log.writeheader()
+        log.writerows(rows)
+    else:
+        log_f = open(log_path, "w", newline="")
+    t0 = time.time() - wall0
+    reason, succ = "steps", float("nan")
     ep = {"succ": [], "len": [], "cap": []}
     while total < args.steps:
         it += 1
@@ -85,8 +126,8 @@ def train(args):
         with torch.no_grad():
             # re-embed the carried window with the current CNN so acting matches the update
             frames[H - 1] = env.frame
-            E = torch.cat([ac.cnn(frames[:H, j:j + 1024].reshape(-1, 3, R, R)).reshape(H, -1, ac.emb)
-                           for j in range(0, N, 1024)], 1)
+            E = torch.cat([ac.cnn(frames[:H, j:j + 256].reshape(-1, C, R, R)).reshape(H, -1, ac.emb)
+                           for j in range(0, N, 256)], 1)
             idx0 = window_index(1, H, eh.count[None])[0]               # (N, H)
             eh.h = E[idx0, torch.arange(N, device=dev)[:, None].expand_as(idx0)]
             for t in range(T):
@@ -95,7 +136,9 @@ def train(args):
                 ac.crit_norm.update(crit)
                 frames[H - 1 + t] = env.frame
                 buf["count"][t] = eh.count
-                d, _ = ac.dist_from_emb(eh.h)
+                if args.proprio:
+                    buf["hist"][t] = hist
+                d, _ = ac.dist_from_emb(eh.h, hist)
                 a = d.sample()
                 buf["obs"][t], buf["crit"][t], buf["act"][t] = o_now, crit, a
                 buf["logp"][t] = d.log_prob(a).sum(-1)
@@ -137,13 +180,13 @@ def train(args):
             for i in range(pc.minibatches):
                 W = perm[i * nw:(i + 1) * nw]
                 fr = frames[:, W]                                    # (T+H-1, nw, 3, R, R)
-                E = ac.cnn(fr.reshape(-1, 3, R, R)).reshape(T + H - 1, nw, -1)
+                E = ac.cnn(fr.reshape(-1, C, R, R)).reshape(T + H - 1, nw, -1)
                 idx = widx[:, W]                                     # (T, nw, H)
                 wcol = torch.arange(nw, device=dev)[None, :, None].expand_as(idx)
                 eh_mb = E[idx, wcol]                                 # (T, nw, H, emb)
                 eh_mb = eh_mb.reshape(T * nw, H, -1)
                 sel = lambda x: x[:, W].reshape(T * nw, *x.shape[2:])  # noqa: E731
-                dist, z = ac.dist_from_emb(eh_mb)
+                dist, z = ac.dist_from_emb(eh_mb, sel(buf["hist"]) if args.proprio else None)
                 act, logp_old = sel(buf["act"]), sel(buf["logp"])
                 logp = dist.log_prob(act).sum(-1)
                 ratio = torch.exp(logp - logp_old)
@@ -187,7 +230,15 @@ def train(args):
             succ = eplen = cap = float("nan")
             neps = 0
         ep = {"succ": [], "len": [], "cap": []}
-        row = dict(iter=it, env_steps=total, wall=time.time() - t0, success=succ, capture=cap,
+        stage = None
+        if cur is not None:
+            if neps and cur.update(total, succ * neps, neps):   # every world was reset
+                hist, crit = env.observe()
+                with torch.no_grad():
+                    eh.push(ac.cnn(env.frame), torch.ones(N, dtype=torch.bool, device=dev))
+            stage = cur.stage + 1
+            json.dump(cur.log, open(run / "curriculum.json", "w"), indent=1)
+        row = dict(stage=stage, iter=it, env_steps=total, wall=time.time() - t0, success=succ, capture=cap,
                    ep_len=eplen, episodes=neps, sps=T * N / (roll_time + up_time), roll_s=roll_time,
                    update_s=up_time, std=ac.log_std.exp().mean().item(),
                    reward=buf["rew"].sum().item() / N, **stats)
@@ -200,20 +251,28 @@ def train(args):
             print(f"[{args.name}] it {it} steps {total/1e6:.1f}M succ {succ:.3f} cap {cap:.3f} len {eplen:.0f} "
                   f"std {row['std']:.3f} ce {stats['ce']:.3f} acc {stats['acc']:.3f} kl {stats['kl']:.4f} "
                   f"sps {row['sps']:.0f} (roll {roll_time:.1f}s upd {up_time:.1f}s) histchk {hc:.1e}", flush=True)
-        ck = {"model": ac.state_dict(), "iter": it, "steps": total, "obs_dim": env.obs_dim,
-              "act_dim": env.n_arm, "critic_dim": env.critic_dim, "modality": "rgb", "res": args.res}
+        def ckpt():
+            return {"model": ac.state_dict(), "iter": it, "steps": total, "obs_dim": env.obs_dim,
+                    "act_dim": env.n_arm, "critic_dim": env.critic_dim, "modality": args.modality,
+                    "proprio": args.proprio, "res": args.res, "opt": opt.state_dict(), "best": best,
+                    "wall": time.time() - t0, "stage": stage,
+                    "rng": {"torch": torch.get_rng_state(), "cuda": torch.cuda.get_rng_state(dev),
+                            "env": env.gen.get_state()}}
         if it % args.ckpt_every == 0 or total >= args.steps:
-            torch.save(ck, run / "last.pt")
             if succ == succ and succ >= best:
                 best = succ
-                torch.save(ck, run / "best.pt")
+                save_atomic(ckpt(), run / "best.pt")
+            save_atomic(ckpt(), run / "last.pt")
         if it % (args.ckpt_every * 10) == 0:
-            torch.save(ck, run / f"ckpt_{total // 1_000_000:04d}M.pt")
+            save_atomic(ckpt(), run / f"ckpt_{total // 1_000_000:04d}M.pt")
         if args.stop_success and succ == succ and succ >= args.stop_success and total >= args.min_steps:
-            torch.save(ck, run / "last.pt")
+            save_atomic(ckpt(), run / "last.pt")
             print(f"[{args.name}] reached training success {succ:.3f} at {total/1e6:.1f}M steps", flush=True)
+            reason = "stop_success"
             break
     log_f.close()
+    json.dump(dict(steps=total, iter=it, wall_s=time.time() - t0, reason=reason,
+                   success=succ if succ == succ else None), open(run / "DONE", "w"))
 
 
 def parser():
@@ -232,6 +291,13 @@ def parser():
     ap.add_argument("--ckpt_every", type=int, default=25)
     ap.add_argument("--stop_success", type=float, default=0.0)
     ap.add_argument("--min_steps", type=float, default=0.0)
+    ap.add_argument("--env_file", default="")
+    ap.add_argument("--family", default="study", help="as in train.py (study | usbc | scale:o:c | ood:bin)")
+    ap.add_argument("--curriculum", default="none", help="none | usbc")
+    ap.add_argument("--variant_kw", default="", help="usbc: JSON kwargs for builder.sample_usbc")
+    ap.add_argument("--modality", default="rgb", choices=["rgb", "depth", "rgbd"])
+    ap.add_argument("--proprio", action="store_true", help="fuse with the joint-history encoder (F-PR/PD/PRD)")
+    ap.add_argument("--resume", action="store_true", help="continue from runs/<name>/last.pt (no-op if DONE)")
     return ap
 
 
