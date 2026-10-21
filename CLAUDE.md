@@ -82,6 +82,9 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
 ```
 
 - `report/index.html` is in artifact form (no doctype/head; the Artifact publisher adds them).
+  Two sessions publish it (athena5 and the server agent on mason): before each publish, read the live
+  artifact and merge onto it; `scripts/build_report.py` rebuilds curves.json from local runs only, so
+  merge server series (e.g. `yam_table`, blind seed 3) back in instead of overwriting.
   Text follows ASD-STE100 (short active sentences, one idea each). Figures are ES modules in
   `report/static/js/figures/` reading `report/static/data/*.json`.
 
