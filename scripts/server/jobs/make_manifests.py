@@ -181,6 +181,10 @@ D_DIAGONAL = {(60, 1.0), (30, 0.5), (15, 0.2), (8, 0.05)}     # large-loose -> s
 # 2026-10-21: D cells cap at 150M steps (small/tight cells may never reach the 99% stop rule; a
 # 300M cap would push tier 1 past the first results review). Extend with --resume where needed.
 D_STEPS = "150e6"
+# 2026-10-21: o15_c0.2 from scratch never found the hole (0 successes in 128M steps: the sparse reward
+# gave PPO no signal). Cells tighter than 1 mm now use the clearance curriculum (train.py
+# --curriculum scale: 1 mm first, down to the target). o30_c0.5_scaled-s0 had already reached 99% without it.
+D_NO_CURRICULUM = {"D-peg-proprio-o30_c0.5_scaled-s0"}
 
 
 def d_offset(opening_mm, regime):
@@ -200,7 +204,8 @@ def phase_d():
             name = f"D-peg-proprio-{var}-s{s}"
             fam = f"scale:{o / 1000:g}:{c / 1000:g}"
             ej = dict(NOISE, peg_offset=d_offset(o, r))
-            tiers[tier].append(train_line(name, s, f"--env_file {YAM} --family {fam} --env_json {jq(ej)} {STOP}",
+            cur = " --curriculum scale" if c < 1.0 and name not in D_NO_CURRICULUM else ""
+            tiers[tier].append(train_line(name, s, f"--env_file {YAM} --family {fam}{cur} --env_json {jq(ej)} {STOP}",
                                           steps=D_STEPS, est=H_BLIND / 2))
             ev.append(eval_line(f"{PY} -m blind_insertion.eval --policy runs/{name}/last.pt --env_file {YAM} "
                                 f"--family {fam} --env_json {jq(ej)} --episodes 2048 "
