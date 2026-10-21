@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Status report · 21 October 2026, 16:30 UTC · Simulation results</div>
+    <div class="badge">Status report · 21 October 2026, 19:30 UTC · Simulation results</div>
     <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
     <p class="authors">Yash Chitambar</p>
     <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -39,7 +39,7 @@
         <tbody>
           <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
           <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency, backlash and gain errors break a policy that did not train with them. One policy trained with random levels keeps 96 to 98% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
-          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>40-cell grid from 60 mm to 8 mm openings and 1.0 to 0.05 mm clearance. 60 and 30 mm: 99% training success. At 15 mm and 0.2 mm, training needs a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
+          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>First tests: 98.2% at 60 mm, 96.9% at 30 mm, 97.0% at 8 mm (1.0 mm clearance). At 8 mm, training success falls to 86 to 92% at 0.2 and 0.1 mm clearance. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
           <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. But 20 ms of latency or 1 arcmin of backlash drops it to 5 to 9%.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
           <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
         </tbody>
@@ -208,21 +208,22 @@
   <p class="finding">RQ3 · Scale</p>
   <section id="rq3">
     <h2>Scale study: from 60 mm pegs to connector size</h2>
-    <p class="claim">The grid trains one YAM policy for each part size and clearance. Each run trains with the random robot conditions from RQ2.</p>
+    <p class="claim">At 1.0 mm clearance, success stays at 97 to 98% from a 60 mm peg down to an 8 mm peg. Tighter clearance at 8 mm decreases training success to 86%. Each run trains with the random robot conditions from RQ2.</p>
     <p>The pegs have a 2:1 stadium shape. The opening is 60, 30, 15 or 8 mm long. The clearance is 1.0, 0.5, 0.2, 0.1 or 0.05 mm on each side. There are two start regimes. In the scaled regime, the start offset is proportional to the part size (10 mm median at 60 mm). In the fixed regime, the median offset is 3 mm for all sizes. If both regimes fail at the same size, the contact signal is the limit. If only the fixed regime fails, the search area is the limit.</p>
     <div class="tbl">
       <table>
         <thead><tr><th>Opening</th><th class="n">1.0 mm</th><th class="n">0.5 mm</th><th class="n">0.2 mm</th><th class="n">0.1 mm</th><th class="n">0.05 mm</th></tr></thead>
         <tbody>
-          <tr><td>60 mm</td><td class="n">first</td><td class="n">·</td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
-          <tr><td>30 mm</td><td class="n">·</td><td class="n">first</td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
-          <tr><td>15 mm</td><td class="n">·</td><td class="n">·</td><td class="n">first</td><td class="n">·</td><td class="n">·</td></tr>
-          <tr><td>8 mm</td><td class="n">first</td><td class="n">first</td><td class="n">first</td><td class="n">first</td><td class="n">first</td></tr>
+          <tr><td>60 mm</td><td class="n"><b>98.2%</b></td><td class="n">·</td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
+          <tr><td>30 mm</td><td class="n">·</td><td class="n"><b>96.9%</b></td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
+          <tr><td>15 mm</td><td class="n">·</td><td class="n">·</td><td class="n">training</td><td class="n">·</td><td class="n">·</td></tr>
+          <tr><td>8 mm</td><td class="n"><b>97.0%</b></td><td class="n">98% t</td><td class="n">92% t</td><td class="n">86% t</td><td class="n">training</td></tr>
         </tbody>
-        <caption>Training order. "first": the diagonal from large and loose to small and tight, and the 8 mm row (16 runs with both regimes). Then the other 24 cells. Results come as each run completes.</caption>
+        <caption>Scaled regime. Bold: test success on 2,048 unseen starts with random robot conditions (95% intervals ±0.6 to 0.8 points). "t": training success at the target clearance, no test yet. "·": later. The fixed regime trains now.</caption>
       </table>
     </div>
-    <p><b>First results.</b> The 60 mm, 1.0 mm cell reached 99.1% training success (90% after 24 million steps). The 30 mm, 0.5 mm cell reached 99.0% (90% after 37 million steps). The 15 mm, 0.2 mm cell did not succeed once in 150 million steps. The reward is given only for capture and seating, so with no lucky episodes the policy got no signal. Thus, all cells tighter than 1.0 mm now train with a clearance curriculum: 1.0 mm first, then smaller steps down to the target. The 8 mm cells train now. The tests follow the training.</p>
+    <p><b>Large and small parts both work at 1.0 mm.</b> At 60 mm, the policy seats 98.2% (median 0.72 s, 35 mm of travel). At 8 mm, it seats 97.0% (median 0.12 s, 3.9 mm of travel). Most failures at 8 mm are search failures: 55 of 62 starts did not find the hole. At 8 mm, training success decreases from 98% at 0.5 mm clearance to 86% at 0.1 mm.</p>
+    <p><b>Two problems at small sizes, both fixed.</b> First, a run at 15 mm and 0.2 mm did not succeed once in 150 million steps. The reward is given only for capture and seating, so the policy got no signal. Now all cells tighter than 1.0 mm train with a clearance curriculum: 1.0 mm first, then smaller steps down to the target. Second, at 8 mm the peg slipped out of the box-shaped pads (73.7% test success, most failures were slips). With the 4 × 4 sphere pads from USB-C, the 8 mm cells train to 86 to 99%.</p>
   </section>
 
   <!-- ============================================================ RQ4 -->
@@ -325,7 +326,7 @@
     <h2>Next steps</h2>
     <ol class="facts">
       <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
-      <li><b>RQ3 grid.</b> Complete the diagonal and the 8 mm row, then the other cells. Answer: at what size does success fall below 90%, and is the cause the search area or the signal?</li>
+      <li><b>RQ3 grid.</b> Test the 8 mm row, complete the 15 mm cell and the fixed regime, then the other cells. Answer: at what size does success fall below 90%, and is the cause the search area or the signal?</li>
       <li><b>RQ4 on the lab table.</b> USB-C, chamfer, latch and side port (training now), then USB-C with random robot errors from the start, and the ablations (no contact loss, history length).</li>
       <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
       <li><b>More seeds</b> where a result is close.</li>

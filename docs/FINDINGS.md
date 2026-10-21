@@ -124,6 +124,20 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   never found 105, left fixture 56.
 - Caveat: the gain mixes two effects, wider starts and the move to the lab-table mount (E1 trained
   on the old mount). The server's E1 trains on the table from scratch; compare its r50 with 7.1 mm.
+### 2026-10-21 (evening, mason) — First Phase D tests: 97-98% at 1.0 mm from 60 mm down to 8 mm
+
+Scaled regime, 2,048 unseen starts with random robot conditions (noise, quantization, backlash, latency):
+
+| Cell | Test success (95% CI) | Median time | Median travel | Main failure |
+|---|---|---|---|---|
+| o60_c1 | 98.2% (97.6-98.7) | 0.72 s | 35.1 mm | never found 21 of 36 |
+| o30_c0.5 | 96.9% (96.0-97.5) | 0.54 s | 28.6 mm | never found 25, wedged 17 of 64 |
+| o8_c1 (sphere pads) | 97.0% (96.1-97.6) | 0.12 s | 3.9 mm | never found 55 of 62 |
+
+8 mm training success at the target clearance (no tests yet): c0.5 98%, c0.2 92%, c0.1 86%. The
+evals ran beside the training jobs on GPU 1 (marked done in stateD/done.txt first, so the runner
+skips them). o15_c0.2 stopped at the 0.5 mm stage (old stop_success bug) and is queued to resume.
+
 ### 2026-10-21 (afternoon, mason) — Two from-scratch runs never found the goal; curricula fix queued
 
 - **D o15_c0.2_scaled (15 mm opening, 0.2 mm clearance, 2.5 mm median start offset):** 0 successes
