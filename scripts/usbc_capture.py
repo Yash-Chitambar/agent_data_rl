@@ -1,6 +1,6 @@
 """Phase E E2 (capture radius) and E3 (clearance sweep) for one USB-C checkpoint.
 
-E2: start offsets uniform in a +-6 mm square (8,192 episodes, clearance 50 um), binned by the
+E2: start offsets uniform in a +-6 mm square (--halfwidth; 8,192 episodes, clearance 50 um), binned by the
 actual radial start distance; logistic fit success ~ sigmoid(a - b r), r50 = a / b, bootstrap CI.
 E3: clearance 0.02, 0.04, 0.05, 0.07, 0.1, 0.2 mm at a 2 mm median start offset (2,048 each);
 0.04 and 0.07 mm are the plan's validity check (50 um -10 / +20 um: success must change smoothly).
@@ -57,12 +57,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", default="E-usbc-proprio-currsph-s0")
     ap.add_argument("--tag", default="sph_s0")
+    ap.add_argument("--halfwidth", type=float, default=6e-3, help="E2 start offsets: uniform per axis (m)")
     a = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
 
     # E2: capture radius
     e2 = OUT / f"{a.tag}_E2.parquet"
-    ev(a.run, e2, "5e-5", 6e-3, 8192)
+    ev(a.run, e2, "5e-5", a.halfwidth, 8192)
     d = pd.read_parquet(e2)
     r = 1000 * d.start_dist.values
     y = (d.success > 0).values.astype(float)
@@ -74,7 +75,7 @@ def main():
         wb = logistic_fit(r[i], y[i])
         boots.append(wb[0] / wb[1])
     r50 = w[0] / w[1]
-    edges = np.arange(0, 8.5, 0.5)
+    edges = np.arange(0, 1000 * a.halfwidth * 1.42 + 0.5, 0.5)
     bins = []
     for lo, hi in zip(edges[:-1], edges[1:]):
         m = (r >= lo) & (r < hi)

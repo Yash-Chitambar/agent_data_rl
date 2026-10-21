@@ -180,6 +180,9 @@ def train(args):
     hist, crit = env.observe()
     cw = torch.tensor(pc.class_w, device=dev)
     total, it, best, wall0 = 0, 0, -1, 0.0
+    if args.init and not resuming:   # fine-tune: weights + normalizers from a checkpoint, fresh Adam
+        ac.load_state_dict(torch.load(args.init, map_location=dev, weights_only=False)["model"])
+        print(f"[{args.name}] initialized from {args.init}", flush=True)
     if resuming:
         ck = torch.load(run / "last.pt", map_location=dev, weights_only=False)
         ac.load_state_dict(ck["model"])
@@ -411,6 +414,7 @@ def parser():
     ap.add_argument("--minibatches", type=int, default=0, help="0: task default (peg 20, gear 24)")
     ap.add_argument("--stop_success", type=float, default=0.0, help="stop once training success >= this ...")
     ap.add_argument("--min_steps", type=float, default=0.0, help="... after at least this many env steps")
+    ap.add_argument("--init", default="", help="start from this checkpoint's weights (fine-tuning)")
     ap.add_argument("--resume", action="store_true",
                     help="continue from runs/<name>/last.pt if it exists (else start fresh); no-op if DONE")
     return ap
