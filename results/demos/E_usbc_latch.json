@@ -1,0 +1,93 @@
+{
+ "title": "USB-C E5: 5-15 N latch, policy never trained on it",
+ "source": "results/demos/data/E_usbc_latch.parquet",
+ "n": 2048,
+ "success_rate": 0.28173828125,
+ "failures": {
+  "wedged_partial": 459,
+  "slipped": 449,
+  "never_found": 238,
+  "left_fixture": 185,
+  "jammed_inside": 140
+ },
+ "shown": [
+  {
+   "world": 595,
+   "success": true,
+   "failure": "success",
+   "time": 0.5199999809265137
+  },
+  {
+   "world": 341,
+   "success": true,
+   "failure": "success",
+   "time": 2.0799999237060547
+  },
+  {
+   "world": 1213,
+   "success": true,
+   "failure": "success",
+   "time": 7.159999847412109
+  },
+  {
+   "world": 100,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 7.159999847412109
+  },
+  {
+   "world": 1102,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 7.5
+  },
+  {
+   "world": 259,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 606,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 411,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 457,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 639,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 1212,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 671,
+   "success": false,
+   "failure": "slipped",
+   "time": 7.239999771118164
+  },
+  {
+   "world": 798,
+   "success": false,
+   "failure": "slipped",
+   "time": 4.199999809265137
+  }
+ ]
+}

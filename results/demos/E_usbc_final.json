@@ -1,0 +1,80 @@
+{
+ "title": "USB-C, final stage (20-100 um, median start 3 mm), lab-table mount",
+ "source": "results/demos/data/E_usbc_final.parquet",
+ "n": 2048,
+ "success_rate": 0.77490234375,
+ "failures": {
+  "never_found": 367,
+  "left_fixture": 53,
+  "wedged_partial": 30,
+  "slipped": 11
+ },
+ "shown": [
+  {
+   "world": 991,
+   "success": true,
+   "failure": "success",
+   "time": 0.47999998927116394
+  },
+  {
+   "world": 615,
+   "success": true,
+   "failure": "success",
+   "time": 2.200000047683716
+  },
+  {
+   "world": 1428,
+   "success": true,
+   "failure": "success",
+   "time": 7.919999599456787
+  },
+  {
+   "world": 56,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 386,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 603,
+   "success": false,
+   "failure": "slipped",
+   "time": 6.679999828338623
+  },
+  {
+   "world": 631,
+   "success": false,
+   "failure": "slipped",
+   "time": 7.21999979019165
+  },
+  {
+   "world": 738,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 8.0
+  },
+  {
+   "world": 1013,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 7.21999979019165
+  },
+  {
+   "world": 1117,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 1738,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  }
+ ]
+}

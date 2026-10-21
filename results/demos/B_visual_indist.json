@@ -1,0 +1,35 @@
+{
+ "title": "Phase B: wrist-RGB policy, study pegs",
+ "source": "results/demos/data/B_visual_indist.parquet",
+ "n": 1024,
+ "success_rate": 0.9990234375,
+ "failures": {
+  "wedged_partial": 1
+ },
+ "shown": [
+  {
+   "world": 416,
+   "success": true,
+   "failure": "success",
+   "time": 0.1599999964237213
+  },
+  {
+   "world": 333,
+   "success": true,
+   "failure": "success",
+   "time": 0.3799999952316284
+  },
+  {
+   "world": 238,
+   "success": true,
+   "failure": "success",
+   "time": 2.5399999618530273
+  },
+  {
+   "world": 690,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  }
+ ]
+}

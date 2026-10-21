@@ -1,0 +1,94 @@
+{
+ "title": "YAM (old mount): base policy with 1-step latency, not in training",
+ "source": "results/demos/data/C_yam_latency1.parquet",
+ "n": 1024,
+ "success_rate": 0.1005859375,
+ "failures": {
+  "left_fixture": 412,
+  "wedged_partial": 285,
+  "never_found": 179,
+  "slipped": 27,
+  "jammed_inside": 16,
+  "captured_then_lost": 2
+ },
+ "shown": [
+  {
+   "world": 853,
+   "success": true,
+   "failure": "success",
+   "time": 0.11999999731779099
+  },
+  {
+   "world": 664,
+   "success": true,
+   "failure": "success",
+   "time": 1.4800000190734863
+  },
+  {
+   "world": 433,
+   "success": true,
+   "failure": "success",
+   "time": 4.940000057220459
+  },
+  {
+   "world": 51,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 439,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 410,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  },
+  {
+   "world": 503,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  },
+  {
+   "world": 430,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 3.6999998092651367
+  },
+  {
+   "world": 467,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 4.519999980926514
+  },
+  {
+   "world": 446,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 811,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 583,
+   "success": false,
+   "failure": "slipped",
+   "time": 3.6599998474121094
+  },
+  {
+   "world": 955,
+   "success": false,
+   "failure": "slipped",
+   "time": 4.71999979019165
+  }
+ ]
+}
