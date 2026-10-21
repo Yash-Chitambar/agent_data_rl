@@ -219,7 +219,7 @@
           <tr><td>15 mm</td><td class="n">·</td><td class="n">·</td><td class="n"><b>97.6%</b></td><td class="n">·</td><td class="n">·</td></tr>
           <tr><td>8 mm</td><td class="n"><b>97.0%</b></td><td class="n"><b>98.6%</b></td><td class="n"><b>95.6%</b></td><td class="n"><b>93.0%</b></td><td class="n"><b>89.7%</b></td></tr>
         </tbody>
-        <caption>Scaled regime. Bold: test success on 2,048 unseen starts with random robot conditions (95% intervals ±0.5 to 1.1 points). "·": later. In the fixed regime (3 mm median offset), the 60 mm, 1.0 mm cell seats 99.7% and the 30 mm, 0.5 mm cell 98.4%; the other cells train now.</caption>
+        <caption>Scaled regime. Bold: test success on 2,048 unseen starts with random robot conditions (95% intervals ±0.5 to 1.1 points). "·": later.</caption>
       </table>
     </div>
     <p><b>Size alone does not decrease success. Clearance does.</b> Along the diagonal (60, 30 and 15 mm with 1.0, 0.5 and 0.2 mm), success stays at 97 to 98%. At 8 mm, success decreases from 98.6% at 0.5 mm clearance to 89.7% at 0.05 mm, the USB-C clearance. The failure type also changes. At 1.0 mm, 55 of 62 failures did not find the hole. At 0.05 mm, 115 of 211 failures stopped partly inside the hole (wedged). Thus, at tight clearance the limit is the alignment in the hole, not the search. With 10 s episodes instead of 5 s, the 0.05 mm cell seats 92.6% and the wedged failures decrease from 115 to 64. Thus, approximately half of the wedged pegs only need more time.</p>
@@ -234,6 +234,20 @@
           <tr><td>0.05 mm</td><td class="n">89.7%</td><td class="n">1.28 s</td><td class="n">88</td><td class="n">115</td></tr>
         </tbody>
         <caption>Failure counts of 2,048 starts. Median start offset 1.3 mm. The "Examples from every test" videos show the 60 mm and 8 mm cells.</caption>
+      </table>
+    </div>
+    <p><b>A 3 mm start at all sizes gives the same success, but a longer search.</b> In the fixed regime, the median start offset is 3 mm for all sizes. For the 8 mm peg, this is 2.3 times the scaled offset. Success does not change, but the search is longer: at 8 mm and 1.0 mm, 0.44 s and 22 mm of travel, against 0.12 s and 3.9 mm. Thus, at these clearances the search area is not the limit. The tighter fixed cells train now.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Cell</th><th class="n">Scaled start</th><th class="n">Fixed 3 mm start</th></tr></thead>
+        <tbody>
+          <tr><td>60 mm, 1.0 mm</td><td class="n">98.2%</td><td class="n">99.7%</td></tr>
+          <tr><td>30 mm, 0.5 mm</td><td class="n">96.9%</td><td class="n">98.4%</td></tr>
+          <tr><td>15 mm, 0.2 mm</td><td class="n">97.6%</td><td class="n">97.3%</td></tr>
+          <tr><td>8 mm, 1.0 mm</td><td class="n">97.0%</td><td class="n">96.9%</td></tr>
+          <tr><td>8 mm, 0.5 mm</td><td class="n">98.6%</td><td class="n">96.9%</td></tr>
+        </tbody>
+        <caption>Test success, 2,048 starts each, random robot conditions. Scaled start: median offset 10 mm at 60 mm, 1.3 mm at 8 mm.</caption>
       </table>
     </div>
     <p><b>Two problems at small sizes, both fixed.</b> First, a run at 15 mm and 0.2 mm did not succeed once in 150 million steps. The reward is given only for capture and seating, so the policy got no signal. Now all cells tighter than 1.0 mm train with a clearance curriculum: 1.0 mm first, then smaller steps down to the target. Second, at 8 mm the peg slipped out of the box-shaped pads (73.7% test success, most failures were slips). With the 4 × 4 sphere pads from USB-C, the 8 mm cells down to 0.1 mm clearance train to 96 to 99%.</p>
