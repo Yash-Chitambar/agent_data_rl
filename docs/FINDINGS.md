@@ -91,8 +91,16 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - On the latch port (2,048 starts): **89.7%** (E1 zero-shot: 28.0%), median 1.96 s; failures
   slipped 84, never found 55, left fixture 32. q noise 5e-4: 90.5%, 14-bit: 90.8%. Latency 1 / 2:
   3.0 / 1.0%, backlash 1 / 3: 2.3 / 2.2% (no robot errors in this fine-tune).
-- The 6 N grip base holds a 15 N latch: slips are 4% of episodes, so `grip_force_base` does not
-  need to rise. The server's E5 run (from scratch, with the stop rule) is the main result.
+- **Reconciled with mason's 7.2 N limit (below):** at a fixed peak the fine-tune seats 94.3% (5 N)
+  and **78.7% (15 N)**, above the static limit. It strikes: in 8 logged episodes the plug enters
+  the last 1.6 mm at 40-80 mm/s (`results/E/robust/latchft_s0_peak15N.rollouts.npz`). Energy check:
+  past the 0.72 mm where 7.2 N balances a 10 N/mm spring, the plug needs ~1.7 mJ to reach 1.3 mm,
+  i.e. ~0.9 kg effective mass at 60 mm/s, plausible for the YAM wrist + gripper. So the static
+  limit is real but a dynamic insertion beats it. Caveats: the latch model is a pure spring with
+  no detent, and success counts the moment the plug reaches the seat (a real latch would click
+  and hold); the strike speed is near the 50 mm/s speed cap; slips rise at 15 N (238 of 2,048),
+  matching the grasp creep limit mason found. Starting from E1 (28% zero-shot) gave the dense
+  reward that the from-scratch run never saw.
 
 ### 2026-10-21 (athena5) — USB-C: fine-tuning on wider starts grows the capture radius to 7.1 mm
 
