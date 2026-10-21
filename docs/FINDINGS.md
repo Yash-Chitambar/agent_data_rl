@@ -144,6 +144,25 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   never found 105, left fixture 56.
 - Caveat: the gain mixes two effects, wider starts and the move to the lab-table mount (E1 trained
   on the old mount). The server's E1 trains on the table from scratch; compare its r50 with 7.1 mm.
+### 2026-10-21 (21:15 UTC, mason) — Phase D diagonal and 8 mm row: clearance, not size, lowers success
+
+Scaled regime, 2,048 unseen starts, random robot conditions. Diagonal: o60_c1 98.2%, o30_c0.5 96.9%,
+o15_c0.2 97.6% (0.68 s, 19.6 mm travel; never found 20, wedged 27). Fixed regime o60_c1: 99.7%
+(0.46 s, 13 mm). 8 mm row (sphere pads, median start 1.3 mm):
+
+| Clearance | Success (95% CI) | Median time | Never found | Wedged partial |
+|---|---|---|---|---|
+| 1.0 mm | 97.0% (96.1-97.6) | 0.12 s | 55 | 3 |
+| 0.5 mm | 98.6% (98.0-99.1) | 0.26 s | 26 | 2 |
+| 0.2 mm | 95.6% (94.6-96.4) | 0.54 s | 62 | 26 |
+| 0.1 mm | 93.0% (91.8-94.0) | 0.84 s | 64 | 80 |
+
+At fixed size, tighter clearance makes the seat slower and turns failures from search (never
+found) into alignment (wedged partial). This is the trend the USB-C runs (0.02-0.1 mm) continue.
+o8_c0.05 trains (stage 5, 85%). Demo grids D_o60_c1 / D_o8_c1 / D_o8_c0.1 are in the report's
+example figure (8 mm uses a close camera, DEMO_CAM in make_demos.sh). build_demos_data.py now keeps
+items rendered on the other host instead of dropping them.
+
 ### 2026-10-21 (evening, mason) — First Phase D tests: 97-98% at 1.0 mm from 60 mm down to 8 mm
 
 Scaled regime, 2,048 unseen starts with random robot conditions (noise, quantization, backlash, latency):

@@ -1,0 +1,68 @@
+{
+ "title": "Scale study: 8 mm peg, 1.0 mm clearance, random robot errors",
+ "source": "results/demos/data/D_o8_c1.parquet",
+ "n": 1024,
+ "success_rate": 0.9716796875,
+ "failures": {
+  "never_found": 24,
+  "wedged_partial": 3,
+  "jammed_inside": 1,
+  "left_fixture": 1
+ },
+ "shown": [
+  {
+   "world": 1018,
+   "success": true,
+   "failure": "success",
+   "time": 0.03999999910593033
+  },
+  {
+   "world": 860,
+   "success": true,
+   "failure": "success",
+   "time": 0.11999999731779099
+  },
+  {
+   "world": 313,
+   "success": true,
+   "failure": "success",
+   "time": 4.539999961853027
+  },
+  {
+   "world": 135,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 239,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 227,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 651,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 5.0
+  },
+  {
+   "world": 326,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 5.0
+  },
+  {
+   "world": 875,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 4.259999752044678
+  }
+ ]
+}
