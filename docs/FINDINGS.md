@@ -11,7 +11,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
 | B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
 | C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-98% on every such test). `clip1` (action clip 1.0) eval running. |
-| D | Tier 1 (16 runs, 150M cap, randomized noise model) queued on mason (`runs/queue_server/stateD`); starts as E batch 1 frees GPUs. |
+| D | Tier 1 (16 runs, 150M cap, randomized noise model) on mason (`runs/queue_server/stateD`). o60_c1 and o30_c0.5 (scaled) reach 99% training success; o15_c0.2 from scratch never succeeded, so cells tighter than 1 mm now use a clearance curriculum (`--curriculum scale`). Grid: `scripts/phase_d_report.py`. |
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
@@ -105,6 +105,37 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   never found 105, left fixture 56.
 - Caveat: the gain mixes two effects, wider starts and the move to the lab-table mount (E1 trained
   on the old mount). The server's E1 trains on the table from scratch; compare its r50 with 7.1 mm.
+### 2026-10-21 (afternoon, mason) — Two from-scratch runs never found the goal; curricula fix queued
+
+- **D o15_c0.2_scaled (15 mm opening, 0.2 mm clearance, 2.5 mm median start offset):** 0 successes
+  and 0 captures in 150M steps. Capture was 0.2-0.4% in the first 1M steps (as in o30_c0.5, which
+  then learned), then fell to 0; the value loss went to ~1e-8. The reward is sparse (capture +
+  seat), so PPO lost the few lucky episodes and stopped exploring. o60_c1 (99.1% at 50M, 90% at
+  24M steps) and o30_c0.5 (99.0% at 140M, 90% at 37M) learned from scratch.
+  **Fix:** `train.py --curriculum scale` trains on looser clearances first (1.0, 0.5, 0.2, 0.1 mm
+  down to the target; same start offset; advance at 90% training success). All D cells tighter
+  than 1 mm use it from now on, except o30_c0.5_scaled-s0 (already done). The failed run is kept
+  as `runs/D-peg-proprio-o15_c0.2_scaled-s0_nocurriculum`. So the steps-to-90% numbers of
+  curriculum cells are not comparable with from-scratch cells.
+- **E5 latch from scratch (E-usbc-proprio-latch-s0):** 0.0% training success in 300M steps,
+  never past curriculum stage 1 (0.3 mm clearance). The final-stage eval is 0% (never found 1,576,
+  wedged partial 265, slipped 139 of 2,048). Without the latch, stage 1 reaches 90% in 16M steps.
+  The latch spring (5-15 N over the last 1.5 mm) blocks every seat, so the sparse seat reward never
+  appears. **Why (CPU MuJoCo, one plug, 4x4 sphere pads):** with action_scale 0.01 rad and clip 3,
+  the YAM can press only **7.2 N** along the port axis (stalled torque kp x 0.03 rad through J^T;
+  7.27 N computed, 7.2 N measured against the port floor). Every failed latch push stopped where
+  peak x e/travel = 7.24 N. The plug must pass 1.3 of the 1.5 mm, so only peaks <= 8.35 N can be
+  beaten: 33% of U[5, 15], matching the 28% zero-shot. The grasp is a second limit: under a slowly
+  rising axial force the plug creeps 1 mm at 6.4-7.8 N and tilts > 2 deg at ~8 N, almost
+  independent of grip force (8.5 -> 17 N per pad moves it < 0.5 N; MuJoCo soft friction:
+  impratio 10 raises the 1 mm point to 11.6 N, noslip_iterations 10 to 12.9 N). Raising
+  grip_force_base does not help. **Fix queued:** `E-usbc-proprio-latchlowft-s0` fine-tunes the
+  finished no-latch policy (`--init runs/E-usbc-proprio-curr-s0/last.pt`) with a 2-7 N latch
+  (`configs/phase_e_usbc_latch_low.json`). A 5-15 N latch needs action_scale ~0.02 (14.5 N push)
+  plus a stiffer grasp; open question for the real YAM: measure its maximum axial push and a real
+  USB-C port's insertion force. Scripts: scratchpad only (latch_forces.py, creep.py, fix.py).
+- **USB-C from scratch on the table mount at the 300M cap:** training success curr 76% (stage 5),
+  chamfer 91% (stage 5), side port 75% (stage 3). Evals follow.
 
 ### 2026-10-21 (athena5) — Phase B with three seeds
 

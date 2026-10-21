@@ -57,6 +57,15 @@ class PPOCfg:
 # USB-C curriculum (plan §11.3): (clearance per side, median start offset)
 USBC_STAGES = [(3.0e-4, 5e-4), (1.5e-4, 1.0e-3), (8e-5, 1.5e-3), (5e-5, 2.0e-3), ((2e-5, 1e-4), 3.0e-3)]
 MEDIAN_RADIAL_PER_HALFWIDTH = 0.765   # median |(x,y)| for x,y ~ U(-a, a) is ~0.765 a
+# Phase D clearance curriculum (--curriculum scale): looser cells first, down to the target clearance
+SCALE_CLEARANCES = (1e-3, 5e-4, 2e-4, 1e-4, 5e-5)
+
+
+def scale_stages(family: str, peg_offset: float):
+    """Stages (clearance, median offset) for family scale:<o>:<c>; the start offset stays at the target's."""
+    c = float(family.split(":")[2])
+    med = peg_offset * MEDIAN_RADIAL_PER_HALFWIDTH
+    return [(x, med) for x in SCALE_CLEARANCES if x > c * 1.01] + [(c, med)]
 
 
 def make_variants(args):
@@ -72,6 +81,11 @@ def make_variants(args):
         return B.sample_study_pegs(args.n_variants, args.variant_seed)
     if args.family.startswith("scale:"):     # scale:<opening m>:<clearance m>
         _, o, c = args.family.split(":")
+        if getattr(args, "curriculum", "none") == "scale":
+            st = scale_stages(args.family, 0.0)
+            per = args.n_variants // len(st)
+            return [v for i, (ci, _) in enumerate(st)
+                    for v in B.sample_scale_cell(per, args.variant_seed + i, float(o), ci)]
         return B.sample_scale_cell(args.n_variants, args.variant_seed, float(o), float(c))
     if args.family.startswith("ood:"):
         return B.sample_ood_pegs(args.n_variants, args.variant_seed, args.family[4:])
@@ -151,7 +165,8 @@ def train(args):
         (run / "DONE").unlink()
     env = make_env(args)
     dev = env.device
-    cur = Curriculum(env, USBC_STAGES) if args.curriculum == "usbc" else None
+    cur = (Curriculum(env, USBC_STAGES) if args.curriculum == "usbc" else
+           Curriculum(env, scale_stages(args.family, env.cfg.peg_offset)) if args.curriculum == "scale" else None)
     pc = PPOCfg()
     pc.contact_coef = args.contact_coef
     task = getattr(args, "task", "peg")
