@@ -84,6 +84,26 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C: backlash breaks the grasp and the search; the policy leans on soft friction
+
+- **Matched 20 ms policy under backlash** (`scripts/usbc_latency_eval.sh`, 2,048 each): latency
+  1 step + 0 / 1 / 3 arcmin: 78.3 / 2.6 / 2.1%; latency 2 + 1 / 3: 1.6 / 1.1%. Mostly slips
+  (1,160 of 2,048 at 1 arcmin).
+- **Deployment recipe failed in 100M** (`E-usbc-proprio-deployft-s0`: latency fixed 1, backlash
+  0-5, q noise, 0/16/14 bit randomized; from the matched policy): training success flat at ~13%
+  from 20M on, action std rising 0.55 -> 1.46 (no learning signal: most episodes end in slips).
+  Eval at latency 1: backlash 0 / 1 / 3: 10.7 / 17.1 / 17.1%.
+- **Diagnostic: stiffer friction removes the slips but not the failure** (matched policy, 1,024
+  each; `mj_opt` cone elliptic + impratio 10, which mason found raises the grasp creep point from
+  ~7 N to 11.6 N): latency 1 + 1 arcmin: 2.6% (558 slips) -> 0.4% (0 slips, 783 never found).
+  Without backlash, the stiff friction alone drops the policy from 78.3% to 20.9%.
+- Reading: (1) under backlash the default soft friction lets the drive creep out of the grasp,
+  which is a sim artifact (a real 8-17 N rubber-pad grip should hold ~2 mu F >> 7 N); (2) with
+  that removed, backlash still breaks the search (never found), as on the YAM peg; (3) the USB-C
+  policies depend on MuJoCo's soft friction: a sim-to-real risk. Next (queued): fine-tune the
+  wide-start policy under stiff friction (`E-usbc-proprio-stiffft-s0`), then test backlash and the
+  latch under it (`scripts/usbc_friction_eval.sh`).
+
 ### 2026-10-21 (athena5) — USB-C trained at a matched 20 ms latency recovers to 79%
 
 - `E-usbc-proprio-lat1ft-s0`: 100M steps from the wide-start fine-tune (91.4% clean) with a fixed
