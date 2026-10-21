@@ -158,6 +158,7 @@ o15_c0.2 97.6% (0.68 s, 19.6 mm travel; never found 20, wedged 27). Fixed regime
 | 0.1 mm | 93.0% (91.8-94.0) | 0.84 s | 64 | 80 |
 | 0.05 mm | 89.7% (88.3-90.9) | 1.28 s | 88 | 115 |
 
+o8_c0.05 with 10 s episodes (`results/D/extra_o8_c0.05_ep10_s0.parquet`): 92.6% against 89.7% at 5 s; wedged 115 -> 64, 43 seats after 5 s. About half of the wedged pegs are slow, not stuck.
 At fixed size, tighter clearance makes the seat slower and turns failures from search (never
 found) into alignment (wedged partial). This is the trend the USB-C runs (0.02-0.1 mm) continue.
 o8_c0.05 (USB-C clearance) reached its final stage by the step cap and 92% training success. Fixed regime o30_c0.5: 98.4% (0.52 s, 20.9 mm). The 12 tier-2 scaled cells are queued in E_later_train.txt after the latch/side fine-tunes and the random-error USB-C run, before the E ablations. Demo grids D_o60_c1 / D_o8_c1 / D_o8_c0.1 are in the report's
