@@ -97,6 +97,12 @@ Contrast with the USB-C random-error *fine-tune* (athena5, entry below): 31% cle
 noise-free policy. Training with the randomization from scratch is the better path; E-noise tests it.
 D runs are capped at 150M steps (most C runs stopped at 50-57M).
 
+`C-peg-proprio-clip1-s0` (action_clip 1.0, else base; tests "is smoothness the mechanism?"): own
+98.9%, noise/quant 98.4-98.8%, backlash 1/3/5' 40.6/35.4/31.5%, latency 1/2 42.1/47.8%, gains
+0.5x/2x/4x 65.4/71.5/46.1%. Small actions alone help latency (16 -> 42%) but not backlash (worse
+than base). So the low-gain behaviour of perturbation-trained policies is not sufficient: the policy
+must see the perturbation in training.
+
 Example clips (`scripts/yam_example_rollouts.sh`, `scripts/yam_example_videos.py`): matched starts,
 64 logged worlds. Base fails / own-trained succeeds on 50/64 (latency 20 ms), 38/64 (backlash 3'),
 54/64 (gain x4) starts. The backlash replay needs the CPU model built with the same

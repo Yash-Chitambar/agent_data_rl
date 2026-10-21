@@ -23,7 +23,7 @@ from blind_insertion.analysis import stats as S  # noqa: E402
 
 OUT = ROOT / "results" / "C"
 TRAIN = ["base", "qnoise1e-4", "qnoise5e-4", "quant16", "quant14", "backlash1", "backlash3", "backlash5",
-         "latency1", "latency2", "allmid", "allmax", "randall", "gain0.5x", "gain2x", "gain4x"]
+         "latency1", "latency2", "allmid", "allmax", "randall", "clip1", "gain0.5x", "gain2x", "gain4x"]
 # report figure: test condition -> (label, policy trained with that condition)
 ROBUST = [("base", "None", "base"), ("qnoise5e-4", "Joint noise 5·10⁻⁴ rad", "qnoise5e-4"),
           ("quant14", "14-bit encoder", "quant14"), ("backlash1", "Backlash 1′", "backlash1"),

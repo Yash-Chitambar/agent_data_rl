@@ -197,6 +197,21 @@
    "gain2": 0.9111,
    "gain4": 0.521
   },
+  "clip1": {
+   "base": 0.9888,
+   "qnoise1e-4": 0.9844,
+   "qnoise5e-4": 0.9878,
+   "quant16": 0.9883,
+   "quant14": 0.9854,
+   "backlash1": 0.4062,
+   "backlash3": 0.3545,
+   "backlash5": 0.3149,
+   "latency1": 0.4209,
+   "latency2": 0.4775,
+   "gain0.5": 0.6543,
+   "gain2": 0.7148,
+   "gain4": 0.4614
+  },
   "gain0.5x": {
    "base": 0.5562,
    "qnoise1e-4": 0.5581,
