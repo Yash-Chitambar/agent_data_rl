@@ -1,0 +1,58 @@
+{
+ "groups": [
+  {
+   "name": "Peg, Flexiv",
+   "items": [
+    {
+     "id": "B_blind_indist",
+     "label": "Blind",
+     "title": "Blind policy, unseen pegs of the training family",
+     "text": "The policy slides the peg on the plate until it feels the hole, then it drops the peg in. The rare failures do not find the hole in 5 s or push the peg off the plate.",
+     "video": "videos/demos/B_blind_indist.mp4",
+     "poster": "images/demos/B_blind_indist.png",
+     "n": 2048,
+     "rate": 0.9970703125,
+     "failures": {
+      "never_found": 4,
+      "left_fixture": 2
+     }
+    },
+    {
+     "id": "B_blind_extreme_size",
+     "label": "Blind, extreme size",
+     "title": "Blind policy, extreme part sizes (held out)",
+     "text": "Very small and very large parts. Most failures leave the plate or do not find the hole.",
+     "video": "videos/demos/B_blind_extreme_size.mp4",
+     "poster": "images/demos/B_blind_extreme_size.png",
+     "n": 1024,
+     "rate": 0.8583984375,
+     "failures": {
+      "left_fixture": 77,
+      "never_found": 43,
+      "wedged_partial": 11,
+      "captured_then_lost": 8,
+      "jammed_inside": 5,
+      "slipped": 1
+     }
+    },
+    {
+     "id": "B_blind_random_convex",
+     "label": "Blind, random convex",
+     "title": "Blind policy, random convex shapes (held out)",
+     "text": "These shapes have corners that the training pegs do not have. The peg often slips in the grasp or stops partly inside the hole.",
+     "video": "videos/demos/B_blind_random_convex.mp4",
+     "poster": "images/demos/B_blind_random_convex.png",
+     "n": 1024,
+     "rate": 0.2373046875,
+     "failures": {
+      "slipped": 449,
+      "wedged_partial": 173,
+      "never_found": 157,
+      "left_fixture": 1,
+      "jammed_inside": 1
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,54 @@
+{
+ "title": "Phase B: blind policy (Flexiv), study pegs, unseen geometries",
+ "source": "results/demos/data/B_blind_indist.parquet",
+ "n": 2048,
+ "success_rate": 0.9970703125,
+ "failures": {
+  "never_found": 4,
+  "left_fixture": 2
+ },
+ "shown": [
+  {
+   "world": 303,
+   "success": true,
+   "failure": "success",
+   "time": 0.23999999463558197
+  },
+  {
+   "world": 357,
+   "success": true,
+   "failure": "success",
+   "time": 0.6399999856948853
+  },
+  {
+   "world": 1722,
+   "success": true,
+   "failure": "success",
+   "time": 2.299999952316284
+  },
+  {
+   "world": 564,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 921,
+   "success": false,
+   "failure": "never_found",
+   "time": 5.0
+  },
+  {
+   "world": 116,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 4.960000038146973
+  },
+  {
+   "world": 1933,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 4.519999980926514
+  }
+ ]
+}

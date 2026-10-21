@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Reproduction report · 21 October 2026, 08:00 UTC · Phases A, B, C, E and G · Phase C complete</div>
+    <div class="badge">Reproduction report · 21 October 2026, 08:30 UTC · Phases A, B, C, E and G · Phase F code ready</div>
     <h1>Blind Precise Assembly:<br><span class="sub">Results of the Simulation Reproduction</span></h1>
     <p class="authors">Prepared by Yash Chitambar</p>
     <p class="affil">Reproduction of Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -34,6 +34,7 @@
     <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The blind peg policy also learns on a second robot, the 6-joint YAM arm, with 99.9% training success. The first USB-C run found a grasp problem in the simulation, which we corrected. After the correction, the USB-C policy completes its curriculum and seats 91.5% of the drives at 0.02 to 0.1 mm clearance. We also built the paper's gear-meshing task. The blind gear policy seats 99.94% of 8,192 unseen gear sets and 99.7 to 100% in six unseen gear families, as the paper reports.</p>
     <p>The remaining training now runs on a server with five V100 GPUs. A control run on the server gives the same learning curve as the two local seeds. Thus, the results do not depend on the machine. On the server, the YAM arm now stands on a table, as in the lab. To get first results quickly, Phases C, D and E train one seed for each condition.</p>
     <p>Phase C is complete. We trained the YAM policy with 15 robot conditions and tested each policy under 13 conditions. Sensor noise and encoder quantization do not decrease the success rate. Backlash, latency and gain errors decrease it to 16 to 80%, if the policy did not train with them. Latency must match within one control step of 20 ms. Thus, the next step is to measure the latency and the backlash of the real YAM.</p>
+    <p>This version adds videos of successes and failures for each test. It also adds new USB-C results. The joints feel the USB-C contact. But with 20 ms of latency or 1 arcmin of backlash, the USB-C policy seats only 5 to 9% of the drives. A fine-tune with random robot errors is in progress. A chamfer on the port helps. A latch and a side port need their own training. The camera code for Phase F is ready, but the wrist camera does not see the port at the start.</p>
 
     <div class="tbl">
       <table>
@@ -43,12 +44,24 @@
           <tr><td>B</td><td>Reproduction of the paper's peg results on the Flexiv Rizon 4S arm.</td><td><span class="chip ok">Server seeds done</span> <span class="chip run">2 seeds in local queue</span></td></tr>
           <tr><td>C</td><td>Port to the YAM arm, with sensor noise, backlash and latency.</td><td><span class="chip ok">15 conditions trained and tested</span> <span class="chip run">Randomized noise run</span></td></tr>
           <tr><td>D</td><td>Scale study: part size against clearance.</td><td><span class="chip todo">Starts after the randomized noise run</span></td></tr>
-          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip ok">Seed 0 trained: 91.5% at 0.02–0.1 mm</span> <span class="chip todo">Server runs start after the randomized noise run</span></td></tr>
+          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip ok">Seed 0 trained: 91.5% at 0.02–0.1 mm</span> <span class="chip ok">Robot errors and variants tested</span> <span class="chip run">Fine-tunes running</span> <span class="chip todo">Server runs start after the randomized noise run</span></td></tr>
           <tr><td>G</td><td>Gear meshing (paper task 2), not in the original plan.</td><td><span class="chip ok">Seed 0 trained and tested</span></td></tr>
-          <tr><td>F</td><td>Add RGB and depth cameras to the blind policy.</td><td><span class="chip todo">Code ready. Starts after E</span></td></tr>
+          <tr><td>F</td><td>Add RGB and depth cameras to the blind policy.</td><td><span class="chip ok">Code ready</span> <span class="chip todo">Starts after E</span></td></tr>
         </tbody>
       </table>
     </div>
+  </section>
+
+  <!-- ============================================================ examples -->
+  <section id="examples">
+    <h2>Examples of success and failure</h2>
+    <p class="claim">Each video shows several test episodes at the same time. A green label is a success. A red label gives the type of failure.</p>
+    <p>The evaluation records every episode of a test. Then it keeps the fastest, the median and the slowest success, and up to three episodes of each failure type. The videos play at real time. Select a task, then select a test.</p>
+    <figure class="viz" data-fig="demos">
+      <div class="viz-tag">Interactive · select a test</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>Success and failure examples from the test sets.</b> The label on each panel gives the result, the time and the start distance from the hole. The text below the video gives the success rate of the full test and the number of each failure type. "Held out" means that training did not use these parts. Each video comes from a new run of the test. The simulator is not bitwise deterministic, so the numbers can be slightly different from the tables (for example, 99.7% here and 99.9% in Finding 1).</figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ headline -->
@@ -280,6 +293,60 @@
     <p>Phase E uses USB-C flash drives on the YAM. The final clearance is 0.02 to 0.1 mm. The curriculum has five stages, and the first stage has a clearance of 0.3 mm. The run stayed at stage 1 because it needs 90% to go to stage 2. We stopped it early and examined the failures.</p>
     <p>87% of the failures are slips: the drive falls out of the gripper, a median of 0.18 s after the start. With zero action, 12.5% of the drives also slip. The cause is missing contact points. When the drive is turned in the hand, its face overlaps the pad face only partly. Then the contact calculation gives an edge or no contact. With a grid of 4 × 4 small spheres on each pad, no drive slips, and the same policy seats 98.3% on stage 1.</p>
     <p>A new run with sphere pads completed all five stages. It reached the final stage after 200 million steps. With 2,048 matched starts for each stage, it seats 99.0%, 98.9% and 98.1% on stages 2 to 4. The plan's gate (80% at 0.05 mm and 2 mm offset) is passed. On the final stage, it seats 91.5%. Most failures come from start offsets of more than 4 mm. The success changes smoothly with the clearance: 93.9% at 0.02 mm and 98.5% at 0.1 mm.</p>
+    <h3>The joints feel the USB-C contact</h3>
+    <p class="claim">On the YAM, a push of 0.04 to 0.13 N on the drive is visible in the joints. The drop into the port is visible at a joint noise of 10⁻⁴ rad.</p>
+    <p>We repeated checks A-S5 and A-S6 with the USB-C drive (plan §11.5). A lateral push of 0.036 N or a vertical push of 0.13 N gives a joint deflection three times larger than the joint noise (σ = 10⁻⁴ rad). For the YAM peg, these values are 1.1 N and 0.8 N. The light grip and the soft gains make the arm move more for each newton.</p>
+    <p>For A-S6, a script slides the drive over the port and pushes with 2 N. At 0.3 mm clearance, the drive drops in, and the joint velocities show a peak. The peak-to-noise ratio is 5.0 at σ = 10⁻⁴ rad and 1.0 at 5·10⁻⁴ rad. Thus, the drop is visible at the lower noise, but not at the higher noise. At 0.05 mm clearance, the script cannot align the drive. The trained policy can align it.</p>
+    <div class="gallery wide-block">
+      <figure>
+        <img src="static/images/A-S5_contact_signal_usbc.png" alt="Joint deflection against contact force for vertical and lateral pushes with the USB-C drive" loading="lazy">
+        <figcaption><b>A-S5 with the USB-C drive.</b> Joint deflection against contact force. The dotted line is three times the joint noise at σ = 10⁻⁴ rad.</figcaption>
+      </figure>
+      <figure>
+        <img src="static/images/A-S6_dropin_usbc.png" alt="Joint data during a scripted slide of the USB-C drive into the port" loading="lazy">
+        <figcaption><b>A-S6 with the USB-C drive, 0.3 mm clearance.</b> The drive drops into the port at 3.7 s. Joints 2 and 4 show a velocity peak at that time.</figcaption>
+      </figure>
+    </div>
+
+    <h3>Robot errors break the USB-C policy</h3>
+    <p class="claim">With 20 ms of latency or 1 arcmin of backlash, the USB-C policy seats only 5 to 9% of the drives.</p>
+    <p>Phase C showed that latency and backlash break the YAM peg policy. The USB-C fit is 20 to 100 times tighter, so the effect is larger. We tested the USB-C policy with the same errors. It did not train with them. The tests use the lab table, the final clearance (0.02 to 0.1 mm), a median start offset of 3 mm and 2,048 matched starts.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Test condition</th><th class="n">Trained without errors</th><th class="n">Fine-tuned with random errors</th></tr></thead>
+        <tbody>
+          <tr><td>No error</td><td class="n">78.0%</td><td class="n" data-ft="base">running</td></tr>
+          <tr><td>Latency 1 step (20 ms)</td><td class="n">5.2%</td><td class="n" data-ft="lat1">running</td></tr>
+          <tr><td>Latency 2 steps (40 ms)</td><td class="n">5.0%</td><td class="n" data-ft="lat2">running</td></tr>
+          <tr><td>Backlash 1 arcmin</td><td class="n">8.6%</td><td class="n" data-ft="bl1">running</td></tr>
+          <tr><td>Backlash 3 arcmin</td><td class="n">7.2%</td><td class="n" data-ft="bl3">running</td></tr>
+          <tr><td>Joint noise 5·10⁻⁴ rad</td><td class="n" data-ft0="qn5e-4">77.3%</td><td class="n" data-ft="qn5e-4">running</td></tr>
+          <tr><td>14-bit encoders</td><td class="n" data-ft0="quant14">78.4%</td><td class="n" data-ft="quant14">running</td></tr>
+        </tbody>
+        <caption>Success rate, deterministic actions. Without errors, the policy seats 78.0% on the lab table and 91.5% on the old mount, where it trained. The fine-tune starts from this policy and trains 100 million more steps on the lab table. In each world, it draws a new latency (0 to 2 steps), backlash (0 to 5 arcmin), encoder resolution and joint noise at each reset.</caption>
+      </table>
+    </div>
+    <p>Joint noise and 14-bit encoders have no effect, as in Phase C. Latency and backlash are the problem. With them, most failures do not find the port. The search becomes unstable, and the drive slips in the grasp or leaves the housing. The examples above show these failures (USB-C, "1-step latency").</p>
+
+    <h3>Port variants: chamfer, latch and side port</h3>
+    <p class="claim">A chamfer on the port helps the policy. A latch and a side port need their own training.</p>
+    <p>We built the three variants of the plan (E4 to E6). A chamfer is a 0.2 to 0.5 mm lead-in at 45° on the port edge. A latch is a spring along the port axis. It pushes back with up to 5 to 15 N over the last 1.5 mm. The side port faces the robot, and its housing stands 10 to 15 cm above the table. The YAM can reach all start states there. We tested the USB-C policy on each variant. It did not train with them.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Port</th><th class="n">Success, no training on the variant</th><th>Main failures</th><th class="n">After fine-tune</th></tr></thead>
+        <tbody>
+          <tr><td>Normal port (reference)</td><td class="n">77.9%</td><td>Port not found (363 of 2,048)</td><td class="n">—</td></tr>
+          <tr><td>Chamfer 0.2 to 0.5 mm</td><td class="n">83.6%</td><td>Port not found (263)</td><td class="n">—</td></tr>
+          <tr><td>Latch 5 to 15 N</td><td class="n">28.0%</td><td>Slips (466), partly inside (430)</td><td class="n" data-ft="latch">running</td></tr>
+          <tr><td>Port facing the robot</td><td class="n">0.0%</td><td>Left the housing (2,045)</td><td class="n">server</td></tr>
+        </tbody>
+        <caption>Lab table, final clearance, median start offset 3 mm, 2,048 matched starts. The latch fine-tune trains 100 million steps from the USB-C policy. The side port trains from the start on the server.</caption>
+      </table>
+    </div>
+    <figure class="img wide">
+      <img src="static/images/E_variants_views.png" alt="Three renders: a port with a chamfered edge, a drive above a port on the table, and a drive in front of a vertical housing" loading="lazy">
+      <figcaption><b>The USB-C variants.</b> Left: a port with a 0.4 mm chamfer. The tongue is in the port. Centre: a start state with the port up. Right: a start state with the port facing the robot.</figcaption>
+    </figure>
     <p><a href="https://claude.ai/artifact/CjxtoUaw6MhSsYZLwnPVEh">Read the full USB-C report: the grasp failure, the correction and the new results.</a></p>
     <figure class="img">
       <img src="static/images/usbc_yam_check.png" alt="YAM fingers holding USB-C flash drives over port housings" loading="lazy">
@@ -335,6 +402,19 @@
         <figcaption><b>Drop test.</b> A gear that is aligned with its shaft seats only when its teeth are almost in phase with the anchors. Thus, the policy must turn the gear into mesh.</figcaption>
       </figure>
     </div>
+  </section>
+
+  <!-- ============================================================ cameras -->
+  <section id="cameras">
+    <h2>The camera policies are ready to train</h2>
+    <p class="claim">The code for Phase F is complete. The wrist camera of the YAM does not see the port at the start, because the drive is in front of it.</p>
+    <p>Phase F adds the wrist camera to the USB-C task. The YAM model has the camera of the real robot: an Intel RealSense D405 on the wrist. Five policies use RGB, depth, or both, with or without the joint data. A depth model adds the limits of a real stereo camera. Pixels closer than 7 cm have no value. The noise increases with the square of the distance. Some pixels drop out at random and at edges. Each reset also changes the camera mount (±2 mm, ±2°), the lights and the part colors.</p>
+    <p>The images show a problem. The camera is behind the drive and looks along it. Thus, the drive body hides the port. The camera sees the housing behind the drive, at approximately 9 cm. The gripper is closer than 7 cm, so the depth camera does not see it. The port opening is only a few pixels wide at 64 × 64. A camera policy can use the housing edge and the motion of the drive. It cannot see the port, unless we move the camera.</p>
+    <figure class="img wide">
+      <img src="static/images/F_camera_views.png" alt="Six wrist camera images in RGB and depth: the drive in front of the port housing, the gripper at the bottom" loading="lazy">
+      <figcaption><b>What the wrist camera sees at six start states, 64 × 64 pixels.</b> Top: RGB with random lights and colors. Bottom: depth after the camera model, in cm. Black pixels have no depth value. The drive is in the centre, and the housing is behind it.</figcaption>
+    </figure>
+    <p>A test run with 1,024 worlds uses 10.3 GB of GPU memory. The server can thus run 2,048 worlds on one V100. The five runs need approximately 70 GPU hours. They start after Phase E, with approval.</p>
   </section>
 
   <!-- ============================================================ server -->
@@ -420,8 +500,9 @@
       <li><b>Real YAM.</b> Measure the latency, the backlash, the gains and the encoder noise of the real arm. The procedure takes 1 to 2 hours. A script fits the sim to the step data.</li>
       <li><b>Noise model for D and E.</b> The randomized run tells if one policy can cover all conditions. If it can, D and E use randomized latency, backlash and noise. The real measurements then set the ranges.</li>
       <li><b>Phases D and E.</b> Start on the server after the randomized run. E trains USB-C on the lab table with sphere pads, and the chamfer, latch and side-port variants.</li>
-      <li><b>Phase B.</b> The local machine trains blind seed 2 and a second run without the contact loss.</li>
-      <li><b>Phase F.</b> The camera code is ready. It starts after E, with approval (approximately 70 GPU hours).</li>
+      <li><b>Phase B.</b> Blind seed 2 is complete, and its tests are running. The second run without the contact loss continues after the USB-C runs.</li>
+      <li><b>USB-C on the local machine.</b> Three fine-tunes from the USB-C policy: random robot errors, wider starts (up to 6.5 mm in x and y) and the latch. The results go into the USB-C section.</li>
+      <li><b>Phase F.</b> The camera code is ready. It starts after E, with approval (approximately 70 GPU hours). First, decide if the camera must move so that it can see the port.</li>
     </ul>
     <div class="tbl">
       <table>

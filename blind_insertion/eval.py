@@ -118,8 +118,11 @@ class Spiral:
 
 
 def evaluate(env: PegEnv, policy, *, seed=12345, episodes=None, log_worlds=(), log_latent=False,
-             spiral=None, max_steps=None):
-    """Run each world's first episode from matched starts; return a DataFrame."""
+             spiral=None, max_steps=None, demo_k=0, demo_seed=0):
+    """Run each world's first episode from matched starts; return a DataFrame.
+    demo_k > 0: record every world on the GPU and return, in the logs, the rollouts of demo_k
+    successes (fastest, median, slowest, then random) and up to demo_k episodes of each failure
+    type (random), cut at their episode end (for viz/demos.py)."""
     dev = env.device
     N = env.N
     gen = torch.Generator(device=dev)
@@ -144,6 +147,7 @@ def evaluate(env: PegEnv, policy, *, seed=12345, episodes=None, log_worlds=(), l
         eh = EmbHistory(N, env.cfg.history, policy.emb, dev)
         with torch.no_grad():
             eh.push(policy.cnn(env.frame), torch.ones(N, dtype=torch.bool, device=dev))
+    rec = {k: [] for k in ("qpos", "mocap_pos", "mocap_quat", "action", "peg_p", "peg_R", "labels")} if demo_k else None
     for t in range(T + 1):
         with torch.no_grad():
             if visual:
@@ -166,6 +170,9 @@ def evaluate(env: PegEnv, policy, *, seed=12345, episodes=None, log_worlds=(), l
                 L["hist_obs"].append(hist[w, -1].cpu().numpy())
                 if z is not None and log_latent:
                     L["z"].append(z[w].cpu().numpy())
+        if rec is not None:
+            p_, R_, _, _ = env.peg_in_fixture()
+            record_step(env, a, rec, env.labels(env.edge_points_fixture(p_, R_))[0])
         hist, _, _, done, info = env.step(a)
         if visual:
             with torch.no_grad():
@@ -200,7 +207,39 @@ def evaluate(env: PegEnv, policy, *, seed=12345, episodes=None, log_worlds=(), l
     if episodes is not None:
         df = df.iloc[:episodes]
     logs = {w: {k: np.asarray(v) for k, v in L.items() if len(v)} for w, L in log.items()}
+    if rec is not None:
+        logs.update(select_demos(df, rec, env.control_dt, demo_k, demo_seed))
     return df, logs
+
+
+def record_step(env, a, rec, labels):
+    """Append every world's state before a step to rec (GPU tensors), for select_demos."""
+    p_, R_, _, _ = env.peg_in_fixture()
+    rec["qpos"].append(env.t_qpos.clone())
+    rec["mocap_pos"].append(env.t_mocap_pos[:, 0].clone())
+    rec["mocap_quat"].append(env.t_mocap_quat[:, 0].clone())
+    rec["action"].append(a.clone())
+    rec["peg_p"].append(p_)
+    rec["peg_R"].append(R_)
+    rec["labels"].append(labels.to(torch.int8))
+
+
+def select_demos(df, rec, control_dt, k, seed=0):
+    """Rollouts (cut at the episode end) of k successes (fastest, median, slowest, then random)
+    and up to k random episodes of each failure type."""
+    rng = np.random.default_rng(seed)
+    pick = []
+    ok = df[df.success > 0].sort_values("time")
+    if len(ok):
+        idx = [0, len(ok) // 2, len(ok) - 1] + list(rng.permutation(len(ok)))
+        pick += list(dict.fromkeys(int(ok.world.values[i]) for i in idx))[:k]
+    for _f, g in df[df.success == 0].groupby("failure"):
+        pick += [int(w) for w in rng.choice(g.world.values, min(k, len(g)), replace=False)]
+    out = {}
+    for w in pick:
+        n = int(round(df.time[w] / control_dt)) or len(rec["qpos"])
+        out[w] = {key: torch.stack([x[w] for x in v[:n]]).cpu().numpy() for key, v in rec.items()}
+    return out
 
 
 def add_env_args(ap, n_variants=1024, variant_seed=1000, seed=12345):
@@ -250,6 +289,7 @@ def main():
     ap.add_argument("--episodes", type=int, default=2048)
     ap.add_argument("--out", required=True)
     ap.add_argument("--log_worlds", default="")
+    ap.add_argument("--demo_k", type=int, default=0, help="save rollouts of k successes + k of each failure type")
     ap.add_argument("--task", default="peg", choices=["peg", "gear"])
     add_env_args(ap)
     args = ap.parse_args()
@@ -274,12 +314,13 @@ def main():
     else:
         pol = load_policy(args.policy, env, env.device)
     lw = [int(x) for x in args.log_worlds.split(",") if x]
-    df, logs = evaluate(env, pol, seed=args.seed, log_worlds=lw, log_latent=True, spiral=spiral)
+    df, logs = evaluate(env, pol, seed=args.seed, log_worlds=lw, log_latent=True, spiral=spiral, demo_k=args.demo_k)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out)
     if logs:
-        np.savez_compressed(out.with_suffix(".rollouts.npz"),
+        meta = json.dumps({k: v for k, v in vars(args).items()})   # viz/demos.py rebuilds the env from it
+        np.savez_compressed(out.with_suffix(".rollouts.npz"), meta=np.array(meta),
                             **{f"w{w}_{k}": v for w, L in logs.items() for k, v in L.items()})
     s = df.success.mean()
     print(f"{args.policy}: success {s:.3f} (n={len(df)}), median time {df[df.success>0].time.median():.2f}s, "
