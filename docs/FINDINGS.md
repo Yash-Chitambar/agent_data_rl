@@ -84,6 +84,17 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C trained at a matched 20 ms latency recovers to 79%
+
+- `E-usbc-proprio-lat1ft-s0`: 100M steps from the wide-start fine-tune (91.4% clean) with a fixed
+  latency of 1 control step, lab table, final stage (3 mm median). Training success 75%, rising.
+- Test at latency 0 / 1 / 2 steps (2,048 each): **11.1 / 78.9 / 38.8%**. The wide-start policy
+  (no latency in training) at 1 / 2 steps: 0.7 / 0.6% (never found, slipped, left fixture).
+- Same pattern as the YAM peg (Phase C): a matched latency recovers most of the clean success, but
+  the policy then fails without the latency. Combined with the random-error fine-tune (22% at
+  20 ms, 31% clean), the practical route for USB-C is to measure the real latency and train at it,
+  not to cover 0-40 ms. `results/E/robust/lat1ft_s0_lat*.parquet`, `wide_s0_lat*.parquet`.
+
 ### 2026-10-21 (athena5) — USB-C E5 latch: a 100M fine-tune pushes through it (28 -> 90%)
 
 - `E-usbc-proprio-latchft-s0`: 100M steps from E1 on `phase_e_usbc_latch.json` (lab table, final

@@ -294,6 +294,18 @@
       </table>
     </div>
     <p>As in Phase C, noise and encoder resolution have no effect, and latency and backlash do. The fine-tune is 4 to 6 times better under errors, but it loses 47 points without errors. On the peg, a policy trained with random errors from the start lost only 3.6 points (RQ2). Thus, the server now trains USB-C from the start: the plain policy, the chamfered port, the latch and the side port, and then a run with the random errors.</p>
+    <p><b>A matched latency recovers USB-C.</b> We fine-tuned the wide-start policy (91.4% without latency) for 100 million steps with a fixed latency of 20 ms. At 20 ms, it seats 78.9%. Before the fine-tune, it seated only 0.7% at 20 ms. But the fine-tuned policy seats only 11.1% without latency and 38.8% at 40 ms. This is the same pattern as the YAM peg: the policy works at its training latency only. Thus, for USB-C, the real latency of the YAM must be known. Then the policy can train at that latency.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Test latency</th><th class="n">Wide-start policy, no latency in training</th><th class="n">Fine-tuned at 20 ms</th></tr></thead>
+        <tbody>
+          <tr><td>0 ms</td><td class="n">91.4%</td><td class="n">11.1%</td></tr>
+          <tr><td>20 ms</td><td class="n">0.7%</td><td class="n">78.9%</td></tr>
+          <tr><td>40 ms</td><td class="n">0.6%</td><td class="n">38.8%</td></tr>
+        </tbody>
+        <caption>Lab table, final clearance (0.02 to 0.1 mm), 3 mm median start offset, 2,048 matched starts. The fine-tune's training success was 75% and still increasing.</caption>
+      </table>
+    </div>
   </section>
 
   <!-- ============================================================ RQ5 -->
