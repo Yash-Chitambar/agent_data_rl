@@ -40,12 +40,15 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     rows = []
     for run in sorted((ROOT / "runs").glob("D-peg-proprio-o*_c*_*-s*")):
-        m = re.match(r"D-peg-proprio-o(\d+)_c([\d.]+)_(\w+)-s(\d+)$", run.name)
+        m = re.match(r"D-peg-proprio-o(\d+)_c([\d.]+)_(scaled|fixed)(_sph)?-s(\d+)$", run.name)
         if not m or not (run / "train_log.csv").exists():
             continue
-        o, c, reg, seed = int(m[1]), m[2], m[3], int(m[4])
-        r = dict(opening_mm=o, clearance_mm=c, regime=reg, seed=seed, **train_info(run))
-        ev = OUT / f"eval_o{o}_c{c}_{reg}_s{seed}.parquet"
+        o, c, reg, sph, seed = int(m[1]), m[2], m[3], m[4] or "", int(m[5])
+        if o <= 15 and not sph:      # box-pad small cells: grasp slips (superseded by *_sph)
+            continue
+        r = dict(opening_mm=o, clearance_mm=c, regime=reg, pads="sphere" if sph else "box", seed=seed,
+                 **train_info(run))
+        ev = OUT / f"eval_o{o}_c{c}_{reg}{sph}_s{seed}.parquet"
         if ev.exists():
             d = pd.read_parquet(ev)
             k, n = int(d.success.sum()), len(d)

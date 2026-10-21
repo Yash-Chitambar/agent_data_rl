@@ -117,10 +117,12 @@ def make_env(args, **over) -> PegEnv:
 
 
 class Curriculum:
-    """Advance a stage when rolling training success >= thr over `window` env steps."""
+    """Advance a stage when rolling training success >= thr over `window` env steps, or (if
+    `max_stage_steps`) after that many env steps in the stage."""
 
-    def __init__(self, env, stages, thr=0.9, window=5e6):
+    def __init__(self, env, stages, thr=0.9, window=5e6, max_stage_steps=None):
         self.env, self.stages, self.thr, self.window = env, stages, thr, window
+        self.max_stage_steps, self.t_stage = max_stage_steps, 0
         self.stage = -1
         self.per = env.nK // len(stages)
         self.hist = []      # (env_steps, successes, episodes)
@@ -129,6 +131,7 @@ class Curriculum:
 
     def advance(self, total):
         self.stage += 1
+        self.t_stage = total
         c, med = self.stages[self.stage]
         env = self.env
         base = self.stage * self.per
@@ -143,13 +146,22 @@ class Curriculum:
 
     def update(self, total, k, n):
         self.hist.append((total, k, n))
-        recent = [h for h in self.hist if h[0] > total - self.window]
-        span = total - (recent[0][0] if recent else total)
+        i = next(j for j, h in enumerate(self.hist) if h[0] > total - self.window)
+        recent = self.hist[i:]      # span counts from the entry before the window (else it is < window)
+        span = total - (self.hist[i - 1][0] if i else self.t_stage)
         K_, N_ = sum(h[1] for h in recent), sum(h[2] for h in recent)
-        if self.stage < len(self.stages) - 1 and span >= self.window * 0.95 and N_ > 0 and K_ / N_ >= self.thr:
+        timed_out = self.max_stage_steps is not None and total - self.t_stage >= self.max_stage_steps
+        if self.stage < len(self.stages) - 1 and (timed_out or (span >= self.window * 0.95 and N_ > 0
+                                                                 and K_ / N_ >= self.thr)):
             self.advance(total)
             return True
         return False
+
+
+def n_stages(args):
+    if args.curriculum == "usbc":
+        return len(USBC_STAGES)
+    return len(scale_stages(args.family, 0.0)) if args.curriculum == "scale" else 1
 
 
 def train(args):
@@ -159,14 +171,18 @@ def train(args):
     run.mkdir(parents=True, exist_ok=True)
     if (run / "DONE").exists() and args.resume:   # finished: skip, unless asked for more steps
         done = json.loads((run / "DONE").read_text())
-        if done.get("reason") == "stop_success" or done.get("steps", 0) >= args.steps:
+        log = run / "curriculum.json"
+        early = args.curriculum != "none" and log.exists() and (     # stopped before the final stage
+            max(r["stage"] for r in json.load(open(log))) < n_stages(args))
+        if not early and (done.get("reason") == "stop_success" or done.get("steps", 0) >= args.steps):
             print(f"[{args.name}] already DONE: {done}", flush=True)
             return
         (run / "DONE").unlink()
     env = make_env(args)
     dev = env.device
     cur = (Curriculum(env, USBC_STAGES) if args.curriculum == "usbc" else
-           Curriculum(env, scale_stages(args.family, env.cfg.peg_offset)) if args.curriculum == "scale" else None)
+           Curriculum(env, st := scale_stages(args.family, env.cfg.peg_offset),   # final stage keeps >= 40%
+                      max_stage_steps=0.6 * args.steps / max(len(st) - 1, 1)) if args.curriculum == "scale" else None)
     pc = PPOCfg()
     pc.contact_coef = args.contact_coef
     task = getattr(args, "task", "peg")
@@ -213,6 +229,7 @@ def train(args):
                 cur.advance(total)
             if (run / "curriculum.json").exists():
                 cur.log = [r for r in json.load(open(run / "curriculum.json")) if r["stage"] <= stage]
+                cur.t_stage = cur.log[-1]["env_steps"]
             env.reset_all(desync=True)
         if "rng" in ck:
             torch.set_rng_state(ck["rng"]["torch"].cpu())
@@ -387,7 +404,8 @@ def train(args):
             save_atomic(ckpt(), run / "last.pt")
         if it % (args.ckpt_every * 10) == 0:
             save_atomic(ckpt(), run / f"ckpt_{total // 1_000_000:04d}M.pt")
-        if args.stop_success and succ == succ and succ >= args.stop_success and total >= args.min_steps:
+        final = cur is None or cur.stage == len(cur.stages) - 1
+        if args.stop_success and final and succ == succ and succ >= args.stop_success and total >= args.min_steps:
             save_atomic(ckpt(), run / "last.pt")
             print(f"[{args.name}] reached training success {succ:.3f} at {total/1e6:.1f}M steps", flush=True)
             reason = "stop_success"

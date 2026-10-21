@@ -177,6 +177,41 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   never found 105, left fixture 56.
 - Caveat: the gain mixes two effects, wider starts and the move to the lab-table mount (E1 trained
   on the old mount). The server's E1 trains on the table from scratch; compare its r50 with 7.1 mm.
+### 2026-10-21 (21:15 UTC, mason) — Phase D diagonal and 8 mm row: clearance, not size, lowers success
+
+Scaled regime, 2,048 unseen starts, random robot conditions. Diagonal: o60_c1 98.2%, o30_c0.5 96.9%,
+o15_c0.2 97.6% (0.68 s, 19.6 mm travel; never found 20, wedged 27). Fixed regime o60_c1: 99.7%
+(0.46 s, 13 mm). 8 mm row (sphere pads, median start 1.3 mm):
+
+| Clearance | Success (95% CI) | Median time | Never found | Wedged partial |
+|---|---|---|---|---|
+| 1.0 mm | 97.0% (96.1-97.6) | 0.12 s | 55 | 3 |
+| 0.5 mm | 98.6% (98.0-99.1) | 0.26 s | 26 | 2 |
+| 0.2 mm | 95.6% (94.6-96.4) | 0.54 s | 62 | 26 |
+| 0.1 mm | 93.0% (91.8-94.0) | 0.84 s | 64 | 80 |
+| 0.05 mm | 89.7% (88.3-90.9) | 1.28 s | 88 | 115 |
+
+o8_c0.05 with 10 s episodes (`results/D/extra_o8_c0.05_ep10_s0.parquet`): 92.6% against 89.7% at 5 s; wedged 115 -> 64, 43 seats after 5 s. About half of the wedged pegs are slow, not stuck.
+At fixed size, tighter clearance makes the seat slower and turns failures from search (never
+found) into alignment (wedged partial). This is the trend the USB-C runs (0.02-0.1 mm) continue.
+o8_c0.05 (USB-C clearance) reached its final stage by the step cap and 92% training success. Fixed regime o30_c0.5: 98.4% (0.52 s, 20.9 mm). The 12 tier-2 scaled cells are queued in E_later_train.txt after the latch/side fine-tunes and the random-error USB-C run, before the E ablations. Demo grids D_o60_c1 / D_o8_c1 / D_o8_c0.1 are in the report's
+example figure (8 mm uses a close camera, DEMO_CAM in make_demos.sh). build_demos_data.py now keeps
+items rendered on the other host instead of dropping them.
+
+### 2026-10-21 (evening, mason) — First Phase D tests: 97-98% at 1.0 mm from 60 mm down to 8 mm
+
+Scaled regime, 2,048 unseen starts with random robot conditions (noise, quantization, backlash, latency):
+
+| Cell | Test success (95% CI) | Median time | Median travel | Main failure |
+|---|---|---|---|---|
+| o60_c1 | 98.2% (97.6-98.7) | 0.72 s | 35.1 mm | never found 21 of 36 |
+| o30_c0.5 | 96.9% (96.0-97.5) | 0.54 s | 28.6 mm | never found 25, wedged 17 of 64 |
+| o8_c1 (sphere pads) | 97.0% (96.1-97.6) | 0.12 s | 3.9 mm | never found 55 of 62 |
+
+8 mm training success at the target clearance (no tests yet): c0.5 98%, c0.2 92%, c0.1 86%. The
+evals ran beside the training jobs on GPU 1 (marked done in stateD/done.txt first, so the runner
+skips them). o15_c0.2 stopped at the 0.5 mm stage (old stop_success bug) and is queued to resume.
+
 ### 2026-10-21 (afternoon, mason) — Two from-scratch runs never found the goal; curricula fix queued
 
 - **D o15_c0.2_scaled (15 mm opening, 0.2 mm clearance, 2.5 mm median start offset):** 0 successes
@@ -189,6 +224,23 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   than 1 mm use it from now on, except o30_c0.5_scaled-s0 (already done). The failed run is kept
   as `runs/D-peg-proprio-o15_c0.2_scaled-s0_nocurriculum`. So the steps-to-90% numbers of
   curriculum cells are not comparable with from-scratch cells.
+- **D small cells with box pads: the peg slips in the grasp.** With the clearance curriculum all
+  8 mm cells and the 15 mm rerun stayed at stage 1 (1 mm clearance) at 53-70% training success.
+  A 1,024-start test of o8_c1_scaled at 143M steps: 73.7%; failures slipped 159, left fixture 85,
+  never found 24. So at 8 mm the limit was the box-pad grasp (as for USB-C), not the search. Cells
+  <= 15 mm now use the USB-C sphere pads (`pad_spheres` 4, nconmax 256, njmax 2048) under new
+  names `*_sph`; the box-pad runs keep the old names and are excluded from `phase_d_report.py`.
+  The scale curriculum also advances a stage after 0.6 x steps / (stages - 1) at the latest.
+  With sphere pads (nconmax 128, njmax 1024; 256/2048 ran out of memory on a 32 GB V100 at 12,288
+  worlds) the 8 mm cells train to 93-99% and the 15 mm cell to 97.8% (18:25 UTC).
+- **Curriculum bug (fixed in 4ba3986):** at 12,288 worlds one PPO iteration is 393k env steps. The
+  5M-step success window then spans at most 12 iterations (4.72M), below the 4.75M (95%) the
+  advance test required. So D stages advanced only on the step cap (30-45M steps), never on 90%
+  success, although stage-1 success was 97-99%. (The USB-C runs, 262k steps per iteration, fill
+  the window and are not affected.) Second bug: `--stop_success 0.99` also fired at a non-final
+  stage, so o8_c0.5_scaled_sph stopped at 1 mm clearance. Now stop_success needs the final stage,
+  and a run that stopped early resumes. The runs in flight keep the old code; their final-stage
+  numbers are valid but their steps-to-stage numbers are set by the cap.
 - **E5 latch from scratch (E-usbc-proprio-latch-s0):** 0.0% training success in 300M steps,
   never past curriculum stage 1 (0.3 mm clearance). The final-stage eval is 0% (never found 1,576,
   wedged partial 265, slipped 139 of 2,048). Without the latch, stage 1 reaches 90% in 16M steps.

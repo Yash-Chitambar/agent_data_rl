@@ -185,6 +185,11 @@ D_STEPS = "150e6"
 # gave PPO no signal). Cells tighter than 1 mm now use the clearance curriculum (train.py
 # --curriculum scale: 1 mm first, down to the target). o30_c0.5_scaled-s0 had already reached 99% without it.
 D_NO_CURRICULUM = {"D-peg-proprio-o30_c0.5_scaled-s0"}
+# 2026-10-21 17:00: with box pads the 8 mm and 15 mm pegs slip in the YAM grasp (o8_c1_scaled: 73.7%,
+# 159 of 269 failures slipped) and the curriculum never left 1 mm. Small cells use the USB-C sphere pads
+# (and its contact buffers) under new names *_sph; the box-pad runs keep the old names.
+D_SPHERE_PADS_MAX_MM = 15
+SPHERE_PADS = {"pad_spheres": 4, "nconmax": 128, "njmax": 1024}   # 256/2048 OOMs at 12,288 worlds (32 GB)
 
 
 def d_offset(opening_mm, regime):
@@ -200,10 +205,12 @@ def phase_d():
     for s in SEEDS_CDE:
         for o, c, r in cells:
             tier = 1 if (o, c) in D_DIAGONAL or o == 8 else 2
-            var = f"o{o}_c{c:g}_{r}"
+            var = f"o{o}_c{c:g}_{r}" + ("_sph" if o <= D_SPHERE_PADS_MAX_MM else "")
             name = f"D-peg-proprio-{var}-s{s}"
             fam = f"scale:{o / 1000:g}:{c / 1000:g}"
             ej = dict(NOISE, peg_offset=d_offset(o, r))
+            if o <= D_SPHERE_PADS_MAX_MM:
+                ej.update(SPHERE_PADS)
             cur = " --curriculum scale" if c < 1.0 and name not in D_NO_CURRICULUM else ""
             tiers[tier].append(train_line(name, s, f"--env_file {YAM} --family {fam}{cur} --env_json {jq(ej)} {STOP}",
                                           steps=D_STEPS, est=H_BLIND / 2))
