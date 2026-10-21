@@ -80,7 +80,7 @@ def curves():
         "nocontact": ("Blind, no contact loss", 2, "B-peg-proprio-nocontact-s*"),
         "yam": ("YAM arm, blind peg", 3, "C-peg-proprio-base-s*"),
         "usbc": ("USB-C on YAM, box pads (stopped)", 4, "E-usbc-proprio-curr-s*"),
-        "gear": ("Gear meshing, 15-min smoke run", 5, "G-gear-proprio-smoke"),
+        "gear": ("Gear meshing, blind", 5, "G-gear-proprio-base-s*"),
     }
     series = {}
     for key, (label, color, pat) in groups.items():

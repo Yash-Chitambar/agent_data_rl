@@ -137,6 +137,11 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ### 2026-10-20 — Visual pipeline, YAM, USB-C
 
+- **Blind gear policy (G-gear-proprio-base-s0) reproduces the paper's gear row.** 300M steps in
+  3.2 h; training success 0.1% at 12M, 99.5% at 75M, 100% at 299M. Deterministic eval: 99.94% of
+  8,192 unseen gear sets (median 0.90 s; paper 0.58 s), OOD bins 99.71% (tighter), 100% (taller,
+  much taller, mild size, random tooth), 99.90% (extreme size); paper >99.9% for all.
+
 - **USB-C plateau (78% on curriculum stage 1 for 160M steps) is a contact-generation artifact,
   not a learning problem** (full analysis: report_usbc/, results/E/fail/). The run was stopped at
   160M steps.

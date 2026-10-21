@@ -31,7 +31,7 @@
     <h2>Summary</h2>
     <p class="lede">We reproduce the simulation results of the paper on one desktop GPU. The paper trains a robot arm to put a peg into a tight hole. In the training set, the clearance is 1.0 to 1.5 mm on each side. The policy uses only joint angles and joint velocities. It does not use a camera or a force sensor.</p>
     <p>Our blind policy seats the peg on 99.9% of 2,048 test starts. The paper reports 99.4%. Our policy is faster than the paper's policy and moves a shorter distance. A linear probe finds the contact state in the policy's memory, as in the paper. On six families of unseen parts, our blind policy keeps a high success rate. These results agree with the main claims of the paper.</p>
-    <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The blind peg policy also learns on a second robot, the 6-joint YAM arm, with 99.9% training success. The first USB-C run found a grasp problem in the simulation, which we corrected. We also built the paper's gear-meshing task, and its training starts next. The scale study and the camera study need a larger server.</p>
+    <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The blind peg policy also learns on a second robot, the 6-joint YAM arm, with 99.9% training success. The first USB-C run found a grasp problem in the simulation, which we corrected. We also built the paper's gear-meshing task. The blind gear policy seats 99.94% of 8,192 unseen gear sets and 99.7 to 100% in six unseen gear families, as the paper reports. The scale study and the camera study need a larger server.</p>
 
     <div class="tbl">
       <table>
@@ -42,7 +42,7 @@
           <tr><td>C</td><td>Port to the YAM arm, with sensor noise, backlash and latency.</td><td><span class="chip ok">Seed 0 trained</span> <span class="chip todo">Noise runs on server</span></td></tr>
           <tr><td>D</td><td>Scale study: part size against clearance.</td><td><span class="chip todo">Needs a server</span></td></tr>
           <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip warn">Grasp bug found and fixed</span> <span class="chip run">Retraining queued</span></td></tr>
-          <tr><td>G</td><td>Gear meshing (paper task 2), not in the original plan.</td><td><span class="chip ok">Built and checked</span> <span class="chip run">Training next</span></td></tr>
+          <tr><td>G</td><td>Gear meshing (paper task 2), not in the original plan.</td><td><span class="chip ok">Seed 0 trained and tested</span></td></tr>
           <tr><td>F</td><td>Add RGB and depth cameras to the blind policy.</td><td><span class="chip todo">Needs a server</span></td></tr>
         </tbody>
       </table>
@@ -112,7 +112,7 @@
     <figure class="viz" data-fig="training">
       <div class="viz-tag">Interactive · hover to read every run</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Training success with stochastic actions (paper Figs. 8 and 14).</b> (a) Blind and visual policies. (b) The blind policy with and without the contact decoder loss. (c) The blind peg policy on the YAM arm, the first USB-C run (stopped at 160 million steps, see below) and a 15-minute gear smoke run. The dotted line is 90%. Use the buttons to show each seed or a log step axis. Hover to read every run at one step.</figcaption>
+      <figcaption><b>Training success with stochastic actions (paper Figs. 8 and 14).</b> (a) Blind and visual policies. (b) The blind policy with and without the contact decoder loss. (c) The blind peg policy on the YAM arm, the first USB-C run (stopped at 160 million steps, see below) and the blind gear policy. The dotted line is 90%. Use the buttons to show each seed or a log step axis. Hover to read every run at one step.</figcaption>
     </figure>
     <div class="tbl">
       <table>
@@ -257,8 +257,9 @@
   </section>
 
   <section id="gear">
-    <h2>The gear-meshing task is built and checked</h2>
-    <p class="claim">The gear task follows the paper's Table 1. In checks, out-of-phase teeth block the gear, and a privileged script seats 89% of unseen gear sets.</p>
+    <p class="finding">Finding 6</p>
+    <h2>The blind policy also meshes gears</h2>
+    <p class="claim">The blind gear policy seats 99.94% of 8,192 unseen gear sets. On six unseen gear families, it seats 99.7 to 100%. The paper reports more than 99.9%.</p>
     <p>The paper has two more tasks: gear meshing and nut threading. We built the gear task to check our setup on a second task. The robot holds a spur gear by a boss on top. The gear must slide down a shaft and mesh with one or two anchor gears. The anchor gears turn on their own hinges. The module is 2.375 to 3.125 mm, with 16 to 24 teeth and 0.4 to 0.6 mm of backlash for each anchor. An episode has a limit of 10 s.</p>
     <div class="tbl">
       <table>
@@ -273,7 +274,22 @@
         </tbody>
       </table>
     </div>
-    <p>The full 300-million-step run starts after the USB-C run. The paper reports more than 99.9% success for its blind gear policy. Our early training is slower than the peg's, so the result is not known yet.</p>
+    <p>The early training was slower than for the peg: after 12 million steps, almost no episode was a success. After 75 million steps, the training success was 99.5%, and after 300 million steps it was 100%.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Test (seed 0, deterministic actions)</th><th class="n">Episodes</th><th class="n">Success, ours</th><th class="n">Success, paper</th></tr></thead>
+        <tbody>
+          <tr><td>Training range (unseen gear sets)</td><td class="n">8,192</td><td class="n">99.94%</td><td class="n">&gt;99.9%</td></tr>
+          <tr><td>Tighter backlash (0.2 to 0.25 mm)</td><td class="n">1,024</td><td class="n">99.71%</td><td class="n">&gt;99.9%</td></tr>
+          <tr><td>Taller teeth (1.1 to 1.2 modules)</td><td class="n">1,024</td><td class="n">100%</td><td class="n">&gt;99.9%</td></tr>
+          <tr><td>Much taller teeth (1.2 to 1.3 modules)</td><td class="n">1,024</td><td class="n">100%</td><td class="n">&gt;99.9%</td></tr>
+          <tr><td>Mild size change (module 2.19 to 2.375 or 3.125 to 3.31 mm)</td><td class="n">1,024</td><td class="n">100%</td><td class="n">&gt;99.9%</td></tr>
+          <tr><td>Extreme size change (module 2.0 to 2.19 or 3.31 to 3.5 mm)</td><td class="n">1,024</td><td class="n">99.90%</td><td class="n">&gt;99.9%</td></tr>
+          <tr><td>Random tooth shape</td><td class="n">1,024</td><td class="n">100%</td><td class="n">&gt;99.9%</td></tr>
+        </tbody>
+        <caption>Median time to seat on the training range: 0.90 s (paper: 0.58 s). The 5 failures in 8,192 are 2 slips, 2 gears on the shaft but not in mesh, and 1 gear that left the fixture.</caption>
+      </table>
+    </div>
     <div class="gallery wide-block">
       <figure>
         <img src="static/images/G-geometry.png" alt="Sixteen gear sets: an orange gear on a shaft, meshed with one or two anchor gears" loading="lazy">
@@ -332,7 +348,7 @@
       <li><b>Phase B.</b> Complete the third blind seed and two runs without the contact loss. Train two more visual seeds. Then give the B-R7 result with three seeds.</li>
       <li><b>Phase C.</b> Test the YAM policy (queued). Then train with joint noise, backlash and latency, and do the gain sweep (server).</li>
       <li><b>Phase E.</b> Train the USB-C policy again with sphere pads (queued). Then test it on each curriculum stage and examine its failures.</li>
-      <li><b>Gear task.</b> Train the blind gear policy (queued), then test it on the training range and on six unseen gear families.</li>
+      <li><b>Gear task.</b> Complete for the blind policy (seed 0).</li>
       <li><b>Possible ablation.</b> Add a feed-forward term for the nominal peg weight. Then measure if the policy learns to lift the peg.</li>
     </ul>
     <div class="tbl">

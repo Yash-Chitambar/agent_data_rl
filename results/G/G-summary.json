@@ -1,11 +1,120 @@
 {
  "steps_to_90M": {
+  "G-gear-proprio-base-s0": 32.636928,
   "G-gear-proprio-smoke": null
  },
  "final_train_success": {
+  "G-gear-proprio-base-s0": 99.95926843742016,
   "G-gear-proprio-smoke": 0.1028145501048241
  },
  "sps_median": {
+  "G-gear-proprio-base-s0": 27505.816172598443,
   "G-gear-proprio-smoke": 14370.779277176398
- }
+ },
+ "success": [
+  {
+   "tag": "blind_s0",
+   "bin": "in_dist",
+   "n": 8192,
+   "success": 99.93896484375,
+   "lo": 99.85718726915536,
+   "hi": 99.9739270852265,
+   "median_time_s": 0.8999999761581421,
+   "median_travel_mm": 16.990002244710922,
+   "paper": 99.9,
+   "failures": {
+    "success": 8187,
+    "slipped": 2,
+    "on_shaft_not_meshed": 2,
+    "left_fixture": 1
+   }
+  },
+  {
+   "tag": "blind_s0",
+   "bin": "tighter",
+   "n": 1024,
+   "success": 99.70703125,
+   "lo": 99.14218132309007,
+   "hi": 99.90031705409179,
+   "median_time_s": 1.0199999809265137,
+   "median_travel_mm": 18.249841406941414,
+   "paper": 99.9,
+   "failures": {
+    "success": 1021,
+    "meshed_not_seated": 2,
+    "on_shaft_not_meshed": 1
+   }
+  },
+  {
+   "tag": "blind_s0",
+   "bin": "taller",
+   "n": 1024,
+   "success": 100.0,
+   "lo": 99.62624591182144,
+   "hi": 100.0,
+   "median_time_s": 0.8999999761581421,
+   "median_travel_mm": 16.996048390865326,
+   "paper": 99.9,
+   "failures": {
+    "success": 1024
+   }
+  },
+  {
+   "tag": "blind_s0",
+   "bin": "much_taller",
+   "n": 1024,
+   "success": 100.0,
+   "lo": 99.62624591182144,
+   "hi": 100.0,
+   "median_time_s": 0.8799999952316284,
+   "median_travel_mm": 16.678571701049805,
+   "paper": 99.9,
+   "failures": {
+    "success": 1024
+   }
+  },
+  {
+   "tag": "blind_s0",
+   "bin": "mild_size",
+   "n": 1024,
+   "success": 100.0,
+   "lo": 99.62624591182144,
+   "hi": 100.0,
+   "median_time_s": 0.9199999570846558,
+   "median_travel_mm": 16.958925873041153,
+   "paper": 99.9,
+   "failures": {
+    "success": 1024
+   }
+  },
+  {
+   "tag": "blind_s0",
+   "bin": "extreme_size",
+   "n": 1024,
+   "success": 99.90234375,
+   "lo": 99.4489037633265,
+   "hi": 99.98275963694844,
+   "median_time_s": 0.8999999761581421,
+   "median_travel_mm": 17.13961735367775,
+   "paper": 99.9,
+   "failures": {
+    "success": 1023,
+    "meshed_not_seated": 1
+   }
+  },
+  {
+   "tag": "blind_s0",
+   "bin": "random_tooth",
+   "n": 1024,
+   "success": 100.0,
+   "lo": 99.62624591182144,
+   "hi": 100.0,
+   "median_time_s": 0.7999999523162842,
+   "median_travel_mm": 15.997426584362984,
+   "paper": 99.9,
+   "failures": {
+    "success": 1024
+   }
+  }
+ ]
 }
