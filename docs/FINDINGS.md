@@ -142,8 +142,17 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   (`configs/phase_e_usbc_latch_low.json`). A 5-15 N latch needs action_scale ~0.02 (14.5 N push)
   plus a stiffer grasp; open question for the real YAM: measure its maximum axial push and a real
   USB-C port's insertion force. Scripts: scratchpad only (latch_forces.py, creep.py, fix.py).
-- **USB-C from scratch on the table mount at the 300M cap:** training success curr 76% (stage 5),
-  chamfer 91% (stage 5), side port 75% (stage 3). Evals follow.
+- **USB-C from scratch on the table mount (300M cap, no noise model), evals:**
+
+  | Run | Final stage (2,048) | Clearance 20 / 50 / 100 um (2 mm offset) | Median offset at 50% |
+  |---|---|---|---|
+  | curr (port up) | 79.0% (left fixture 234, never found 153) | 87.4 / 94.0 / 93.8% | ~4.9 mm |
+  | chamfer 0.2-0.5 mm | 96.2% (never found 52) | 97.5 / 98.5 / 98.6% | ~7.0 mm |
+  | side port | 35.8% (never found 879, slipped 196) | 26.9% at 20 um | — |
+
+  curr from scratch on the table (79.0%) is no better than the athena5 old-mount policy tested on
+  the table (77.9%) and below athena5's table fine-tune on wider starts (91.4%). The side port reached only
+  curriculum stage 3 in 300M steps.
 
 ### 2026-10-21 (athena5) — Phase B with three seeds
 

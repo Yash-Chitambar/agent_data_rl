@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Status report · 21 October 2026, 11:00 UTC · Simulation results</div>
+    <div class="badge">Status report · 21 October 2026, 16:30 UTC · Simulation results</div>
     <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
     <p class="authors">Yash Chitambar</p>
     <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -39,7 +39,7 @@
         <tbody>
           <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
           <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency, backlash and gain errors break a policy that did not train with them. One policy trained with random levels keeps 96 to 98% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
-          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>40-cell grid from 60 mm to 8 mm openings and 1.0 to 0.05 mm clearance.</td><td><span class="chip run">Training</span></td></tr>
+          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>40-cell grid from 60 mm to 8 mm openings and 1.0 to 0.05 mm clearance. 60 and 30 mm: 99% training success. At 15 mm and 0.2 mm, training needs a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
           <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. But 20 ms of latency or 1 arcmin of backlash drops it to 5 to 9%.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
           <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
         </tbody>
@@ -222,6 +222,7 @@
         <caption>Training order. "first": the diagonal from large and loose to small and tight, and the 8 mm row (16 runs with both regimes). Then the other 24 cells. Results come as each run completes.</caption>
       </table>
     </div>
+    <p><b>First results.</b> The 60 mm, 1.0 mm cell reached 99.1% training success (90% after 24 million steps). The 30 mm, 0.5 mm cell reached 99.0% (90% after 37 million steps). The 15 mm, 0.2 mm cell did not succeed once in 150 million steps. The reward is given only for capture and seating, so with no lucky episodes the policy got no signal. Thus, all cells tighter than 1.0 mm now train with a clearance curriculum: 1.0 mm first, then smaller steps down to the target. The 8 mm cells train now. The tests follow the training.</p>
   </section>
 
   <!-- ============================================================ RQ4 -->
@@ -253,6 +254,18 @@
           <caption>Most final-stage failures (105 of 175) are search failures: the policy does not find the port in 8 s. The last five rows run on the lab table (reference: 77.9%). The fine-tunes start from the old-mount policy.</caption>
         </table>
       </div>
+    </div>
+    <p><b>Trained on the lab table from the start.</b> Three policies trained for 300 million steps on the lab table, each with the full curriculum. They had no robot errors. The chamfered port is the easiest case.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Trained from the start on the lab table</th><th class="n">Final stage</th><th class="n">0.02 mm clearance</th><th class="n">Median offset at 50% success</th></tr></thead>
+        <tbody>
+          <tr><td>Port faces up</td><td class="n">79.0%</td><td class="n">87.4%</td><td class="n">4.9 mm</td></tr>
+          <tr><td>Port with a 0.2 to 0.5 mm chamfer</td><td class="n">96.2%</td><td class="n">97.5%</td><td class="n">7.0 mm</td></tr>
+          <tr><td>Port faces the robot</td><td class="n">35.8%</td><td class="n">26.9%</td><td class="n">—</td></tr>
+        </tbody>
+        <caption>Final stage: 0.02 to 0.1 mm clearance, 3 mm median start offset, 2,048 starts. Clearance column: 2 mm median offset, 1,024 starts. Last column: linear interpolation between tests at median offsets of 0.5 to 8 mm (1,024 starts each); this is a median offset, not the start distance of the figure below. The port-up run made 50% of its failures by leaving the fixture area. The side-port run completed only 3 of the 5 curriculum stages in 300 million steps.</caption>
+      </table>
     </div>
     <figure class="viz" data-fig="capture">
       <div class="viz-tag">Interactive · hover a point</div>
