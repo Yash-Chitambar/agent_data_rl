@@ -1,0 +1,93 @@
+{
+ "title": "USB-C fine-tuned with the latch (5-15 N)",
+ "source": "results/demos/data/E_usbc_latchft.parquet",
+ "n": 2048,
+ "success_rate": 0.9140625,
+ "failures": {
+  "slipped": 67,
+  "never_found": 47,
+  "left_fixture": 28,
+  "wedged_partial": 26,
+  "jammed_inside": 8
+ },
+ "shown": [
+  {
+   "world": 991,
+   "success": true,
+   "failure": "success",
+   "time": 0.47999998927116394
+  },
+  {
+   "world": 464,
+   "success": true,
+   "failure": "success",
+   "time": 1.959999918937683
+  },
+  {
+   "world": 988,
+   "success": true,
+   "failure": "success",
+   "time": 7.940000057220459
+  },
+  {
+   "world": 52,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 481,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 100,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 1126,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 177,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 3.8999998569488525
+  },
+  {
+   "world": 1378,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 4.259999752044678
+  },
+  {
+   "world": 331,
+   "success": false,
+   "failure": "slipped",
+   "time": 6.739999771118164
+  },
+  {
+   "world": 552,
+   "success": false,
+   "failure": "slipped",
+   "time": 3.559999942779541
+  },
+  {
+   "world": 698,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 738,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  }
+ ]
+}

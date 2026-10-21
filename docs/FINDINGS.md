@@ -84,6 +84,35 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C E5 latch: a 100M fine-tune pushes through it (28 -> 90%)
+
+- `E-usbc-proprio-latchft-s0`: 100M steps from E1 on `phase_e_usbc_latch.json` (lab table, final
+  stage, 3 mm median start, latch 5-15 N over the last 1.5 mm). Training success 88% at the end.
+- On the latch port (2,048 starts): **89.7%** (E1 zero-shot: 28.0%), median 1.96 s; failures
+  slipped 84, never found 55, left fixture 32. q noise 5e-4: 90.5%, 14-bit: 90.8%. Latency 1 / 2:
+  3.0 / 1.0%, backlash 1 / 3: 2.3 / 2.2% (no robot errors in this fine-tune).
+- **Reconciled with mason's 7.2 N limit (below):** at a fixed peak the fine-tune seats 94.3% (5 N)
+  and **78.7% (15 N)**, above the static limit. It strikes: in 8 logged episodes the plug enters
+  the last 1.6 mm at 40-80 mm/s (`results/E/robust/latchft_s0_peak15N.rollouts.npz`). Energy check:
+  past the 0.72 mm where 7.2 N balances a 10 N/mm spring, the plug needs ~1.7 mJ to reach 1.3 mm,
+  i.e. ~0.9 kg effective mass at 60 mm/s, plausible for the YAM wrist + gripper. So the static
+  limit is real but a dynamic insertion beats it. Caveats: the latch model is a pure spring with
+  no detent, and success counts the moment the plug reaches the seat (a real latch would click
+  and hold); the strike speed is near the 50 mm/s speed cap; slips rise at 15 N (238 of 2,048),
+  matching the grasp creep limit mason found. Starting from E1 (28% zero-shot) gave the dense
+  reward that the from-scratch run never saw.
+
+### 2026-10-21 (athena5) — USB-C: fine-tuning on wider starts grows the capture radius to 7.1 mm
+
+- `E-usbc-proprio-wide-s0`: 100M steps from E1 (old mount) on the lab table, final-stage parts
+  (20-100 um), start offsets uniform +-6.5 mm per axis (median 5.0 mm, was 3.0 mm), `--init`.
+- E2 (8,192 starts, 50 um, +-9 mm; `scripts/usbc_capture.py --halfwidth 9e-3`): r50 **5.56 mm**
+  (95% CI 5.45-5.66) before -> **7.13 mm** (7.05-7.22) after. 4-4.5 mm bin 70 -> 87%, 6-6.5 mm
+  59 vs 37%. E3 at 2 mm median: 20 um 82.3 -> 91.7%, 50 um 90.0 -> 96.6%, 100 um 91.0 -> 97.0%.
+- Final-stage test (3 mm median, 2,048): 77.9 -> **91.4%**, median 2.14 -> 1.90 s; failures now
+  never found 105, left fixture 56.
+- Caveat: the gain mixes two effects, wider starts and the move to the lab-table mount (E1 trained
+  on the old mount). The server's E1 trains on the table from scratch; compare its r50 with 7.1 mm.
 ### 2026-10-21 (afternoon, mason) — Two from-scratch runs never found the goal; curricula fix queued
 
 - **D o15_c0.2_scaled (15 mm opening, 0.2 mm clearance, 2.5 mm median start offset):** 0 successes

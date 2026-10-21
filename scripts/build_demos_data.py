@@ -47,14 +47,19 @@ CASES = [
     ("USB-C", "E_usbc_latency1", "1-step latency", "USB-C policy with 20 ms of latency it did not train with",
      "Success decreases from 78% to 5%. The search becomes unstable and the drive slips or leaves the housing."),
     ("USB-C", "E_usbc_noiserandft_latency1", "Latency, after fine-tune",
-     "USB-C policy after fine-tuning with random latency, backlash and noise, tested with 1-step latency", ""),
+     "USB-C policy after fine-tuning with random latency, backlash and noise, tested with 1-step latency",
+     "After the fine-tune with random robot errors, the policy seats 23% with 20 ms of latency, against 5% before. "
+     "Most failures still do not find the port."),
     ("USB-C", "E_usbc_wide_far", "Far starts, after fine-tune",
-     "USB-C policy after fine-tuning on wider starts, starts up to 9 mm", ""),
+     "USB-C policy after fine-tuning on wider starts, starts up to 9 mm",
+     "After the fine-tune on wider starts, the 50% radius is 7.1 mm, against 5.6 mm before."),
     ("USB-C variants", "E_usbc_chamfer", "Chamfered port", "USB-C, port with a 0.2 to 0.5 mm lead-in (not in training)",
      "The lead-in guides the plug. The policy that never saw a chamfer seats more drives than without it."),
     ("USB-C variants", "E_usbc_latch", "Latch", "USB-C, latch spring of 5 to 15 N over the last 1.5 mm (not in training)",
      "The policy does not push hard enough. The drive slips in the grasp or stays partly inside."),
-    ("USB-C variants", "E_usbc_latchft", "Latch, after fine-tune", "USB-C policy after fine-tuning with the latch", ""),
+    ("USB-C variants", "E_usbc_latchft", "Latch, after fine-tune", "USB-C policy after fine-tuning with the latch",
+     "After the fine-tune with the latch, the policy pushes through the latch and seats 90%, against 28% before. "
+     "Most of the remaining failures are slips."),
     ("USB-C variants", "E_usbc_side", "Side port", "USB-C, port facing the robot (port-up policy, not trained for it)",
      "The arm pose is different, so the port-up policy moves the plug off the housing. This task needs its own training."),
 ]

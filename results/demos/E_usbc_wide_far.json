@@ -1,0 +1,87 @@
+{
+ "title": "USB-C fine-tuned on wider starts, far starts (up to 9 mm per axis)",
+ "source": "results/demos/data/E_usbc_wide_far.parquet",
+ "n": 2048,
+ "success_rate": 0.509765625,
+ "failures": {
+  "never_found": 577,
+  "left_fixture": 416,
+  "wedged_partial": 8,
+  "slipped": 2,
+  "jammed_inside": 1
+ },
+ "shown": [
+  {
+   "world": 303,
+   "success": true,
+   "failure": "success",
+   "time": 0.4599999785423279
+  },
+  {
+   "world": 359,
+   "success": true,
+   "failure": "success",
+   "time": 2.379999876022339
+  },
+  {
+   "world": 1658,
+   "success": true,
+   "failure": "success",
+   "time": 7.960000038146973
+  },
+  {
+   "world": 77,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 1248,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 382,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 7.119999885559082
+  },
+  {
+   "world": 812,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 5.980000019073486
+  },
+  {
+   "world": 1308,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 1731,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 725,
+   "success": false,
+   "failure": "slipped",
+   "time": 4.0
+  },
+  {
+   "world": 1969,
+   "success": false,
+   "failure": "slipped",
+   "time": 7.779999732971191
+  },
+  {
+   "world": 1745,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  }
+ ]
+}

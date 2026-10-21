@@ -219,6 +219,41 @@
       "wedged_partial": 173,
       "jammed_inside": 2
      }
+    },
+    {
+     "id": "E_usbc_noiserandft_latency1",
+     "label": "Latency, after fine-tune",
+     "title": "USB-C policy after fine-tuning with random latency, backlash and noise, tested with 1-step latency",
+     "text": "After the fine-tune with random robot errors, the policy seats 23% with 20 ms of latency, against 5% before. Most failures still do not find the port.",
+     "video": "videos/demos/E_usbc_noiserandft_latency1.mp4",
+     "poster": "images/demos/E_usbc_noiserandft_latency1.png",
+     "n": 2048,
+     "rate": 0.22216796875,
+     "failures": {
+      "never_found": 818,
+      "wedged_partial": 389,
+      "left_fixture": 220,
+      "slipped": 151,
+      "jammed_inside": 14,
+      "captured_then_lost": 1
+     }
+    },
+    {
+     "id": "E_usbc_wide_far",
+     "label": "Far starts, after fine-tune",
+     "title": "USB-C policy after fine-tuning on wider starts, starts up to 9 mm",
+     "text": "After the fine-tune on wider starts, the 50% radius is 7.1 mm, against 5.6 mm before.",
+     "video": "videos/demos/E_usbc_wide_far.mp4",
+     "poster": "images/demos/E_usbc_wide_far.png",
+     "n": 2048,
+     "rate": 0.509765625,
+     "failures": {
+      "never_found": 577,
+      "left_fixture": 416,
+      "wedged_partial": 8,
+      "slipped": 2,
+      "jammed_inside": 1
+     }
     }
    ]
   },
@@ -257,6 +292,23 @@
       "never_found": 238,
       "left_fixture": 185,
       "jammed_inside": 140
+     }
+    },
+    {
+     "id": "E_usbc_latchft",
+     "label": "Latch, after fine-tune",
+     "title": "USB-C policy after fine-tuning with the latch",
+     "text": "After the fine-tune with the latch, the policy pushes through the latch and seats 90%, against 28% before. Most of the remaining failures are slips.",
+     "video": "videos/demos/E_usbc_latchft.mp4",
+     "poster": "images/demos/E_usbc_latchft.png",
+     "n": 2048,
+     "rate": 0.9140625,
+     "failures": {
+      "slipped": 67,
+      "never_found": 47,
+      "left_fixture": 28,
+      "wedged_partial": 26,
+      "jammed_inside": 8
      }
     },
     {

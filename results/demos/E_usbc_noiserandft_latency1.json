@@ -1,0 +1,94 @@
+{
+ "title": "USB-C fine-tuned with randomized latency/backlash/noise, tested at latency 1",
+ "source": "results/demos/data/E_usbc_noiserandft_latency1.parquet",
+ "n": 2048,
+ "success_rate": 0.22216796875,
+ "failures": {
+  "never_found": 818,
+  "wedged_partial": 389,
+  "left_fixture": 220,
+  "slipped": 151,
+  "jammed_inside": 14,
+  "captured_then_lost": 1
+ },
+ "shown": [
+  {
+   "world": 571,
+   "success": true,
+   "failure": "success",
+   "time": 0.5799999833106995
+  },
+  {
+   "world": 108,
+   "success": true,
+   "failure": "success",
+   "time": 3.1399998664855957
+  },
+  {
+   "world": 1057,
+   "success": true,
+   "failure": "success",
+   "time": 7.859999656677246
+  },
+  {
+   "world": 156,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 1376,
+   "success": false,
+   "failure": "jammed_inside",
+   "time": 8.0
+  },
+  {
+   "world": 358,
+   "success": false,
+   "failure": "slipped",
+   "time": 5.359999656677246
+  },
+  {
+   "world": 1271,
+   "success": false,
+   "failure": "slipped",
+   "time": 5.460000038146973
+  },
+  {
+   "world": 374,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 436,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 661,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 1226,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 987,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 5.179999828338623
+  },
+  {
+   "world": 1303,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 3.559999942779541
+  }
+ ]
+}
