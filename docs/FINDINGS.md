@@ -132,6 +132,16 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   <= 15 mm now use the USB-C sphere pads (`pad_spheres` 4, nconmax 256, njmax 2048) under new
   names `*_sph`; the box-pad runs keep the old names and are excluded from `phase_d_report.py`.
   The scale curriculum also advances a stage after 0.6 x steps / (stages - 1) at the latest.
+  With sphere pads (nconmax 128, njmax 1024; 256/2048 ran out of memory on a 32 GB V100 at 12,288
+  worlds) the 8 mm cells train to 93-99% and the 15 mm cell to 97.8% (18:25 UTC).
+- **Curriculum bug (fixed in 4ba3986):** at 12,288 worlds one PPO iteration is 393k env steps. The
+  5M-step success window then spans at most 12 iterations (4.72M), below the 4.75M (95%) the
+  advance test required. So D stages advanced only on the step cap (30-45M steps), never on 90%
+  success, although stage-1 success was 97-99%. (The USB-C runs, 262k steps per iteration, fill
+  the window and are not affected.) Second bug: `--stop_success 0.99` also fired at a non-final
+  stage, so o8_c0.5_scaled_sph stopped at 1 mm clearance. Now stop_success needs the final stage,
+  and a run that stopped early resumes. The runs in flight keep the old code; their final-stage
+  numbers are valid but their steps-to-stage numbers are set by the cap.
 - **E5 latch from scratch (E-usbc-proprio-latch-s0):** 0.0% training success in 300M steps,
   never past curriculum stage 1 (0.3 mm clearance). The final-stage eval is 0% (never found 1,576,
   wedged partial 265, slipped 139 of 2,048). Without the latch, stage 1 reaches 90% in 16M steps.
