@@ -84,6 +84,18 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — Phase B with three seeds
+
+- Blind s0-s2: 99.90 / 99.66 / 99.76% in distribution (6,144 starts, 99.77%), median 0.64 s,
+  travel 25.8 mm; 90% training success at 39.3 / 40.5 / 38.1M steps. Visual s0-s2: 99.95 /
+  99.90 / 100%. No contact loss s0 / s2: 99.17 / 99.02%, median 0.78 / 0.80 s.
+- OOD (3 seeds x 1,024 starts, blind / visual): tighter 97.9 / 87.3, slender 97.8 / 82.7, very
+  slender 94.6 / 64.5, mild size 96.7 / 88.4, extreme size 86.3 / 30.2, random convex 22.0 / 2.6%.
+  Blind beats visual in all 18 seed-family pairs (B-R6 reproduced with 3 seeds).
+- Probe (mean recall over the 5 occurring modes): blind 69.9 / 67.6 / 70.1% (current obs
+  48-53%); no contact loss 64.9 / 62.7%. Contact supervision makes the latent more decodable.
+- Files: `results/B/summary.json`, `B-R2_table5.csv`, `B-R6_ood.png`, `probe_*.json`.
+
 ### 2026-10-21 — Gate C: one randomized policy covers noise, backlash and latency
 
 `C-peg-proprio-randall-s0` (per-world `noise_rand`: q_noise {0,1e-4,5e-4}, quant {0,16,14} bit,
