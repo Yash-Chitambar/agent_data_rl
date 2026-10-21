@@ -84,6 +84,18 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C: fine-tuning on wider starts grows the capture radius to 7.1 mm
+
+- `E-usbc-proprio-wide-s0`: 100M steps from E1 (old mount) on the lab table, final-stage parts
+  (20-100 um), start offsets uniform +-6.5 mm per axis (median 5.0 mm, was 3.0 mm), `--init`.
+- E2 (8,192 starts, 50 um, +-9 mm; `scripts/usbc_capture.py --halfwidth 9e-3`): r50 **5.56 mm**
+  (95% CI 5.45-5.66) before -> **7.13 mm** (7.05-7.22) after. 4-4.5 mm bin 70 -> 87%, 6-6.5 mm
+  59 vs 37%. E3 at 2 mm median: 20 um 82.3 -> 91.7%, 50 um 90.0 -> 96.6%, 100 um 91.0 -> 97.0%.
+- Final-stage test (3 mm median, 2,048): 77.9 -> **91.4%**, median 2.14 -> 1.90 s; failures now
+  never found 105, left fixture 56.
+- Caveat: the gain mixes two effects, wider starts and the move to the lab-table mount (E1 trained
+  on the old mount). The server's E1 trains on the table from scratch; compare its r50 with 7.1 mm.
+
 ### 2026-10-21 (athena5) — Phase B with three seeds
 
 - Blind s0-s2: 99.90 / 99.66 / 99.76% in distribution (6,144 starts, 99.77%), median 0.64 s,
