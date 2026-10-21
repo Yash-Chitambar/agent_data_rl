@@ -189,7 +189,7 @@ D_NO_CURRICULUM = {"D-peg-proprio-o30_c0.5_scaled-s0"}
 # 159 of 269 failures slipped) and the curriculum never left 1 mm. Small cells use the USB-C sphere pads
 # (and its contact buffers) under new names *_sph; the box-pad runs keep the old names.
 D_SPHERE_PADS_MAX_MM = 15
-SPHERE_PADS = {"pad_spheres": 4, "nconmax": 256, "njmax": 2048}
+SPHERE_PADS = {"pad_spheres": 4, "nconmax": 128, "njmax": 1024}   # 256/2048 OOMs at 12,288 worlds (32 GB)
 
 
 def d_offset(opening_mm, regime):
