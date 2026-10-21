@@ -89,7 +89,7 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 run cross-evaluated on 13 test conditions, 2,048 unseen starts per cell (`scripts/phase_c_report.py`
 -> `results/C/C-matrix.{csv,png}`, `C-summary.json`).
 
-- **Training.** All 15 reach >= 99% training success. 90% at 14.2M (base) to 24.8M (allmax) steps;
+- **Training.** All 15 reach >= 99% training success; test success under the own condition is 98.3-100% (allmid 99.0%, allmax 98.5%). 90% at 14.2M (base) to 24.8M (allmax) steps;
   backlash and latency slow learning a little (16-21M). The 99% stop rule works: 13 runs stop at
   the 50M minimum (~46 min each on a V100), allmax at 56.6M. Base and qnoise1e-4 ran the full 300M.
 - **Joint noise (1e-4, 5e-4 rad) and encoder quantization (14, 16 bit) cost nothing**: every

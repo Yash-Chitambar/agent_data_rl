@@ -24,7 +24,7 @@ OUT = ROOT / "results" / "C"
 TRAIN = ["base", "qnoise1e-4", "qnoise5e-4", "quant16", "quant14", "backlash1", "backlash3", "backlash5",
          "latency1", "latency2", "allmid", "allmax", "randall", "gain0.5x", "gain2x", "gain4x"]
 TEST = ["base", "qnoise1e-4", "qnoise5e-4", "quant16", "quant14", "backlash1", "backlash3", "backlash5",
-        "latency1", "latency2", "gain0.5", "gain2", "gain4"]
+        "latency1", "latency2", "gain0.5", "gain2", "gain4", "own"]
 
 
 def main():

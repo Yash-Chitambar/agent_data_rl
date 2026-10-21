@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Reproduction report · 20 October 2026, 23:00 UTC · Phases A, B, C, E and G · Server runs started</div>
+    <div class="badge">Reproduction report · 21 October 2026, 08:00 UTC · Phases A, B, C, E and G · Phase C complete</div>
     <h1>Blind Precise Assembly:<br><span class="sub">Results of the Simulation Reproduction</span></h1>
     <p class="authors">Prepared by Yash Chitambar</p>
     <p class="affil">Reproduction of Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -32,19 +32,20 @@
     <p class="lede">We reproduce the simulation results of the paper on one desktop GPU. The paper trains a robot arm to put a peg into a tight hole. In the training set, the clearance is 1.0 to 1.5 mm on each side. The policy uses only joint angles and joint velocities. It does not use a camera or a force sensor.</p>
     <p>Our blind policy seats the peg on 99.9% of 2,048 test starts. The paper reports 99.4%. Our policy is faster than the paper's policy and moves a shorter distance. A linear probe finds the contact state in the policy's memory, as in the paper. On six families of unseen parts, our blind policy keeps a high success rate. These results agree with the main claims of the paper.</p>
     <p>We use MuJoCo Warp and our own PPO code. One training run of 300 million steps takes approximately 2.3 hours on an RTX 3090 Ti. The blind peg policy also learns on a second robot, the 6-joint YAM arm, with 99.9% training success. The first USB-C run found a grasp problem in the simulation, which we corrected. After the correction, the USB-C policy completes its curriculum and seats 91.5% of the drives at 0.02 to 0.1 mm clearance. We also built the paper's gear-meshing task. The blind gear policy seats 99.94% of 8,192 unseen gear sets and 99.7 to 100% in six unseen gear families, as the paper reports.</p>
-    <p>The remaining training now runs on a server with five V100 GPUs. A control run on the server gives the same learning curve as the two local seeds. Thus, the results do not depend on the machine. On the server, the YAM arm now stands on a table, as in the lab. The first YAM runs on this setup learn as fast as before. To get first results quickly, Phases C, D and E train one seed for each condition.</p>
+    <p>The remaining training now runs on a server with five V100 GPUs. A control run on the server gives the same learning curve as the two local seeds. Thus, the results do not depend on the machine. On the server, the YAM arm now stands on a table, as in the lab. To get first results quickly, Phases C, D and E train one seed for each condition.</p>
+    <p>Phase C is complete. We trained the YAM policy with 15 robot conditions and tested each policy under 13 conditions. Sensor noise and encoder quantization do not decrease the success rate. Backlash, latency and gain errors decrease it to 16 to 80%, if the policy did not train with them. Latency must match within one control step of 20 ms. Thus, the next step is to measure the latency and the backlash of the real YAM.</p>
 
     <div class="tbl">
       <table>
         <thead><tr><th>Phase</th><th>Content</th><th>Status</th></tr></thead>
         <tbody>
           <tr><td>A</td><td>Simulation, policy, PPO and evaluation code. Ten signal checks on the simulation.</td><td><span class="chip ok">Done</span></td></tr>
-          <tr><td>B</td><td>Reproduction of the paper's peg results on the Flexiv Rizon 4S arm.</td><td><span class="chip ok">Most results in</span> <span class="chip run">Last seeds on server</span></td></tr>
-          <tr><td>C</td><td>Port to the YAM arm, with sensor noise, backlash and latency.</td><td><span class="chip ok">Lab table setup</span> <span class="chip run">15 runs on server</span></td></tr>
-          <tr><td>D</td><td>Scale study: part size against clearance.</td><td><span class="chip todo">Waits for the noise level from C</span></td></tr>
-          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip ok">Seed 0 trained: 91.5% at 0.02–0.1 mm</span> <span class="chip todo">Server seeds wait for the noise level</span></td></tr>
+          <tr><td>B</td><td>Reproduction of the paper's peg results on the Flexiv Rizon 4S arm.</td><td><span class="chip ok">Server seeds done</span> <span class="chip run">2 seeds in local queue</span></td></tr>
+          <tr><td>C</td><td>Port to the YAM arm, with sensor noise, backlash and latency.</td><td><span class="chip ok">15 conditions trained and tested</span> <span class="chip run">Randomized noise run</span></td></tr>
+          <tr><td>D</td><td>Scale study: part size against clearance.</td><td><span class="chip todo">Starts after the randomized noise run</span></td></tr>
+          <tr><td>E</td><td>USB-C insertion on the YAM.</td><td><span class="chip ok">Seed 0 trained: 91.5% at 0.02–0.1 mm</span> <span class="chip todo">Server runs start after the randomized noise run</span></td></tr>
           <tr><td>G</td><td>Gear meshing (paper task 2), not in the original plan.</td><td><span class="chip ok">Seed 0 trained and tested</span></td></tr>
-          <tr><td>F</td><td>Add RGB and depth cameras to the blind policy.</td><td><span class="chip todo">Needs a server</span></td></tr>
+          <tr><td>F</td><td>Add RGB and depth cameras to the blind policy.</td><td><span class="chip todo">Code ready. Starts after E</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -109,7 +110,7 @@
     <h2>Training takes approximately two hours on one GPU</h2>
     <p class="claim">The blind policy passes 90% training success after approximately 40 million steps.</p>
     <p>Three blind seeds give almost the same curve. Seeds 0 and 1 ran on the local RTX 3090 Ti. Seed 3 ran on a V100 server as a control run (see "The server gives the same results"). The visual policy learns faster in steps. It reaches 100% training success at 50 million steps, and then the run stops. The visual run is approximately 4.5 times slower per step, because each step renders 4,096 wrist images. The visual policy passes 90% after 7.9 million steps. Without the contact decoder loss, the blind policy needs 89 million steps to pass 90%, which is 2.2 times as many. It passes 99% only after 262 million steps, and it ends at 99.1%. The paper reports 2.7 times as many steps. Thus, contact supervision makes training faster, as the paper reports.</p>
-    <p>Panel (c) shows the other robot and tasks. The YAM arm learns the peg task faster than the Flexiv arm: it passes 90% after approximately 17 million steps. The blue line is the YAM on the lab table setup. This run continues on the server. The USB-C and gear runs are described below.</p>
+    <p>Panel (c) shows the other robot and tasks. The YAM arm learns the peg task faster than the Flexiv arm: it passes 90% after approximately 17 million steps. The blue line is the YAM on the lab table setup (300 million steps, server). The USB-C and gear runs are described below.</p>
     <figure class="viz" data-fig="training">
       <div class="viz-tag">Interactive · hover to read every run</div>
       <div class="viz-mount"></div>
@@ -242,7 +243,21 @@
       <li><b>Fixture.</b> The fixture lies on the table. When the fixture has a tilt, its lowest corner touches the table. The fixture top is 19 to 45 mm above the base. The fixture is 0.25 to 0.45 m in front of the base, as before.</li>
     </ul>
     <p>We did these checks on 2,048 start states. Inverse kinematics found a start pose for all of them. In each world, the lowest corner of the fixture is at the table top. All arm links stay at least 63 mm above the table. A short training run (25 million steps) passed 90% after 18.1 million steps. Old-mount YAM runs from the local machine are not used for comparisons with the new runs.</p>
-    <p>The test on 2,048 matched starts, with sensor noise and the gain sweep, is in the server queue. The page will show it when it is complete.</p>
+    <h3>Latency and backlash decide if a policy works on the robot</h3>
+    <p class="claim">Sensor noise and encoder quantization do not decrease the success rate. Latency, backlash and gain errors decrease it to 16 to 80% if the policy did not train with them.</p>
+    <p>We trained 15 YAM policies on the lab table (seed 0). Each policy trained with one robot condition. Then we tested each policy under 13 conditions, with 2,048 unseen starts for each test. All 15 policies passed 99% training success. Most runs stopped at the minimum of 50 million steps. Each run took approximately 46 minutes on a V100.</p>
+    <ul class="facts">
+      <li><b>Noise and quantization.</b> Joint noise of 10⁻⁴ and 5·10⁻⁴ rad and 14 or 16 bit encoders have no effect. The base policy keeps 99.8 to 100%.</li>
+      <li><b>Backlash.</b> The base policy seats 43 to 47% with 1 to 5 arcmin of backlash. A policy that trained with any of these levels seats 98.5 to 99.6% at all three levels. Without backlash, it loses only 2 to 3 points.</li>
+      <li><b>Latency.</b> The base policy seats 16% with one step of latency (20 ms) and 24% with two steps. A policy that trained with one step seats 99% at one step, but only 33% without latency. Thus, the latency in training must match the robot. The runs "allmid" and "allmax" also have latency, so they fail without it (45% and 21%). Under their own conditions, they seat 99.0% and 98.5%.</li>
+      <li><b>Gains.</b> At 4 times the training gains, the base policy seats 20%. Most failures are slips. Each gain policy seats 99% at its own gain. No policy covers all gains.</li>
+    </ul>
+    <figure class="img">
+      <img src="static/images/C-matrix.png" alt="Heat map of success rate: 15 training conditions in rows, 13 test conditions in columns" loading="lazy">
+      <figcaption><b>Success rate (%) for each training condition (rows) and test condition (columns).</b> YAM on the lab table, seed 0, 2,048 unseen starts in each cell, deterministic actions. Backlash is in arcmin. Latency is in control steps of 20 ms. "allmid": noise 10⁻⁴ rad, 16 bit, 1 arcmin, 1 step. "allmax": 5·10⁻⁴ rad, 14 bit, 5 arcmin, 2 steps. Gains are multiples of the training gains. "own": the policy's own training condition (only for "allmid" and "allmax").</figcaption>
+    </figure>
+    <p>On the unseen part families, the YAM base policy seats 97.0 to 99.7% in five families. On random convex parts, it seats 0.5%. Most failures there are slips. The Flexiv blind policy seats 22.8% of these parts.</p>
+    <p>A new run trains with all conditions at random levels in each world. If this policy covers the full table, Phases D and E use the same randomization. We also wrote a procedure to measure the latency, the backlash and the gains of the real YAM. The measured values will set the ranges.</p>
     <div class="gallery wide-block">
       <figure>
         <img src="static/images/yam_table_reset.png" alt="Four views of the YAM arm on a brown table, with a peg above a fixture plate that lies on the table" loading="lazy">
@@ -343,20 +358,21 @@
         <caption>Benchmark with PPO updates included. The V100 is approximately 1.8 times slower for blind training and 2.2 times slower for visual training. Each training job uses one GPU.</caption>
       </table>
     </div>
-    <p>The batch started at 22:06 UTC on 20 October. It uses all five GPUs. A job runner gives one job to each free GPU. Before each start, it makes sure that no other user has the GPU. These runs are in progress at 23:00 UTC:</p>
+    <p>The batch started at 22:06 UTC on 20 October. It used all five GPUs. A job runner gives one job to each free GPU. Before each start, it makes sure that no other user has the GPU. All 39 jobs of Phases B and C were complete at 07:04 UTC on 21 October. No job failed.</p>
     <div class="tbl">
       <table>
-        <thead><tr><th>Run</th><th class="n">Steps</th><th class="n">Training success</th><th>Note</th></tr></thead>
+        <thead><tr><th>Run</th><th class="n">Steps</th><th class="n">Test success</th><th>Note</th></tr></thead>
         <tbody>
-          <tr><td>B visual, seed 1</td><td class="n">9.0 M</td><td class="n">96.2%</td><td>Passed 90% at 7.7 M. Seed 0: 7.9 M.</td></tr>
-          <tr><td>B visual, seed 2</td><td class="n">6.4 M</td><td class="n">82.1%</td><td>Started 11 minutes later</td></tr>
-          <tr><td>B blind, no contact loss, seed 2</td><td class="n">47.6 M</td><td class="n">72.4%</td><td>Slower, as seed 0</td></tr>
-          <tr><td>C YAM base, seed 0, lab table</td><td class="n">31.1 M</td><td class="n">98.7%</td><td>Passed 90% at 16.5 M</td></tr>
-          <tr><td>C YAM, joint noise 10⁻⁴ rad, seed 0</td><td class="n">31.5 M</td><td class="n">98.8%</td><td>Passed 90% at 16.5 M</td></tr>
+          <tr><td>B visual, seed 1</td><td class="n">50 M</td><td class="n">99.9%</td><td>Passed 90% at 7.9 M. Seed 0: 7.9 M.</td></tr>
+          <tr><td>B visual, seed 2</td><td class="n">50 M</td><td class="n">100%</td><td>Passed 90% at 7.3 M</td></tr>
+          <tr><td>B blind, no contact loss, seed 2</td><td class="n">300 M</td><td class="n">99.0%</td><td>Passed 90% at 92.4 M. Seed 0: 88.9 M.</td></tr>
+          <tr><td>C YAM base, seed 0, lab table</td><td class="n">300 M</td><td class="n">99.8%</td><td>Passed 90% at 17.3 M</td></tr>
+          <tr><td>C YAM, 14 more conditions, seed 0</td><td class="n">50 to 57 M</td><td class="n">98.3 to 100%</td><td>Own condition. See the table in the YAM section.</td></tr>
         </tbody>
-        <caption>Training success with stochastic actions, smoothed over 10 iterations. These runs are not complete.</caption>
+        <caption>Test success: deterministic actions, 2,048 unseen starts. Steps to 90%: training success smoothed over 10 iterations.</caption>
       </table>
     </div>
+    <p>The visual seeds 1 and 2 confirm seed 0 on the unseen part families. The blind policy has a higher success rate in all six families, for all three visual seeds.</p>
   </section>
 
   <!-- ============================================================ discoveries -->
@@ -401,22 +417,21 @@
   <section id="next">
     <h2>Next steps</h2>
     <ul class="facts">
-      <li><b>Phase B.</b> Complete the visual seeds 1 and 2 and the run without the contact loss (server). The local machine trains blind seed 2 and a second run without the contact loss. Then give the B-R7 result with three seeds.</li>
-      <li><b>Phase C.</b> Train the YAM on the lab table with each robustness condition: joint noise, quantization, backlash, latency, all of them together, and three gain values. Then test each policy on 2,048 matched starts and on the unseen part families.</li>
-      <li><b>Noise level.</b> Select the sensor noise level from the Phase C results (gate C). Phases D and E start after this decision.</li>
-      <li><b>Phase E.</b> The local machine examines USB-C insertion. Its results go into the Phase E setup before the server trains USB-C.</li>
-      <li><b>Gear task.</b> Complete for the blind policy (seed 0).</li>
-      <li><b>Possible ablation.</b> Add a feed-forward term for the nominal peg weight. Then measure if the policy learns to lift the peg.</li>
+      <li><b>Real YAM.</b> Measure the latency, the backlash, the gains and the encoder noise of the real arm. The procedure takes 1 to 2 hours. A script fits the sim to the step data.</li>
+      <li><b>Noise model for D and E.</b> The randomized run tells if one policy can cover all conditions. If it can, D and E use randomized latency, backlash and noise. The real measurements then set the ranges.</li>
+      <li><b>Phases D and E.</b> Start on the server after the randomized run. E trains USB-C on the lab table with sphere pads, and the chamfer, latch and side-port variants.</li>
+      <li><b>Phase B.</b> The local machine trains blind seed 2 and a second run without the contact loss.</li>
+      <li><b>Phase F.</b> The camera code is ready. It starts after E, with approval (approximately 70 GPU hours).</li>
     </ul>
     <div class="tbl">
       <table>
         <thead><tr><th>Work on the server</th><th class="n">Training runs</th><th class="n">V100 GPU hours</th><th class="n">Time on 5 GPUs</th><th>Status</th></tr></thead>
         <tbody>
-          <tr><td>Phase B, remaining seeds</td><td class="n">3</td><td class="n">approximately 12</td><td class="n">with Phase C</td><td><span class="chip run">Running</span></td></tr>
-          <tr><td>Phase C, 15 conditions, seed 0</td><td class="n">15</td><td class="n">approximately 70</td><td class="n">approximately 1 day</td><td><span class="chip run">Running</span></td></tr>
-          <tr><td>Phase D, 40 cells, seed 0</td><td class="n">40</td><td class="n">approximately 170</td><td class="n">approximately 1.5 days</td><td><span class="chip todo">Waits for the noise level</span></td></tr>
-          <tr><td>Phase E, USB-C and ablations, seed 0</td><td class="n">5</td><td class="n">approximately 30</td><td class="n">approximately 6 h</td><td><span class="chip todo">Waits for the noise level</span></td></tr>
-          <tr><td>Phase F, cameras</td><td class="n">—</td><td class="n">—</td><td class="n">—</td><td><span class="chip todo">Needs code changes</span></td></tr>
+          <tr><td>Phase B, remaining seeds</td><td class="n">3</td><td class="n">approximately 12</td><td class="n">with Phase C</td><td><span class="chip ok">Done</span></td></tr>
+          <tr><td>Phase C, 16 conditions, seed 0</td><td class="n">16</td><td class="n">approximately 25</td><td class="n">9 hours</td><td><span class="chip ok">15 done</span> <span class="chip run">1 running</span></td></tr>
+          <tr><td>Phase D, 40 cells, seed 0</td><td class="n">40</td><td class="n">approximately 170</td><td class="n">approximately 1.5 days</td><td><span class="chip todo">Next</span></td></tr>
+          <tr><td>Phase E, USB-C and ablations, seed 0</td><td class="n">5</td><td class="n">approximately 30</td><td class="n">approximately 6 h</td><td><span class="chip todo">Next</span></td></tr>
+          <tr><td>Phase F, cameras</td><td class="n">5</td><td class="n">approximately 70</td><td class="n">approximately 14 h</td><td><span class="chip todo">Needs approval</span></td></tr>
         </tbody>
         <caption>Upper limits with seed 0 only. Runs that pass 99% training success stop early, so most runs take less time. With three seeds, the same work needs approximately 800 GPU hours.</caption>
       </table>

@@ -80,6 +80,8 @@ export PYTHONPATH=$PWD
 .venv/bin/python -m blind_insertion.viz.replay --rollouts results/B/x.rollouts.npz --worlds 0,1 --out results/B/viz/x
 .venv/bin/python -m blind_insertion.checks.signal_checks --robot flexiv   # A-S3..A-S6 (CPU)
 .venv/bin/python scripts/build_report.py [--no-media]   # HTML report data/videos -> report/static/
+.venv/bin/python scripts/phase_c_report.py    # C train x test matrix -> results/C/C-matrix.{csv,png}
+.venv/bin/python scripts/real_yam_latency.py fit 'data/real_yam/steps_joint*.csv'   # real-arm delay + gain fit (docs/REAL_YAM_LATENCY_BACKLASH.md)
 report/tools/preview.sh && <playwright python> report/tools/check_page.py report --page .preview.html
 ```
 
