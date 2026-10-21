@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Status report · 21 October 2026 · Simulation results</div>
+    <div class="badge">Status report · 21 October 2026, 11:00 UTC · Simulation results</div>
     <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
     <p class="authors">Yash Chitambar</p>
     <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -40,8 +40,8 @@
           <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
           <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency, backlash and gain errors break a policy that did not train with them. One policy trained with random levels keeps 96 to 98% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
           <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>40-cell grid from 60 mm to 8 mm openings and 1.0 to 0.05 mm clearance.</td><td><span class="chip run">Training</span></td></tr>
-          <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away.</td><td><span class="chip ok">First result</span> <span class="chip run">Lab table runs training</span></td></tr>
-          <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
+          <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away. But 20 ms of latency or 1 arcmin of backlash drops it to 5 to 9%.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
+          <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -68,6 +68,17 @@
         <li><b>Sim checks.</b> Before training, ten checks test the contact signal. For example, a 0.3 N push is visible in the joints, and a peg drop-in shows as a joint-velocity peak.</li>
       </ul>
     </div>
+  </section>
+
+  <!-- ============================================================ examples -->
+  <section id="examples">
+    <h2>Examples from every test</h2>
+    <p>Each test records its episodes. The video for a test shows its fastest, median and slowest successes and up to three episodes of each failure type. A green label is a success. A red label gives the failure type. Select a task, then a test.</p>
+    <figure class="viz" data-fig="demos">
+      <div class="viz-tag">Interactive · select a test</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>Success and failure examples, real time.</b> Each label gives the result, the time and the start distance from the hole. The text below the video gives the success rate of the full test and the count of each failure type. Each video comes from a new run of the test. The simulator is not bitwise deterministic, so the rates can differ slightly from the tables.</figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ RQ1 -->
@@ -216,7 +227,7 @@
   <p class="finding">RQ4 · USB-C</p>
   <section id="rq4">
     <h2>The blind policy plugs in USB-C drives</h2>
-    <p class="claim">At the final clearance of 0.02 to 0.1 mm, the blind policy seats 91.5% of 2,048 unseen USB-C drives. It seats 50% from 6.0 mm away.</p>
+    <p class="claim">At the final clearance of 0.02 to 0.1 mm, the blind policy seats 91.5% of 2,048 unseen USB-C drives. It seats 50% from 6.0 mm away. With 20 ms of latency or 1′ of backlash, it seats only 5 to 9%.</p>
     <p>The YAM holds a USB-C flash drive and must plug it into a blind port. Training uses a curriculum: the clearance starts at 0.3 mm and decreases in five stages. The first run failed because the drive slipped out of the gripper. A box-shaped pad gives only one edge of contact when the drive turns in the hand. With 4 × 4 small spheres on each pad, no drive slips. After this correction, the policy completed the curriculum (200 million steps).</p>
     <div class="cols2">
       <figure class="teaser">
@@ -245,14 +256,38 @@
       <div class="viz-mount"></div>
       <figcaption><b>Capture radius: success against the start distance (0.05 mm clearance, n = 8,192).</b> Points: 0.5 mm bins with 95% Wilson intervals. Orange: logistic fit. Dashed line and band: the 50% radius (5.98 mm, 95% interval 5.91 to 6.04 mm). Up to 3 mm, success is 98 to 100%.</figcaption>
     </figure>
-    <p>Now the YAM trains on the lab table with USB-C, a chamfered port, a latched port and a port that faces the robot. The latch and the side port need their own training, because the first policy fails on them.</p>
+    <p>The joints feel the drive. On the YAM, a lateral push of 0.04 N or a vertical push of 0.13 N on the drive gives a joint deflection three times the joint noise (σ = 10⁻⁴ rad). For the YAM peg, these values are 1.1 N and 0.8 N.</p>
+
+    <h3>Robot errors are the main risk for USB-C</h3>
+    <p>The USB-C fit is 20 to 100 times tighter than the peg fit, so latency and backlash have a larger effect. We tested the USB-C policy with the Phase C conditions on the lab table (final clearance, 3 mm median start offset, 2,048 matched starts).</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Test condition</th><th class="n">Trained without errors</th><th class="n">Fine-tuned with random errors</th></tr></thead>
+        <tbody>
+          <tr><td>No error</td><td class="n">78.0%</td><td class="n" data-ft="base">31.1%</td></tr>
+          <tr><td>Latency 20 ms</td><td class="n">5.2%</td><td class="n" data-ft="lat1">22.6%</td></tr>
+          <tr><td>Latency 40 ms</td><td class="n">5.0%</td><td class="n" data-ft="lat2">22.0%</td></tr>
+          <tr><td>Backlash 1′</td><td class="n">8.6%</td><td class="n" data-ft="bl1">45.4%</td></tr>
+          <tr><td>Backlash 3′</td><td class="n">7.2%</td><td class="n" data-ft="bl3">44.6%</td></tr>
+          <tr><td>Joint noise 5·10⁻⁴ rad</td><td class="n" data-ft0="qn5e-4">77.3%</td><td class="n" data-ft="qn5e-4">32.0%</td></tr>
+          <tr><td>14-bit encoders</td><td class="n" data-ft0="quant14">78.4%</td><td class="n" data-ft="quant14">29.6%</td></tr>
+        </tbody>
+        <caption>The policy trained on the old mount (91.5% there, 78.0% on the lab table). The fine-tune adds 100 million steps on the lab table with a random latency (0 to 40 ms), backlash (0 to 5′), encoder resolution and joint noise in each world. Its training success was 40% and still increasing, so the run is not complete.</caption>
+      </table>
+    </div>
+    <p>As in Phase C, noise and encoder resolution have no effect, and latency and backlash do. The fine-tune is 4 to 6 times better under errors, but it loses 47 points without errors. On the peg, a policy trained with random errors from the start lost only 3.6 points (RQ2). Thus, the server now trains USB-C from the start: the plain policy, the chamfered port, the latch and the side port, and then a run with the random errors.</p>
   </section>
 
   <!-- ============================================================ RQ5 -->
   <p class="finding">RQ5 · Vision</p>
   <section id="rq5">
     <h2>A camera helps on familiar parts, not on new parts</h2>
-    <p>On large pegs, the camera policy is faster (0.38 s against 0.64 s). On unseen part families, it loses 12 to 54 points against the blind policy (RQ1 figure). The question for USB-C is different: the port is only a few pixels wide in a 64 × 64 wrist image, and the plug tip is at the minimum range of the D405 depth camera. Five camera policies are ready to train: RGB, depth, and each with joint data. They start after the USB-C runs.</p>
+    <p>On large pegs, the camera policy is faster (0.38 s against 0.64 s). On unseen part families, it loses 12 to 54 points against the blind policy (RQ1 figure). For USB-C, the simulated YAM has the real wrist camera (Intel RealSense D405) with a depth model: no depth closer than 7 cm, noise that increases with distance, and dropouts at edges.</p>
+    <p><b>The wrist camera does not see the port.</b> The camera is behind the drive and looks along it, so the drive hides the port. The camera sees the housing at approximately 9 cm, and the port is only a few pixels wide at 64 × 64. Five camera policies are ready to train (RGB, depth, and each with joint data, approximately 70 GPU hours). First we must decide if the camera moves.</p>
+    <figure class="img">
+      <img src="static/images/F_camera_views.png" alt="Six wrist camera images in RGB and depth: the drive in front of the port housing, the gripper at the bottom" loading="lazy">
+      <figcaption><b>The YAM wrist camera at six USB-C start states, 64 × 64 pixels.</b> Top: RGB with random lights and colors. Bottom: depth after the camera model, in cm. Black pixels have no depth. The drive is in the centre. The port is behind it.</figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ next -->
@@ -261,8 +296,8 @@
     <ol class="facts">
       <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
       <li><b>RQ3 grid.</b> Complete the diagonal and the 8 mm row, then the other cells. Answer: at what size does success fall below 90%, and is the cause the search area or the signal?</li>
-      <li><b>RQ4 on the lab table.</b> USB-C, chamfer, latch and side port, then the ablations (no contact loss, history length, noise).</li>
-      <li><b>RQ5.</b> Train the five camera policies on USB-C (approximately 70 GPU hours).</li>
+      <li><b>RQ4 on the lab table.</b> USB-C, chamfer, latch and side port (training now), then USB-C with random robot errors from the start, and the ablations (no contact loss, history length).</li>
+      <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
       <li><b>More seeds</b> where a result is close.</li>
     </ol>
   </section>

@@ -10,8 +10,9 @@ Figures and data referenced here live in `results/<phase>/`.
 | 0 | Passed (per plan). The Phase 0 scripts/configs (`blind_usbc/`, `configs/usbc_flash_drive.yaml`) are **not in this repo**; recreated as needed. |
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
 | B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
-| C | 15 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 15 x 13 train/test matrix (`results/C/C-matrix.*`). `randall` (all factors randomized per world) running. Gate C (noise level for D/E) open: see 2026-10-21 entry. |
-| E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Server E waits for Gate C. |
+| C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-98% on every such test). `clip1` (action clip 1.0) eval running. |
+| D | Tier 1 (16 runs, 150M cap, randomized noise model) queued on mason (`runs/queue_server/stateD`); starts as E batch 1 frees GPUs. |
+| E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
 
@@ -72,17 +73,35 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 | A-S9 throughput | 18k / 34k / 43k / 43k env steps/s at N = 1k / 4k / 8k / 12k (physics only); 36–38k with PPO at 12,288 worlds -> 300M steps in about 2.3 h | Report |
 | Baselines | 2,048 matched starts: zero action 2.9%, random (σ 0.5) 6.1% success | Report |
 
-## Next steps (as of 2026-10-21 07:45 UTC)
+## Next steps (as of 2026-10-21 11:00 UTC)
 
-- Gate C: choose the D/E noise model. The matrix says latency and backlash must be in training,
-  matched or randomized; `C-peg-proprio-randall-s0` (running on mason) tests randomization.
-  Then set `NOISE` in `make_manifests.py`, regenerate, `--check`, start D tier 1 and E.
+- D tier 1 (randomized noise model) and E batch 1 on mason; then the E ablations and D tier 2.
+- Gains are not in `randall`: gain x4 still gives 52%. Measure real gains or add gain
+  randomization (0.5-2x) to the noise model if the real step tests disagree with kp 80/30.
 - Measure the real YAM's command-to-encoder latency (in 20 ms control steps) and backlash: these
   two set the D/E noise model more than q noise does.
 - Blind s2 and no-contact s1 (local queue) for the 3-seed B tables.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 — Gate C: one randomized policy covers noise, backlash and latency
+
+`C-peg-proprio-randall-s0` (per-world `noise_rand`: q_noise {0,1e-4,5e-4}, quant {0,16,14} bit,
+backlash {0,1,3,5}', latency {0,1,2} steps; 66.8 min on a V100, stop rule) on the 13 test
+conditions, 2,048 starts each: base 96.2%, noise/quant 96.3-97.0%, backlash 1/3/5' 98.1/98.0/97.1%,
+latency 1/2 steps 96.3/96.8%, gains 0.5x/2x/4x 73.6/91.1/52.1%. Every fixed-level policy with
+latency fails off its own latency (C matrix), so randomization costs only 3.6 points on the ideal
+arm and removes the need to know the latency exactly. Decision: `NOISE = {"noise_rand": NOISE_RAND}`
+in `make_manifests.py` for D and the E "noise" ablation (the separate E "noiserand" line is gone).
+Contrast with the USB-C random-error *fine-tune* (athena5, entry below): 31% clean after 100M from a
+noise-free policy. Training with the randomization from scratch is the better path; E-noise tests it.
+D runs are capped at 150M steps (most C runs stopped at 50-57M).
+
+Example clips (`scripts/yam_example_rollouts.sh`, `scripts/yam_example_videos.py`): matched starts,
+64 logged worlds. Base fails / own-trained succeeds on 50/64 (latency 20 ms), 38/64 (backlash 3'),
+54/64 (gain x4) starts. The backlash replay needs the CPU model built with the same
+`backlash_arcmin`, since the logged qpos includes the 6 hidden hinges.
+
 ### 2026-10-21 (night, athena5) — USB-C under robot errors; wrist-camera view; demos
 
 - **The USB-C policy breaks under the robot errors that Phase C found** (athena5 E1 s0, sphere
