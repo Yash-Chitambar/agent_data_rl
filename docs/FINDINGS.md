@@ -210,7 +210,9 @@ At 8 mm and 1.0 mm the fixed start (2.3x the scaled 1.3 mm) takes 0.44 s and 22 
 0.12 s and 3.9 mm, with the same failures (never found 55 vs 55). So at >= 0.5 mm clearance the
 search area is not the limit. Tighter fixed 8 mm cells (00:45 UTC): c0.2 95.0% (scaled 95.6%; 0.96 s,
 35 mm), c0.1 89.1% (scaled 93.0%; never found 147 vs 64, wedged 68 vs 80). So at 0.1 mm the larger
-start area costs 4 points, all in search failures. c0.05 fixed still trains (stage 5, 75%). Once the D_train_tier1 queue emptied, the runner
+start area costs 4 points, all in search failures. c0.05 fixed: 81.9% (scaled 89.7%; never found 199
+vs 88, wedged 162 vs 115, 1.52 s, 36 mm). First tier-2 cell o60_c0.5_scaled: 96.7% (wedged 39, never
+found 25; o60_c1 98.2%). Once the D_train_tier1 queue emptied, the runner
 ran these evals itself; E latchlowft and sideft started at 23:16.
 
 ### 2026-10-21 (21:15 UTC, mason) — Phase D diagonal and 8 mm row: clearance, not size, lowers success
