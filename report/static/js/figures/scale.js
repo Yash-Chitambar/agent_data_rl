@@ -6,7 +6,7 @@
 import { s, h, svg, responsive, linear, band, axes, tween, onVisible, ease, tooltip, tipRow,
   legend, cvar, pct } from './kit.js';
 
-const REG = [['scaled', 'Scaled start (1.3 mm median)', 0], ['fixed', 'Fixed start (3 mm median)', 1]];
+const REG_ALL = [['scaled', 'Scaled start (1.3 mm median)', 0], ['fixed', 'Fixed start (3 mm median)', 1]];
 const FAIL = [['never_found', 'Did not find the hole', 2], ['wedged_partial', 'Wedged partly inside', 3]];
 
 export default async function (mount, ctx) {
@@ -14,6 +14,7 @@ export default async function (mount, ctx) {
   const cells = data.cells.filter((c) => c.opening_mm === 8);
   const cl = data.clearances_mm.filter((c) => cells.some((x) => x.clearance_mm === c));
   const get = (reg, c) => cells.find((x) => x.regime === reg && x.clearance_mm === c);
+  const REG = REG_ALL.filter(([r]) => cells.some((x) => x.regime === r));
   const lab = (c) => `${c >= 1 ? c.toFixed(1) : c} mm`;
   const tip = (c) => `<b>8 mm peg, ${lab(c)} clearance</b>` + REG.filter(([r]) => get(r, c)).map(([r, l, ci]) => {
     const v = get(r, c);
@@ -38,6 +39,7 @@ export default async function (mount, ctx) {
     cl.forEach((c) => s('text', { x: x(lab(c)) + x.bw / 2, y: ht + 16, 'text-anchor': 'middle', text: lab(c) }, g));
     REG.forEach(([r, , ci], i) => {
       const pts = cl.map((c) => [c, get(r, c)]).filter(([, v]) => v);
+      if (!pts.length) return;
       const cx = (c) => x(lab(c)) + x.bw / 2 + (i ? 5 : -5);
       const path = s('path', { d: 'M' + pts.map(([c, v]) => `${cx(c)},${y(v.rate)}`).join('L'), fill: 'none', stroke: cvar(ci), 'stroke-width': 2 }, g);
       pts.forEach(([c, v]) => {

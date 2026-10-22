@@ -84,6 +84,17 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-22 (11:15 UTC, mason) — Phase D 8 mm scaled row on the corrected backlash model
+
+- o8 scaled, sphere pads, curriculum, random robot conditions, 2,048 starts each (`results/D/D-grid.csv`,
+  `report/static/data/scale.json`): 1.0 / 0.5 / 0.2 / 0.1 / 0.05 mm -> 98.5 / 97.5 / 98.7 / 98.1 / 94.2%
+  (old model: 97.0 / 98.6 / 95.6 / 93.0 / 89.7%). Median time 0.12 -> 0.94 s.
+- Failures: never_found 29 / 44 / 20 / 27 / 70, wedged_partial 2 / 3 / 4 / 9 / 47 (old 0.05 mm: 115 wedged).
+  0 slips in 10,240 starts. The old soft-limit flex (~0.6°) was what made the tight fit wedge.
+- 0.1 and 0.05 mm ran to the 150 M cap (train 97% / 93% at end); 0.2 mm also 150 M; 1.0 and 0.5 mm stopped at 99%.
+- Report v37: RQ3 leads with the new row (own table + scale figure, scaled only); the diagonal and fixed-start
+  table stay under an "old backlash model" note until redone. scale.js now skips a regime with no cells.
+
 ### 2026-10-22 (08:10 UTC, mason) — Phase C on the corrected backlash model: backlash does not matter on the peg
 
 - Backlash-only evals of 12 C policies + full evals of the retrained backlash1, backlash3, randall (YAM, lab table,
