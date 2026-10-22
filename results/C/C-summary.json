@@ -105,6 +105,21 @@
    "gain2": 0.9058,
    "gain4": 0.5684
   },
+  "backlash5": {
+   "base": 0.9956,
+   "qnoise1e-4": 0.9937,
+   "qnoise5e-4": 0.9922,
+   "quant16": 0.9932,
+   "quant14": 0.9961,
+   "backlash1": 0.9946,
+   "backlash3": 0.9956,
+   "backlash5": 0.9961,
+   "latency1": 0.4536,
+   "latency2": 0.5264,
+   "gain0.5": 0.8262,
+   "gain2": 0.9155,
+   "gain4": 0.5098
+  },
   "latency1": {
    "base": 0.3325,
    "qnoise1e-4": 0.355,
@@ -134,6 +149,38 @@
    "gain0.5": 0.1924,
    "gain2": 0.2627,
    "gain4": 0.2021
+  },
+  "allmid": {
+   "base": 0.3623,
+   "qnoise1e-4": 0.3613,
+   "qnoise5e-4": 0.355,
+   "quant16": 0.3491,
+   "quant14": 0.3584,
+   "backlash1": 0.3735,
+   "backlash3": 0.3633,
+   "backlash5": 0.3672,
+   "latency1": 0.9912,
+   "latency2": 0.8462,
+   "gain0.5": 0.3193,
+   "gain2": 0.3418,
+   "gain4": 0.2505,
+   "own": 0.9912
+  },
+  "allmax": {
+   "base": 0.1436,
+   "qnoise1e-4": 0.1445,
+   "qnoise5e-4": 0.1475,
+   "quant16": 0.1445,
+   "quant14": 0.1548,
+   "backlash1": 0.1372,
+   "backlash3": 0.1479,
+   "backlash5": 0.1318,
+   "latency1": 0.5376,
+   "latency2": 0.9824,
+   "gain0.5": 0.1328,
+   "gain2": 0.1353,
+   "gain4": 0.1187,
+   "own": 0.9858
   },
   "randall": {
    "base": 0.9858,

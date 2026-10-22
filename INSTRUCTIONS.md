@@ -236,4 +236,4 @@ branch if `main` moved, and resolve conflicts in `docs/FINDINGS.md` by keeping b
 | 2026-10-20 | mason | YAM lab-table scene (builder.YAM_TABLE, EnvCfg.table_top) + 25M smoke | 1 (released) | - | runs/_smoke-C-yam-table | passed: 90% at 18.1M |
 | 2026-10-20 | mason | Batch: B_train, B_eval, C_train, C_eval (+ C base s0 on the table setup) | 0–4 (Yash OK) | jobs | runs/queue_server/runner.log | running |
 | 2026-10-21 | mason | Redo of the 47 old-backlash-model runs (C backlash/allmid/allmax/randall, D tier 1+2, E noise) + C_eval_bl.txt | (approved set) | jobs | runs/queue_server/runner.log | to do |
-| 2026-10-22 | mason | Backlash-model redo (47 runs, priority.txt order) + C_eval_bl | 0–4 (Yash OK) | runnerD2 | runs/queue_server/runnerD.log | running |
+| 2026-10-22 | mason | Backlash-model redo (47 runs, priority.txt order) + C_eval_bl | 0–4 (Yash OK) | runnerD2 | runs/queue_server/runnerD.log | running: C, E noise, D 8 mm + diagonal done (19:30 UTC); D tier-2 scaled + E nocontact/h10/h60 left |

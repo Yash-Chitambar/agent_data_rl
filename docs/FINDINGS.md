@@ -10,7 +10,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | 0 | Passed (per plan). The Phase 0 scripts/configs (`blind_usbc/`, `configs/usbc_flash_drive.yaml`) are **not in this repo**; recreated as needed. |
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
 | B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
-| C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-99% on every such test, corrected backlash model 2026-10-22). Corrected backlash costs <= 4 points for every policy (base 99.9% at 5'); latency and gains remain the conditions that need training. allmid/allmax/backlash5 retrain pending. |
+| C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-99% on every such test, corrected backlash model 2026-10-22). Corrected backlash costs <= 4 points for every policy (base 99.9% at 5'); latency and gains remain the conditions that need training. All 17 conditions redone on the fixed model (2026-10-22 19:30 UTC). |
 | D | Tier 1 (16 runs, 150M cap, randomized noise model) on mason (`runs/queue_server/stateD`). o60_c1 and o30_c0.5 (scaled) reach 99% training success; o15_c0.2 from scratch never succeeded, so cells tighter than 1 mm now use a clearance curriculum (`--curriculum scale`). Grid: `scripts/phase_d_report.py`. |
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
@@ -84,6 +84,28 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-22 (19:30 UTC, mason) — Redo batch: C specialists, D fixed row + diagonal, E noise stalls
+
+All on the corrected backlash model, 2,048 starts per cell, random robot conditions for D.
+- **C allmid / allmax / backlash5 retrained** (50.3 M, stop at 99%): own condition 99.1 / 98.6 / 99.6%.
+  allmid (latency 1) gets 36.2% on base, allmax (latency 2) 14.4% (old model: 45.4 / 20.7%). backlash5 base
+  99.6% (old 97.5%). Same conclusion as before: allmid/allmax are latency-matched specialists; use `randall`.
+  `results/C/C-matrix.*` now has all 17 training conditions.
+- **D fixed 8 mm row** (median start 3 mm), 1.0 / 0.5 / 0.2 / 0.1 / 0.05 mm: 98.9 / 95.8 / 91.7 / 88.4 / 83.7%
+  (scaled: 98.5 / 97.5 / 98.7 / 98.1 / 94.2%). The wide start costs up to 10 points at tight clearance, almost all
+  never_found (191 / 165 / 126 at 0.05 / 0.1 / 0.2 mm). 90% training success at 38-44 M steps (scaled 7-9 M);
+  0.1 and 0.05 mm never reached 90% in 150 M.
+- **D diagonal**, scaled / fixed: o60_c1 99.6 / 99.7%, o30_c0.5 98.2 / 98.1%, o15_c0.2 97.6 / 97.8%. Size alone
+  does not lower success; the start area matters only at 8 mm and <= 0.2 mm.
+- **D tier 2 scaled so far:** o60 c0.5 / 0.2 / 0.1 -> 98.7 / 98.0 / 98.6%; o30_c1 97.3%. o60_c0.05, o30 c0.2 / 0.1 /
+  0.05, o15 c1 running; o15 c0.5 / 0.1 / 0.05 queued.
+- **E noise (USB-C, randomized noise/quant/backlash 0-5'/latency 0-2) stalls in curriculum stage 2**: 276 M steps
+  at 85-91% training success, rolling 5 M-step success never >= 0.9 (the advance rule); 300 M cap. Final-range test 21.6%
+  (curr, no noise: 79.0%); never_found 963, wedged_partial 421, slipped 150. Capture 54% at 0.5 mm (curr 97%);
+  clearance sweep 3.0% at 20 um to 69% at 200 um. The peg shrugs the random model off (randall 98.6%); the USB-C
+  does not. Consistent with athena5's USB-C backlash and latency results. Options for Yash: fine-tune from
+  `E-usbc-proprio-curr-s0` with the noise model (as fullft3 did for backlash), or narrow the ranges (latency 1 only).
+
 ### 2026-10-22 (11:15 UTC, mason) — Phase D 8 mm scaled row on the corrected backlash model
 
 - o8 scaled, sphere pads, curriculum, random robot conditions, 2,048 starts each (`results/D/D-grid.csv`,
