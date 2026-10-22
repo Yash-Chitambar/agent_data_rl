@@ -84,6 +84,7 @@ class ActorCritic(nn.Module):
         self.latent = latent
         self.actor = mlp(latent + obs_dim, (256, 256, 128), act_dim)
         self.log_std = nn.Parameter(torch.full((act_dim,), math.log(init_std)))
+        self.log_std_max = None   # optional cap (train.py --std_max); not in the state dict
         self.decoder = mlp(latent, (128, 128), n_points * n_classes) if latent else None
         self.critic = mlp(obs_dim + critic_extra_dim, (512, 256, 128), 1)
         nn.init.zeros_(self.actor[-1].bias)
@@ -104,7 +105,8 @@ class ActorCritic(nn.Module):
 
     def dist(self, hist):
         mu, z = self.act_mean(hist)
-        return torch.distributions.Normal(mu, self.log_std.exp().expand_as(mu)), z
+        ls = self.log_std if self.log_std_max is None else self.log_std.clamp(max=self.log_std_max)
+        return torch.distributions.Normal(mu, ls.exp().expand_as(mu)), z
 
     def value(self, hist, crit):
         o = self.obs_norm(hist[:, -1])

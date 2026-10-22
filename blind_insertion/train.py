@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import os
 import subprocess
 import time
@@ -194,6 +195,8 @@ def train(args):
     lab_fn = getattr(env, "current_labels", None)
     ac = ActorCritic(env.obs_dim, env.n_arm, env.critic_dim, history=env.cfg.history,
                      encoder=args.encoder, n_points=n_lab).to(dev)
+    if getattr(args, "std_max", 0):   # cap the action noise: with no reward signal, the entropy term
+        ac.log_std_max = math.log(args.std_max)   # otherwise widens it without bound
     opt = torch.optim.Adam(ac.parameters(), lr=pc.lr)
     meta = dict(args=vars(args), env=asdict(env.cfg) | {"variants": None, "variant_sampler": None},
                 git=git_hash(), versions={p: version(p) for p in ("mujoco", "mujoco-warp", "warp-lang",
@@ -383,7 +386,7 @@ def train(args):
             json.dump(cur.log, open(run / "curriculum.json", "w"), indent=1)
         row = dict(stage=stage, iter=it, env_steps=total, wall=time.time() - t0, success=succ, capture=cap,
                    ep_len=eplen, episodes=neps, sps=T * N / (roll_time + up_time),
-                   roll_s=roll_time, update_s=up_time, std=ac.log_std.exp().mean().item(),
+                   roll_s=roll_time, update_s=up_time, std=(ac.log_std if ac.log_std_max is None else ac.log_std.clamp(max=ac.log_std_max)).exp().mean().item(),
                    reward=buf["rew"].sum().item() / N,
                    ov_nefc=int(env.overflow_counts[0]), ov_narrow=int(env.overflow_counts[3]),
                    ov_iter=int(env.overflow_counts[9]), ov_ls=int(env.overflow_counts[10]), **stats)
@@ -448,6 +451,7 @@ def parser():
     ap.add_argument("--minibatches", type=int, default=0, help="0: task default (peg 20, gear 24)")
     ap.add_argument("--stop_success", type=float, default=0.0, help="stop once training success >= this ...")
     ap.add_argument("--min_steps", type=float, default=0.0, help="... after at least this many env steps")
+    ap.add_argument("--std_max", type=float, default=0.0, help=">0: cap the policy's action std (0: no cap)")
     ap.add_argument("--init", default="", help="start from this checkpoint's weights (fine-tuning)")
     ap.add_argument("--resume", action="store_true",
                     help="continue from runs/<name>/last.pt if it exists (else start fresh); no-op if DONE")
