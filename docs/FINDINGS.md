@@ -106,6 +106,52 @@ All on the corrected backlash model, 2,048 starts per cell, random robot conditi
   does not. Consistent with athena5's USB-C backlash and latency results. Options for Yash: fine-tune from
   `E-usbc-proprio-curr-s0` with the noise model (as fullft3 did for backlash), or narrow the ranges (latency 1 only).
 
+### 2026-10-22 (23:40 UTC, mason) — D scaled grid 19/20 cells; report v38 (RQ2/RQ3/RQ4 all on corrected backlash)
+
+- D scaled grid (2,048 starts each): down to 0.1 mm all 18 cells 96.3-99.6%. 0.05 mm: 60 mm 99.0%, 30 mm 94.4%
+  (74 of 115 failures wedged), 8 mm 94.2% (70 of 119 never found). 15 mm / 0.05 mm still training (GPU 3).
+- E noise clearance sweep (2 mm median offset, 1,024 each): 0.2 / 0.1 / 0.07 / 0.05 / 0.04 / 0.02 mm ->
+  69 / 61 / 48 / 34 / 25 / 3%; capture 54% already at 0.5 mm offset.
+- Report v38: RQ3 fully on the corrected model (old-model tables removed), RQ2 figure/matrix with all 17 policies,
+  RQ4 adds the E noise result. Runner now on E_later ablations (nocontact, h10, h60) + D 15/0.05.
+
+### 2026-10-22 (19:30 UTC, mason) — Redo batch: C specialists, D fixed row + diagonal, E noise stalls
+
+All on the corrected backlash model, 2,048 starts per cell, random robot conditions for D.
+- **C allmid / allmax / backlash5 retrained** (50.3 M, stop at 99%): own condition 99.1 / 98.6 / 99.6%.
+  allmid (latency 1) gets 36.2% on base, allmax (latency 2) 14.4% (old model: 45.4 / 20.7%). backlash5 base
+  99.6% (old 97.5%). Same conclusion as before: allmid/allmax are latency-matched specialists; use `randall`.
+  `results/C/C-matrix.*` now has all 17 training conditions.
+- **D fixed 8 mm row** (median start 3 mm), 1.0 / 0.5 / 0.2 / 0.1 / 0.05 mm: 98.9 / 95.8 / 91.7 / 88.4 / 83.7%
+  (scaled: 98.5 / 97.5 / 98.7 / 98.1 / 94.2%). The wide start costs up to 10 points at tight clearance, almost all
+  never_found (191 / 165 / 126 at 0.05 / 0.1 / 0.2 mm). 90% training success at 38-44 M steps (scaled 7-9 M);
+  0.1 and 0.05 mm never reached 90% in 150 M.
+- **D diagonal**, scaled / fixed: o60_c1 99.6 / 99.7%, o30_c0.5 98.2 / 98.1%, o15_c0.2 97.6 / 97.8%. Size alone
+  does not lower success; the start area matters only at 8 mm and <= 0.2 mm.
+- **D tier 2 scaled so far:** o60 c0.5 / 0.2 / 0.1 -> 98.7 / 98.0 / 98.6%; o30_c1 97.3%. o60_c0.05, o30 c0.2 / 0.1 /
+  0.05, o15 c1 running; o15 c0.5 / 0.1 / 0.05 queued.
+- **E noise (USB-C, randomized noise/quant/backlash 0-5'/latency 0-2) stalls in curriculum stage 2**: 276 M steps
+  at 85-91% training success, rolling 5 M-step success never >= 0.9 (the advance rule); 300 M cap. Final-range test 21.6%
+  (curr, no noise: 79.0%); never_found 963, wedged_partial 421, slipped 150. Capture 54% at 0.5 mm (curr 97%);
+  clearance sweep 3.0% at 20 um to 69% at 200 um. The peg shrugs the random model off (randall 98.6%); the USB-C
+  does not. Consistent with athena5's USB-C backlash and latency results. Options for Yash: fine-tune from
+  `E-usbc-proprio-curr-s0` with the noise model (as fullft3 did for backlash), or narrow the ranges (latency 1 only).
+
+### 2026-10-22 (23:40 UTC, mason) — Redo complete: D grid, C allmid/allmax/backlash5, E noise (corrected backlash)
+
+- (A scheduled check-in missed 12:16-23:20 UTC; the runner kept going and finished the approved redo order.)
+- D scaled grid, 19 of 20 cells (15 mm / 0.05 mm still training), 2,048 starts each: down to 0.1 mm all 96.3-99.6%.
+  0.05 mm: 60 mm 99.0%, 30 mm 94.4% (74 of 115 failures wedged), 8 mm 94.2% (70 of 119 never found).
+- D fixed 3 mm start: 60/1.0 99.7, 30/0.5 98.1, 15/0.2 97.8; 8 mm row 98.9 / 95.8 / 91.7 / 88.4 / 83.7% (scaled
+  98.5 / 97.5 / 98.7 / 98.1 / 94.2). Extra failures are search failures (191 vs 70 never_found at 0.05 mm).
+- C retrains: backlash5 99.6% base, 99.5-99.6% under backlash, 45 / 53% at 20 / 40 ms latency (base policy: 16 / 24%).
+  allmid (20 ms fixed) 99.1% own, 36% ideal arm; allmax (40 ms) 98.6% own, 14% ideal. Matrix now 17 x 14.
+- E-usbc-proprio-noise-s0 (USB-C, random noise/quant/backlash/latency 0-40 ms from step 0, 300 M): curriculum stuck in
+  stage 2 (0.15 mm) from 24 M steps at ~86% train (< 0.9 thr): a plateau, not the window bug. Final stage 21.6%;
+  clearance 0.2 / 0.1 / 0.05 / 0.02 mm: 69 / 61 / 34 / 3%. Capture at 0.5 mm offset only 54%. Random errors from the
+  start do not work for USB-C; train clean, then fine-tune at the measured latency.
+- Runner now on E_later ablations (nocontact, h10, h60) + D 15/0.05; report v38.
+
 ### 2026-10-22 (11:15 UTC, mason) — Phase D 8 mm scaled row on the corrected backlash model
 
 - o8 scaled, sphere pads, curriculum, random robot conditions, 2,048 starts each (`results/D/D-grid.csv`,

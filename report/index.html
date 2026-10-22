@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Status report · 21 October 2026, 23:45 UTC · Simulation results</div>
+    <div class="badge">Status report · 22 October 2026, 23:45 UTC · Simulation results</div>
     <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
     <p class="authors">Yash Chitambar</p>
     <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -39,7 +39,7 @@
         <tbody>
           <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
           <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency and gain errors break a policy that did not train with them. Backlash up to 5 arcmin has no effect. One policy trained with random levels keeps 96 to 99% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
-          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>8 mm peg (corrected model): 97.5 to 98.7% down to 0.1 mm clearance, 94.2% at 0.05 mm (USB-C fit). Larger pegs (old model): 97 to 98%. At 0.05 mm, the peg wedges more often. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
+          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>96 to 99% for every peg from 60 to 8 mm down to 0.1 mm clearance. At 0.05 mm (USB-C fit): 99.0% at 60 mm, 94% at 30 and 8 mm. A 3 mm start costs the 8 mm peg up to 10 points. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip ok">Answered in sim</span></td></tr>
           <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. With 20 ms of latency it drops to 5%, but training over the measured latency range recovers 75 to 79%. With a corrected model, 1 arcmin of backlash costs only 1 point. Training with backlash adds 17 to 20 points at 3 arcmin.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
           <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
         </tbody>
@@ -158,17 +158,17 @@
     <figure class="viz" data-fig="robust">
       <div class="viz-tag">Interactive · hover a group</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Success under each test condition (YAM, seed 0, 2,048 unseen starts for each bar).</b> Orange: the base policy, trained with none of the conditions. Blue: the policy trained with that condition. Green: the policy trained with random levels of noise, encoder resolution, backlash and latency (not gains). Whiskers: 95% Wilson interval. Latency of 20 and 40 ms is 1 and 2 steps of the control loop. Backlash is in arcminutes (′), corrected model. The backlash 5′ policy trains again, so that group has no blue bar yet. Hover a group for exact values.</figcaption>
+      <figcaption><b>Success under each test condition (YAM, seed 0, 2,048 unseen starts for each bar).</b> Orange: the base policy, trained with none of the conditions. Blue: the policy trained with that condition. Green: the policy trained with random levels of noise, encoder resolution, backlash and latency (not gains). Whiskers: 95% Wilson interval. Latency of 20 and 40 ms is 1 and 2 steps of the control loop. Backlash is in arcminutes (′), corrected model. Hover a group for exact values.</figcaption>
     </figure>
     <ul class="facts">
       <li><b>Sensor noise and encoder resolution do not matter.</b> With joint noise up to 5·10⁻⁴ rad or 14-bit encoders, no policy loses more than 1 point.</li>
       <li><b>Backlash up to 5 arcmin does not matter on the peg.</b> The base policy seats 99.9 to 100% at 1, 3 and 5 arcmin. No policy loses more than 4 points to backlash. On the 20 to 100 times tighter USB-C fit, backlash has an effect (RQ4).</li>
-      <li><b>Latency is the worst condition.</b> With 20 ms of latency, the base policy seats only 16%. A policy trained with 20 ms seats 99%, but only 33% when there is no latency. Thus, the latency in training must match the robot, or vary over a range that contains it.</li>
+      <li><b>Latency is the worst condition.</b> With 20 ms of latency, the base policy seats only 16%. A policy trained with 20 ms seats 99%, but only 33% when there is no latency. Two policies trained with all conditions at fixed levels (20 ms and 40 ms) seat 98 to 99% at their own levels, but only 36% and 14% on the ideal arm. Thus, the latency in training must match the robot, or vary over a range that contains it.</li>
       <li><b>Stiffer gains cause slips.</b> At 4 times the gains, the base policy seats 20%. Most of its failures are slips.</li>
       <li><b>One randomized policy covers all levels.</b> The policy trained with random levels seats 96 to 99% under every noise, encoder, backlash and latency test, including 0, 20 and 40 ms. It costs 1.2 points on the ideal arm (98.6% against 99.8%). Gains were not randomized: at 4 times the gains it seats 61%.</li>
     </ul>
     <div class="note">
-      <p><b>Backlash model corrected (22 October).</b> Our first backlash joint had a soft range limit. Under load, each joint turned approximately 38 arcmin at every backlash level, so the first results showed approximately 0.6° of extra joint flex (base policy: 43 to 47%). All backlash numbers in this section now use the corrected model. We tested 14 policies again, and trained the backlash 1′, backlash 3′ and random-level policies again. The backlash 5′, allmid and allmax policies train again later. Until then, they are not in the figure or the table. The latency, noise, encoder and gain results did not change.</p>
+      <p><b>Backlash model corrected (22 October).</b> Our first backlash joint had a soft range limit. Under load, each joint turned approximately 38 arcmin at every backlash level, so the first results showed approximately 0.6° of extra joint flex (base policy: 43 to 47%). All backlash numbers in this section now use the corrected model. We tested 12 policies again, and trained the 5 policies with backlash in training again (backlash 1′, 3′, 5′, random levels, allmid, allmax). The latency, noise, encoder and gain results did not change.</p>
     </div>
     <p><b>Why: the base policy uses bang-bang control.</b> In the ideal simulation, the base policy sends full-scale commands: 27% of its action values are at the limit. With no delay and no play, this is fast and accurate. With 20 ms of latency, each command arrives one step late, so the actions oscillate with a 2-step period (lag-1 autocorrelation −0.29) and the peg drifts away. All policies that trained with a condition use small, smooth actions instead: 0% at the limit and an RMS action of 1.0 against 2.1. But small actions alone are not sufficient. A policy trained with the action limit at 1 instead of 3 seats only 42 to 48% with latency (base: 16 to 24%). The policy must see the condition in training.</p>
     <figure class="img">
@@ -190,10 +190,10 @@
       </figure>
     </div>
     <details class="more">
-      <summary>Full table: 14 training conditions × 13 test conditions</summary>
+      <summary>Full table: 17 training conditions × 14 test conditions</summary>
       <figure class="img">
         <img src="static/images/C-matrix.png" alt="Heat map of success rate: training conditions in rows, test conditions in columns" loading="lazy">
-        <figcaption><b>Success (%) for each training condition (rows) and test condition (columns).</b> 2,048 starts in each cell. "randall": random levels in each world. Corrected backlash model. A policy trained with latency fails without it, in every row.</figcaption>
+        <figcaption><b>Success (%) for each training condition (rows) and test condition (columns).</b> 2,048 starts in each cell. "randall": random levels in each world. "allmid": noise 10⁻⁴ rad, 16 bit, 1 arcmin, 20 ms. "allmax": 5·10⁻⁴ rad, 14 bit, 5 arcmin, 40 ms. "own": the policy's own condition. Corrected backlash model. A policy trained with latency fails without it, in every row.</figcaption>
       </figure>
     </details>
     <div class="note">
@@ -205,49 +205,45 @@
   <p class="finding">RQ3 · Scale</p>
   <section id="rq3">
     <h2>Scale study: from 60 mm pegs to connector size</h2>
-    <p class="claim">With the corrected backlash model, the 8 mm peg seats 97.5 to 98.7% down to 0.1 mm clearance, and 94.2% at 0.05 mm, the USB-C fit. Each run trains with the random robot conditions from RQ2.</p>
+    <p class="claim">Down to 0.1 mm clearance, every peg from 60 mm to 8 mm seats 96 to 99%. At 0.05 mm, the USB-C clearance, the 60 mm peg seats 99.0%, and the 30 mm and 8 mm pegs seat 94%. Each run trains with the random robot conditions from RQ2.</p>
     <p>The pegs have a 2:1 stadium shape. The opening is 60, 30, 15 or 8 mm long. The clearance is 1.0, 0.5, 0.2, 0.1 or 0.05 mm on each side. There are two start regimes. In the scaled regime, the start offset is proportional to the part size (10 mm median at 60 mm, 1.3 mm at 8 mm). In the fixed regime, the median offset is 3 mm for all sizes. If both regimes fail at the same size, the contact signal is the limit. If only the fixed regime fails, the search area is the limit.</p>
     <div class="tbl">
       <table>
-        <thead><tr><th>8 mm peg, scaled start</th><th class="n">1.0 mm</th><th class="n">0.5 mm</th><th class="n">0.2 mm</th><th class="n">0.1 mm</th><th class="n">0.05 mm</th></tr></thead>
+        <thead><tr><th>Opening</th><th class="n">1.0 mm</th><th class="n">0.5 mm</th><th class="n">0.2 mm</th><th class="n">0.1 mm</th><th class="n">0.05 mm</th></tr></thead>
         <tbody>
-          <tr><td>Test success</td><td class="n"><b>98.5%</b></td><td class="n"><b>97.5%</b></td><td class="n"><b>98.7%</b></td><td class="n"><b>98.1%</b></td><td class="n"><b>94.2%</b></td></tr>
-          <tr><td>Median time to seat</td><td class="n">0.12 s</td><td class="n">0.24 s</td><td class="n">0.46 s</td><td class="n">0.66 s</td><td class="n">0.94 s</td></tr>
-          <tr><td>Did not find the hole</td><td class="n">29</td><td class="n">44</td><td class="n">20</td><td class="n">27</td><td class="n">70</td></tr>
-          <tr><td>Wedged partly inside</td><td class="n">2</td><td class="n">3</td><td class="n">4</td><td class="n">9</td><td class="n">47</td></tr>
+          <tr><td>60 mm</td><td class="n">99.6%</td><td class="n">98.7%</td><td class="n">98.0%</td><td class="n">98.6%</td><td class="n">99.0%</td></tr>
+          <tr><td>30 mm</td><td class="n">97.3%</td><td class="n">98.2%</td><td class="n">98.5%</td><td class="n">96.9%</td><td class="n"><b>94.4%</b></td></tr>
+          <tr><td>15 mm</td><td class="n">96.3%</td><td class="n">96.6%</td><td class="n">97.6%</td><td class="n">97.9%</td><td class="n">·</td></tr>
+          <tr><td>8 mm</td><td class="n">98.5%</td><td class="n">97.5%</td><td class="n">98.7%</td><td class="n">98.1%</td><td class="n"><b>94.2%</b></td></tr>
         </tbody>
-        <caption>Corrected backlash model. 2,048 unseen starts per cell with random robot conditions (95% intervals ±0.5 to 1.0 points). Failure rows: counts of 2,048. Sphere pads and a clearance curriculum (see the end of this section).</caption>
+        <caption>Scaled start, corrected backlash model. Test success on 2,048 unseen starts per cell with random robot conditions (95% intervals ±0.3 to 1.0 points). "·": training now. Pegs of 15 mm and smaller use sphere pads; cells tighter than 1.0 mm use a clearance curriculum.</caption>
       </table>
     </div>
-    <p><b>Clearance costs success only at the USB-C fit.</b> From 1.0 to 0.1 mm clearance, the 8 mm peg seats 97.5 to 98.7%. The search takes longer: the median time increases from 0.12 s to 0.66 s. At 0.05 mm, success decreases to 94.2%, and the peg wedges partly inside the hole 47 times (9 at 0.1 mm). Most failures are still search failures (70 of 119). With the old backlash model, the same cell seated 89.7% and wedged 115 times. Thus, the extra joint flex of the old model made the tight fit much harder. With a real arm, the joint stiffness and backlash will also set the result at this clearance.</p>
+    <p><b>Size alone does not decrease success. Only the tightest clearance does.</b> Down to 0.1 mm, all 18 cells seat 96.3 to 99.6%. At 0.05 mm, the 60 mm peg still seats 99.0%, but the 30 mm and 8 mm pegs lose 3 to 4 points. The failure types differ. The 30 mm peg wedges partly inside the hole (74 of 115 failures). The 8 mm peg more often does not find the hole (70 of 119). The search also takes longer at tight clearance: at 8 mm, the median time to seat increases from 0.12 s at 1.0 mm to 0.94 s at 0.05 mm. No peg in the 8 mm row slipped in the grasp (0 of 10,240 starts).</p>
     <figure class="viz" data-fig="scale">
       <div class="viz-tag">Interactive · hover a clearance</div>
       <div class="viz-mount"></div>
-      <figcaption><b>8 mm peg, scaled start, corrected backlash model: success stays above 97% down to 0.1 mm clearance.</b> (a) Test success with 95% Wilson intervals, 2,048 unseen starts per point, random robot conditions. (b) The two main failure types. Wedged failures increase only at 0.05 mm. The fixed-start runs train again; their points come later. Hover for time, travel and counts.</figcaption>
+      <figcaption><b>8 mm peg: a 3 mm start costs up to 10 points at tight clearance.</b> (a) Test success with 95% Wilson intervals, 2,048 unseen starts per point, random robot conditions, corrected backlash model. (b) The two main failure types of the scaled start. Wedged failures increase only at 0.05 mm. Hover for time, travel and counts.</figcaption>
     </figure>
-    <div class="note">
-      <p><b>The rest of this section uses the old backlash model.</b> The old model made backlash into approximately 0.6° of extra joint flex (see RQ2). The server trains the diagonal (60, 30 and 15 mm) and the fixed-start runs again now. The old 8 mm row was 1.5 to 5 points lower than the new one at 0.2 mm and tighter.</p>
-    </div>
+    <p><b>A larger start area costs success at the small size and tight clearance.</b> For the 8 mm peg, the fixed 3 mm start is 2.3 times the scaled offset. At 1.0 mm clearance, it costs nothing (98.9% against 98.5%), but the search is longer: 0.34 s and 17 mm of travel, against 0.12 s and 3.6 mm. At 0.5 mm it costs 2 points, at 0.2 mm 7 points, and at 0.05 mm 10 points (83.7% against 94.2%). Most of the extra failures do not find the hole (191 against 70 at 0.05 mm). Thus, at tight clearance the hole is harder to feel, and a larger start area makes the search fail. For the larger pegs, the fixed start is smaller than the scaled start, and success is the same or higher.</p>
     <div class="tbl">
       <table>
-        <thead><tr><th>Cell (old backlash model)</th><th class="n">Scaled start</th><th class="n">Fixed 3 mm start</th></tr></thead>
+        <thead><tr><th>Cell</th><th class="n">Scaled start</th><th class="n">Fixed 3 mm start</th></tr></thead>
         <tbody>
-          <tr><td>60 mm, 1.0 mm</td><td class="n">98.2%</td><td class="n">99.7%</td></tr>
-          <tr><td>60 mm, 0.5 / 0.2 / 0.1 mm</td><td class="n">96.7 / 97.9 / 98.6%</td><td class="n">·</td></tr>
-          <tr><td>30 mm, 0.5 mm</td><td class="n">96.9%</td><td class="n">98.4%</td></tr>
-          <tr><td>15 mm, 0.2 mm</td><td class="n">97.6%</td><td class="n">97.3%</td></tr>
-          <tr><td>8 mm, 1.0 mm</td><td class="n">97.0%</td><td class="n">96.9%</td></tr>
-          <tr><td>8 mm, 0.5 mm</td><td class="n">98.6%</td><td class="n">96.9%</td></tr>
-          <tr><td>8 mm, 0.2 mm</td><td class="n">95.6%</td><td class="n">95.0%</td></tr>
-          <tr><td>8 mm, 0.1 mm</td><td class="n">93.0%</td><td class="n">89.1%</td></tr>
-          <tr><td>8 mm, 0.05 mm</td><td class="n">89.7%</td><td class="n">81.9%</td></tr>
+          <tr><td>60 mm, 1.0 mm</td><td class="n">99.6%</td><td class="n">99.7%</td></tr>
+          <tr><td>30 mm, 0.5 mm</td><td class="n">98.2%</td><td class="n">98.1%</td></tr>
+          <tr><td>15 mm, 0.2 mm</td><td class="n">97.6%</td><td class="n">97.8%</td></tr>
+          <tr><td>8 mm, 1.0 mm</td><td class="n">98.5%</td><td class="n">98.9%</td></tr>
+          <tr><td>8 mm, 0.5 mm</td><td class="n">97.5%</td><td class="n">95.8%</td></tr>
+          <tr><td>8 mm, 0.2 mm</td><td class="n">98.7%</td><td class="n">91.7%</td></tr>
+          <tr><td>8 mm, 0.1 mm</td><td class="n">98.1%</td><td class="n">88.4%</td></tr>
+          <tr><td>8 mm, 0.05 mm</td><td class="n">94.2%</td><td class="n">83.7%</td></tr>
         </tbody>
-        <caption>Old backlash model. Test success, 2,048 starts each, random robot conditions. "·": not run.</caption>
+        <caption>Corrected backlash model. Test success, 2,048 starts each, random robot conditions. Scaled start: median offset 10 mm at 60 mm, 1.3 mm at 8 mm.</caption>
       </table>
     </div>
-    <p><b>Old model: size alone does not decrease success.</b> Along the diagonal (60, 30 and 15 mm with 1.0, 0.5 and 0.2 mm), success stays at 97 to 98%. The 60 mm peg seats 97 to 99% at every clearance down to 0.1 mm.</p>
-    <p><b>Old model: a larger start area costs success only at tight clearance.</b> For the 8 mm peg, the fixed start is 2.3 times the scaled offset. Down to 0.2 mm clearance, success does not change, but the search is longer (8 mm, 1.0 mm: 0.44 s and 22 mm of travel, against 0.12 s and 3.9 mm). At 0.1 mm, the fixed start loses 4 points. At 0.05 mm, it loses 8 points, and 199 starts do not find the hole (scaled: 88). With 10 s episodes instead of 5 s, the old 0.05 mm cell seated 92.6% and its wedged failures decreased from 115 to 64.</p>
-    <p><b>Two problems at small sizes, both fixed.</b> First, a run at 15 mm and 0.2 mm did not succeed once in 150 million steps. The reward is given only for capture and seating, so the policy got no signal. Now all cells tighter than 1.0 mm train with a clearance curriculum: 1.0 mm first, then smaller steps down to the target. Second, at 8 mm the peg slipped out of the box-shaped pads (73.7% test success, most failures were slips). With the 4 × 4 sphere pads from USB-C, no peg slips in the new 8 mm row (0 of 10,240 starts).</p>
+    <p><b>The old backlash model made the tight fits harder.</b> With the old model (approximately 0.6° of extra joint flex, see RQ2), the 8 mm peg seated 89.7% at 0.05 mm and wedged 115 times. With the corrected model, it seats 94.2% and wedges 47 times. Thus, joint stiffness and backlash of the real arm will set the result at this clearance.</p>
+    <p><b>Two problems at small sizes, both fixed.</b> First, a run at 15 mm and 0.2 mm did not succeed once in 150 million steps. The reward is given only for capture and seating, so the policy got no signal. Now all cells tighter than 1.0 mm train with a clearance curriculum: 1.0 mm first, then smaller steps down to the target. Second, at 8 mm the peg slipped out of the box-shaped pads (73.7% test success, most failures were slips). With the 4 × 4 sphere pads from USB-C, no peg slips in the 8 mm row.</p>
   </section>
 
   <!-- ============================================================ RQ4 -->
@@ -320,6 +316,7 @@
       </table>
     </div>
     <p>Noise and encoder resolution have no effect, and latency does. The backlash rows use the old model (see below). The fine-tune is 4 to 6 times better under errors, but it loses 47 points without errors. On the peg, a policy trained with random errors from the start lost only 1.2 points (RQ2). Thus, the server now trains USB-C from the start: the plain policy, the chamfered port, the latch and the side port, and then a run with the random errors.</p>
+    <p><b>Random errors from the start do not work for USB-C.</b> One policy trained for 300 million steps with random robot errors in each world from the first step: latency 0, 20 or 40 ms, backlash 0 to 5 arcmin (corrected model), joint noise and encoder resolution. On the peg, this recipe cost only 1.2 points. For USB-C, the curriculum stopped at stage 2 of 5 (0.15 mm clearance) after 24 million steps. Training success stayed at approximately 86%, below the 90% that starts the next stage. On the final stage it seats 21.6% (2,048 starts). At 0.2 mm clearance it seats 69%, and at 0.05 mm 34% (1,024 starts each, 2 mm median offset). Thus, for USB-C, train first without errors, then fine-tune at the measured latency range (next paragraph).</p>
     <p><b>A matched latency recovers USB-C.</b> We fine-tuned the wide-start policy (91.4% without latency) for 100 million steps with a fixed latency of 20 ms. At 20 ms, it seats 78.9%. Before the fine-tune, it seated only 0.7% at 20 ms. But the fine-tuned policy seats only 11.1% without latency and 38.8% at 40 ms. This is the same pattern as the YAM peg: the policy works at its training latency only. Thus, for USB-C, the real latency of the YAM must be known. Then the policy can train at that latency.</p>
     <div class="tbl">
       <table>
@@ -401,8 +398,8 @@
     <h2>Next steps</h2>
     <ol class="facts">
       <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
-      <li><b>RQ3 grid.</b> Complete the other 11 scaled cells (training now).</li>
-      <li><b>RQ4 on the lab table.</b> USB-C, chamfer, latch and side port (training now), then USB-C with random robot errors from the start, and the ablations (no contact loss, history length).</li>
+      <li><b>RQ3 grid.</b> The last cell (15 mm, 0.05 mm) trains now.</li>
+      <li><b>RQ4.</b> The ablations train now: no contact loss, and a history of 10 and 60 steps (base: 30). Then fine-tune the USB-C policy at the measured latency range of the real arm.</li>
       <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
       <li><b>More seeds</b> where a result is close.</li>
     </ol>
