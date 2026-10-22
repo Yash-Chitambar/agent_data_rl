@@ -10,7 +10,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | 0 | Passed (per plan). The Phase 0 scripts/configs (`blind_usbc/`, `configs/usbc_flash_drive.yaml`) are **not in this repo**; recreated as needed. |
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
 | B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
-| C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-98% on every such test). `clip1` (action clip 1.0) eval running. |
+| C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-99% on every such test, corrected backlash model 2026-10-22). Corrected backlash costs <= 4 points for every policy (base 99.9% at 5'); latency and gains remain the conditions that need training. allmid/allmax/backlash5 retrain pending. |
 | D | Tier 1 (16 runs, 150M cap, randomized noise model) on mason (`runs/queue_server/stateD`). o60_c1 and o30_c0.5 (scaled) reach 99% training success; o15_c0.2 from scratch never succeeded, so cells tighter than 1 mm now use a clearance curriculum (`--curriculum scale`). Grid: `scripts/phase_d_report.py`. |
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
@@ -84,6 +84,23 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-22 (08:10 UTC, mason) — Phase C on the corrected backlash model: backlash does not matter on the peg
+
+- Backlash-only evals of 12 C policies + full evals of the retrained backlash1, backlash3, randall (YAM, lab table,
+  2,048 starts per cell; `results/C/C-matrix.csv`, `report/static/data/robust.json`).
+- Base policy at 1/3/5 arcmin: 99.9 / 100 / 99.9% (old model: 46.7 / 44.3 / 43.1%). No policy loses more than
+  4 points to backlash (clip1 98.9 -> 95.2% at 5'; gain2x 85.2 -> 81.7%). The old drop was the ~0.6° joint flex of the
+  soft limit, not backlash.
+- Retrained (fixed model): backlash1 / backlash3 / randall train 99.4 / 99.3 / 98.4% (last 20 iters), base test
+  98.6 / 99.1 / 98.6% (old: 97.5 / 96.0 / 96.2%). randall: 96.3-99.0% on every noise/encoder/backlash/latency test,
+  86.4 / 94.0 / 60.8% at gains x0.5 / x2 / x4 (old x4: 52%). Its cost on the ideal arm is now 1.2 points (was 3.6).
+- RQ2 conclusion changes: latency (and gains) need training; backlash up to 5' does not (peg). USB-C still feels
+  backlash (athena5, RQ4).
+- allmid, allmax, backlash5 retrain later (priority step 4); out of the figure/matrix until then.
+- E sideft (side port, +200 M steps from E-usbc-proprio-side-s0): final-stage 47.2% (side from scratch: 35.8%).
+  Stuck in curriculum stage 3 (0.08 mm, 1.5 mm) at ~88% training success < 0.9 threshold for 190 M steps: a
+  plateau, not the window bug, so not reopened. Failures: never_found 577, slipped 238, wedged_partial 190 of 1,082.
+
 ### 2026-10-22 (06:05 UTC, mason) — Backlash-model redo started (Yash OK)
 
 - Runner stopped at 06:00 (5 old-model jobs: D tier-2 o60_c0.05, o30_c0.2/0.1/0.05, o15_c0.5; E noise).

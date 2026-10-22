@@ -38,7 +38,7 @@
         <thead><tr><th>Question</th><th>Result so far</th><th>Status</th></tr></thead>
         <tbody>
           <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
-          <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency, backlash and gain errors break a policy that did not train with them. One policy trained with random levels keeps 96 to 98% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
+          <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency and gain errors break a policy that did not train with them. Backlash up to 5 arcmin has no effect. One policy trained with random levels keeps 96 to 99% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
           <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>Old backlash model, retraining now: 97 to 98% from 60 mm to 15 mm (1.0 to 0.2 mm clearance). At 8 mm: 98.6% at 0.5 mm, 89.7% at 0.05 mm clearance (USB-C). At tight clearance, the peg wedges more often. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
           <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. With 20 ms of latency it drops to 5%, but training over the measured latency range recovers 75 to 79%. With a corrected model, 1 arcmin of backlash costs only 1 point. Training with backlash adds 17 to 20 points at 3 arcmin.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
           <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
@@ -130,7 +130,7 @@
   <!-- ============================================================ RQ2 -->
   <p class="finding">RQ2 · Transfer to the YAM</p>
   <section id="rq2">
-    <h2>The policy transfers to the YAM, if training includes the robot's latency and backlash</h2>
+    <h2>The policy transfers to the YAM, if training includes the robot's latency</h2>
     <p class="claim">On the lab table, the YAM policy seats 99.8% of 2,048 unseen starts. It learns 2.3 times faster than on the Flexiv arm.</p>
     <p>The YAM is a low-cost 6-joint arm. We use the YAM workcell from RoboSimStudio: the base is level with the table top, at the position of the lab arm. The fixture lies on the table, 0.25 to 0.45 m in front of the base. The joint stiffness is 80 N·m/rad (first three joints) and 30 N·m/rad (wrist), from the Damiao motor model. Only the robot changes from RQ1: same pegs, same policy, same training.</p>
     <div class="cols2">
@@ -158,19 +158,19 @@
     <figure class="viz" data-fig="robust">
       <div class="viz-tag">Interactive · hover a group</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Success under each test condition (YAM, seed 0, 2,048 unseen starts for each bar).</b> Orange: the base policy, trained with none of the conditions. Blue: the policy trained with that condition. Green: the policy trained with random levels of noise, encoder resolution, backlash and latency (not gains). Whiskers: 95% Wilson interval. Latency of 20 and 40 ms is 1 and 2 steps of the control loop. Backlash is in arcminutes (′). Hover a group for exact values.</figcaption>
+      <figcaption><b>Success under each test condition (YAM, seed 0, 2,048 unseen starts for each bar).</b> Orange: the base policy, trained with none of the conditions. Blue: the policy trained with that condition. Green: the policy trained with random levels of noise, encoder resolution, backlash and latency (not gains). Whiskers: 95% Wilson interval. Latency of 20 and 40 ms is 1 and 2 steps of the control loop. Backlash is in arcminutes (′), corrected model. The backlash 5′ policy trains again, so that group has no blue bar yet. Hover a group for exact values.</figcaption>
     </figure>
     <ul class="facts">
       <li><b>Sensor noise and encoder resolution do not matter.</b> With joint noise up to 5·10⁻⁴ rad or 14-bit encoders, no policy loses more than 1 point.</li>
-      <li><b>Backlash halves the success</b> of the base policy (43 to 47%). Training with any backlash level from 1 to 5 arcmin gives 98.5 to 99.6% at all three levels.</li>
+      <li><b>Backlash up to 5 arcmin does not matter on the peg.</b> The base policy seats 99.9 to 100% at 1, 3 and 5 arcmin. No policy loses more than 4 points to backlash. On the 20 to 100 times tighter USB-C fit, backlash has an effect (RQ4).</li>
       <li><b>Latency is the worst condition.</b> With 20 ms of latency, the base policy seats only 16%. A policy trained with 20 ms seats 99%, but only 33% when there is no latency. Thus, the latency in training must match the robot, or vary over a range that contains it.</li>
       <li><b>Stiffer gains cause slips.</b> At 4 times the gains, the base policy seats 20%. Most of its failures are slips.</li>
-      <li><b>One randomized policy covers all levels.</b> The policy trained with random levels seats 96 to 98% under every noise, encoder, backlash and latency test, including 0, 20 and 40 ms. It costs 3.6 points on the ideal arm (96.2% against 99.8%). Gains were not randomized: at 4 times the gains it seats 52%.</li>
+      <li><b>One randomized policy covers all levels.</b> The policy trained with random levels seats 96 to 99% under every noise, encoder, backlash and latency test, including 0, 20 and 40 ms. It costs 1.2 points on the ideal arm (98.6% against 99.8%). Gains were not randomized: at 4 times the gains it seats 61%.</li>
     </ul>
     <div class="note">
-      <p><b>Correction (21 October, 21:30 PDT): the backlash results in this section used a wrong model.</b> The backlash joint had a soft range limit. Under load, each joint turned approximately 38 arcmin for all backlash values from 1 to 5 arcmin. Thus, these rows show the effect of approximately 0.6° of extra flex in each joint, not of backlash. This explains why the base policy has almost the same success at 1, 3 and 5 arcmin. The model is now corrected (see RQ4). The latency, noise, encoder and gain results are not affected. The server will train these policies again with the corrected model, and the Phase D policies too.</p>
+      <p><b>Backlash model corrected (22 October).</b> Our first backlash joint had a soft range limit. Under load, each joint turned approximately 38 arcmin at every backlash level, so the first results showed approximately 0.6° of extra joint flex (base policy: 43 to 47%). All backlash numbers in this section now use the corrected model. We tested 14 policies again, and trained the backlash 1′, backlash 3′ and random-level policies again. The backlash 5′, allmid and allmax policies train again later. Until then, they are not in the figure or the table. The latency, noise, encoder and gain results did not change.</p>
     </div>
-    <p><b>Why: the base policy uses bang-bang control.</b> In the ideal simulation, the base policy sends full-scale commands: 27% of its action values are at the limit. With no delay and no play, this is fast and accurate. With 20 ms of latency, each command arrives one step late, so the actions oscillate with a 2-step period (lag-1 autocorrelation −0.29) and the peg drifts away. All policies that trained with a condition use small, smooth actions instead: 0% at the limit and an RMS action of 1.0 against 2.1. But small actions alone are not sufficient. A policy trained with the action limit at 1 instead of 3 seats 42 to 48% with latency (base: 16 to 24%) and 32 to 41% with backlash (base: 43 to 47%). The policy must see the condition in training.</p>
+    <p><b>Why: the base policy uses bang-bang control.</b> In the ideal simulation, the base policy sends full-scale commands: 27% of its action values are at the limit. With no delay and no play, this is fast and accurate. With 20 ms of latency, each command arrives one step late, so the actions oscillate with a 2-step period (lag-1 autocorrelation −0.29) and the peg drifts away. All policies that trained with a condition use small, smooth actions instead: 0% at the limit and an RMS action of 1.0 against 2.1. But small actions alone are not sufficient. A policy trained with the action limit at 1 instead of 3 seats only 42 to 48% with latency (base: 16 to 24%). The policy must see the condition in training.</p>
     <figure class="img">
       <img src="static/images/C-why-latency.png" alt="Left: peg paths from one start. Right: joint 1 action over time for three policy and test combinations" loading="lazy">
       <figcaption><b>One start, three cases.</b> Grey: base policy without latency (seated in 0.2 s, actions at ±3). Orange: the same policy with 20 ms latency. The actions oscillate and the peg drifts 22 mm away. Blue: the policy trained with 20 ms latency, seated in 0.46 s with smooth actions. 64 logged starts give the same pattern (<code>scripts/analysis_c_failures.py</code>).</figcaption>
@@ -183,12 +183,6 @@
         <figcaption><b>Same start, 20 ms latency.</b> Left: the base policy. Right: the policy trained with 20 ms latency. ¼ of real time.</figcaption>
       </figure>
       <figure class="teaser">
-        <video autoplay muted loop playsinline poster="static/images/yam_backlash_poster.jpg">
-          <source src="static/videos/yam_backlash.mp4" type="video/mp4">
-        </video>
-        <figcaption><b>Same start, 3 arcmin of backlash.</b> Left: the base policy. Right: the policy trained with backlash. ¼ of real time.</figcaption>
-      </figure>
-      <figure class="teaser">
         <video autoplay muted loop playsinline poster="static/images/yam_gain4_poster.jpg">
           <source src="static/videos/yam_gain4.mp4" type="video/mp4">
         </video>
@@ -196,14 +190,14 @@
       </figure>
     </div>
     <details class="more">
-      <summary>Full table: 16 training conditions × 14 test conditions</summary>
+      <summary>Full table: 14 training conditions × 13 test conditions</summary>
       <figure class="img">
         <img src="static/images/C-matrix.png" alt="Heat map of success rate: training conditions in rows, test conditions in columns" loading="lazy">
-        <figcaption><b>Success (%) for each training condition (rows) and test condition (columns).</b> 2,048 starts in each cell. "randall": random levels in each world. "allmid": noise 10⁻⁴ rad, 16 bit, 1 arcmin, 20 ms. "allmax": 5·10⁻⁴ rad, 14 bit, 5 arcmin, 40 ms. "own": the policy's own condition. A policy trained with latency fails without it, in every row.</figcaption>
+        <figcaption><b>Success (%) for each training condition (rows) and test condition (columns).</b> 2,048 starts in each cell. "randall": random levels in each world. Corrected backlash model. A policy trained with latency fails without it, in every row.</figcaption>
       </figure>
     </details>
     <div class="note">
-      <p><b>Next: measure the real arm.</b> The simulation needs the real YAM's latency (to ±10 ms), backlash and joint gains. We wrote a 1 to 2 hour procedure: a timing log, joint step tests and a dial-indicator test. A script fits the simulated arm to the step data and gives the latency in control steps (<code>docs/REAL_YAM_LATENCY_BACKLASH.md</code>). Until we have these values, Phases D and E train with the random levels above. If the real latency is fixed and known, a policy trained with that latency only can gain back the 3.6 points.</p>
+      <p><b>Next: measure the real arm.</b> The simulation needs the real YAM's latency (to ±10 ms), backlash and joint gains. We wrote a 1 to 2 hour procedure: a timing log, joint step tests and a dial-indicator test. A script fits the simulated arm to the step data and gives the latency in control steps (<code>docs/REAL_YAM_LATENCY_BACKLASH.md</code>). Until we have these values, Phases D and E train with the random levels above. If the real latency is fixed and known, a policy trained with that latency only can gain back the 1.2 points.</p>
     </div>
   </section>
 
@@ -296,6 +290,7 @@
         <caption>Final stage: 0.02 to 0.1 mm clearance, 3 mm median start offset, 2,048 starts. Clearance column: 2 mm median offset, 1,024 starts. Last column: linear interpolation between tests at median offsets of 0.5 to 8 mm (1,024 starts each); this is a median offset, not the start distance of the figure below. The port-up run made 50% of its failures by leaving the fixture area. The side-port run completed only 3 of the 5 curriculum stages in 300 million steps.</caption>
       </table>
     </div>
+    <p><b>More training helps the side port only a little.</b> We continued the side-port run for 200 million steps. It seats 47.2% on the final stage (before: 35.8%, 2,048 starts). It did not advance past stage 3 (0.08 mm clearance, 1.5 mm median offset): training success stayed at 88%, below the 90% that starts the next stage. Most failures are search failures (577 of 1,082). Slips (238) and partial wedges (190) are next.</p>
     <figure class="viz" data-fig="capture">
       <div class="viz-tag">Interactive · hover a point</div>
       <div class="viz-mount"></div>
@@ -322,7 +317,7 @@
         <caption>The policy trained on the old mount (91.5% there, 78.0% on the lab table). The fine-tune adds 100 million steps on the lab table with a random latency (0 to 40 ms), backlash (0 to 5′), encoder resolution and joint noise in each world. Its training success was 40% and still increasing, so the run is not complete. The backlash rows used the old backlash model.</caption>
       </table>
     </div>
-    <p>As in Phase C, noise and encoder resolution have no effect, and latency and backlash do. The fine-tune is 4 to 6 times better under errors, but it loses 47 points without errors. On the peg, a policy trained with random errors from the start lost only 3.6 points (RQ2). Thus, the server now trains USB-C from the start: the plain policy, the chamfered port, the latch and the side port, and then a run with the random errors.</p>
+    <p>Noise and encoder resolution have no effect, and latency does. The backlash rows use the old model (see below). The fine-tune is 4 to 6 times better under errors, but it loses 47 points without errors. On the peg, a policy trained with random errors from the start lost only 1.2 points (RQ2). Thus, the server now trains USB-C from the start: the plain policy, the chamfered port, the latch and the side port, and then a run with the random errors.</p>
     <p><b>A matched latency recovers USB-C.</b> We fine-tuned the wide-start policy (91.4% without latency) for 100 million steps with a fixed latency of 20 ms. At 20 ms, it seats 78.9%. Before the fine-tune, it seated only 0.7% at 20 ms. But the fine-tuned policy seats only 11.1% without latency and 38.8% at 40 ms. This is the same pattern as the YAM peg: the policy works at its training latency only. Thus, for USB-C, the real latency of the YAM must be known. Then the policy can train at that latency.</p>
     <div class="tbl">
       <table>
