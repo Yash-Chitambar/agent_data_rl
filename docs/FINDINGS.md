@@ -84,6 +84,18 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-22 (06:05 UTC, mason) — Backlash-model redo started (Yash OK)
+
+- Runner stopped at 06:00 (5 old-model jobs: D tier-2 o60_c0.05, o30_c0.2/0.1/0.05, o15_c0.5; E noise).
+  Merged main (3006b51 fix). `redo_backlash.py --state runs/queue_server/stateD --apply`: 47 runs, 174
+  paths to `runs/_softbl/` and `results/*/_softbl/`, 44 done.txt lines dropped. By hand to `_softbl/`:
+  the D 10 s-episode test, D grid/plots, D demos, box-pad and no-curriculum D runs.
+- Runner restarted 06:04 (tmux `runnerD2`, GPUs 0-4) with `runs/queue_server/priority.txt` first, each
+  eval right after its training: (1) C backlash1/3, randall + `C_eval_bl.txt` + E sideft eval;
+  (2) E noise; (3) D scaled 8 mm row + 60/30/15 mm diagonal; (4) C allmid/allmax/backlash5, D fixed
+  8 mm row + diagonal; (5) D tier-2 scaled. Tier-2 fixed is deferred. All D entries below this one are
+  old-model numbers; the report's RQ3 carries a note until the new ones replace them.
+
 ### 2026-10-21 (athena5) — USB-C: training with the fixed backlash model buys 3' tolerance, not more
 
 - `E-usbc-proprio-fullft3-s0`: 100M steps from the stage-1 policy (stiff friction, 20 ms) with

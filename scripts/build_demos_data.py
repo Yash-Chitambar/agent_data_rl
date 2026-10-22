@@ -39,13 +39,13 @@ CASES = [
      "and pushes the peg off the plate or past the hole."),
     ("YAM robot errors", "C_yam_backlash1", "1 arcmin backlash", "YAM peg policy with backlash it did not train with",
      "Old mount. With a small dead zone in each joint, the policy often does not find the hole."),
-    ("Scale study, YAM", "D_o60_c1", "60 mm, 1.0 mm", "60 mm peg, 1.0 mm clearance, random robot errors",
+    ("Scale study, YAM (old backlash model)", "D_o60_c1", "60 mm, 1.0 mm", "60 mm peg, 1.0 mm clearance, random robot errors",
      "Each world has its own noise, encoder resolution, backlash and latency. The policy slides the large peg "
      "far on the plate before it finds the hole."),
-    ("Scale study, YAM", "D_o8_c1", "8 mm, 1.0 mm", "8 mm peg, 1.0 mm clearance, random robot errors",
+    ("Scale study, YAM (old backlash model)", "D_o8_c1", "8 mm, 1.0 mm", "8 mm peg, 1.0 mm clearance, random robot errors",
      "The start offset is proportional to the part size, so the search is short. "
      "Most failures do not find the hole."),
-    ("Scale study, YAM", "D_o8_c0.1", "8 mm, 0.1 mm", "8 mm peg, 0.1 mm clearance, random robot errors",
+    ("Scale study, YAM (old backlash model)", "D_o8_c0.1", "8 mm, 0.1 mm", "8 mm peg, 0.1 mm clearance, random robot errors",
      "Ten times tighter than the 1.0 mm cell. The peg must be almost exactly aligned before it drops in."),
     ("USB-C", "E_usbc_final", "Final stage", "USB-C, final stage: 0.02 to 0.1 mm clearance, 3 mm median start",
      "Lab-table mount. The policy presses the plug on the housing and searches in small steps. "

@@ -39,7 +39,7 @@
         <tbody>
           <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
           <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency, backlash and gain errors break a policy that did not train with them. One policy trained with random levels keeps 96 to 98% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
-          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>97 to 98% from 60 mm to 15 mm (1.0 to 0.2 mm clearance). At 8 mm: 98.6% at 0.5 mm, 89.7% at 0.05 mm clearance (USB-C). At tight clearance, the peg wedges more often. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
+          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>Old backlash model, retraining now: 97 to 98% from 60 mm to 15 mm (1.0 to 0.2 mm clearance). At 8 mm: 98.6% at 0.5 mm, 89.7% at 0.05 mm clearance (USB-C). At tight clearance, the peg wedges more often. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
           <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. With 20 ms of latency it drops to 5%, but training over the measured latency range recovers 75 to 79%. With a corrected model, 1 arcmin of backlash costs only 1 point. Training with backlash adds 17 to 20 points at 3 arcmin.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
           <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
         </tbody>
@@ -211,6 +211,9 @@
   <p class="finding">RQ3 · Scale</p>
   <section id="rq3">
     <h2>Scale study: from 60 mm pegs to connector size</h2>
+    <div class="note">
+      <p><b>All numbers in this section use the old backlash model.</b> The random robot conditions of every run include backlash (0 to 5 arcmin), which the old model made into approximately 0.6° of extra joint flex (see the RQ2 correction). The server trains the 8 mm row and the diagonal again now with the corrected model. New numbers replace these as they come. The trends between cells are likely to stay, but the values can change.</p>
+    </div>
     <p class="claim">At 1.0 mm clearance, success stays at 97 to 98% from a 60 mm peg down to an 8 mm peg. At 8 mm, success decreases to 89.7% at 0.05 mm clearance, the USB-C fit. Each run trains with the random robot conditions from RQ2.</p>
     <p>The pegs have a 2:1 stadium shape. The opening is 60, 30, 15 or 8 mm long. The clearance is 1.0, 0.5, 0.2, 0.1 or 0.05 mm on each side. There are two start regimes. In the scaled regime, the start offset is proportional to the part size (10 mm median at 60 mm). In the fixed regime, the median offset is 3 mm for all sizes. If both regimes fail at the same size, the contact signal is the limit. If only the fixed regime fails, the search area is the limit.</p>
     <div class="tbl">
@@ -229,7 +232,7 @@
     <figure class="viz" data-fig="scale">
       <div class="viz-tag">Interactive · hover a clearance</div>
       <div class="viz-mount"></div>
-      <figcaption><b>8 mm peg: tighter clearance costs success, and a larger start area costs more.</b> (a) Test success with 95% Wilson intervals, 2,048 unseen starts per point, random robot conditions. (b) The two main failure types of the scaled start. At 1.0 mm, almost all failures do not find the hole. At 0.05 mm, most are wedged. Hover for time, travel and counts.</figcaption>
+      <figcaption><b>8 mm peg: tighter clearance costs success, and a larger start area costs more (old backlash model).</b> (a) Test success with 95% Wilson intervals, 2,048 unseen starts per point, random robot conditions. (b) The two main failure types of the scaled start. At 1.0 mm, almost all failures do not find the hole. At 0.05 mm, most are wedged. Hover for time, travel and counts.</figcaption>
     </figure>
     <p><b>A larger start area costs success only at tight clearance.</b> In the fixed regime, the median start offset is 3 mm for all sizes. For the 8 mm peg, this is 2.3 times the scaled offset. Down to 0.2 mm clearance, success does not change, but the search is longer: at 8 mm and 1.0 mm, 0.44 s and 22 mm of travel, against 0.12 s and 3.9 mm. Thus, down to 0.2 mm clearance the search area is not the limit. At 0.1 mm, the fixed start loses 4 points (89.1% against 93.0%). At 0.05 mm, it loses 8 points (81.9% against 89.7%), and 199 starts do not find the hole (scaled: 88). Thus, at tight clearance the hole is harder to feel, and a larger start area also makes the search fail.</p>
     <div class="tbl">
