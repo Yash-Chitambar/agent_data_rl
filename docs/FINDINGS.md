@@ -84,6 +84,17 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C full recipe in one step fails; staged instead
+
+- `E-usbc-proprio-deploystiffft-s0` (150M from the stiff+backlash policy; stiff friction +
+  backlash {0,1,3} + latency {1,2}): training success <= 4.5%, action std 0.6 -> 8.7 (PPO's entropy
+  term widens the noise when no episode succeeds). Tests: 1.7-3.1% in every latency x backlash cell.
+- Cause: the starting policy scored 0.1% under latency, so the combined change gave no reward
+  signal. The successful fine-tunes changed one factor at a time. Training note: `log_std` is
+  unbounded; a clamp (or lower entropy coefficient) would stop the blow-up in no-signal runs.
+- Queued, staged: `E-usbc-proprio-latstiffft-s0` (from the 20-40 ms policy, add stiff friction),
+  then `E-usbc-proprio-fullft-s0` (add backlash {0,1,3}); tests `scripts/usbc_deploy_eval.sh`.
+
 ### 2026-10-21 (athena5) — USB-C: with stiffer friction, training with backlash works (2.5 -> 76%)
 
 - `E-usbc-proprio-stiffblft-s0`: 100M steps from the stiff-friction fine-tune, stiff friction +
