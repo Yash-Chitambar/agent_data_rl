@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shlex
 import sys
 from pathlib import Path
@@ -121,6 +122,21 @@ def phase_b():
     ev.append(f"{PY} scripts/phase_b_report.py > runs/phase_b_report.log 2>&1"
               + ann(after=",".join(allb), est_h=0.05, note="needs_all_B_train_logs_in_runs"))
     return tr, ev
+
+
+def phase_c_bl():
+    """Backlash columns only (ONLY=backlash), for the C policies trained without backlash: the redo after
+    the 2026-10-21 backlash-model fix (scripts/server/redo_backlash.py archives the old columns)."""
+    ev = []
+    for s in SEEDS_CDE:
+        for var, ej in C_CONDS:
+            if "backlash_arcmin" in json.dumps(ej):
+                continue                  # retrained: its full eval_phase_c.sh line runs again
+            name, tag = f"C-peg-proprio-{var}-s{s}", f"yam_{var}_s{s}"
+            base = f" {jq(C_EVAL_BASE[var])}" if var in C_EVAL_BASE else ""
+            ev.append(eval_line(f"ONLY=backlash scripts/eval_phase_c.sh {name} {tag}{base}", f"eval_{tag}_bl",
+                                name, 0.06))
+    return ev
 
 
 # ------------------------------------------------------------------------------- Phase C
@@ -359,6 +375,8 @@ def check(paths):
             toks = shlex.split(cmd)
             if ">" in toks:
                 toks = toks[:toks.index(">")]
+            while toks and re.fullmatch(r"[A-Z_]+=\S*", toks[0]):   # env prefix, e.g. ONLY=backlash
+                toks = toks[1:]
             try:
                 if toks[:2] == [PY, "-m"]:
                     mod, argv = toks[2], toks[3:]
@@ -426,6 +444,8 @@ def main():
               c_tr, dup),
         write("C_eval.txt", "Phase C evals: eval_phase_c.sh (factors + gain sweep), own-condition, OOD bins", c_ev,
               dup),
+        write("C_eval_bl.txt", "Phase C backlash columns redo (fixed backlash model) for policies trained "
+              "without backlash", phase_c_bl(), dup),
         write("D_train_tier1.txt", "Phase D tier 1: diagonal + 8 mm row, both start regimes, 3 seeds", d1, noise),
         write("D_train_tier2.txt", "Phase D tier 2: remaining grid cells, both start regimes, 3 seeds", d2, noise),
         write("D_eval.txt", "Phase D in-dist evals (2,048 matched starts per run)", d_ev, noise),

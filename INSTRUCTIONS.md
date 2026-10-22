@@ -5,19 +5,29 @@ target: **jensen**, 8 × V100, `jensen.ist.berkeley.edu`, user `yashchitambar`).
 Yash work on the local machine (athena5, 1 × RTX 3090 Ti). Read this file completely before you do
 anything. When this file and another document disagree about the server, this file wins.
 
-> **STOP AND READ (2026-10-21 21:30 PDT): the backlash model was wrong; fixed on `main` (3006b51).**
+> **ACTION (2026-10-21 22:40 PDT, Yash's decision): redo every run that used the old backlash model.**
 > The backlash hinges used MuJoCo's soft default joint limit, so every "backlash" level (0.01 to
-> 5 arcmin) acted as ~0.6 deg of extra joint compliance (each hinge turns ~0.011 rad under a 5 N
-> load). Details and the CPU check: `docs/FINDINGS.md`, entry "BUG: the backlash model was a soft
-> spring". `main` now uses stiff limits by default (`builder.BACKLASH_LIMIT_SOLREF/SOLIMP`).
-> - **Affected:** Phase C backlash rows, `allmid`, `allmax`, `randall`; every Phase D run (the random
->   conditions include backlash); the queued E `noise` run. Latency, noise, quantization and gain
+> 5 arcmin) acted as ~0.6 deg of extra joint compliance. `main` fixes it (3006b51, stiff limits by
+> default). Details: `docs/FINDINGS.md`, entry "BUG: the backlash model was a soft spring".
+> - **Affected (47 runs, ~67 GPU-h on the 3090 Ti estimate, seed 0):** C backlash1/3/5, allmid, allmax, randall; all of
+>   Phase D tier 1 and tier 2 (the random conditions include backlash); E `noise` (not started yet:
+>   start it only on the fixed model). Plus the backlash columns of the other C policies (evals only,
+>   `jobs/C_eval_bl.txt`, 11 jobs, ~0.7 GPU-h). Latency, noise, quantization, gain, B, F and G
 >   results are not affected.
-> - **Before you pull `main` or start any run that includes backlash** (D tier 2, E noise): stop
->   and ask Yash. After the pull, new runs use the fixed model, so D tier 1 and tier 2 would mix
->   two models. Yash decides which affected runs to redo. Runs without backlash can continue.
-> - `add_backlash(..., legacy_soft_limit=True)` reproduces the old model if a run must stay
->   comparable with finished ones.
+> - **Procedure:**
+>   1. Stop the runner (Ctrl-C in its tmux window). Affected jobs that are running use the old model in
+>      memory, so they must stop. Unaffected training jobs resume later from `last.pt`.
+>   2. Merge `origin/main` into `mason-runs`.
+>   3. `python3 scripts/server/redo_backlash.py` (dry run), check the list, then `--apply`. It moves
+>      `runs/X` to `runs/_softbl/X` and the old results to `results/<phase>/_softbl/` (kept, not
+>      deleted), and removes the affected commands from `runs/queue_server/done.txt`.
+>   4. Move any other old-model result by hand to the same `_softbl/` folders (for example extra
+>      Phase D evals that are not in the manifests).
+>   5. Restart the runner with the same manifests plus `scripts/server/jobs/C_eval_bl.txt`, on the
+>      GPUs Yash already approved (section 1 rules still apply: check capacity first).
+>   6. Commit the archive moves. In FINDINGS and the report, mark the old numbers "(old backlash
+>      model)" until the new ones replace them. Do not mix old and new runs in one table.
+> - `add_backlash(..., legacy_soft_limit=True)` reproduces the old model if you must check an old run.
 
 ## 0. Context in five lines
 
@@ -225,3 +235,4 @@ branch if `main` moved, and resolve conflicts in `docs/FINDINGS.md` by keeping b
 | 2026-10-20 | mason | 300M-step validation, B-peg-proprio-base-s3 | 0 (released) | peg-validation (finished) | runs/B-peg-proprio-base-s3.log | passed: 90% at 37.4M, >=99.2% from 150M, 99.8% at 300M |
 | 2026-10-20 | mason | YAM lab-table scene (builder.YAM_TABLE, EnvCfg.table_top) + 25M smoke | 1 (released) | - | runs/_smoke-C-yam-table | passed: 90% at 18.1M |
 | 2026-10-20 | mason | Batch: B_train, B_eval, C_train, C_eval (+ C base s0 on the table setup) | 0–4 (Yash OK) | jobs | runs/queue_server/runner.log | running |
+| 2026-10-21 | mason | Redo of the 47 old-backlash-model runs (C backlash/allmid/allmax/randall, D tier 1+2, E noise) + C_eval_bl.txt | (approved set) | jobs | runs/queue_server/runner.log | to do |
