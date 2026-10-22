@@ -84,6 +84,20 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C: with stiffer friction, training with backlash works (2.5 -> 76%)
+
+- `E-usbc-proprio-stiffblft-s0`: 100M steps from the stiff-friction fine-tune, stiff friction +
+  backlash {0, 1, 3} arcmin per world. Training success 0 -> 70% (still rising at 100M).
+- Stiff friction, test backlash 0 / 1 / 3 arcmin: **61.8 / 76.2 / 72.1%** (before: 89.8 / 2.5 /
+  1.7%). Soft friction: 40.2% (580 slips); soft + 1 arcmin 41.3%. Stiff + 20 ms latency: 0.1%.
+  Latch: soft 13.8%, stiff 20.8%.
+- So once the soft-friction grasp creep is removed, USB-C learns backlash as the YAM peg did; the
+  earlier failure (deployment recipe, 13%) was the slips. Caveat: training worlds with "0" carry
+  the backlash hinges with a 0.01 arcmin zone, while the 0-arcmin test has no hinges, which may
+  explain part of the lower no-backlash score.
+- Queued: `E-usbc-proprio-deploystiffft-s0` (150M), stiff friction + backlash {0, 1, 3} + latency
+  {1, 2}: the full real-arm recipe; tests `scripts/usbc_deploy_eval.sh`.
+
 ### 2026-10-21 (athena5) — USB-C adapts to stiffer friction; under it, backlash breaks the search
 
 - `E-usbc-proprio-stiffft-s0`: 100M steps from the wide-start policy with `mj_opt` cone elliptic +
