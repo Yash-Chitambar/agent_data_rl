@@ -95,7 +95,12 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Queued, staged: `E-usbc-proprio-latstiffft-s0` (from the 20-40 ms policy, add stiff friction),
   then `E-usbc-proprio-fullft-s0` (add backlash {0,1,3}); tests `scripts/usbc_deploy_eval.sh`.
 - **Stage 1 result** (`latstiffft`, 100M, training success 0 -> 61% and rising): stiff friction,
-  latency 0 / 20 / 40 ms: 12.6 / **67.2 / 64.2%**; with any backlash 0.0%. Stage 2 (backlash) runs.
+  latency 0 / 20 / 40 ms: 12.6 / **67.2 / 64.2%**; with any backlash 0.0%.
+- **Stage 2 failed** (`fullft`, + backlash {0,1,3}): 2.6-6.2% in every cell; training success
+  0.3 -> 6%, action std 0.75 -> 3.9. It started at 0.3% even though 1/3 of the worlds are at
+  "0" arcmin: those keep the backlash hinges (0.01 arcmin zone), so the hinges themselves, with
+  latency, break the policy. Added `train.py --std_max` (caps the action std; off by default).
+  Retry queued: `fullft2` from stage 1, backlash {0, 0.5, 1}, `--std_max 0.8`.
 
 ### 2026-10-21 (athena5) — USB-C: with stiffer friction, training with backlash works (2.5 -> 76%)
 
