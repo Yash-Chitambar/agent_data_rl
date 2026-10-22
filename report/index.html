@@ -40,7 +40,7 @@
           <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
           <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency, backlash and gain errors break a policy that did not train with them. One policy trained with random levels keeps 96 to 98% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
           <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>97 to 98% from 60 mm to 15 mm (1.0 to 0.2 mm clearance). At 8 mm: 98.6% at 0.5 mm, 89.7% at 0.05 mm clearance (USB-C). At tight clearance, the peg wedges more often. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip run">Training</span></td></tr>
-          <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. With 20 ms of latency it drops to 5%, but training over the measured latency range recovers 75 to 79%. With a corrected model, 1 arcmin of backlash costs only 1 point.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
+          <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. With 20 ms of latency it drops to 5%, but training over the measured latency range recovers 75 to 79%. With a corrected model, 1 arcmin of backlash costs only 1 point. Training with backlash adds 17 to 20 points at 3 arcmin.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
           <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
         </tbody>
       </table>
@@ -168,7 +168,7 @@
       <li><b>One randomized policy covers all levels.</b> The policy trained with random levels seats 96 to 98% under every noise, encoder, backlash and latency test, including 0, 20 and 40 ms. It costs 3.6 points on the ideal arm (96.2% against 99.8%). Gains were not randomized: at 4 times the gains it seats 52%.</li>
     </ul>
     <div class="note">
-      <p><b>Correction (21 October, 21:30 PDT): the backlash results in this section used a wrong model.</b> The backlash joint had a soft range limit. Under load, each joint turned approximately 38 arcmin for all backlash values from 1 to 5 arcmin. Thus, these rows show the effect of approximately 0.6° of extra flex in each joint, not of backlash. This explains why the base policy has almost the same success at 1, 3 and 5 arcmin. The model is now corrected (see RQ4). The latency, noise, encoder and gain results are not affected.</p>
+      <p><b>Correction (21 October, 21:30 PDT): the backlash results in this section used a wrong model.</b> The backlash joint had a soft range limit. Under load, each joint turned approximately 38 arcmin for all backlash values from 1 to 5 arcmin. Thus, these rows show the effect of approximately 0.6° of extra flex in each joint, not of backlash. This explains why the base policy has almost the same success at 1, 3 and 5 arcmin. The model is now corrected (see RQ4). The latency, noise, encoder and gain results are not affected. The server will train these policies again with the corrected model, and the Phase D policies too.</p>
     </div>
     <p><b>Why: the base policy uses bang-bang control.</b> In the ideal simulation, the base policy sends full-scale commands: 27% of its action values are at the limit. With no delay and no play, this is fast and accurate. With 20 ms of latency, each command arrives one step late, so the actions oscillate with a 2-step period (lag-1 autocorrelation −0.29) and the peg drifts away. All policies that trained with a condition use small, smooth actions instead: 0% at the limit and an RMS action of 1.0 against 2.1. But small actions alone are not sufficient. A policy trained with the action limit at 1 instead of 3 seats 42 to 48% with latency (base: 16 to 24%) and 32 to 41% with backlash (base: 43 to 47%). The policy must see the condition in training.</p>
     <figure class="img">
@@ -344,7 +344,24 @@
           <tr><td>Wide-start policy, no latency</td><td class="n">91.4%</td><td class="n">90.4%</td><td class="n">77.2%</td><td class="n">8.6%</td></tr>
           <tr><td>20 ms latency, stiffer friction</td><td class="n">67.2%</td><td class="n">59.0%</td><td class="n">35.6%</td><td class="n">0.0%</td></tr>
         </tbody>
-        <caption>Final stage, lab table, 2,048 matched starts. Second row: tested with 20 ms of latency and the stiffer friction below. A policy trained with the corrected backlash, the stiffer friction and 20 or 40 ms of latency is in training.</caption>
+        <caption>Final stage, lab table, 2,048 matched starts. Second row: tested with 20 ms of latency and the stiffer friction below.</caption>
+      </table>
+    </div>
+    <p class="claim">Training with the corrected backlash gives tolerance to 3 arcmin. It does not help at 1 arcmin or less.</p>
+    <p>We fine-tuned the 20 ms policy for 100 M steps. Each world had a random latency (20 or 40 ms) and a random backlash (0, 1 or 3 arcmin). Training success went to 47% in the first 13 M steps. Then it stayed flat at approximately 50%. At 3 arcmin, success increased by 17 to 20 points. Without backlash, success decreased by 5 to 12 points. At 1 arcmin, the two policies are equal. Thus, measure the backlash of the real arm first. Train with backlash only if it is near 3 arcmin. The large gap to the policy without latency (91%) comes from the latency, not from the backlash.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Test condition</th><th class="n">20 ms policy</th><th class="n">+ backlash training</th></tr></thead>
+        <tbody>
+          <tr><td>20 ms, no backlash</td><td class="n">67.2%</td><td class="n">61.8%</td></tr>
+          <tr><td>20 ms, 1 arcmin</td><td class="n">59.0%</td><td class="n">60.3%</td></tr>
+          <tr><td>20 ms, 3 arcmin</td><td class="n">35.6%</td><td class="n"><b>55.3%</b></td></tr>
+          <tr><td>40 ms, no backlash</td><td class="n">64.2%</td><td class="n">52.0%</td></tr>
+          <tr><td>40 ms, 1 arcmin</td><td class="n">54.7%</td><td class="n">54.3%</td></tr>
+          <tr><td>40 ms, 3 arcmin</td><td class="n">29.7%</td><td class="n"><b>46.8%</b></td></tr>
+          <tr><td>Mean of the six conditions</td><td class="n">51.7%</td><td class="n">55.1%</td></tr>
+        </tbody>
+        <caption>Final stage, lab table, stiffer friction, corrected backlash model, 2,048 matched starts per cell. Without latency, both policies get approximately 12%: they expect the delay.</caption>
       </table>
     </div>
 

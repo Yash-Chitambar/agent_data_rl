@@ -84,6 +84,26 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — USB-C: training with the fixed backlash model buys 3' tolerance, not more
+
+- `E-usbc-proprio-fullft3-s0`: 100M steps from the stage-1 policy (stiff friction, 20 ms) with
+  latency {20, 40 ms} + backlash {0, 1, 3'} per world (fixed model) + `--std_max 0.8`. Training
+  success 47% at 13M, then flat (52% at 100M); std 0.58 -> 0.67 (under the cap).
+- Tests (stiff friction, final stage, 2,048 each), stage-1 policy -> fullft3:
+
+  | latency | 0' | 1' | 3' |
+  |---|---|---|---|
+  | 20 ms | 67.2 -> 61.8 | 59.0 -> 60.3 | 35.6 -> **55.3** |
+  | 40 ms | 64.2 -> 52.0 | 54.7 -> 54.3 | 29.7 -> **46.8** |
+
+  No latency: 12.6 -> 12.1 (both policies are tuned to delay). Mean of the six cells: 51.7 -> 55.1.
+- Reading: backlash training gives +17-20 points at 3' and costs 5-12 points without backlash. At
+  the likely real condition (<= 1', 20-40 ms) the two policies are equal (59 / 55 vs 60 / 54). So the
+  real arm's backlash only needs training if it is near 3'. Measure it first
+  (`docs/REAL_YAM_LATENCY_BACKLASH.md`). The remaining gap to the no-delay policy (91%) is latency,
+  not backlash. Baseline cells: `results/E/robust_fixedbl/latstiffft_*`; fullft3:
+  `results/E/robust/fullft3_s0_*`.
+
 ### 2026-10-21 (athena5) — BUG: the backlash model was a soft spring, not a dead zone (all earlier backlash results)
 
 - **What was wrong.** `builder.add_backlash` adds a limited hinge in series with each joint, but
@@ -106,8 +126,8 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   stiffblft, deploystiffft, fullft, fullft2, the latency x backlash tables). Their numbers describe
   robustness to ~0.6 deg of extra joint compliance, not to arcmin backlash. Which runs to redo is
   Yash's call (GPU cost); the latency, noise, quantization and gain results are not affected.
-- Queued: `E-usbc-proprio-fullft3-s0` = stage 1 + latency {1, 2} + backlash {0, 1, 3} (fixed
-  model) + `--std_max 0.8`.
+- Result of `E-usbc-proprio-fullft3-s0` (stage 1 + latency {1, 2} + backlash {0, 1, 3}, fixed
+  model): see the entry above.
 
 ### 2026-10-21 (athena5) — USB-C full recipe in one step fails; staged instead
 
