@@ -94,6 +94,8 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   unbounded; a clamp (or lower entropy coefficient) would stop the blow-up in no-signal runs.
 - Queued, staged: `E-usbc-proprio-latstiffft-s0` (from the 20-40 ms policy, add stiff friction),
   then `E-usbc-proprio-fullft-s0` (add backlash {0,1,3}); tests `scripts/usbc_deploy_eval.sh`.
+- **Stage 1 result** (`latstiffft`, 100M, training success 0 -> 61% and rising): stiff friction,
+  latency 0 / 20 / 40 ms: 12.6 / **67.2 / 64.2%**; with any backlash 0.0%. Stage 2 (backlash) runs.
 
 ### 2026-10-21 (athena5) — USB-C: with stiffer friction, training with backlash works (2.5 -> 76%)
 
