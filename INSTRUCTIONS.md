@@ -5,6 +5,20 @@ target: **jensen**, 8 × V100, `jensen.ist.berkeley.edu`, user `yashchitambar`).
 Yash work on the local machine (athena5, 1 × RTX 3090 Ti). Read this file completely before you do
 anything. When this file and another document disagree about the server, this file wins.
 
+> **STOP AND READ (2026-10-21 21:30 PDT): the backlash model was wrong; fixed on `main` (3006b51).**
+> The backlash hinges used MuJoCo's soft default joint limit, so every "backlash" level (0.01 to
+> 5 arcmin) acted as ~0.6 deg of extra joint compliance (each hinge turns ~0.011 rad under a 5 N
+> load). Details and the CPU check: `docs/FINDINGS.md`, entry "BUG: the backlash model was a soft
+> spring". `main` now uses stiff limits by default (`builder.BACKLASH_LIMIT_SOLREF/SOLIMP`).
+> - **Affected:** Phase C backlash rows, `allmid`, `allmax`, `randall`; every Phase D run (the random
+>   conditions include backlash); the queued E `noise` run. Latency, noise, quantization and gain
+>   results are not affected.
+> - **Before you pull `main` or start any run that includes backlash** (D tier 2, E noise): stop
+>   and ask Yash. After the pull, new runs use the fixed model, so D tier 1 and tier 2 would mix
+>   two models. Yash decides which affected runs to redo. Runs without backlash can continue.
+> - `add_backlash(..., legacy_soft_limit=True)` reproduces the old model if a run must stay
+>   comparable with finished ones.
+
 ## 0. Context in five lines
 
 - The project reproduces Bronars et al., *Blind Precise Assembly* (arXiv:2610.23849, PDF in `docs/`):
