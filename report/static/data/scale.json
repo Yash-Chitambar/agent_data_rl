@@ -1,0 +1,342 @@
+{
+ "clearances_mm": [
+  1.0,
+  0.5,
+  0.2,
+  0.1,
+  0.05
+ ],
+ "cells": [
+  {
+   "opening_mm": 15,
+   "clearance_mm": 0.2,
+   "regime": "fixed",
+   "k": 1993,
+   "n": 2048,
+   "rate": 0.97314453125,
+   "ci": [
+    0.9652077840350385,
+    0.9793095705209857
+   ],
+   "time_med": 0.6800000071525574,
+   "travel_mm": 22.73080311715603,
+   "failures": {
+    "never_found": 35,
+    "wedged_partial": 17,
+    "left_fixture": 3
+   }
+  },
+  {
+   "opening_mm": 15,
+   "clearance_mm": 0.2,
+   "regime": "scaled",
+   "k": 1999,
+   "n": 2048,
+   "rate": 0.97607421875,
+   "ci": [
+    0.9685106818288076,
+    0.9818550773993899
+   ],
+   "time_med": 0.6800000071525574,
+   "travel_mm": 19.57564800977707,
+   "failures": {
+    "never_found": 20,
+    "wedged_partial": 27,
+    "jammed_inside": 2
+   }
+  },
+  {
+   "opening_mm": 30,
+   "clearance_mm": 0.5,
+   "regime": "fixed",
+   "k": 2016,
+   "n": 2048,
+   "rate": 0.984375,
+   "ci": [
+    0.978025735652521,
+    0.9889105034801682
+   ],
+   "time_med": 0.5199999809265137,
+   "travel_mm": 20.883064717054367,
+   "failures": {
+    "never_found": 15,
+    "wedged_partial": 13,
+    "left_fixture": 4
+   }
+  },
+  {
+   "opening_mm": 30,
+   "clearance_mm": 0.5,
+   "regime": "scaled",
+   "k": 1984,
+   "n": 2048,
+   "rate": 0.96875,
+   "ci": [
+    0.9602927791345739,
+    0.9754519684131899
+   ],
+   "time_med": 0.5399999618530273,
+   "travel_mm": 28.628332540392876,
+   "failures": {
+    "never_found": 25,
+    "wedged_partial": 17,
+    "slipped": 14,
+    "left_fixture": 8
+   }
+  },
+  {
+   "opening_mm": 60,
+   "clearance_mm": 0.5,
+   "regime": "scaled",
+   "k": 1981,
+   "n": 2048,
+   "rate": 0.96728515625,
+   "ci": [
+    0.9586634925247617,
+    0.9741570526869154
+   ],
+   "time_med": 0.8399999737739563,
+   "travel_mm": 32.98676013946533,
+   "failures": {
+    "never_found": 25,
+    "wedged_partial": 39,
+    "slipped": 1,
+    "left_fixture": 2
+   }
+  },
+  {
+   "opening_mm": 60,
+   "clearance_mm": 1.0,
+   "regime": "fixed",
+   "k": 2042,
+   "n": 2048,
+   "rate": 0.9970703125,
+   "ci": [
+    0.9936226801966676,
+    0.9986566458487737
+   ],
+   "time_med": 0.4599999785423279,
+   "travel_mm": 12.984853237867355,
+   "failures": {
+    "never_found": 1,
+    "wedged_partial": 3,
+    "jammed_inside": 1,
+    "slipped": 1
+   }
+  },
+  {
+   "opening_mm": 60,
+   "clearance_mm": 1.0,
+   "regime": "scaled",
+   "k": 2012,
+   "n": 2048,
+   "rate": 0.982421875,
+   "ci": [
+    0.9757611967767861,
+    0.9872761059077875
+   ],
+   "time_med": 0.7199999690055847,
+   "travel_mm": 35.13055667281151,
+   "failures": {
+    "never_found": 21,
+    "wedged_partial": 6,
+    "slipped": 8,
+    "left_fixture": 1
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 0.05,
+   "regime": "fixed",
+   "k": 1678,
+   "n": 2048,
+   "rate": 0.8193359375,
+   "ci": [
+    0.8020797444305666,
+    0.8353963648363475
+   ],
+   "time_med": 1.5199999809265137,
+   "travel_mm": 35.94484552741051,
+   "failures": {
+    "never_found": 199,
+    "wedged_partial": 162,
+    "jammed_inside": 9
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 0.05,
+   "regime": "scaled",
+   "k": 1837,
+   "n": 2048,
+   "rate": 0.89697265625,
+   "ci": [
+    0.8830546723730849,
+    0.9094041607064277
+   ],
+   "time_med": 1.2799999713897705,
+   "travel_mm": 14.016669243574142,
+   "failures": {
+    "never_found": 88,
+    "wedged_partial": 115,
+    "jammed_inside": 5,
+    "left_fixture": 3
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 0.1,
+   "regime": "fixed",
+   "k": 1825,
+   "n": 2048,
+   "rate": 0.89111328125,
+   "ci": [
+    0.8768827431590187,
+    0.9038792805761466
+   ],
+   "time_med": 1.1999999284744263,
+   "travel_mm": 27.30553224682808,
+   "failures": {
+    "never_found": 147,
+    "wedged_partial": 68,
+    "jammed_inside": 7,
+    "captured_then_lost": 1
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 0.1,
+   "regime": "scaled",
+   "k": 1904,
+   "n": 2048,
+   "rate": 0.9296875,
+   "ci": [
+    0.9177908983524121,
+    0.939975120233038
+   ],
+   "time_med": 0.8399999737739563,
+   "travel_mm": 14.719974249601364,
+   "failures": {
+    "never_found": 64,
+    "wedged_partial": 80
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 0.2,
+   "regime": "fixed",
+   "k": 1946,
+   "n": 2048,
+   "rate": 0.9501953125,
+   "ci": [
+    0.9399018136065876,
+    0.9588030376840772
+   ],
+   "time_med": 0.9599999785423279,
+   "travel_mm": 35.05968675017357,
+   "failures": {
+    "never_found": 70,
+    "wedged_partial": 26,
+    "jammed_inside": 5,
+    "captured_then_lost": 1
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 0.2,
+   "regime": "scaled",
+   "k": 1958,
+   "n": 2048,
+   "rate": 0.9560546875,
+   "ci": [
+    0.9462906775605411,
+    0.9641109830744707
+   ],
+   "time_med": 0.5399999618530273,
+   "travel_mm": 11.688661761581898,
+   "failures": {
+    "never_found": 62,
+    "wedged_partial": 26,
+    "captured_then_lost": 2
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 0.5,
+   "regime": "fixed",
+   "k": 1984,
+   "n": 2048,
+   "rate": 0.96875,
+   "ci": [
+    0.9602927791345739,
+    0.9754519684131899
+   ],
+   "time_med": 0.6399999856948853,
+   "travel_mm": 22.277656942605972,
+   "failures": {
+    "never_found": 53,
+    "wedged_partial": 6,
+    "jammed_inside": 5
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 0.5,
+   "regime": "scaled",
+   "k": 2020,
+   "n": 2048,
+   "rate": 0.986328125,
+   "ci": [
+    0.9803110679656998,
+    0.9905241076151051
+   ],
+   "time_med": 0.25999999046325684,
+   "travel_mm": 7.537056226283312,
+   "failures": {
+    "never_found": 26,
+    "wedged_partial": 2
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 1.0,
+   "regime": "fixed",
+   "k": 1985,
+   "n": 2048,
+   "rate": 0.96923828125,
+   "ci": [
+    0.9608368187162502,
+    0.9758826629435426
+   ],
+   "time_med": 0.4399999976158142,
+   "travel_mm": 21.84521220624447,
+   "failures": {
+    "never_found": 55,
+    "wedged_partial": 3,
+    "jammed_inside": 2,
+    "captured_then_lost": 2,
+    "left_fixture": 1
+   }
+  },
+  {
+   "opening_mm": 8,
+   "clearance_mm": 1.0,
+   "regime": "scaled",
+   "k": 1986,
+   "n": 2048,
+   "rate": 0.9697265625,
+   "ci": [
+    0.9613813481614297,
+    0.976312867610392
+   ],
+   "time_med": 0.11999999731779099,
+   "travel_mm": 3.885437035933137,
+   "failures": {
+    "never_found": 55,
+    "wedged_partial": 3,
+    "jammed_inside": 3,
+    "left_fixture": 1
+   }
+  }
+ ]
+}
