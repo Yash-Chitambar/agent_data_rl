@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Status report · 21 October 2026, 19:30 UTC · Simulation results</div>
+    <div class="badge">Status report · 21 October 2026, 23:45 UTC · Simulation results</div>
     <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
     <p class="authors">Yash Chitambar</p>
     <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -219,7 +219,7 @@
           <tr><td>15 mm</td><td class="n">·</td><td class="n">·</td><td class="n"><b>97.6%</b></td><td class="n">·</td><td class="n">·</td></tr>
           <tr><td>8 mm</td><td class="n"><b>97.0%</b></td><td class="n"><b>98.6%</b></td><td class="n"><b>95.6%</b></td><td class="n"><b>93.0%</b></td><td class="n"><b>89.7%</b></td></tr>
         </tbody>
-        <caption>Scaled regime. Bold: test success on 2,048 unseen starts with random robot conditions (95% intervals ±0.5 to 1.1 points). "·": later. In the fixed regime (3 mm median offset), the 60 mm, 1.0 mm cell seats 99.7% and the 30 mm, 0.5 mm cell 98.4%; the other cells train now.</caption>
+        <caption>Scaled regime. Bold: test success on 2,048 unseen starts with random robot conditions (95% intervals ±0.5 to 1.1 points). "·": later.</caption>
       </table>
     </div>
     <p><b>Size alone does not decrease success. Clearance does.</b> Along the diagonal (60, 30 and 15 mm with 1.0, 0.5 and 0.2 mm), success stays at 97 to 98%. At 8 mm, success decreases from 98.6% at 0.5 mm clearance to 89.7% at 0.05 mm, the USB-C clearance. The failure type also changes. At 1.0 mm, 55 of 62 failures did not find the hole. At 0.05 mm, 115 of 211 failures stopped partly inside the hole (wedged). Thus, at tight clearance the limit is the alignment in the hole, not the search. With 10 s episodes instead of 5 s, the 0.05 mm cell seats 92.6% and the wedged failures decrease from 115 to 64. Thus, approximately half of the wedged pegs only need more time.</p>
@@ -234,6 +234,20 @@
           <tr><td>0.05 mm</td><td class="n">89.7%</td><td class="n">1.28 s</td><td class="n">88</td><td class="n">115</td></tr>
         </tbody>
         <caption>Failure counts of 2,048 starts. Median start offset 1.3 mm. The "Examples from every test" videos show the 60 mm and 8 mm cells.</caption>
+      </table>
+    </div>
+    <p><b>A 3 mm start at all sizes gives the same success, but a longer search.</b> In the fixed regime, the median start offset is 3 mm for all sizes. For the 8 mm peg, this is 2.3 times the scaled offset. Success does not change, but the search is longer: at 8 mm and 1.0 mm, 0.44 s and 22 mm of travel, against 0.12 s and 3.9 mm. Thus, at these clearances the search area is not the limit. The tighter fixed cells train now.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Cell</th><th class="n">Scaled start</th><th class="n">Fixed 3 mm start</th></tr></thead>
+        <tbody>
+          <tr><td>60 mm, 1.0 mm</td><td class="n">98.2%</td><td class="n">99.7%</td></tr>
+          <tr><td>30 mm, 0.5 mm</td><td class="n">96.9%</td><td class="n">98.4%</td></tr>
+          <tr><td>15 mm, 0.2 mm</td><td class="n">97.6%</td><td class="n">97.3%</td></tr>
+          <tr><td>8 mm, 1.0 mm</td><td class="n">97.0%</td><td class="n">96.9%</td></tr>
+          <tr><td>8 mm, 0.5 mm</td><td class="n">98.6%</td><td class="n">96.9%</td></tr>
+        </tbody>
+        <caption>Test success, 2,048 starts each, random robot conditions. Scaled start: median offset 10 mm at 60 mm, 1.3 mm at 8 mm.</caption>
       </table>
     </div>
     <p><b>Two problems at small sizes, both fixed.</b> First, a run at 15 mm and 0.2 mm did not succeed once in 150 million steps. The reward is given only for capture and seating, so the policy got no signal. Now all cells tighter than 1.0 mm train with a clearance curriculum: 1.0 mm first, then smaller steps down to the target. Second, at 8 mm the peg slipped out of the box-shaped pads (73.7% test success, most failures were slips). With the 4 × 4 sphere pads from USB-C, the 8 mm cells down to 0.1 mm clearance train to 96 to 99%.</p>
@@ -324,18 +338,19 @@
 
     <h3>Backlash and the grasp friction</h3>
     <p class="claim">Backlash still breaks the USB-C policy. The simulated grasp friction is part of the cause, and a fine-tune removes this dependence.</p>
-    <p>With 1 arcmin of backlash, the 20 ms policies seat only 0.3 to 2.6%. Most of their failures are slips: the drive turns out of the grasp. A fine-tune with random backlash (0 to 5 arcmin) did not learn: its training success stayed at 13%. The default MuJoCo friction lets the drive creep in the grasp at 6 to 8 N. A real rubber pad with 8 to 17 N of grip holds much more. With a stiffer friction model (elliptic cone, impratio 10), the slips stop. But the policy also changes: without backlash, it seats only 36% under the stiffer friction. After a fine-tune of 100 million steps with the stiffer friction, it seats 89.8%. Thus, the policy can learn the stiffer grasp. Under the stiffer friction, backlash still makes the search fail (2.5% at 1 arcmin; most failures do not find the port). A fine-tune with stiffer friction and random backlash is in training.</p>
+    <p>With 1 arcmin of backlash, the 20 ms policies seat only 0.3 to 2.6%. Most of their failures are slips: the drive turns out of the grasp. A fine-tune with random backlash (0 to 5 arcmin) did not learn: its training success stayed at 13%. The default MuJoCo friction lets the drive creep in the grasp at 6 to 8 N. A real rubber pad with 8 to 17 N of grip holds much more. With a stiffer friction model (elliptic cone, impratio 10), the slips stop. But the policy also changes: without backlash, it seats only 36% under the stiffer friction. After a fine-tune of 100 million steps with the stiffer friction, it seats 89.8%. Thus, the policy can learn the stiffer grasp. Under the stiffer friction, backlash still makes the search fail (2.5% at 1 arcmin; most failures do not find the port). <b>But training with backlash now works.</b> A second fine-tune with the stiffer friction and random backlash (0, 1 or 3 arcmin) seats 76.2% at 1 arcmin and 72.1% at 3 arcmin. Its training success was 70% and still increased. Thus, the earlier failure came from the slips. With a grasp that holds, the USB-C policy learns backlash as the peg policy did. A last fine-tune adds the latency range (20 or 40 ms) to this recipe.</p>
     <div class="tbl">
       <table>
-        <thead><tr><th>Test</th><th class="n">Wide-start policy</th><th class="n">Fine-tuned with stiffer friction</th></tr></thead>
+        <thead><tr><th>Test</th><th class="n">Wide-start policy</th><th class="n">Fine-tuned with stiffer friction</th><th class="n">Then fine-tuned with backlash</th></tr></thead>
         <tbody>
-          <tr><td>Default friction</td><td class="n">91.0%</td><td class="n">60.0%</td></tr>
-          <tr><td>Stiffer friction</td><td class="n">36.1%</td><td class="n">89.8%</td></tr>
-          <tr><td>Stiffer friction, 1 arcmin backlash</td><td class="n">0.3%</td><td class="n">2.5%</td></tr>
-          <tr><td>Stiffer friction, 20 ms latency</td><td class="n">0.2%</td><td class="n">0.1%</td></tr>
-          <tr><td>Stiffer friction, 5 to 15 N latch</td><td class="n">6.2%</td><td class="n">21.5%</td></tr>
+          <tr><td>Default friction</td><td class="n">91.0%</td><td class="n">60.0%</td><td class="n">40.2%</td></tr>
+          <tr><td>Stiffer friction</td><td class="n">36.1%</td><td class="n">89.8%</td><td class="n">61.8%</td></tr>
+          <tr><td>Stiffer friction, 1 arcmin backlash</td><td class="n">0.3%</td><td class="n">2.5%</td><td class="n">76.2%</td></tr>
+          <tr><td>Stiffer friction, 3 arcmin backlash</td><td class="n">0.2%</td><td class="n">1.7%</td><td class="n">72.1%</td></tr>
+          <tr><td>Stiffer friction, 20 ms latency</td><td class="n">0.2%</td><td class="n">0.1%</td><td class="n">0.1%</td></tr>
+          <tr><td>Stiffer friction, 5 to 15 N latch</td><td class="n">6.2%</td><td class="n">21.5%</td><td class="n">20.8%</td></tr>
         </tbody>
-        <caption>Final stage, lab table, 2,048 matched starts. Stiffer friction: MuJoCo elliptic friction cone with impratio 10. The fine-tune trained 100 million steps without latency, backlash or latch.</caption>
+        <caption>Final stage, lab table, 2,048 matched starts. Stiffer friction: MuJoCo elliptic friction cone with impratio 10. Each fine-tune trained 100 million steps. The second one drew 0, 1 or 3 arcmin of backlash in each world. Neither trained with latency or the latch. The training worlds with "0 arcmin" keep a very small backlash joint, and the test without backlash has none. This can explain part of the lower score without backlash.</caption>
       </table>
     </div>
   </section>
@@ -357,7 +372,7 @@
     <h2>Next steps</h2>
     <ol class="facts">
       <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
-      <li><b>RQ3 grid.</b> Test the fixed regime, then train the other 12 scaled cells (queued tonight). Answer: at what size does success fall below 90%, and is the cause the search area or the signal?</li>
+      <li><b>RQ3 grid.</b> Test the tighter fixed cells at 8 mm, then the other 12 scaled cells (queued tonight).</li>
       <li><b>RQ4 on the lab table.</b> USB-C, chamfer, latch and side port (training now), then USB-C with random robot errors from the start, and the ablations (no contact loss, history length).</li>
       <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
       <li><b>More seeds</b> where a result is close.</li>
@@ -439,3 +454,4 @@
     });
   });
 </script>
+
