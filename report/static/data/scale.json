@@ -86,6 +86,26 @@
   },
   {
    "opening_mm": 60,
+   "clearance_mm": 0.2,
+   "regime": "scaled",
+   "k": 2006,
+   "n": 2048,
+   "rate": 0.9794921875,
+   "ci": [
+    0.9723964928265822,
+    0.9847924051858179
+   ],
+   "time_med": 0.7799999713897705,
+   "travel_mm": 39.040617644786835,
+   "failures": {
+    "never_found": 10,
+    "wedged_partial": 26,
+    "jammed_inside": 1,
+    "slipped": 5
+   }
+  },
+  {
+   "opening_mm": 60,
    "clearance_mm": 0.5,
    "regime": "scaled",
    "k": 1981,
