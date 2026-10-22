@@ -370,16 +370,29 @@ def _add_parallel_gripper(spec: mujoco.MjSpec, parent: mujoco.MjsBody, pos, quat
         a.gainprm[0] = 1.0  # motor: force = ctrl
 
 
-def add_backlash(spec: mujoco.MjSpec, joints: list[str], arcmin: float, stiffness=0.05, damping=0.01):
+# Backlash limit constraint. MuJoCo's default (solref 0.02 s, solimp 0.9/0.95) is a soft spring:
+# under a 5 N wrist load every hinge then turns ~0.011 rad (~38 arcmin) whatever the nominal zone,
+# i.e. it modelled ~0.6 deg of series compliance, not backlash (found 2026-10-21; all runs before
+# this fix). Stiff limits keep the hinge within ~1.2x its zone (CPU check in docs/FINDINGS.md).
+BACKLASH_LIMIT_SOLREF = (0.002, 1.0)
+BACKLASH_LIMIT_SOLIMP = (0.99, 0.999, 0.001, 0.5, 2.0)
+
+
+def add_backlash(spec: mujoco.MjSpec, joints: list[str], arcmin: float, stiffness=0.05, damping=0.01,
+                 legacy_soft_limit: bool = False):
     """Plan §9.3: a passive dead-zone hinge in series with each motor joint (same body, same
-    axis), free within +-arcmin/2 and weakly sprung. Encoders read only the motor joint."""
+    axis), free within +-arcmin/2 and weakly sprung. Encoders read only the motor joint.
+    legacy_soft_limit=True reproduces the pre-fix model (soft default limit, see above)."""
     half = math.radians(arcmin / 60.0) / 2
     for j in joints:
         jt = spec.joint(j)
         body = jt.parent
-        body.add_joint(name=f"{j}_backlash", type=mujoco.mjtJoint.mjJNT_HINGE, axis=list(jt.axis),
-                       pos=list(jt.pos), range=[-half, half], limited=1, stiffness=[stiffness, 0, 0],
-                       damping=[damping, 0, 0], armature=1e-5)
+        h = body.add_joint(name=f"{j}_backlash", type=mujoco.mjtJoint.mjJNT_HINGE, axis=list(jt.axis),
+                           pos=list(jt.pos), range=[-half, half], limited=1, stiffness=[stiffness, 0, 0],
+                           damping=[damping, 0, 0], armature=1e-5)
+        if not legacy_soft_limit:
+            h.solref_limit = list(BACKLASH_LIMIT_SOLREF)
+            h.solimp_limit = list(BACKLASH_LIMIT_SOLIMP)
 
 
 def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: float = 0.0012):

@@ -84,6 +84,31 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-21 (athena5) — BUG: the backlash model was a soft spring, not a dead zone (all earlier backlash results)
+
+- **What was wrong.** `builder.add_backlash` adds a limited hinge in series with each joint, but
+  the limit used MuJoCo's default soft constraint (solref 0.02 s, solimp 0.9/0.95). CPU check
+  (YAM, 4x4 pads, 5 N on link_6, 3 s): every hinge turns **~0.011 rad (~38 arcmin)** whatever the
+  nominal zone: 7,505x the zone at 0.01', 76x at 1', 26x at 3'. TCP moves 14.5 mm against 11.4 mm
+  with no hinges. So "backlash 1 / 3 / 5 arcmin" was really ~0.6 deg of series compliance at every
+  level. This explains why Phase C's base policy scores almost the same at 1, 3 and 5' (47 / 44 /
+  43%) and why even a 0.01' hinge broke the USB-C policies.
+- **Fix (default now):** `BACKLASH_LIMIT_SOLREF = (0.002, 1)`, `SOLIMP = (0.99, 0.999, 0.001)`. Hinge
+  stays within 1.1-1.2x its zone at 1-3'; 0.01' adds 0.01 mm of TCP motion. `add_backlash(...,
+  legacy_soft_limit=True)` reproduces the old model.
+- **Corrected USB-C numbers** (final stage, 2,048 each): wide-start policy (no backlash in
+  training) at 1 / 3': **90.4 / 77.2%** (old model: 8.6% at 1'; no backlash: 91.4%). Stage-1
+  policy (stiff friction, 20 ms, no backlash in training) at 20 ms + 0.01 / 1 / 3': 63.1 / 59.0 /
+  35.6% (old model: 0.0%). So realistic backlash (<= 1') costs USB-C little; 3' costs 14-30 points.
+- **Affected results (all trained or tested with the old model):** Phase C backlash rows and the
+  `allmid`, `allmax`, `randall` policies (mason); every Phase D run (the random robot conditions
+  include backlash 0-5'); the queued E `noise` run; tonight's USB-C backlash rows (deployft,
+  stiffblft, deploystiffft, fullft, fullft2, the latency x backlash tables). Their numbers describe
+  robustness to ~0.6 deg of extra joint compliance, not to arcmin backlash. Which runs to redo is
+  Yash's call (GPU cost); the latency, noise, quantization and gain results are not affected.
+- Queued: `E-usbc-proprio-fullft3-s0` = stage 1 + latency {1, 2} + backlash {0, 1, 3} (fixed
+  model) + `--std_max 0.8`.
+
 ### 2026-10-21 (athena5) — USB-C full recipe in one step fails; staged instead
 
 - `E-usbc-proprio-deploystiffft-s0` (150M from the stiff+backlash policy; stiff friction +
