@@ -36,6 +36,18 @@ def train_info(run: Path) -> dict:
                 done=(run / "DONE").exists())
 
 
+def write_report_json(df):
+    """report/static/data/scale.json: tested cells (figure `scale`)."""
+    import json  # noqa: PLC0415
+    ev = df[df.source == "eval"]
+    cells = [dict(opening_mm=int(r.opening_mm), clearance_mm=float(r.clearance_mm), regime=r.regime,
+                  k=int(r.k), n=int(r.n), rate=r.success, ci=[r.lo, r.hi], time_med=r.time_med,
+                  travel_mm=r.travel_med_mm, failures={f: int(r[f"fail_{f}"]) for f in FAILS if r[f"fail_{f}"] > 0})
+             for _, r in ev.iterrows()]
+    out = ROOT / "report" / "static" / "data" / "scale.json"
+    json.dump(dict(clearances_mm=[float(c) for c in CLEARS], cells=cells), open(out, "w"), indent=1)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -62,6 +74,7 @@ def main():
         rows.append(r)
     df = pd.DataFrame(rows)
     df.to_csv(OUT / "D-grid.csv", index=False)
+    write_report_json(df)
     print(df[["opening_mm", "clearance_mm", "regime", "source", "success", "steps90_M", "train_steps_M", "wall_h"]]
           .to_string(index=False))
 

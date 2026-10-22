@@ -234,14 +234,29 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   never found 105, left fixture 56.
 - Caveat: the gain mixes two effects, wider starts and the move to the lab-table mount (E1 trained
   on the old mount). The server's E1 trains on the table from scratch; compare its r50 with 7.1 mm.
+### 2026-10-22 (04:30 UTC, mason) — Latch fine-tune at reachable forces pushes but slips; 60 mm ignores clearance
+
+- **E-usbc-proprio-latchlowft-s0** (lab-table curr policy + 150M steps on a 2-7 N latch, which the
+  7.2 N push limit can beat): 90.7% on its own 2-7 N latch (left fixture 85, never found 70).
+  On the 5-15 N latch: 57.5% (lab-table curr policy zero-shot: 26.5%); slipped 479 of 870 failures,
+  wedged 155, jammed 94. athena5's 5-15 N fine-tune reached 89.7% by striking at 40-80 mm/s. So a
+  policy that learns only to push loses the drive at peaks it cannot push through; the strike
+  (momentum) is needed for strong latches. `results/E/eval_latchlowft_s0{,_on_latch}_final.parquet`.
+- **D o60 row (scaled):** c1 98.2, c0.5 96.7, c0.2 97.9, c0.1 98.6%. The 60 mm peg does not lose
+  success down to 0.1 mm; the 8 mm peg loses 4-5 points by 0.1 mm. Tight clearance hurts small parts.
+
 ### 2026-10-21 (23:45 UTC, mason) — Phase D fixed regime: a 3 mm start gives the same success, a longer search
 
 Fixed regime (median start 3 mm at every size) against scaled, test success on 2,048 starts:
 o60_c1 99.7 / 98.2, o30_c0.5 98.4 / 96.9, o15_c0.2 97.3 / 97.6, o8_c1 96.9 / 97.0, o8_c0.5 96.9 / 98.6.
 At 8 mm and 1.0 mm the fixed start (2.3x the scaled 1.3 mm) takes 0.44 s and 22 mm of travel against
 0.12 s and 3.9 mm, with the same failures (never found 55 vs 55). So at >= 0.5 mm clearance the
-search area is not the limit. The tighter fixed 8 mm cells (0.2, 0.1, 0.05 mm) train now; at
-23:43 their training success was 93, 81, 69%. Once the D_train_tier1 queue emptied, the runner
+search area is not the limit. Tighter fixed 8 mm cells (00:45 UTC): c0.2 95.0% (scaled 95.6%; 0.96 s,
+35 mm), c0.1 89.1% (scaled 93.0%; never found 147 vs 64, wedged 68 vs 80). So at 0.1 mm the larger
+start area costs 4 points, all in search failures. c0.05 fixed: 81.9% (scaled 89.7%; never found 199
+vs 88, wedged 162 vs 115, 1.52 s, 36 mm). First tier-2 cell o60_c0.5_scaled: 96.7% (wedged 39, never
+found 25; o60_c1 98.2%). o60_c0.2_scaled: 97.9% (wedged 26, never found 10). At 60 mm the clearance
+barely matters down to 0.2 mm; at 8 mm it costs 3 points by 0.2 mm. Once the D_train_tier1 queue emptied, the runner
 ran these evals itself; E latchlowft and sideft started at 23:16.
 
 ### 2026-10-21 (21:15 UTC, mason) — Phase D diagonal and 8 mm row: clearance, not size, lowers success
