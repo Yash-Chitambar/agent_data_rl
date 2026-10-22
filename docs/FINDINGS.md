@@ -209,6 +209,17 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   never found 105, left fixture 56.
 - Caveat: the gain mixes two effects, wider starts and the move to the lab-table mount (E1 trained
   on the old mount). The server's E1 trains on the table from scratch; compare its r50 with 7.1 mm.
+### 2026-10-22 (04:30 UTC, mason) — Latch fine-tune at reachable forces pushes but slips; 60 mm ignores clearance
+
+- **E-usbc-proprio-latchlowft-s0** (lab-table curr policy + 150M steps on a 2-7 N latch, which the
+  7.2 N push limit can beat): 90.7% on its own 2-7 N latch (left fixture 85, never found 70).
+  On the 5-15 N latch: 57.5% (lab-table curr policy zero-shot: 26.5%); slipped 479 of 870 failures,
+  wedged 155, jammed 94. athena5's 5-15 N fine-tune reached 89.7% by striking at 40-80 mm/s. So a
+  policy that learns only to push loses the drive at peaks it cannot push through; the strike
+  (momentum) is needed for strong latches. `results/E/eval_latchlowft_s0{,_on_latch}_final.parquet`.
+- **D o60 row (scaled):** c1 98.2, c0.5 96.7, c0.2 97.9, c0.1 98.6%. The 60 mm peg does not lose
+  success down to 0.1 mm; the 8 mm peg loses 4-5 points by 0.1 mm. Tight clearance hurts small parts.
+
 ### 2026-10-21 (23:45 UTC, mason) — Phase D fixed regime: a 3 mm start gives the same success, a longer search
 
 Fixed regime (median start 3 mm at every size) against scaled, test success on 2,048 starts:
