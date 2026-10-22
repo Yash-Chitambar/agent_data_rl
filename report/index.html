@@ -214,7 +214,7 @@
       <table>
         <thead><tr><th>Opening</th><th class="n">1.0 mm</th><th class="n">0.5 mm</th><th class="n">0.2 mm</th><th class="n">0.1 mm</th><th class="n">0.05 mm</th></tr></thead>
         <tbody>
-          <tr><td>60 mm</td><td class="n"><b>98.2%</b></td><td class="n">·</td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
+          <tr><td>60 mm</td><td class="n"><b>98.2%</b></td><td class="n"><b>96.7%</b></td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
           <tr><td>30 mm</td><td class="n">·</td><td class="n"><b>96.9%</b></td><td class="n">·</td><td class="n">·</td><td class="n">·</td></tr>
           <tr><td>15 mm</td><td class="n">·</td><td class="n">·</td><td class="n"><b>97.6%</b></td><td class="n">·</td><td class="n">·</td></tr>
           <tr><td>8 mm</td><td class="n"><b>97.0%</b></td><td class="n"><b>98.6%</b></td><td class="n"><b>95.6%</b></td><td class="n"><b>93.0%</b></td><td class="n"><b>89.7%</b></td></tr>
@@ -236,7 +236,7 @@
         <caption>Failure counts of 2,048 starts. Median start offset 1.3 mm. The "Examples from every test" videos show the 60 mm and 8 mm cells.</caption>
       </table>
     </div>
-    <p><b>A 3 mm start at all sizes gives almost the same success, but a longer search.</b> In the fixed regime, the median start offset is 3 mm for all sizes. For the 8 mm peg, this is 2.3 times the scaled offset. Success does not change, but the search is longer: at 8 mm and 1.0 mm, 0.44 s and 22 mm of travel, against 0.12 s and 3.9 mm. Thus, down to 0.2 mm clearance the search area is not the limit. At 0.1 mm, the fixed start loses 4 points (89.1% against 93.0%), and 147 starts do not find the hole (scaled: 64). Thus, at tight clearance both the search and the alignment become harder. The 0.05 mm fixed cell trains now.</p>
+    <p><b>A larger start area costs success only at tight clearance.</b> In the fixed regime, the median start offset is 3 mm for all sizes. For the 8 mm peg, this is 2.3 times the scaled offset. Down to 0.2 mm clearance, success does not change, but the search is longer: at 8 mm and 1.0 mm, 0.44 s and 22 mm of travel, against 0.12 s and 3.9 mm. Thus, down to 0.2 mm clearance the search area is not the limit. At 0.1 mm, the fixed start loses 4 points (89.1% against 93.0%). At 0.05 mm, it loses 8 points (81.9% against 89.7%), and 199 starts do not find the hole (scaled: 88). Thus, at tight clearance the hole is harder to feel, and a larger start area also makes the search fail.</p>
     <div class="tbl">
       <table>
         <thead><tr><th>Cell</th><th class="n">Scaled start</th><th class="n">Fixed 3 mm start</th></tr></thead>
@@ -248,6 +248,7 @@
           <tr><td>8 mm, 0.5 mm</td><td class="n">98.6%</td><td class="n">96.9%</td></tr>
           <tr><td>8 mm, 0.2 mm</td><td class="n">95.6%</td><td class="n">95.0%</td></tr>
           <tr><td>8 mm, 0.1 mm</td><td class="n">93.0%</td><td class="n">89.1%</td></tr>
+          <tr><td>8 mm, 0.05 mm</td><td class="n">89.7%</td><td class="n">81.9%</td></tr>
         </tbody>
         <caption>Test success, 2,048 starts each, random robot conditions. Scaled start: median offset 10 mm at 60 mm, 1.3 mm at 8 mm.</caption>
       </table>
@@ -374,7 +375,7 @@
     <h2>Next steps</h2>
     <ol class="facts">
       <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
-      <li><b>RQ3 grid.</b> Test the fixed 8 mm cell at 0.05 mm, then the other 12 scaled cells (training now).</li>
+      <li><b>RQ3 grid.</b> Complete the other 11 scaled cells (training now).</li>
       <li><b>RQ4 on the lab table.</b> USB-C, chamfer, latch and side port (training now), then USB-C with random robot errors from the start, and the ablations (no contact loss, history length).</li>
       <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
       <li><b>More seeds</b> where a result is close.</li>
