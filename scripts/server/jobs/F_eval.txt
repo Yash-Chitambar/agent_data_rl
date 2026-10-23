@@ -3,9 +3,9 @@
 # 6 jobs, ~5 GPU-h (3090 Ti-equivalent; see the assumptions in the generator).
 # Run:  python3 scripts/server/run_jobs.py scripts/server/jobs/F_eval.txt [--gpus ...]
 #  or:  scripts/server/slurm/submit.sh scripts/server/jobs/F_eval.txt [...]
-scripts/server/eval/eval_phase_f.sh F-usbc-rgb-curr-s0 rgb_s0 > runs/eval_F-usbc-rgb-curr-s0.log 2>&1  # after=F-usbc-rgb-curr-s0 visual mem=8 est_h=1.0
-scripts/server/eval/eval_phase_f.sh F-usbc-depth-curr-s0 depth_s0 > runs/eval_F-usbc-depth-curr-s0.log 2>&1  # after=F-usbc-depth-curr-s0 visual mem=8 est_h=1.0
-scripts/server/eval/eval_phase_f.sh F-usbc-pr-curr-s0 pr_s0 > runs/eval_F-usbc-pr-curr-s0.log 2>&1  # after=F-usbc-pr-curr-s0 visual mem=8 est_h=1.0
-scripts/server/eval/eval_phase_f.sh F-usbc-pd-curr-s0 pd_s0 > runs/eval_F-usbc-pd-curr-s0.log 2>&1  # after=F-usbc-pd-curr-s0 visual mem=8 est_h=1.0
-scripts/server/eval/eval_phase_f.sh F-usbc-prd-curr-s0 prd_s0 > runs/eval_F-usbc-prd-curr-s0.log 2>&1  # after=F-usbc-prd-curr-s0 visual mem=8 est_h=1.0
-scripts/server/eval/eval_phase_f.sh E-usbc-proprio-curr-s0 p_s0 > runs/eval_F-P_s0.log 2>&1  # after=E-usbc-proprio-curr-s0 mem=3 est_h=0.3
+scripts/eval/phase_f.sh F-usbc-rgb-curr-s0 rgb_s0 > runs/eval_F-usbc-rgb-curr-s0.log 2>&1  # after=F-usbc-rgb-curr-s0 visual mem=8 est_h=1.0
+scripts/eval/phase_f.sh F-usbc-depth-curr-s0 depth_s0 > runs/eval_F-usbc-depth-curr-s0.log 2>&1  # after=F-usbc-depth-curr-s0 visual mem=8 est_h=1.0
+scripts/eval/phase_f.sh F-usbc-pr-curr-s0 pr_s0 > runs/eval_F-usbc-pr-curr-s0.log 2>&1  # after=F-usbc-pr-curr-s0 visual mem=8 est_h=1.0
+scripts/eval/phase_f.sh F-usbc-pd-curr-s0 pd_s0 > runs/eval_F-usbc-pd-curr-s0.log 2>&1  # after=F-usbc-pd-curr-s0 visual mem=8 est_h=1.0
+scripts/eval/phase_f.sh F-usbc-prd-curr-s0 prd_s0 > runs/eval_F-usbc-prd-curr-s0.log 2>&1  # after=F-usbc-prd-curr-s0 visual mem=8 est_h=1.0
+scripts/eval/phase_f.sh E-usbc-proprio-curr-s0 p_s0 > runs/eval_F-P_s0.log 2>&1  # after=E-usbc-proprio-curr-s0 mem=3 est_h=0.3

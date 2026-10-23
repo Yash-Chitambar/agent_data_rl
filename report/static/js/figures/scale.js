@@ -1,7 +1,7 @@
 /**
  * Phase D, 8 mm peg (RQ3): (a) test success against clearance for the scaled and the fixed
  * start regime, with Wilson CIs; (b) the two main failure types of the scaled regime.
- * Data: scale.json (scripts/phase_d_report.py).
+ * Data: scale.json (scripts/report/phase_d.py).
  */
 import { s, h, svg, responsive, linear, band, axes, tween, onVisible, ease, tooltip, tipRow,
   legend, cvar, pct } from './kit.js';

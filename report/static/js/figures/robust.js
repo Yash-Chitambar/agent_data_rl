@@ -1,7 +1,7 @@
 /**
  * YAM robustness (Phase C): success under each test condition for the policy trained without
  * it, the policy trained with it, and (when present) the policy trained with all conditions
- * randomized. Grouped bars with Wilson CIs. Data: robust.json (scripts/phase_c_report.py).
+ * randomized. Grouped bars with Wilson CIs. Data: robust.json (scripts/report/phase_c.py).
  */
 import { s, h, svg, responsive, linear, band, axes, tween, onVisible, ease, tooltip, tipRow,
   legend, cvar, pct } from './kit.js';

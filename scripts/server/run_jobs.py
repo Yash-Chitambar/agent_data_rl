@@ -6,7 +6,7 @@ blank lines and lines starting with '#' are ignored) and runs each job with
 CUDA_VISIBLE_DEVICES set to one GPU, `--per-gpu` jobs per GPU at a time.
 
 Optional trailing annotations after ' # ' (bash ignores them, so lines stay valid for
-scripts/queue.sh):
+scripts/tools/local_queue.sh):
     after=NAME[,NAME...]   start only after these runs are complete (runs/NAME/.complete)
     visual                 informational (job renders; counted separately in --status)
     mem=GB                 informational GPU memory estimate

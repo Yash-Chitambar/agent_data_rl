@@ -106,6 +106,19 @@ All on the corrected backlash model, 2,048 starts per cell, random robot conditi
   does not. Consistent with athena5's USB-C backlash and latency results. Options for Yash: fine-tune from
   `E-usbc-proprio-curr-s0` with the noise model (as fullft3 did for backlash), or narrow the ranges (latency 1 only).
 
+### 2026-10-23 (10:00 UTC, mason) — Report v42 rewrite; scripts/ reorganized
+
+- Report v42: summary of key results first, one claim per RQ, tables with the old backlash model removed,
+  new probe / signal / replay findings in RQ3 and RQ4.
+- `scripts/` split by purpose: `eval/` (was `eval_phase_*.sh`, `usbc_*_eval.sh`, `server/eval/*`),
+  `analysis/`, `report/` (was `phase_*_report.py`, `build_report.py`, demos), `real/` (was
+  `real_yam_latency.py`), `tools/` (setup checks, `local_queue.sh`, was `queue.sh`). Paths in docs,
+  manifests, runner and figures updated; this notebook keeps the old paths (history). Empty
+  `blind_insertion/baselines/` removed (the spiral baseline is in `eval.py`). Guides: `README.md`
+  (project overview + layout), `scripts/README.md`.
+- Checks: all scripts compile / `bash -n`; `test_run_jobs.py` passes; `make_manifests.py --check` 171 OK;
+  `scripts/report/phase_{c,d}.py` rebuild identical outputs.
+
 ### 2026-10-23 (09:00 UTC, mason) — Plan analyses: C-R3 probe, D signal and probe vs size, E7 probe, §11.5 replays
 
 Scripts: `scripts/analysis/run_probes.sh`, `run_signal_vs_size.sh`, `run_replay_check.sh`.

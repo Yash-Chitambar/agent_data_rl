@@ -51,9 +51,9 @@ def eval_outputs(cmd: str) -> list[Path]:
         o = tok[tok.index("--out") + 1]
         out += [Path(o), Path(o.replace(".parquet", ".rollouts.npz"))]
     for i, t in enumerate(tok):
-        if t.endswith("eval_phase_c.sh"):
+        if t.endswith(("eval/phase_c.sh", "eval_phase_c.sh")):
             out += sorted((REPO / "results/C").glob(f"eval_{tok[i + 2]}_*"))
-        elif t.endswith("eval_phase_e.sh"):
+        elif t.endswith(("eval/phase_e.sh", "eval_phase_e.sh")):
             out += sorted((REPO / "results/E").glob(f"*_{tok[i + 2]}_*"))
     return [p if p.is_absolute() else REPO / p for p in out]
 
@@ -71,7 +71,7 @@ def main():
     all_lines = [(m, c, ann) for m in MANIFESTS for c, ann in lines(JOBS / m)]
     names = {re.search(r"--name (\S+)", c).group(1) for _, c, _ in all_lines
              if "--name " in c and "backlash_arcmin" in c}
-    pat = re.compile(r"(runs/|--name |eval_phase_[ce]\.sh |after=|,)(" + "|".join(map(re.escape, names)) + r")(/|\s|,|$)")
+    pat = re.compile(r"(runs/|--name |(?:eval_|eval/)phase_[ce]\.sh |after=|,)(" + "|".join(map(re.escape, names)) + r")(/|\s|,|$)")
     affected = [(m, c) for m, c, ann in all_lines if pat.search(c) or pat.search(ann)]
     moves = []
     for n in sorted(names):
@@ -81,7 +81,7 @@ def main():
         moves += [(p, p.parent / "_softbl" / p.name) for p in eval_outputs(c) if p.exists()]
     bl_cols = []
     for _, c, _ in all_lines:   # other C policies: only their backlash columns
-        if "eval_phase_c.sh" in c and not pat.search(c):
+        if ("eval/phase_c.sh" in c or "eval_phase_c.sh" in c) and not pat.search(c):
             tag = shlex.split(c)[2]
             bl_cols += sorted((REPO / "results/C").glob(f"eval_{tag}_backlash*.parquet"))
     moves += [(p, p.parent / "_softbl" / p.name) for p in bl_cols]

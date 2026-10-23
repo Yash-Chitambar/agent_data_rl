@@ -49,7 +49,7 @@ MED_PER_HALF = 0.765          # train.MEDIAN_RADIAL_PER_HALFWIDTH: median |xy| =
 # GPU-hour assumptions, from runs on the local RTX 3090 Ti (runs/queue/queue.log):
 # blind 300M at 12,288 worlds = 2.2-2.4 h (36-38k env steps/s incl. PPO, Flexiv and YAM);
 # visual with the stop rule stopped at 50M = 1.7 h (8.5k steps/s; 300M would be ~9.8 h);
-# eval_phase_b.sh (7 evals + probe) = 0.18 h. USB-C (8,192 worlds, njmax 2048) not yet measured.
+# eval/phase_b.sh (7 evals + probe) = 0.18 h. USB-C (8,192 worlds, njmax 2048) not yet measured.
 H_BLIND, H_VISUAL, H_VISUAL_MAX, H_USBC = 2.3, 1.7, 9.8, 3.0
 H_EVAL_B, H_EVAL_C, H_OOD, H_EVAL1, H_EVAL_E_FULL = 0.18, 0.35, 0.12, 0.04, 0.35
 
@@ -115,11 +115,11 @@ def phase_b():
             if name in ("B-peg-proprio-base-s0", "B-peg-rgb-base-s0"):
                 continue
             probe = "" if tag == "rgb" else " probe"
-            ev.append(eval_line(f"scripts/eval_phase_b.sh {name} {tag}_s{s}{probe}", f"eval_{tag}_s{s}", name,
+            ev.append(eval_line(f"scripts/eval/phase_b.sh {name} {tag}_s{s}{probe}", f"eval_{tag}_s{s}", name,
                                 H_EVAL_B, visual=tag == "rgb"))
     allb = [f"B-peg-{m}-{v}-s{s}" for s in SEEDS for m, v in (("proprio", "base"), ("proprio", "nocontact"),
                                                               ("rgb", "base"))]
-    ev.append(f"{PY} scripts/phase_b_report.py > runs/phase_b_report.log 2>&1"
+    ev.append(f"{PY} scripts/report/phase_b.py > runs/phase_b_report.log 2>&1"
               + ann(after=",".join(allb), est_h=0.05, note="needs_all_B_train_logs_in_runs"))
     return tr, ev
 
@@ -131,17 +131,17 @@ def phase_c_bl():
     for s in SEEDS_CDE:
         for var, ej in C_CONDS:
             if "backlash_arcmin" in json.dumps(ej):
-                continue                  # retrained: its full eval_phase_c.sh line runs again
+                continue                  # retrained: its full eval/phase_c.sh line runs again
             name, tag = f"C-peg-proprio-{var}-s{s}", f"yam_{var}_s{s}"
             base = f" {jq(C_EVAL_BASE[var])}" if var in C_EVAL_BASE else ""
-            ev.append(eval_line(f"ONLY=backlash scripts/eval_phase_c.sh {name} {tag}{base}", f"eval_{tag}_bl",
+            ev.append(eval_line(f"ONLY=backlash scripts/eval/phase_c.sh {name} {tag}{base}", f"eval_{tag}_bl",
                                 name, 0.06))
     return ev
 
 
 # ------------------------------------------------------------------------------- Phase C
 def gains(g):
-    """§5.2 YAM gains x g, in the format scripts/eval_phase_c.sh passes."""
+    """§5.2 YAM gains x g, in the format scripts/eval/phase_c.sh passes."""
     kp = [80 * g] * 3 + [30 * g] * 3
     kd = [6 * g] * 3 + [2 * g] * 3
     return {"gains": [kp, kd]}
@@ -158,14 +158,14 @@ C_CONDS = [  # variant, env_json overrides (training with that factor on, §9.3 
     ("allmax", {"q_noise": 5e-4, "q_quant_bits": 14, "backlash_arcmin": 5, "latency": 2}),
     ("gain0.5x", gains(0.5)), ("gain2x", gains(2)), ("gain4x", gains(4)),
     # §9.3 "training with the noise randomized": every factor's level drawn per world at each
-    # reset (EnvCfg.noise_rand); eval_phase_c.sh then gives its success at each fixed level
+    # reset (EnvCfg.noise_rand); eval/phase_c.sh then gives its success at each fixed level
     ("randall", {"noise_rand": NOISE_RAND}),
     # 2026-10-21: the base policy is bang-bang (27% of actions at the +-3 clip) and that is what
     # latency/backlash break (results/C/analysis/). Same task with the action clip at 1: does a
     # smooth policy transfer without knowing the latency? Evaluated with the same clip.
     ("clip1", {"action_clip": 1.0}),
 ]
-C_EVAL_BASE = {"clip1": {"action_clip": 1.0}}   # env JSON merged under every eval_phase_c.sh condition
+C_EVAL_BASE = {"clip1": {"action_clip": 1.0}}   # env JSON merged under every eval/phase_c.sh condition
 
 
 def phase_c():
@@ -177,15 +177,15 @@ def phase_c():
             if name not in LOCAL_DONE:
                 tr.append(train_line(name, s, args if name in STARTED_FULL else f"{args} {STOP}"))
             tag = f"yam_{var}_s{s}"
-            # full brittleness matrix: base + each factor alone + gain sweep (scripts/eval_phase_c.sh)
+            # full brittleness matrix: base + each factor alone + gain sweep (scripts/eval/phase_c.sh)
             base = f" {jq(C_EVAL_BASE[var])}" if var in C_EVAL_BASE else ""
-            ev.append(eval_line(f"scripts/eval_phase_c.sh {name} {tag}{base}", f"eval_{tag}", name, H_EVAL_C))
+            ev.append(eval_line(f"scripts/eval/phase_c.sh {name} {tag}{base}", f"eval_{tag}", name, H_EVAL_C))
             if var.startswith("all"):     # also under its own combined training condition
                 ev.append(eval_line(f"{PY} -m blind_insertion.eval --policy runs/{name}/last.pt --env_file {YAM} "
                                     f"--episodes 2048 --env_json {jq(ej)} --out results/C/eval_{tag}_own.parquet",
                                     f"eval_{tag}_own", name, H_EVAL1))
             if var == "base":             # C-R4 OOD bins on the YAM
-                ev.append(eval_line(f"scripts/server/eval/eval_ood.sh {name} {tag} C {YAM}", f"ood_{tag}", name,
+                ev.append(eval_line(f"scripts/eval/ood.sh {name} {tag} C {YAM}", f"ood_{tag}", name,
                                     H_OOD))
     return tr, ev
 
@@ -271,11 +271,11 @@ def phase_e():
             extra = (" --contact_coef 0" if var == "nocontact" else "") + e_eval_opts(ef, ej, vk)
             tr.append(train_line(name, s, f"{E_BASE}{extra} {STOP}", nworld=8192, mem=16, est=H_USBC))
             tag = f"{var}_s{s}"
-            ev.append(eval_line(f"scripts/server/eval/eval_phase_e.sh {name} {tag} {mode}{e_eval_opts(ef, ej, vk)}",
+            ev.append(eval_line(f"scripts/eval/phase_e.sh {name} {tag} {mode}{e_eval_opts(ef, ej, vk)}",
                                 f"eval_{name}", name, H_EVAL_E_FULL if mode == "full" else H_EVAL1))
         e1 = f"E-usbc-proprio-curr-s{s}"
         for tag, ef, vk in E1_CROSS:
-            ev.append(eval_line(f"scripts/server/eval/eval_phase_e.sh {e1} curr_on_{tag}_s{s} indist"
+            ev.append(eval_line(f"scripts/eval/phase_e.sh {e1} curr_on_{tag}_s{s} indist"
                                 f"{e_eval_opts(ef, {}, vk)}", f"eval_curr_on_{tag}_s{s}", e1, H_EVAL1))
     return tr, ev
 
@@ -301,11 +301,11 @@ def phase_f():
                     + f" --stop_success 0.99 --min_steps 50e6")
             tr.append(train_line(name, s, args, visual=True, mem=20, est=H_F, nworld=2048).replace(
                 "--steps 300e6", f"--steps {F_STEPS}"))
-            ev.append(eval_line(f"scripts/server/eval/eval_phase_f.sh {name} {var}_s{s}", f"eval_{name}", name,
+            ev.append(eval_line(f"scripts/eval/phase_f.sh {name} {var}_s{s}", f"eval_{name}", name,
                                 1.0, visual=True, mem=8))
         # F-P on the same scenes (its camera is unused; same starts as the visual policies)
         e1 = f"E-usbc-proprio-curr-s{s}"
-        ev.append(eval_line(f"scripts/server/eval/eval_phase_f.sh {e1} p_s{s}", f"eval_F-P_s{s}", e1, 0.3))
+        ev.append(eval_line(f"scripts/eval/phase_f.sh {e1} p_s{s}", f"eval_F-P_s{s}", e1, 0.3))
     return tr, ev
 
 
@@ -438,11 +438,11 @@ def main():
     noise = f"# Phase C noise model used here (Gate C): {json.dumps(NOISE)}\n"
     summary = [
         write("B_train.txt", "Phase B remaining training: blind s2, no-contact s1/s2, visual s1/s2", b_tr, dup),
-        write("B_eval.txt", "Phase B evals (eval_phase_b.sh: in-dist 2,048 + 6 OOD bins x 1,024 [+ probe]) "
+        write("B_eval.txt", "Phase B evals (eval/phase_b.sh: in-dist 2,048 + 6 OOD bins x 1,024 [+ probe]) "
               "and the Phase B report", b_ev, dup),
         write("C_train.txt", "Phase C YAM: C-R1 base (s1, s2) + §9.3 robustness + §9.4 gain training, 3 seeds",
               c_tr, dup),
-        write("C_eval.txt", "Phase C evals: eval_phase_c.sh (factors + gain sweep), own-condition, OOD bins", c_ev,
+        write("C_eval.txt", "Phase C evals: eval/phase_c.sh (factors + gain sweep), own-condition, OOD bins", c_ev,
               dup),
         write("C_eval_bl.txt", "Phase C backlash columns redo (fixed backlash model) for policies trained "
               "without backlash", phase_c_bl(), dup),

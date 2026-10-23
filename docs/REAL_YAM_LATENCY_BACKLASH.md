@@ -76,12 +76,12 @@ least 250 Hz; write down the real rate. Use one CSV per joint, `data/real_yam/st
 Then run:
 
 ```bash
-.venv/bin/python scripts/real_yam_latency.py fit 'data/real_yam/steps_joint*.csv' --out results/C/real_latency.json
+.venv/bin/python scripts/real/yam_latency_fit.py fit 'data/real_yam/steps_joint*.csv' --out results/C/real_latency.json
 ```
 
 The script finds each commanded step and simulates the same step from the same pose with the sim
 model. It then fits two numbers per joint: the **delay** (ms) and a **gain scale** (real stiffness
-/ sim stiffness). `scripts/real_yam_latency.py selftest` checks the fit on fake data with a known
+/ sim stiffness). `scripts/real/yam_latency_fit.py selftest` checks the fit on fake data with a known
 answer (23 ms, 0.7x).
 
 The delay here covers everything from the send to the first encoder motion: bus, motor driver,

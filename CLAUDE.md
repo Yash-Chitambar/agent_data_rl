@@ -19,10 +19,10 @@ the "Ideas" section of `docs/FINDINGS.md`.
 | `third_party/mujoco_menagerie/` | Sparse clone: `flexiv_rizon4s`, `robotiq_2f85`, `i2rt_yam` (Apache/MIT). |
 | `blind_insertion/` | Our code: assets builder, batched env, policy, PPO, eval, analysis. |
 | `blind_insertion/checks/` | Phase A signal checks (A-S1..A-S10), one script each. |
-| `scripts/` | Entry points (train, eval, figures). |
+| `scripts/` | `eval/` (batched evals), `analysis/` (probes, signal checks, replays), `report/` (figures, report data), `real/` (real-arm tools), `server/` (multi-GPU runner), `tools/` (setup checks, local queue). See `scripts/README.md`. |
 | `results/<phase>/` | Frozen CSV/Parquet + PNG per figure. |
 | `runs/` | Training checkpoints/logs (gitignored). |
-| `report/` | HTML results report (research-figures template), built by `scripts/build_report.py`. |
+| `report/` | HTML results report (research-figures template), built by `scripts/report/build_report.py`. |
 
 ## Environment
 
@@ -79,20 +79,20 @@ export PYTHONPATH=$PWD
 .venv/bin/python -m blind_insertion.checks.signal_checks --env_file blind_insertion/configs/phase_e_usbc_spheres.json --family usbc --only 5,6 --out results/E/signal
 .venv/bin/python -m blind_insertion.viz.replay --rollouts results/B/x.rollouts.npz --worlds 0,1 --out results/B/viz/x
 .venv/bin/python -m blind_insertion.checks.signal_checks --robot flexiv   # A-S3..A-S6 (CPU)
-.venv/bin/python scripts/build_report.py [--no-media]   # HTML report data/videos -> report/static/
-.venv/bin/python scripts/phase_c_report.py    # C train x test matrix -> results/C/C-matrix.{csv,png}
-.venv/bin/python scripts/real_yam_latency.py fit 'data/real_yam/steps_joint*.csv'   # real-arm delay + gain fit (docs/REAL_YAM_LATENCY_BACKLASH.md)
+.venv/bin/python scripts/report/build_report.py [--no-media]   # HTML report data/videos -> report/static/
+.venv/bin/python scripts/report/phase_c.py    # C train x test matrix -> results/C/C-matrix.{csv,png}
+.venv/bin/python scripts/real/yam_latency_fit.py fit 'data/real_yam/steps_joint*.csv'   # real-arm delay + gain fit (docs/REAL_YAM_LATENCY_BACKLASH.md)
 report/tools/preview.sh && <playwright python> report/tools/check_page.py report --page .preview.html
 ```
 
 - `report/index.html` is in artifact form (no doctype/head; the Artifact publisher adds them).
   Two sessions publish it (athena5 and the server agent on mason): before each publish, read the live
-  artifact and merge onto it; `scripts/build_report.py` rebuilds curves.json from local runs only, so
+  artifact and merge onto it; `scripts/report/build_report.py` rebuilds curves.json from local runs only, so
   merge server series (e.g. `yam_table`, blind seed 3) back in instead of overwriting.
   Text follows ASD-STE100 (short active sentences, one idea each). Figures are ES modules in
   `report/static/js/figures/` reading `report/static/data/*.json`.
 
-- GPU job queue: `scripts/queue.sh` (running in background) executes lines of
+- GPU job queue: `scripts/tools/local_queue.sh` (running in background) executes lines of
   `runs/queue/jobs.txt` sequentially (done list in `runs/queue/done.txt`, log in
   `runs/queue/queue.log`). Append a line to queue a job. It waits while any
   `blind_insertion.train*` process runs.
@@ -117,7 +117,7 @@ Paper's second task: a spur gear held by an 18 mm boss slides down a shaft into 
 .venv/bin/python -m blind_insertion.train --task gear --name G-gear-proprio-base-s0 --seed 0 --nworld 12288
 .venv/bin/python -m blind_insertion.eval --task gear --policy runs/<run>/last.pt --episodes 8192 --out results/G/x.parquet [--ood tighter|taller|much_taller|mild_size|extreme_size|random_tooth]
 .venv/bin/python -m blind_insertion.checks.g_checks [--only render,drop,spin,backlash,scripted]
-scripts/eval_phase_g.sh <run> <tag>; .venv/bin/python scripts/phase_g_report.py
+scripts/eval/phase_g.sh <run> <tag>; .venv/bin/python scripts/report/phase_g.py
 ```
 
 - `--task gear` sets the gear defaults: kp/kd 40/20, action scale 0.04 rad, 10 s episodes,
