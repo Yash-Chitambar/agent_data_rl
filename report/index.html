@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Status report · 23 October 2026, 04:00 UTC · Simulation results</div>
+    <div class="badge">Status report · 23 October 2026, 05:00 UTC · Simulation results</div>
     <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
     <p class="authors">Yash Chitambar</p>
     <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -288,6 +288,19 @@
         <caption>Final stage: 0.02 to 0.1 mm clearance, 3 mm median start offset, 2,048 starts. Clearance column: 2 mm median offset, 1,024 starts. Last column: linear interpolation between tests at median offsets of 0.5 to 8 mm (1,024 starts each); this is a median offset, not the start distance of the figure below. The port-up run made 50% of its failures by leaving the fixture area. The side-port run completed only 3 of the 5 curriculum stages in 300 million steps.</caption>
       </table>
     </div>
+    <p><b>Ablations: the contact loss is necessary, and a short history is sufficient.</b> We trained three variants of the port-up policy on the lab table, each for 300 million steps with the same curriculum. Only one setting changes in each. Without the contact-prediction loss, the curriculum stopped at stage 2 (training success 62 to 68%), and the policy seats only 10.2% on the final stage. Most of its failures do not find the port (1,377 of 1,839). On the large peg, the same loss only made learning 2.2 times faster (RQ1). For USB-C, the policy does not learn without it. With a history of 10 steps (0.2 s) instead of 30, the policy seats 95.3%. With 60 steps, it seats 80.6%, the same as the base. The 10-step run reached the final stage 70 million steps sooner, so it trained 110 million steps on the final stage, against 40 million for the base. Part of its gain can come from this longer training. Each variant has one seed.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Variant (port up, lab table)</th><th class="n">Final stage</th><th class="n">Stage reached</th><th class="n">Steps to the final stage</th><th class="n">Median time</th><th class="n">Median travel</th></tr></thead>
+        <tbody>
+          <tr><td>Base: contact loss, 30-step history</td><td class="n">79.0%</td><td class="n">5 of 5</td><td class="n">260 M</td><td class="n">2.00 s</td><td class="n">28 mm</td></tr>
+          <tr><td>No contact loss</td><td class="n"><b>10.2%</b></td><td class="n">2 of 5</td><td class="n">—</td><td class="n">4.94 s</td><td class="n">87 mm</td></tr>
+          <tr><td>10-step history (0.2 s)</td><td class="n"><b>95.3%</b></td><td class="n">5 of 5</td><td class="n">190 M</td><td class="n">1.62 s</td><td class="n">22 mm</td></tr>
+          <tr><td>60-step history (1.2 s)</td><td class="n">80.6%</td><td class="n">5 of 5</td><td class="n">273 M</td><td class="n">2.18 s</td><td class="n">30 mm</td></tr>
+        </tbody>
+        <caption>Final stage: 0.02 to 0.1 mm clearance, 3 mm median start offset, 2,048 matched starts per row (95% intervals ±0.9 to 1.8 points). No robot errors. 300 million steps each, seed 0. Median time is for the successes only.</caption>
+      </table>
+    </div>
     <p><b>More training helps the side port only a little.</b> We continued the side-port run for 200 million steps. It seats 47.2% on the final stage (before: 35.8%, 2,048 starts). It did not advance past stage 3 (0.08 mm clearance, 1.5 mm median offset): training success stayed at 88%, below the 90% that starts the next stage. Most failures are search failures (577 of 1,082). Slips (238) and partial wedges (190) are next.</p>
     <figure class="viz" data-fig="capture">
       <div class="viz-tag">Interactive · hover a point</div>
@@ -398,7 +411,7 @@
     <h2>Next steps</h2>
     <ol class="facts">
       <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
-      <li><b>RQ4.</b> The ablations train now: no contact loss, and a history of 10 and 60 steps (base: 30). Then fine-tune the USB-C policy at the measured latency range of the real arm.</li>
+      <li><b>RQ4.</b> Use the 10-step history for the next USB-C policies, after a check that its gain is not only the longer final-stage training. Then fine-tune the USB-C policy at the measured latency range of the real arm.</li>
       <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
       <li><b>More seeds</b> where a result is close.</li>
     </ol>

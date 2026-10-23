@@ -106,6 +106,25 @@ All on the corrected backlash model, 2,048 starts per cell, random robot conditi
   does not. Consistent with athena5's USB-C backlash and latency results. Options for Yash: fine-tune from
   `E-usbc-proprio-curr-s0` with the noise model (as fullft3 did for backlash), or narrow the ranges (latency 1 only).
 
+### 2026-10-23 (05:00 UTC, mason) — E4 ablations: contact loss is necessary for USB-C; history 10 best
+
+Port-up USB-C, lab table, 300 M steps, seed 0, final-stage test (2,048 matched starts, no robot errors):
+
+| Run | Final stage | Wilson 95% | Stage reached | Final stage entered | Median time | Travel |
+|---|---|---|---|---|---|---|
+| E-usbc-proprio-curr-s0 (base, h30) | 79.0% | 77.1-80.7 | 5 | 260 M | 2.00 s | 28 mm |
+| E-usbc-proprio-nocontact-s0 | 10.2% | 9.0-11.6 | 2 (plateau 62-68%) | - | 4.94 s | 87 mm |
+| E-usbc-proprio-h10-s0 | 95.3% | 94.3-96.1 | 5 | 190 M | 1.62 s | 22 mm |
+| E-usbc-proprio-h60-s0 | 80.6% | 78.8-82.3 | 5 | 273 M | 2.18 s | 30 mm |
+
+- No contact loss: 1,377 of 1,839 failures never find the port. On the peg (RQ1) the loss only sped up
+  learning 2.2x; for USB-C it is the difference between learning and not.
+- h10: confound, it spent 110 M steps on the final stage vs 40 M for the base. A fair check is the base
+  continued to 370 M steps (not queued: user asked to cut training).
+- nocontact stage-2 stop is a plateau (flat 62-68% for 280 M steps), not the window bug. h10/h60 reached stage 5.
+- Runner finished 04:46; 12 tier-2 D evals wait on deferred trainings (expected). All GPUs free.
+- Report v41: RQ4 ablation paragraph and table.
+
 ### 2026-10-23 (04:00 UTC, mason) — D 0.05 mm second seeds: the 3-4 point loss holds
 
 - `D-peg-proprio-o30_c0.05_scaled-s1`: 1,954/2,048 = 95.4% (s0 94.4%). Failures 60 wedged partly inside,
