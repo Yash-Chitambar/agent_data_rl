@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Status report · 23 October 2026, 00:35 UTC · Simulation results</div>
+    <div class="badge">Status report · 23 October 2026, 04:00 UTC · Simulation results</div>
     <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
     <p class="authors">Yash Chitambar</p>
     <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -219,7 +219,7 @@
         <caption>Scaled start, corrected backlash model. Test success on 2,048 unseen starts per cell with random robot conditions (95% intervals ±0.3 to 1.0 points). Pegs of 15 mm and smaller use sphere pads; cells tighter than 1.0 mm use a clearance curriculum.</caption>
       </table>
     </div>
-    <p><b>Size alone does not decrease success. Only the tightest clearance does.</b> Down to 0.1 mm, all 16 cells seat 96.3 to 99.6%. At 0.05 mm, the 60 mm peg still seats 99.0% and the 15 mm peg 97.6%, but the 30 mm and 8 mm pegs lose 3 to 4 points. Thus the loss at 0.05 mm does not follow size. The failure types differ. The 30 mm peg wedges partly inside the hole (74 of 115 failures). The 8 mm peg more often does not find the hole (70 of 119). The search also takes longer at tight clearance: at 8 mm, the median time to seat increases from 0.12 s at 1.0 mm to 0.94 s at 0.05 mm. No peg in the 8 mm row slipped in the grasp (0 of 10,240 starts).</p>
+    <p><b>Size alone does not decrease success. Only the tightest clearance does.</b> Down to 0.1 mm, all 16 cells seat 96.3 to 99.6%. At 0.05 mm, the 60 mm peg still seats 99.0% and the 15 mm peg 97.6%, but the 30 mm and 8 mm pegs lose 3 to 4 points. Thus the loss at 0.05 mm does not follow size. A second training seed gives the same loss: 95.4% at 30 mm and 95.0% at 8 mm (seed 0: 94.4% and 94.2%), with the same failure types. The failure types differ. The 30 mm peg wedges partly inside the hole (74 of 115 failures). The 8 mm peg more often does not find the hole (70 of 119). The search also takes longer at tight clearance: at 8 mm, the median time to seat increases from 0.12 s at 1.0 mm to 0.94 s at 0.05 mm. No peg in the 8 mm row slipped in the grasp (0 of 10,240 starts).</p>
     <figure class="viz" data-fig="scale">
       <div class="viz-tag">Interactive · hover a clearance</div>
       <div class="viz-mount"></div>
@@ -398,7 +398,6 @@
     <h2>Next steps</h2>
     <ol class="facts">
       <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
-      <li><b>RQ3 seeds.</b> Train a second seed of the 30 mm and 8 mm cells at 0.05 mm. They show if the 3 to 4 point loss is real.</li>
       <li><b>RQ4.</b> The ablations train now: no contact loss, and a history of 10 and 60 steps (base: 30). Then fine-tune the USB-C policy at the measured latency range of the real arm.</li>
       <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
       <li><b>More seeds</b> where a result is close.</li>

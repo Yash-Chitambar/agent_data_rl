@@ -2,6 +2,7 @@
 
 python scripts/phase_d_report.py  -> results/D/D-grid.csv, D-heatmap.png, D-failures.png
 Cells without an eval yet show the final training success (marked "train" in the CSV).
+The CSV keeps every seed; the figures and scale.json use seed 0.
 """
 from __future__ import annotations
 
@@ -74,6 +75,10 @@ def main():
         rows.append(r)
     df = pd.DataFrame(rows)
     df.to_csv(OUT / "D-grid.csv", index=False)
+    seeds = df[df.source == "eval"].groupby(["opening_mm", "clearance_mm", "regime"]).seed.nunique()
+    if (seeds > 1).any():
+        print("cells with extra seeds (figures use seed 0):", seeds[seeds > 1].to_dict())
+    df = df[df.seed == 0]
     write_report_json(df)
     print(df[["opening_mm", "clearance_mm", "regime", "source", "success", "steps90_M", "train_steps_M", "wall_h"]]
           .to_string(index=False))

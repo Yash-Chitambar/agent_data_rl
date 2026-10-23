@@ -106,6 +106,16 @@ All on the corrected backlash model, 2,048 starts per cell, random robot conditi
   does not. Consistent with athena5's USB-C backlash and latency results. Options for Yash: fine-tune from
   `E-usbc-proprio-curr-s0` with the noise model (as fullft3 did for backlash), or narrow the ranges (latency 1 only).
 
+### 2026-10-23 (04:00 UTC, mason) — D 0.05 mm second seeds: the 3-4 point loss holds
+
+- `D-peg-proprio-o30_c0.05_scaled-s1`: 1,954/2,048 = 95.4% (s0 94.4%). Failures 60 wedged partly inside,
+  28 never found, 6 left fixture: wedging dominates again.
+- `D-peg-proprio-o8_c0.05_scaled_sph-s1`: 1,945/2,048 = 95.0% (s0 94.2%). Failures 65 never found,
+  36 wedged, 2 jammed: search failures dominate again. Median time 0.96 s (s0 0.94 s).
+- So at 0.05 mm the 30 and 8 mm pegs lose 3-5 points against 60 mm (99.0%) and 15 mm (97.6%) on two seeds.
+- `phase_d_report.py`: D-grid.csv keeps every seed; heatmaps and scale.json use seed 0.
+- Report v40: seed result in RQ3; "RQ3 seeds" next-step removed.
+
 ### 2026-10-23 (00:35 UTC, mason) — D scaled grid complete: 15 mm / 0.05 mm 97.6%
 
 - `D-peg-proprio-o15_c0.05_scaled_sph-s0` (corrected backlash, 150 M steps, 3.3 h): 1,999/2,048 = 97.6%
