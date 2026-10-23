@@ -9,6 +9,25 @@
  "cells": [
   {
    "opening_mm": 15,
+   "clearance_mm": 0.05,
+   "regime": "scaled",
+   "k": 1999,
+   "n": 2048,
+   "rate": 0.97607421875,
+   "ci": [
+    0.9685106818288076,
+    0.9818550773993899
+   ],
+   "time_med": 1.0,
+   "travel_mm": 17.887381836771965,
+   "failures": {
+    "never_found": 20,
+    "wedged_partial": 28,
+    "jammed_inside": 1
+   }
+  },
+  {
+   "opening_mm": 15,
    "clearance_mm": 0.1,
    "regime": "scaled",
    "k": 2006,

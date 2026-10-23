@@ -106,6 +106,15 @@ All on the corrected backlash model, 2,048 starts per cell, random robot conditi
   does not. Consistent with athena5's USB-C backlash and latency results. Options for Yash: fine-tune from
   `E-usbc-proprio-curr-s0` with the noise model (as fullft3 did for backlash), or narrow the ranges (latency 1 only).
 
+### 2026-10-23 (00:35 UTC, mason) — D scaled grid complete: 15 mm / 0.05 mm 97.6%
+
+- `D-peg-proprio-o15_c0.05_scaled_sph-s0` (corrected backlash, 150 M steps, 3.3 h): 1,999/2,048 = 97.6%
+  (Wilson 96.9-98.2%). Failures 28 wedged partly inside, 20 never found, 1 jammed.
+- The 0.05 mm column is 99.0 / 94.4 / 97.6 / 94.2% (60 / 30 / 15 / 8 mm), so the loss at 0.05 mm does not
+  follow size. One seed per cell: a second seed of 30 and 8 mm at 0.05 mm would show if the 3-4 points are real.
+- E ablations (nocontact / h10 / h60) at 126-146 M of 300 M, stages 2-3; ETA ~04:00 UTC.
+- Report v39: RQ3 grid filled; fixed "all 18 cells" to 16 (4 sizes x 4 clearances down to 0.1 mm).
+
 ### 2026-10-22 (23:40 UTC, mason) — D scaled grid 19/20 cells; report v38 (RQ2/RQ3/RQ4 all on corrected backlash)
 
 - D scaled grid (2,048 starts each): down to 0.1 mm all 18 cells 96.3-99.6%. 0.05 mm: 60 mm 99.0%, 30 mm 94.4%
