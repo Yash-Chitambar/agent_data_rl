@@ -10,7 +10,7 @@
 
   <!-- ============================================================ hero -->
   <header class="hero">
-    <div class="badge">Status report · 23 October 2026, 05:00 UTC · Simulation results</div>
+    <div class="badge">Status report · 23 October 2026 · Simulation results</div>
     <h1>Blind Insertion with Joint Sensing Only<br><span class="sub">From a paper reproduction to USB-C on the YAM arm</span></h1>
     <p class="authors">Yash Chitambar</p>
     <p class="affil">Extends Bronars, Park, Kedia and Agrawal, <i>Blind Precise Assembly: Proprioceptive Sim-to-Real Peg-in-Hole for Diverse Parts</i></p>
@@ -25,71 +25,64 @@
     <video autoplay muted loop playsinline poster="static/images/yam_hero_poster.jpg">
       <source src="static/videos/yam_hero.mp4" type="video/mp4">
     </video>
-    <figcaption><b>The YAM arm puts a peg into a hole with no camera and no force sensor.</b> The arm stands on the lab table. Top: the full arm. Bottom: a close-up of the same episode. The two starts are the farthest of 64 logged starts (15 and 16 mm from the hole). The policy did not see these parts in training. The video plays at ¼ of real time.</figcaption>
+    <figcaption><b>The YAM arm puts a peg into a hole with no camera and no force sensor.</b> Top: the full arm on the lab table. Bottom: a close-up of the same episode. The policy did not see these parts in training. ¼ of real time.</figcaption>
   </figure>
 
-  <!-- ============================================================ question -->
-  <section id="question">
-    <h2>The question</h2>
-    <p class="lede">Can a policy that senses only the robot's own joints insert connector-scale parts on a low-cost arm? A USB-C port has an opening of 8.3 × 2.6 mm and a clearance of approximately 0.05 mm on each side.</p>
-    <p>The paper shows blind insertion for large pegs (openings of 30 to 90 mm, 0.5 to 1.5 mm clearance) on a 7-joint Flexiv arm. It does not test small parts or a low-cost arm. We answer five questions in order. Each step uses the result of the step before it.</p>
+  <!-- ============================================================ summary -->
+  <section id="summary">
+    <h2>Summary</h2>
+    <p class="lede">Can a policy that senses only the robot's own joints insert connector-scale parts on a low-cost arm? In simulation, yes: the YAM plugs in a USB-C drive (0.05 mm clearance) on 95% of unseen starts. The real arm's latency is now the main open risk.</p>
+    <ol class="facts">
+      <li><b>The paper reproduces.</b> Our own code seats 99.9% of unseen pegs (paper: 99.4%). Blind beats the camera on every unseen part family, by 12 to 54 points.</li>
+      <li><b>The policy transfers to the YAM, but latency breaks it.</b> 99.8% on the ideal arm. With 20 ms of latency that training did not include, only 16%. Training must include the real latency to within one 20 ms control step. Noise, encoder resolution and backlash up to 5 arcmin do not matter for the peg.</li>
+      <li><b>Size does not limit blind insertion. Tight clearance does, a little.</b> Pegs from 60 to 8 mm seat 96 to 99% down to 0.1 mm clearance. At 0.05 mm, two of four sizes lose 3 to 5 points (two seeds). The contact signal does not get weaker as parts shrink.</li>
+      <li><b>USB-C works in simulation.</b> The best policy seats 95.3% of unseen drives at 0.02 to 0.1 mm clearance. It seats 50% of drives that start 7 mm from the port.</li>
+      <li><b>The contact loss is necessary for small parts.</b> Without it, the USB-C policy seats 10% and its memory holds no contact information. A short history (0.2 s) is better than 0.6 s or 1.2 s.</li>
+      <li><b>Most USB-C failures are grasp failures.</b> In 81 of 98 failures, the drive turns more than 15° between the gripper pads. The search itself rarely fails.</li>
+    </ol>
     <div class="tbl">
       <table>
-        <thead><tr><th>Question</th><th>Result so far</th><th>Status</th></tr></thead>
+        <thead><tr><th>Research question</th><th>Answer in simulation</th><th>Status</th></tr></thead>
         <tbody>
-          <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce with our own code?</td><td>Yes. 99.9% success (paper 99.4%). Generalization, search behaviour and probe also agree. A second task (gears) also agrees.</td><td><span class="chip ok">Answered</span></td></tr>
-          <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM with realistic gains?</td><td>Yes, 99.8% on the lab table. Latency and gain errors break a policy that did not train with them. Backlash up to 5 arcmin has no effect. One policy trained with random levels keeps 96 to 99% under all of them except gains.</td><td><span class="chip ok">Answered in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
-          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>96 to 99% for every peg from 60 to 8 mm down to 0.1 mm clearance. At 0.05 mm (USB-C fit): 99.0% at 60 mm, 97.6% at 15 mm, 94% at 30 and 8 mm. A 3 mm start costs the 8 mm peg up to 10 points. Small parts need sphere pads and a clearance curriculum.</td><td><span class="chip ok">Answered in sim</span></td></tr>
-          <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in a USB-C drive?</td><td>Yes in simulation: 91.5% at 0.02 to 0.1 mm clearance. 50% success from 6.0 mm away, and from 7.1 mm after training on wider starts. With 20 ms of latency it drops to 5%, but training over the measured latency range recovers 75 to 79%. With a corrected model, 1 arcmin of backlash costs only 1 point. Training with backlash adds 17 to 20 points at 3 arcmin.</td><td><span class="chip ok">First result</span> <span class="chip run">Training with robot errors</span></td></tr>
-          <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>On familiar large pegs, the camera is faster. On unseen parts, blind is better by 12 to 54 points. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C next</span></td></tr>
+          <tr><td><a href="#rq1"><b>RQ1</b></a> Do the paper's results reproduce?</td><td>Yes: success, speed, generalization, probe, contact loss. A second task (gears) also reproduces.</td><td><span class="chip ok">Done</span></td></tr>
+          <tr><td><a href="#rq2"><b>RQ2</b></a> Does it transfer to the 6-joint YAM?</td><td>Yes, if training includes the robot's latency and gains.</td><td><span class="chip ok">Done in sim</span> <span class="chip run">Real arm values needed</span></td></tr>
+          <tr><td><a href="#rq3"><b>RQ3</b></a> How does success change as parts get smaller and tighter?</td><td>Size alone: no change. 0.05 mm clearance: −3 to −5 points for some sizes. A larger start area costs the smallest peg up to 10 points.</td><td><span class="chip ok">Done in sim</span></td></tr>
+          <tr><td><a href="#rq4"><b>RQ4</b></a> Can a blind policy plug in USB-C?</td><td>Yes: 95.3%. It needs the contact loss and the measured latency.</td><td><span class="chip ok">Done in sim</span> <span class="chip run">Real latency needed</span></td></tr>
+          <tr><td><a href="#rq5"><b>RQ5</b></a> Where does a camera help?</td><td>Faster on familiar large pegs, worse on new parts. The YAM wrist camera does not see the USB-C port.</td><td><span class="chip ok">Large pegs</span> <span class="chip todo">USB-C not started</span></td></tr>
         </tbody>
       </table>
+    </div>
+    <div class="note">
+      <p><b>What this means for the real arm.</b> (1) Measure the YAM's latency and joint gains first: they decide if a policy works. (2) Train with the contact loss and a 10-step history. (3) Check the grasp: the drive must not turn in the gripper. (4) Start with a large peg (99.6% in simulation), then go smaller.</p>
     </div>
   </section>
 
   <!-- ============================================================ approach -->
   <section id="approach">
     <h2>Approach</h2>
-    <p>All phases use the same simulation, policy, training and test procedure. Only the robot and the parts change. This lets us compare results across phases.</p>
+    <p>All phases use the same simulation, policy, training and test procedure. Only the robot and the parts change.</p>
     <figure class="viz" data-fig="diagram">
       <div class="viz-tag">Interactive · hover a block</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Policy.</b> A temporal convolution network (TCN) encodes the last 30 steps (0.6 s) of joint angles, joint velocities and actions into a 32-value latent. The actor uses the latent and the current step. The amber blocks are for training only: a critic with the true peg pose, and a contact decoder that predicts which edge points touch. Hover a block for its size.</figcaption>
+      <figcaption><b>Policy.</b> A temporal convolution network (TCN) encodes the last 30 steps (0.6 s) of joint angles, joint velocities and actions into a 32-value latent. The actor uses the latent and the current step. The amber blocks are for training only: a critic with the true peg pose, and a contact decoder that predicts which edge points touch.</figcaption>
     </figure>
-    <div class="cols2">
-      <ul class="facts">
-        <li><b>Simulation.</b> MuJoCo Warp on the GPU, 12,288 worlds in parallel. Physics at 1 kHz, control at 50 Hz.</li>
-        <li><b>Action.</b> A joint-target offset. A PD controller holds the target for 20 ms. The low joint stiffness lets contact forces bend the arm, and the joint encoders sense this.</li>
-        <li><b>Parts.</b> 1,024 random peg and hole pairs in each run (paper Table 1). Fixture pose, grasp, friction and contact stiffness change in each episode.</li>
-      </ul>
-      <ul class="facts">
-        <li><b>Training.</b> PPO with a contact-prediction loss. 300 million steps (2.3 h on an RTX 3090 Ti). Phases C to E stop at 99% training success after at least 50 million steps.</li>
-        <li><b>Test.</b> 2,048 starts with parts that training did not use, the same starts for every policy. Deterministic actions. 95% Wilson intervals.</li>
-        <li><b>Sim checks.</b> Before training, ten checks test the contact signal. For example, a 0.3 N push is visible in the joints, and a peg drop-in shows as a joint-velocity peak.</li>
-      </ul>
-    </div>
-  </section>
-
-  <!-- ============================================================ examples -->
-  <section id="examples">
-    <h2>Examples from every test</h2>
-    <p>Each test records its episodes. The video for a test shows its fastest, median and slowest successes and up to three episodes of each failure type. A green label is a success. A red label gives the failure type. Select a task, then a test.</p>
-    <figure class="viz" data-fig="demos">
-      <div class="viz-tag">Interactive · select a test</div>
-      <div class="viz-mount"></div>
-      <figcaption><b>Success and failure examples, real time.</b> Each label gives the result, the time and the start distance from the hole. The text below the video gives the success rate of the full test and the count of each failure type. Each video comes from a new run of the test. The simulator is not bitwise deterministic, so the rates can differ slightly from the tables.</figcaption>
-    </figure>
+    <ul class="facts">
+      <li><b>Simulation.</b> MuJoCo Warp on the GPU, 8,192 to 12,288 worlds in parallel. Physics at 1 kHz, control at 50 Hz.</li>
+      <li><b>Action.</b> A joint-target offset that a PD controller holds for 20 ms. The low joint stiffness lets contact forces bend the arm, and the joint encoders sense this.</li>
+      <li><b>Training.</b> PPO with a contact-prediction loss. Random parts, fixture pose, grasp, friction and contact stiffness in each episode. Small parts use a clearance curriculum.</li>
+      <li><b>Test.</b> 2,048 starts with parts that training did not use, the same starts for every policy, deterministic actions, 95% Wilson intervals (±1 to 2 points).</li>
+    </ul>
   </section>
 
   <!-- ============================================================ RQ1 -->
-  <p class="finding">RQ1 · Validation</p>
+  <p class="finding">RQ1 · Reproduction</p>
   <section id="rq1">
     <h2>The reproduction matches the paper</h2>
-    <p class="claim">The blind policy seats the peg on 2,046 of 2,048 unseen starts (99.9%). The paper reports 99.4%. It is also faster and moves less.</p>
+    <p class="claim">The blind policy seats 99.9% of 2,048 unseen pegs (paper: 99.4%). It is faster and moves less than the paper's policy.</p>
     <figure class="viz" data-fig="headline">
       <div class="viz-tag">Interactive · hover a bar</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Success on 2,048 matched starts (Flexiv arm, 1.0 to 1.5 mm clearance).</b> Whiskers: 95% Wilson interval. Black mark: the paper's value. The spiral search knows the true hole position, so it is an optimistic baseline. Hover for time and travel.</figcaption>
+      <figcaption><b>Success on 2,048 matched starts (Flexiv arm, 1.0 to 1.5 mm clearance).</b> Black mark: the paper's value. The spiral search knows the true hole position, so it is an optimistic baseline.</figcaption>
     </figure>
     <div class="tbl">
       <table>
@@ -99,310 +92,167 @@
           <tr><td>Median time to seat</td><td class="n">0.64 s</td><td class="n">0.80 s</td><td class="n">0.38 s</td><td class="n">0.44 s</td></tr>
           <tr><td>Median lateral travel</td><td class="n">26 mm</td><td class="n">37 mm</td><td class="n">15 mm</td><td class="n">20 mm</td></tr>
         </tbody>
-        <caption>Paper Table 5 metrics, seed 0. The spiral search moves 147 mm (paper: 95 mm). Three camera seeds give 99.9 to 100%.</caption>
+        <caption>Paper Table 5 metrics. Three seeds of each policy agree (blind 99.66 to 99.90%).</caption>
       </table>
     </div>
-    <p><b>Three seeds agree.</b> Over three blind seeds and 6,144 starts, the blind policy seats 99.77% (99.66 to 99.90% for each seed), with a median time of 0.64 s. Three camera seeds seat 99.95%. In the six unseen families, the blind policy beats the camera policy in all 18 pairs of seed and family. For example, the three-seed means for extreme sizes are 86.3% (blind) and 30.2% (camera). Without the contact loss, three seeds seat 99.0 to 99.5%, but they need 85 to 92 million steps to pass 90% (2.3 times as many as the blind seeds). The probe also reads the contact mode less well from their latent: 61 to 65%, against 68 to 70% with the contact loss.</p>
-    <p>The policy does not search in a pattern. It presses the peg on the plate, slides it, and feels the edge of the hole through the joints. Then it drops the peg in.</p>
-    <figure class="viz" data-fig="paths">
-      <div class="viz-tag">Interactive · select a start, play the timeline</div>
-      <div class="viz-mount"></div>
-      <figcaption><b>Search paths on the same start.</b> (a) The path of the peg's bottom centre over the hole (grey). The open circle is the start. (b) The height of the peg: the policy presses, finds the hole, and drops in. Select a start and push Play.</figcaption>
-    </figure>
+    <p>The other paper claims also reproduce, each with three seeds:</p>
+    <ul class="facts">
+      <li><b>Generalization.</b> On six part families that training did not use, the blind policy beats the camera policy in all 18 pairs of seed and family (figure below).</li>
+      <li><b>Contact loss.</b> Without it, learning needs 2.2 times as many steps (paper: 2.7).</li>
+      <li><b>Memory.</b> A linear probe reads the contact mode from the latent with 70% mean recall (paper: 70%). The current observation alone gives 53%.</li>
+      <li><b>Second task.</b> Gear meshing: 99.94% of 8,192 unseen gear sets (paper: more than 99.9%).</li>
+    </ul>
     <figure class="viz" data-fig="ood">
       <div class="viz-tag">Interactive · hover a bar</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Success on six part families that training did not use (paper Fig. 11).</b> 1,024 starts for each bar. Dashed marks: the paper's values. The blind policy beats the camera policy in every family, by 12 to 54 points, as in the paper. Camera seeds 1 and 2 agree with seed 0 (extreme size: 29% and 30%).</figcaption>
-    </figure>
-    <figure class="viz" data-fig="training">
-      <div class="viz-tag">Interactive · hover to read every run</div>
-      <div class="viz-mount"></div>
-      <figcaption><b>Training success (paper Figs. 8 and 14).</b> (a) Three blind seeds pass 90% after approximately 40 million steps. The camera policy needs fewer steps, but each step is 4.5 times slower. (b) Without the contact-prediction loss, learning needs 2.2 times as many steps (paper: 2.7). (c) The YAM, USB-C and gear runs. Dotted line: 90%.</figcaption>
+      <figcaption><b>Success on six part families that training did not use (paper Fig. 11).</b> 1,024 starts per bar. Dashed marks: the paper's values.</figcaption>
     </figure>
     <figure class="viz" data-fig="probe">
       <div class="viz-tag">Interactive · hover a bar or a cell</div>
       <div class="viz-mount"></div>
-      <figcaption><b>The latent holds the contact state (paper Figs. 10 and 15).</b> (a) A linear probe reads the contact mode from the latent with 70% mean recall (paper 70%). The current observation alone gives 53%. (b) If a state receives the latent of a different contact mode, the action changes up to 2.2 times as much as for the same mode.</figcaption>
+      <figcaption><b>The latent holds the contact state (paper Figs. 10 and 15).</b> (a) Probe recall per contact mode. (b) If a state receives the latent of a different contact mode, the action changes up to 2.2 times as much as for the same mode.</figcaption>
     </figure>
-    <p><b>A second task also reproduces.</b> We built the paper's gear-meshing task: a gear must slide down a shaft and mesh with one or two free anchor gears. The blind policy seats 99.94% of 8,192 unseen gear sets and 99.7 to 100% in six unseen gear families. The paper reports more than 99.9%.</p>
   </section>
 
   <!-- ============================================================ RQ2 -->
   <p class="finding">RQ2 · Transfer to the YAM</p>
   <section id="rq2">
     <h2>The policy transfers to the YAM, if training includes the robot's latency</h2>
-    <p class="claim">On the lab table, the YAM policy seats 99.8% of 2,048 unseen starts. It learns 2.3 times faster than on the Flexiv arm.</p>
-    <p>The YAM is a low-cost 6-joint arm. We use the YAM workcell from RoboSimStudio: the base is level with the table top, at the position of the lab arm. The fixture lies on the table, 0.25 to 0.45 m in front of the base. The joint stiffness is 80 N·m/rad (first three joints) and 30 N·m/rad (wrist), from the Damiao motor model. Only the robot changes from RQ1: same pegs, same policy, same training.</p>
-    <div class="cols2">
-      <figure class="img">
-        <img src="static/images/yam_table_reset.png" alt="Four views of the YAM arm on a table, holding a peg above a fixture plate" loading="lazy">
-        <figcaption><b>The lab table setup.</b> Four start states from different angles.</figcaption>
-      </figure>
-      <div class="tbl">
-        <table>
-          <thead><tr><th>YAM, seed 0</th><th class="n">Value</th></tr></thead>
-          <tbody>
-            <tr><td>Test success (2,048 starts)</td><td class="n">99.8%</td></tr>
-            <tr><td>Steps to 90% training success</td><td class="n">17 M (Flexiv: 40 M)</td></tr>
-            <tr><td>Median time to seat</td><td class="n">0.28 s</td></tr>
-            <tr><td>Unseen families: tighter, slender, very slender, mild size, extreme size</td><td class="n">97.0 to 99.7%</td></tr>
-            <tr><td>Unseen family: random convex</td><td class="n">0.5% (Flexiv: 22.8%)</td></tr>
-          </tbody>
-          <caption>Most random-convex failures are slips: the part turns out of the YAM's light grasp.</caption>
-        </table>
-      </div>
-    </div>
-
-    <h3>What a real arm adds: latency, backlash and gain errors</h3>
-    <p>A real arm is not the simulation. We trained one YAM policy for each of 15 robot conditions, and tested each policy under 13 conditions (2,048 starts for each test). One more policy trained with all conditions at random levels: each world draws its own noise, encoder resolution, backlash and latency.</p>
+    <p class="claim">On the lab table, the YAM policy seats 99.8% of unseen pegs and learns 2.3 times faster than on the Flexiv arm. Latency and stiffer gains break it. Noise, encoder resolution and backlash do not.</p>
+    <p>The YAM is a low-cost 6-joint arm. Only the robot changes from RQ1. To test what a real arm adds, we trained one policy per robot condition and tested each policy under every condition (2,048 starts per test).</p>
     <figure class="viz" data-fig="robust">
       <div class="viz-tag">Interactive · hover a group</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Success under each test condition (YAM, seed 0, 2,048 unseen starts for each bar).</b> Orange: the base policy, trained with none of the conditions. Blue: the policy trained with that condition. Green: the policy trained with random levels of noise, encoder resolution, backlash and latency (not gains). Whiskers: 95% Wilson interval. Latency of 20 and 40 ms is 1 and 2 steps of the control loop. Backlash is in arcminutes (′), corrected model. Hover a group for exact values.</figcaption>
+      <figcaption><b>Success under each test condition.</b> Orange: the base policy, trained with no condition. Blue: the policy trained with that condition. Green: one policy trained with random levels of all conditions except gains. Latency of 20 and 40 ms is 1 and 2 control steps. Backlash in arcminutes (′).</figcaption>
     </figure>
     <ul class="facts">
-      <li><b>Sensor noise and encoder resolution do not matter.</b> With joint noise up to 5·10⁻⁴ rad or 14-bit encoders, no policy loses more than 1 point.</li>
-      <li><b>Backlash up to 5 arcmin does not matter on the peg.</b> The base policy seats 99.9 to 100% at 1, 3 and 5 arcmin. No policy loses more than 4 points to backlash. On the 20 to 100 times tighter USB-C fit, backlash has an effect (RQ4).</li>
-      <li><b>Latency is the worst condition.</b> With 20 ms of latency, the base policy seats only 16%. A policy trained with 20 ms seats 99%, but only 33% when there is no latency. Two policies trained with all conditions at fixed levels (20 ms and 40 ms) seat 98 to 99% at their own levels, but only 36% and 14% on the ideal arm. Thus, the latency in training must match the robot, or vary over a range that contains it.</li>
-      <li><b>Stiffer gains cause slips.</b> At 4 times the gains, the base policy seats 20%. Most of its failures are slips.</li>
-      <li><b>One randomized policy covers all levels.</b> The policy trained with random levels seats 96 to 99% under every noise, encoder, backlash and latency test, including 0, 20 and 40 ms. It costs 1.2 points on the ideal arm (98.6% against 99.8%). Gains were not randomized: at 4 times the gains it seats 61%.</li>
+      <li><b>Latency is the worst condition.</b> With 20 ms, the base policy seats 16%. A policy trained at 20 ms seats 99% at 20 ms, but only 33% with no latency. The latency in training must match the robot.</li>
+      <li><b>Stiffer gains cause slips.</b> At 4 times the gains, the base policy seats 20%.</li>
+      <li><b>Noise, encoder resolution and backlash do not matter.</b> Up to 5·10⁻⁴ rad of noise, 14-bit encoders or 5′ of backlash cost no policy more than 4 points.</li>
+      <li><b>One randomized policy covers all levels.</b> Trained with random latency, noise, encoder and backlash levels, it seats 96 to 99% under each of these tests. It costs 1.2 points on the ideal arm.</li>
     </ul>
-    <div class="note">
-      <p><b>Backlash model corrected (22 October).</b> Our first backlash joint had a soft range limit. Under load, each joint turned approximately 38 arcmin at every backlash level, so the first results showed approximately 0.6° of extra joint flex (base policy: 43 to 47%). All backlash numbers in this section now use the corrected model. We tested 12 policies again, and trained the 5 policies with backlash in training again (backlash 1′, 3′, 5′, random levels, allmid, allmax). The latency, noise, encoder and gain results did not change.</p>
-    </div>
-    <p><b>Why: the base policy uses bang-bang control.</b> In the ideal simulation, the base policy sends full-scale commands: 27% of its action values are at the limit. With no delay and no play, this is fast and accurate. With 20 ms of latency, each command arrives one step late, so the actions oscillate with a 2-step period (lag-1 autocorrelation −0.29) and the peg drifts away. All policies that trained with a condition use small, smooth actions instead: 0% at the limit and an RMS action of 1.0 against 2.1. But small actions alone are not sufficient. A policy trained with the action limit at 1 instead of 3 seats only 42 to 48% with latency (base: 16 to 24%). The policy must see the condition in training.</p>
-    <figure class="img">
-      <img src="static/images/C-why-latency.png" alt="Left: peg paths from one start. Right: joint 1 action over time for three policy and test combinations" loading="lazy">
-      <figcaption><b>One start, three cases.</b> Grey: base policy without latency (seated in 0.2 s, actions at ±3). Orange: the same policy with 20 ms latency. The actions oscillate and the peg drifts 22 mm away. Blue: the policy trained with 20 ms latency, seated in 0.46 s with smooth actions. 64 logged starts give the same pattern (<code>scripts/analysis_c_failures.py</code>).</figcaption>
-    </figure>
-    <div class="clips">
+    <p><b>Why latency breaks the base policy.</b> Without latency, the base policy uses bang-bang control: 27% of its actions are at the limit. With 20 ms of latency, each command arrives one step late, the actions oscillate, and the peg drifts away. Policies trained with latency use small, smooth actions. But small actions alone are not sufficient: a policy trained with a smaller action limit still seats only 42 to 48% with latency.</p>
+    <div class="cols2">
+      <figure class="img">
+        <img src="static/images/C-why-latency.png" alt="Left: peg paths from one start. Right: joint 1 action over time for three policy and test combinations" loading="lazy">
+        <figcaption><b>One start, three cases.</b> Grey: base policy, no latency (seated in 0.2 s). Orange: the same policy with 20 ms latency; the actions oscillate. Blue: the policy trained with 20 ms latency, seated in 0.46 s.</figcaption>
+      </figure>
       <figure class="teaser">
         <video autoplay muted loop playsinline poster="static/images/yam_latency_poster.jpg">
           <source src="static/videos/yam_latency.mp4" type="video/mp4">
         </video>
         <figcaption><b>Same start, 20 ms latency.</b> Left: the base policy. Right: the policy trained with 20 ms latency. ¼ of real time.</figcaption>
       </figure>
-      <figure class="teaser">
-        <video autoplay muted loop playsinline poster="static/images/yam_gain4_poster.jpg">
-          <source src="static/videos/yam_gain4.mp4" type="video/mp4">
-        </video>
-        <figcaption><b>Same start, 4 times the joint gains.</b> Left: the base policy; the peg turns in the hand. Right: the policy trained at 4 times the gains. ¼ of real time.</figcaption>
-      </figure>
     </div>
     <details class="more">
       <summary>Full table: 17 training conditions × 14 test conditions</summary>
       <figure class="img">
         <img src="static/images/C-matrix.png" alt="Heat map of success rate: training conditions in rows, test conditions in columns" loading="lazy">
-        <figcaption><b>Success (%) for each training condition (rows) and test condition (columns).</b> 2,048 starts in each cell. "randall": random levels in each world. "allmid": noise 10⁻⁴ rad, 16 bit, 1 arcmin, 20 ms. "allmax": 5·10⁻⁴ rad, 14 bit, 5 arcmin, 40 ms. "own": the policy's own condition. Corrected backlash model. A policy trained with latency fails without it, in every row.</figcaption>
+        <figcaption><b>Success (%) for each training condition (rows) and test condition (columns).</b> 2,048 starts per cell. "randall": random levels in each world. "allmid": noise 10⁻⁴ rad, 16 bit, 1′, 20 ms. "allmax": 5·10⁻⁴ rad, 14 bit, 5′, 40 ms.</figcaption>
       </figure>
     </details>
-    <div class="note">
-      <p><b>Next: measure the real arm.</b> The simulation needs the real YAM's latency (to ±10 ms), backlash and joint gains. We wrote a 1 to 2 hour procedure: a timing log, joint step tests and a dial-indicator test. A script fits the simulated arm to the step data and gives the latency in control steps (<code>docs/REAL_YAM_LATENCY_BACKLASH.md</code>). Until we have these values, Phases D and E train with the random levels above. If the real latency is fixed and known, a policy trained with that latency only can gain back the 1.2 points.</p>
-    </div>
   </section>
 
   <!-- ============================================================ RQ3 -->
   <p class="finding">RQ3 · Scale</p>
   <section id="rq3">
-    <h2>Scale study: from 60 mm pegs to connector size</h2>
-    <p class="claim">Down to 0.1 mm clearance, every peg from 60 mm to 8 mm seats 96 to 99%. At 0.05 mm, the USB-C clearance, the 60 mm peg seats 99.0%, the 15 mm peg 97.6%, and the 30 mm and 8 mm pegs 94%. Each run trains with the random robot conditions from RQ2.</p>
-    <p>The pegs have a 2:1 stadium shape. The opening is 60, 30, 15 or 8 mm long. The clearance is 1.0, 0.5, 0.2, 0.1 or 0.05 mm on each side. There are two start regimes. In the scaled regime, the start offset is proportional to the part size (10 mm median at 60 mm, 1.3 mm at 8 mm). In the fixed regime, the median offset is 3 mm for all sizes. If both regimes fail at the same size, the contact signal is the limit. If only the fixed regime fails, the search area is the limit.</p>
+    <h2>Size does not limit blind insertion; tight clearance does, a little</h2>
+    <p class="claim">Down to 0.1 mm clearance, every peg from 60 to 8 mm seats 96 to 99%. At 0.05 mm, the USB-C clearance, the 30 and 8 mm pegs lose 3 to 5 points.</p>
+    <p>The pegs have a 2:1 stadium shape. The start offset scales with the peg (median 10 mm at 60 mm, 1.3 mm at 8 mm). Each run trains with the random robot conditions from RQ2.</p>
     <div class="tbl">
       <table>
         <thead><tr><th>Opening</th><th class="n">1.0 mm</th><th class="n">0.5 mm</th><th class="n">0.2 mm</th><th class="n">0.1 mm</th><th class="n">0.05 mm</th></tr></thead>
         <tbody>
           <tr><td>60 mm</td><td class="n">99.6%</td><td class="n">98.7%</td><td class="n">98.0%</td><td class="n">98.6%</td><td class="n">99.0%</td></tr>
-          <tr><td>30 mm</td><td class="n">97.3%</td><td class="n">98.2%</td><td class="n">98.5%</td><td class="n">96.9%</td><td class="n"><b>94.4%</b></td></tr>
+          <tr><td>30 mm</td><td class="n">97.3%</td><td class="n">98.2%</td><td class="n">98.5%</td><td class="n">96.9%</td><td class="n"><b>94.4 / 95.4%</b></td></tr>
           <tr><td>15 mm</td><td class="n">96.3%</td><td class="n">96.6%</td><td class="n">97.6%</td><td class="n">97.9%</td><td class="n">97.6%</td></tr>
-          <tr><td>8 mm</td><td class="n">98.5%</td><td class="n">97.5%</td><td class="n">98.7%</td><td class="n">98.1%</td><td class="n"><b>94.2%</b></td></tr>
+          <tr><td>8 mm</td><td class="n">98.5%</td><td class="n">97.5%</td><td class="n">98.7%</td><td class="n">98.1%</td><td class="n"><b>94.2 / 95.0%</b></td></tr>
         </tbody>
-        <caption>Scaled start, corrected backlash model. Test success on 2,048 unseen starts per cell with random robot conditions (95% intervals ±0.3 to 1.0 points). Pegs of 15 mm and smaller use sphere pads; cells tighter than 1.0 mm use a clearance curriculum.</caption>
+        <caption>Test success per clearance (per side), 2,048 unseen starts per cell, random robot conditions. Two values: seeds 0 and 1. Pegs of 15 mm and smaller use sphere gripper pads.</caption>
       </table>
     </div>
-    <p><b>Size alone does not decrease success. Only the tightest clearance does.</b> Down to 0.1 mm, all 16 cells seat 96.3 to 99.6%. At 0.05 mm, the 60 mm peg still seats 99.0% and the 15 mm peg 97.6%, but the 30 mm and 8 mm pegs lose 3 to 4 points. Thus the loss at 0.05 mm does not follow size. A second training seed gives the same loss: 95.4% at 30 mm and 95.0% at 8 mm (seed 0: 94.4% and 94.2%), with the same failure types. The failure types differ. The 30 mm peg wedges partly inside the hole (74 of 115 failures). The 8 mm peg more often does not find the hole (70 of 119). The search also takes longer at tight clearance: at 8 mm, the median time to seat increases from 0.12 s at 1.0 mm to 0.94 s at 0.05 mm. No peg in the 8 mm row slipped in the grasp (0 of 10,240 starts).</p>
+    <p><b>The contact signal does not get weaker as parts shrink.</b> We measured the signal without a policy. The smallest force visible in the joints is 0.05 to 0.07 N for every size. The joint-velocity peak when the peg drops into the hole is 7 times the noise at 60 mm and 24 times at 8 mm. The policy's memory also holds the contact mode at every size: the probe reads it with 54 to 67% balanced accuracy, against 44 to 53% from the current observation alone. Thus, the loss at 0.05 mm is not a sensing limit. The 30 mm peg mostly wedges partly inside. The 8 mm peg mostly does not find the hole.</p>
+    <p><b>A larger start area costs the smallest peg up to 10 points.</b> With a fixed 3 mm median start (2.3 times its scaled offset), the 8 mm peg loses nothing at 1.0 mm clearance, but 10 points at 0.05 mm (83.7% against 94.2%). Most of the extra failures do not find the hole. For the larger pegs, the fixed start is smaller than the scaled start, and success does not change.</p>
     <figure class="viz" data-fig="scale">
       <div class="viz-tag">Interactive · hover a clearance</div>
       <div class="viz-mount"></div>
-      <figcaption><b>8 mm peg: a 3 mm start costs up to 10 points at tight clearance.</b> (a) Test success with 95% Wilson intervals, 2,048 unseen starts per point, random robot conditions, corrected backlash model. (b) The two main failure types of the scaled start. Wedged failures increase only at 0.05 mm. Hover for time, travel and counts.</figcaption>
+      <figcaption><b>8 mm peg: success and failure types against clearance.</b> (a) Scaled start (1.3 mm median) and fixed 3 mm start, 2,048 starts per point, 95% Wilson intervals. (b) The two main failure types of the scaled start.</figcaption>
     </figure>
-    <p><b>A larger start area costs success at the small size and tight clearance.</b> For the 8 mm peg, the fixed 3 mm start is 2.3 times the scaled offset. At 1.0 mm clearance, it costs nothing (98.9% against 98.5%), but the search is longer: 0.34 s and 17 mm of travel, against 0.12 s and 3.6 mm. At 0.5 mm it costs 2 points, at 0.2 mm 7 points, and at 0.05 mm 10 points (83.7% against 94.2%). Most of the extra failures do not find the hole (191 against 70 at 0.05 mm). Thus, at tight clearance the hole is harder to feel, and a larger start area makes the search fail. For the larger pegs, the fixed start is smaller than the scaled start, and success is the same or higher.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Cell</th><th class="n">Scaled start</th><th class="n">Fixed 3 mm start</th></tr></thead>
-        <tbody>
-          <tr><td>60 mm, 1.0 mm</td><td class="n">99.6%</td><td class="n">99.7%</td></tr>
-          <tr><td>30 mm, 0.5 mm</td><td class="n">98.2%</td><td class="n">98.1%</td></tr>
-          <tr><td>15 mm, 0.2 mm</td><td class="n">97.6%</td><td class="n">97.8%</td></tr>
-          <tr><td>8 mm, 1.0 mm</td><td class="n">98.5%</td><td class="n">98.9%</td></tr>
-          <tr><td>8 mm, 0.5 mm</td><td class="n">97.5%</td><td class="n">95.8%</td></tr>
-          <tr><td>8 mm, 0.2 mm</td><td class="n">98.7%</td><td class="n">91.7%</td></tr>
-          <tr><td>8 mm, 0.1 mm</td><td class="n">98.1%</td><td class="n">88.4%</td></tr>
-          <tr><td>8 mm, 0.05 mm</td><td class="n">94.2%</td><td class="n">83.7%</td></tr>
-        </tbody>
-        <caption>Corrected backlash model. Test success, 2,048 starts each, random robot conditions. Scaled start: median offset 10 mm at 60 mm, 1.3 mm at 8 mm.</caption>
-      </table>
-    </div>
-    <p><b>The old backlash model made the tight fits harder.</b> With the old model (approximately 0.6° of extra joint flex, see RQ2), the 8 mm peg seated 89.7% at 0.05 mm and wedged 115 times. With the corrected model, it seats 94.2% and wedges 47 times. Thus, joint stiffness and backlash of the real arm will set the result at this clearance.</p>
-    <p><b>Two problems at small sizes, both fixed.</b> First, a run at 15 mm and 0.2 mm did not succeed once in 150 million steps. The reward is given only for capture and seating, so the policy got no signal. Now all cells tighter than 1.0 mm train with a clearance curriculum: 1.0 mm first, then smaller steps down to the target. Second, at 8 mm the peg slipped out of the box-shaped pads (73.7% test success, most failures were slips). With the 4 × 4 sphere pads from USB-C, no peg slips in the 8 mm row.</p>
+    <p><b>Two changes were necessary at small sizes.</b> A clearance curriculum (start at 1.0 mm, then tighter): without it, a 15 mm, 0.2 mm run never succeeded in 150 million steps. And 4 × 4 sphere pads on the gripper: with box pads, the 8 mm peg slipped out (73.7%).</p>
   </section>
 
   <!-- ============================================================ RQ4 -->
   <p class="finding">RQ4 · USB-C</p>
   <section id="rq4">
     <h2>The blind policy plugs in USB-C drives</h2>
-    <p class="claim">At the final clearance of 0.02 to 0.1 mm, the blind policy seats 91.5% of 2,048 unseen USB-C drives. It seats 50% from 6.0 mm away. With 20 ms of latency, it seats only 5%.</p>
-    <p>The YAM holds a USB-C flash drive and must plug it into a blind port. Training uses a curriculum: the clearance starts at 0.3 mm and decreases in five stages. The first run failed because the drive slipped out of the gripper. A box-shaped pad gives only one edge of contact when the drive turns in the hand. With 4 × 4 small spheres on each pad, no drive slips. After this correction, the policy completed the curriculum (200 million steps).</p>
+    <p class="claim">The best policy seats 95.3% of unseen USB-C drives at 0.02 to 0.1 mm clearance on the lab table. It needs the contact loss. Most failures come from the grasp, not the search.</p>
+    <p>The YAM holds a USB-C flash drive and plugs it into a blind port (3 mm median start offset). Training uses a five-stage curriculum from 0.3 mm to the final clearance, 300 million steps.</p>
     <div class="cols2">
       <figure class="teaser">
         <video autoplay muted loop playsinline poster="static/images/usbc_final_stage_poster.jpg">
           <source src="static/videos/usbc_final_stage.mp4" type="video/mp4">
         </video>
-        <figcaption><b>Four final-stage episodes.</b> Labels: start offset, clearance and result. Three drives are seated, one from 5.1 mm. One stops tilted. ⅕ of real time.</figcaption>
+        <figcaption><b>Four final-stage episodes.</b> Three drives seat, one from 5.1 mm. One stops tilted. ⅕ of real time.</figcaption>
       </figure>
       <div class="tbl">
         <table>
-          <thead><tr><th>USB-C test (2,048 starts)</th><th class="n">Success</th></tr></thead>
+          <thead><tr><th>Policy, lab table</th><th class="n">Final stage</th></tr></thead>
           <tbody>
-            <tr><td>Curriculum stages 2, 3, 4</td><td class="n">99.0, 98.9, 98.1%</td></tr>
-            <tr><td>Final stage, 0.02 to 0.1 mm</td><td class="n">91.5%</td></tr>
-            <tr><td>Clearance 0.02 / 0.05 / 0.1 mm (2 mm offset)</td><td class="n">93.9 / 98.0 / 98.5%</td></tr>
-            <tr><td>Port with a 0.2 to 0.5 mm chamfer (no retraining)</td><td class="n">83.6%</td></tr>
-            <tr><td>Port with a 5 to 15 N latch (no retraining)</td><td class="n">28.0%</td></tr>
-            <tr><td>Port with a 5 to 15 N latch, after a 100 M-step fine-tune</td><td class="n">89.7%</td></tr>
-            <tr><td>Final stage, after a fine-tune on wider starts</td><td class="n">91.4%</td></tr>
-            <tr><td>Port that faces the robot (no retraining)</td><td class="n">0%</td></tr>
+            <tr><td>Base (30-step history)</td><td class="n">79.0%</td></tr>
+            <tr><td><b>10-step history</b></td><td class="n"><b>95.3%</b></td></tr>
+            <tr><td>60-step history</td><td class="n">80.6%</td></tr>
+            <tr><td>No contact loss</td><td class="n">10.2%</td></tr>
+            <tr><td>Port with a 0.2 to 0.5 mm chamfer</td><td class="n">96.2%</td></tr>
+            <tr><td>Port that faces the robot</td><td class="n">35.8%</td></tr>
           </tbody>
-          <caption>Most final-stage failures (105 of 175) are search failures: the policy does not find the port in 8 s. The last five rows run on the lab table (reference: 77.9%). The fine-tunes start from the old-mount policy.</caption>
+          <caption>2,048 unseen starts each, no robot errors, one seed. Each row trained from scratch for 300 million steps with its own setting. The side port reached only stage 3 of 5 (47.2% after 200 million more steps).</caption>
         </table>
       </div>
     </div>
-    <p><b>Trained on the lab table from the start.</b> Three policies trained for 300 million steps on the lab table, each with the full curriculum. They had no robot errors. The chamfered port is the easiest case.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Trained from the start on the lab table</th><th class="n">Final stage</th><th class="n">0.02 mm clearance</th><th class="n">Median offset at 50% success</th></tr></thead>
-        <tbody>
-          <tr><td>Port faces up</td><td class="n">79.0%</td><td class="n">87.4%</td><td class="n">4.9 mm</td></tr>
-          <tr><td>Port with a 0.2 to 0.5 mm chamfer</td><td class="n">96.2%</td><td class="n">97.5%</td><td class="n">7.0 mm</td></tr>
-          <tr><td>Port faces the robot</td><td class="n">35.8%</td><td class="n">26.9%</td><td class="n">—</td></tr>
-        </tbody>
-        <caption>Final stage: 0.02 to 0.1 mm clearance, 3 mm median start offset, 2,048 starts. Clearance column: 2 mm median offset, 1,024 starts. Last column: linear interpolation between tests at median offsets of 0.5 to 8 mm (1,024 starts each); this is a median offset, not the start distance of the figure below. The port-up run made 50% of its failures by leaving the fixture area. The side-port run completed only 3 of the 5 curriculum stages in 300 million steps.</caption>
-      </table>
-    </div>
-    <p><b>Ablations: the contact loss is necessary, and a short history is sufficient.</b> We trained three variants of the port-up policy on the lab table, each for 300 million steps with the same curriculum. Only one setting changes in each. Without the contact-prediction loss, the curriculum stopped at stage 2 (training success 62 to 68%), and the policy seats only 10.2% on the final stage. Most of its failures do not find the port (1,377 of 1,839). On the large peg, the same loss only made learning 2.2 times faster (RQ1). For USB-C, the policy does not learn without it. With a history of 10 steps (0.2 s) instead of 30, the policy seats 95.3%. With 60 steps, it seats 80.6%, the same as the base. The 10-step run reached the final stage 70 million steps sooner, so it trained 110 million steps on the final stage, against 40 million for the base. Part of its gain can come from this longer training. Each variant has one seed.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Variant (port up, lab table)</th><th class="n">Final stage</th><th class="n">Stage reached</th><th class="n">Steps to the final stage</th><th class="n">Median time</th><th class="n">Median travel</th></tr></thead>
-        <tbody>
-          <tr><td>Base: contact loss, 30-step history</td><td class="n">79.0%</td><td class="n">5 of 5</td><td class="n">260 M</td><td class="n">2.00 s</td><td class="n">28 mm</td></tr>
-          <tr><td>No contact loss</td><td class="n"><b>10.2%</b></td><td class="n">2 of 5</td><td class="n">—</td><td class="n">4.94 s</td><td class="n">87 mm</td></tr>
-          <tr><td>10-step history (0.2 s)</td><td class="n"><b>95.3%</b></td><td class="n">5 of 5</td><td class="n">190 M</td><td class="n">1.62 s</td><td class="n">22 mm</td></tr>
-          <tr><td>60-step history (1.2 s)</td><td class="n">80.6%</td><td class="n">5 of 5</td><td class="n">273 M</td><td class="n">2.18 s</td><td class="n">30 mm</td></tr>
-        </tbody>
-        <caption>Final stage: 0.02 to 0.1 mm clearance, 3 mm median start offset, 2,048 matched starts per row (95% intervals ±0.9 to 1.8 points). No robot errors. 300 million steps each, seed 0. Median time is for the successes only.</caption>
-      </table>
-    </div>
-    <p><b>More training helps the side port only a little.</b> We continued the side-port run for 200 million steps. It seats 47.2% on the final stage (before: 35.8%, 2,048 starts). It did not advance past stage 3 (0.08 mm clearance, 1.5 mm median offset): training success stayed at 88%, below the 90% that starts the next stage. Most failures are search failures (577 of 1,082). Slips (238) and partial wedges (190) are next.</p>
+    <p><b>The contact loss is necessary.</b> Without it, the curriculum stopped at stage 2 of 5, and the policy seats 10.2%. Its latent holds no contact information: the probe reads 33%, the same as an untrained encoder (32%). With the loss, the probe reads 70%. On the large peg, the loss only made learning faster (RQ1). For USB-C, the policy does not learn without it.</p>
+    <p><b>A short history is better.</b> With 10 steps (0.2 s) instead of 30, success increases from 79.0% to 95.3%. With 60 steps it does not change (80.6%). The 10-step run also reached the final stage sooner, so it trained there for 110 million steps against 40 million. Part of the gain can come from this.</p>
+    <p><b>Most failures are grasp failures.</b> We replayed 20 successes and 19 failures of the best policy. The physics is correct: every success seats upright, and no drive passes through the port. But 81 of its 98 failures end with the drive turned more than 15° between the gripper pads (base policy: 311 of 431). After the drive turns, the policy cannot recover. Thus, the real gripper must hold the drive stiffly against rotation.</p>
+    <figure class="img">
+      <img src="static/images/E_usbc_failures.png" alt="Grid of 19 final frames of failed USB-C episodes; in most, the drive is tilted in the gripper" loading="lazy">
+      <figcaption><b>Last frame of 19 failed episodes (10-step policy).</b> In most of them, the drive turned in the gripper. Bottom row: the drive moved up in the grasp near the seat.</figcaption>
+    </figure>
     <figure class="viz" data-fig="capture">
       <div class="viz-tag">Interactive · hover a point</div>
       <div class="viz-mount"></div>
-      <figcaption><b>Capture radius: success against the start distance (0.05 mm clearance, n = 8,192).</b> Points: 0.5 mm bins with 95% Wilson intervals. Orange: logistic fit. Dashed line and band: the 50% radius (5.98 mm, 95% interval 5.91 to 6.04 mm). Up to 3 mm, success is 98 to 100%.</figcaption>
+      <figcaption><b>Capture radius: success against the start distance (0.05 mm clearance, 8,192 starts).</b> The 50% radius is 6.0 mm. Up to 3 mm, success is 98 to 100%. A fine-tune on wider starts increases the radius to 7.1 mm.</figcaption>
     </figure>
-    <p><b>Training on wider starts increases the capture radius to 7.1 mm.</b> We fine-tuned the policy for 100 million steps on the lab table, with start offsets up to 6.5 mm in x and y (median 5 mm, before: 3 mm). The 50% radius increased from 5.56 mm (95% interval 5.45 to 5.66) to 7.13 mm (7.05 to 7.22), at 0.05 mm clearance and 8,192 starts on the lab table. From 4 to 4.5 mm, the success increased from 70% to 87%. On the final-stage test (3 mm median offset), it seats 91.4% (before: 77.9%) in a median of 1.90 s. The fine-tune also moves the policy from the old mount to the lab table, so part of the gain comes from the mount.</p>
-    <p><b>The latch fine-tune strikes the drive into the port.</b> With the latch, the fine-tuned policy seats 89.7%. With a fixed 15 N latch, it still seats 78.7%. But the YAM can push only 7.2 N along the port axis, because the action limit holds the joint torques (server measurement). Thus, the policy does not push through the latch. It moves the drive in at 40 to 80 mm/s, and the momentum carries the drive to the seat. A real latch clicks and then holds the drive. Our latch model is only a spring, so this result is optimistic. A policy that trained on the latch from the start did not learn (0%), because no episode reached the seat. We also fine-tuned the lab-table policy (150 million steps) on a weaker latch of 2 to 7 N, which the arm can push through. It seats 90.7% on that latch. On the 5 to 15 N latch it seats 57.5% (before: 26.5%), and most failures are slips (479 of 870). Thus, a policy that only pushes loses the drive in the grasp. The strike is necessary for the stronger latches.</p>
-    <p>The joints feel the drive. On the YAM, a lateral push of 0.04 N or a vertical push of 0.13 N on the drive gives a joint deflection three times the joint noise (σ = 10⁻⁴ rad). For the YAM peg, these values are 1.1 N and 0.8 N.</p>
 
-    <h3>Robot errors are the main risk for USB-C</h3>
-    <p>The USB-C fit is 20 to 100 times tighter than the peg fit, so latency and backlash have a larger effect. We tested the USB-C policy with the Phase C conditions on the lab table (final clearance, 3 mm median start offset, 2,048 matched starts).</p>
+    <h3>Robot errors: latency must be measured</h3>
+    <p>The USB-C fit is 20 to 100 times tighter than the peg fit, so robot errors have a larger effect. A policy trained without latency seats less than 1% with 20 ms. Training at the robot's latency recovers it:</p>
     <div class="tbl">
       <table>
-        <thead><tr><th>Test condition</th><th class="n">Trained without errors</th><th class="n">Fine-tuned with random errors</th></tr></thead>
-        <tbody>
-          <tr><td>No error</td><td class="n">78.0%</td><td class="n" data-ft="base">31.1%</td></tr>
-          <tr><td>Latency 20 ms</td><td class="n">5.2%</td><td class="n" data-ft="lat1">22.6%</td></tr>
-          <tr><td>Latency 40 ms</td><td class="n">5.0%</td><td class="n" data-ft="lat2">22.0%</td></tr>
-          <tr><td>Backlash 1′</td><td class="n">8.6%</td><td class="n" data-ft="bl1">45.4%</td></tr>
-          <tr><td>Backlash 3′</td><td class="n">7.2%</td><td class="n" data-ft="bl3">44.6%</td></tr>
-          <tr><td>Joint noise 5·10⁻⁴ rad</td><td class="n" data-ft0="qn5e-4">77.3%</td><td class="n" data-ft="qn5e-4">32.0%</td></tr>
-          <tr><td>14-bit encoders</td><td class="n" data-ft0="quant14">78.4%</td><td class="n" data-ft="quant14">29.6%</td></tr>
-        </tbody>
-        <caption>The policy trained on the old mount (91.5% there, 78.0% on the lab table). The fine-tune adds 100 million steps on the lab table with a random latency (0 to 40 ms), backlash (0 to 5′), encoder resolution and joint noise in each world. Its training success was 40% and still increasing, so the run is not complete. The backlash rows used the old backlash model.</caption>
-      </table>
-    </div>
-    <p>Noise and encoder resolution have no effect, and latency does. The backlash rows use the old model (see below). The fine-tune is 4 to 6 times better under errors, but it loses 47 points without errors. On the peg, a policy trained with random errors from the start lost only 1.2 points (RQ2). Thus, the server now trains USB-C from the start: the plain policy, the chamfered port, the latch and the side port, and then a run with the random errors.</p>
-    <p><b>Random errors from the start do not work for USB-C.</b> One policy trained for 300 million steps with random robot errors in each world from the first step: latency 0, 20 or 40 ms, backlash 0 to 5 arcmin (corrected model), joint noise and encoder resolution. On the peg, this recipe cost only 1.2 points. For USB-C, the curriculum stopped at stage 2 of 5 (0.15 mm clearance) after 24 million steps. Training success stayed at approximately 86%, below the 90% that starts the next stage. On the final stage it seats 21.6% (2,048 starts). At 0.2 mm clearance it seats 69%, and at 0.05 mm 34% (1,024 starts each, 2 mm median offset). Thus, for USB-C, train first without errors, then fine-tune at the measured latency range (next paragraph).</p>
-    <p><b>A matched latency recovers USB-C.</b> We fine-tuned the wide-start policy (91.4% without latency) for 100 million steps with a fixed latency of 20 ms. At 20 ms, it seats 78.9%. Before the fine-tune, it seated only 0.7% at 20 ms. But the fine-tuned policy seats only 11.1% without latency and 38.8% at 40 ms. This is the same pattern as the YAM peg: the policy works at its training latency only. Thus, for USB-C, the real latency of the YAM must be known. Then the policy can train at that latency.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Test latency</th><th class="n">Wide-start policy, no latency in training</th><th class="n">Fine-tuned at 20 ms</th><th class="n">Then fine-tuned at 20 or 40 ms</th></tr></thead>
+        <thead><tr><th>Test latency</th><th class="n">Trained without latency</th><th class="n">Fine-tuned at 20 ms</th><th class="n">Fine-tuned at 20 or 40 ms</th></tr></thead>
         <tbody>
           <tr><td>0 ms</td><td class="n">91.4%</td><td class="n">11.1%</td><td class="n">20.8%</td></tr>
           <tr><td>20 ms</td><td class="n">0.7%</td><td class="n">78.9%</td><td class="n">78.8%</td></tr>
           <tr><td>40 ms</td><td class="n">0.6%</td><td class="n">38.8%</td><td class="n">74.8%</td></tr>
         </tbody>
-        <caption>Lab table, final clearance (0.02 to 0.1 mm), 3 mm median start offset, 2,048 matched starts. Each fine-tune is 100 million steps. In the last column, each world draws a latency of 20 or 40 ms at each reset.</caption>
+        <caption>Final stage, lab table, 2,048 matched starts. Each fine-tune is 100 million steps from the wide-start policy.</caption>
       </table>
     </div>
-    <p><b>The latency must be known to within one control step.</b> A second fine-tune drew the latency from 20 or 40 ms in each world. It seats 78.8% at 20 ms and 74.8% at 40 ms. Thus, a range of one step (20 ms) costs almost nothing. The real YAM's latency must be measured to within 20 ms, and then the policy trains over that range.</p>
-
-    <h3>Backlash: a model error, now corrected</h3>
-    <p class="claim">Our first backlash model was wrong. With the corrected model, 1 arcmin of backlash costs the USB-C policy only 1 point.</p>
-    <p>The backlash model adds a joint with a small free range in series with each motor joint. The range limit used the soft default constraint of MuJoCo. Under a load of 5 N, each of these joints turned approximately 0.011 rad (38 arcmin), for all backlash values from 0.01 to 5 arcmin. Thus, the old model added approximately 0.6° of extra flex in each joint, not backlash. All backlash results before 21 October, 21:30 PDT used this model: in RQ2, in RQ3 and in this section. Now the limit is stiff. Under the same load, each joint stays within 1.2 times its free range.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Policy (no backlash in training)</th><th class="n">No backlash</th><th class="n">1 arcmin</th><th class="n">3 arcmin</th><th class="n">1 arcmin, old model</th></tr></thead>
-        <tbody>
-          <tr><td>Wide-start policy, no latency</td><td class="n">91.4%</td><td class="n">90.4%</td><td class="n">77.2%</td><td class="n">8.6%</td></tr>
-          <tr><td>20 ms latency, stiffer friction</td><td class="n">67.2%</td><td class="n">59.0%</td><td class="n">35.6%</td><td class="n">0.0%</td></tr>
-        </tbody>
-        <caption>Final stage, lab table, 2,048 matched starts. Second row: tested with 20 ms of latency and the stiffer friction below.</caption>
-      </table>
-    </div>
-    <p class="claim">Training with the corrected backlash gives tolerance to 3 arcmin. It does not help at 1 arcmin or less.</p>
-    <p>We fine-tuned the 20 ms policy for 100 M steps. Each world had a random latency (20 or 40 ms) and a random backlash (0, 1 or 3 arcmin). Training success went to 47% in the first 13 M steps. Then it stayed flat at approximately 50%. At 3 arcmin, success increased by 17 to 20 points. Without backlash, success decreased by 5 to 12 points. At 1 arcmin, the two policies are equal. Thus, measure the backlash of the real arm first. Train with backlash only if it is near 3 arcmin. The large gap to the policy without latency (91%) comes from the latency, not from the backlash.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Test condition</th><th class="n">20 ms policy</th><th class="n">+ backlash training</th></tr></thead>
-        <tbody>
-          <tr><td>20 ms, no backlash</td><td class="n">67.2%</td><td class="n">61.8%</td></tr>
-          <tr><td>20 ms, 1 arcmin</td><td class="n">59.0%</td><td class="n">60.3%</td></tr>
-          <tr><td>20 ms, 3 arcmin</td><td class="n">35.6%</td><td class="n"><b>55.3%</b></td></tr>
-          <tr><td>40 ms, no backlash</td><td class="n">64.2%</td><td class="n">52.0%</td></tr>
-          <tr><td>40 ms, 1 arcmin</td><td class="n">54.7%</td><td class="n">54.3%</td></tr>
-          <tr><td>40 ms, 3 arcmin</td><td class="n">29.7%</td><td class="n"><b>46.8%</b></td></tr>
-          <tr><td>Mean of the six conditions</td><td class="n">51.7%</td><td class="n">55.1%</td></tr>
-        </tbody>
-        <caption>Final stage, lab table, stiffer friction, corrected backlash model, 2,048 matched starts per cell. Without latency, both policies get approximately 12%: they expect the delay.</caption>
-      </table>
-    </div>
-
-    <h3>The grasp friction</h3>
-    <p class="claim">The USB-C policy depends on the soft grasp friction of MuJoCo. A fine-tune removes this dependence.</p>
-    <p>The default MuJoCo friction lets the drive creep in the grasp at 6 to 8 N. A real rubber pad with 8 to 17 N of grip holds much more. With a stiffer friction model (elliptic cone, impratio 10), the policy seats only 36%. After a fine-tune of 100 million steps with the stiffer friction, it seats 89.8%. Thus, the policy can learn the stiffer grasp. The backlash rows in the table below used the old backlash model.</p>
-    <div class="tbl">
-      <table>
-        <thead><tr><th>Test</th><th class="n">Wide-start policy</th><th class="n">Fine-tuned with stiffer friction</th><th class="n">Then fine-tuned with backlash</th></tr></thead>
-        <tbody>
-          <tr><td>Default friction</td><td class="n">91.0%</td><td class="n">60.0%</td><td class="n">40.2%</td></tr>
-          <tr><td>Stiffer friction</td><td class="n">36.1%</td><td class="n">89.8%</td><td class="n">61.8%</td></tr>
-          <tr><td>Stiffer friction, 1 arcmin backlash (old model)</td><td class="n">0.3%</td><td class="n">2.5%</td><td class="n">76.2%</td></tr>
-          <tr><td>Stiffer friction, 3 arcmin backlash (old model)</td><td class="n">0.2%</td><td class="n">1.7%</td><td class="n">72.1%</td></tr>
-          <tr><td>Stiffer friction, 20 ms latency</td><td class="n">0.2%</td><td class="n">0.1%</td><td class="n">0.1%</td></tr>
-          <tr><td>Stiffer friction, 5 to 15 N latch</td><td class="n">6.2%</td><td class="n">21.5%</td><td class="n">20.8%</td></tr>
-        </tbody>
-        <caption>Final stage, lab table, 2,048 matched starts. Stiffer friction: MuJoCo elliptic friction cone with impratio 10. Each fine-tune trained 100 million steps. The second one drew 0, 1 or 3 arcmin of backlash in each world. Neither trained with latency or the latch. The training worlds with "0 arcmin" keep a very small backlash joint, and the test without backlash has none. This can explain part of the lower score without backlash.</caption>
-      </table>
-    </div>
+    <ul class="facts">
+      <li><b>A range of one control step costs almost nothing</b> (78.8% and 74.8%). So the real latency must be known to within 20 ms.</li>
+      <li><b>Random errors from the start do not work for USB-C.</b> A policy trained with random latency, backlash and noise from the first step stopped at curriculum stage 2 and seats 21.6%. Train without errors first, then fine-tune at the measured latency.</li>
+      <li><b>Backlash costs little.</b> 1′ of backlash costs 1 point (90.4% against 91.4%), 3′ costs 14 points. A fine-tune with backlash recovers 17 to 20 points at 3′.</li>
+      <li><b>The grasp friction matters.</b> With a stiffer friction model (elliptic cone), the policy seats only 36%. A fine-tune with this model recovers 89.8%.</li>
+      <li><b>A latch needs a strike.</b> With a 5 to 15 N latch, a fine-tuned policy seats 89.7%. The arm can push only 7 N along the port axis, so the policy moves the drive in fast and lets momentum seat it.</li>
+    </ul>
   </section>
 
   <!-- ============================================================ RQ5 -->
   <p class="finding">RQ5 · Vision</p>
   <section id="rq5">
     <h2>A camera helps on familiar parts, not on new parts</h2>
-    <p>On large pegs, the camera policy is faster (0.38 s against 0.64 s). On unseen part families, it loses 12 to 54 points against the blind policy (RQ1 figure). For USB-C, the simulated YAM has the real wrist camera (Intel RealSense D405) with a depth model: no depth closer than 7 cm, noise that increases with distance, and dropouts at edges.</p>
-    <p><b>The wrist camera does not see the port.</b> The camera is behind the drive and looks along it, so the drive hides the port. The camera sees the housing at approximately 9 cm, and the port is only a few pixels wide at 64 × 64. Five camera policies are ready to train (RGB, depth, and each with joint data, approximately 70 GPU hours). First we must decide if the camera moves.</p>
+    <p class="claim">On large pegs, the camera policy is faster (0.38 s against 0.64 s), but on unseen part families it loses 12 to 54 points against the blind policy (RQ1).</p>
+    <p>For USB-C, the YAM's wrist camera (Intel RealSense D405) does not see the port: the drive hides it, and the port is only a few pixels wide at 64 × 64. The camera policies are ready to train (approximately 70 GPU hours), but first we must decide where the camera goes.</p>
     <figure class="img">
       <img src="static/images/F_camera_views.png" alt="Six wrist camera images in RGB and depth: the drive in front of the port housing, the gripper at the bottom" loading="lazy">
-      <figcaption><b>The YAM wrist camera at six USB-C start states, 64 × 64 pixels.</b> Top: RGB with random lights and colors. Bottom: depth after the camera model, in cm. Black pixels have no depth. The drive is in the centre. The port is behind it.</figcaption>
+      <figcaption><b>The YAM wrist camera at six USB-C start states, 64 × 64 pixels.</b> Top: RGB. Bottom: depth after the camera model (black: no depth). The port is behind the drive.</figcaption>
     </figure>
   </section>
 
@@ -410,11 +260,23 @@
   <section id="next">
     <h2>Next steps</h2>
     <ol class="facts">
-      <li><b>Real YAM values.</b> Measure latency, backlash and gains (procedure ready). They set the training ranges for D, E and the first real-arm test.</li>
-      <li><b>RQ4.</b> Use the 10-step history for the next USB-C policies, after a check that its gain is not only the longer final-stage training. Then fine-tune the USB-C policy at the measured latency range of the real arm.</li>
-      <li><b>RQ5.</b> Decide the camera position, then train the five camera policies on USB-C (approximately 70 GPU hours).</li>
-      <li><b>More seeds</b> where a result is close.</li>
+      <li><b>Measure the real YAM.</b> Latency, joint gains and backlash (1 to 2 hours, procedure ready in <code>docs/REAL_YAM_LATENCY_BACKLASH.md</code>).</li>
+      <li><b>Deployment code.</b> Export the actor, run it in a 50 Hz loop on the arm with safety limits, and test the same code against the simulator first.</li>
+      <li><b>Retrain at the measured values.</b> Peg first, then USB-C with the 10-step history.</li>
+      <li><b>First real test.</b> A 3D-printed 60 mm peg at 1 mm clearance, then smaller parts.</li>
+      <li><b>Later.</b> The camera study (RQ5) and more seeds where results are close.</li>
     </ol>
+  </section>
+
+  <!-- ============================================================ examples -->
+  <section id="examples">
+    <h2>Example videos</h2>
+    <p>Each test records its episodes. The video shows the fastest, median and slowest successes and up to three episodes of each failure type. Select a task, then a test.</p>
+    <figure class="viz" data-fig="demos">
+      <div class="viz-tag">Interactive · select a test</div>
+      <div class="viz-mount"></div>
+      <figcaption><b>Success and failure examples, real time.</b> Green label: success. Red label: the failure type. Each video comes from a new run of the test, so the rates can differ slightly from the tables.</figcaption>
+    </figure>
   </section>
 
   <!-- ============================================================ appendix -->
@@ -431,8 +293,8 @@
             <tr><td>Different parts</td><td>12,288</td><td>1,024 (each in 12 worlds)</td><td>Model build time</td></tr>
             <tr><td>Success</td><td>"Entire bottom face seated"</td><td>64 edge points inside, less than 1.5 mm above the floor</td><td>A precise definition</td></tr>
             <tr><td>Arm parameters</td><td>Identified on the real arm</td><td>Menagerie values</td><td>No real arm yet</td></tr>
-            <tr><td>Seeds and run length, RQ2 to RQ4</td><td>Plan: 3 seeds, 300 M steps</td><td>Seed 0, stop at 99% after 50 M</td><td>First results sooner</td></tr>
-            <tr><td>USB-C gripper pads</td><td>—</td><td>4 × 4 contact spheres</td><td>Box pads drop the drive</td></tr>
+            <tr><td>Seeds, RQ2 to RQ4</td><td>Plan: 3 seeds</td><td>1 seed (2 where results are close)</td><td>Compute</td></tr>
+            <tr><td>Small-part gripper pads</td><td>—</td><td>4 × 4 contact spheres</td><td>Box pads drop small parts</td></tr>
           </tbody>
         </table>
       </div>
@@ -443,20 +305,20 @@
         <table>
           <thead><tr><th>Check</th><th>Result</th></tr></thead>
           <tbody>
-            <tr><td>GPU against CPU MuJoCo</td><td>One 20 ms step: ≤ 0.04 mm. A grasped peg diverges later (the grasp stick-slip is chaotic), so we compare distributions.</td></tr>
+            <tr><td>GPU against CPU MuJoCo</td><td>One 20 ms step: ≤ 0.04 mm.</td></tr>
             <tr><td>Drop test</td><td>1,024 of 1,024 pegs drop into their holes and stay.</td></tr>
-            <tr><td>Contact signal</td><td>Flexiv: a 0.30 N vertical push is visible above 10⁻⁴ rad joint noise. YAM USB-C: 0.13 N.</td></tr>
-            <tr><td>Drop-in signal</td><td>Joint-velocity peak-to-noise ratio 3.2 (Flexiv peg), 5.0 (YAM USB-C at 10⁻⁴ rad noise), 1.0 at 5·10⁻⁴ rad.</td></tr>
+            <tr><td>Contact signal (smallest visible force)</td><td>Flexiv peg 0.30 N. YAM pegs 0.05 to 0.07 N at every size. YAM USB-C 0.13 N.</td></tr>
+            <tr><td>Drop-in signal (peak-to-noise)</td><td>Flexiv peg 3.2. YAM pegs 7 to 24. YAM USB-C 5.0.</td></tr>
+            <tr><td>USB-C replays</td><td>No physics artifacts in 39 replayed episodes. Clearance changes of −10 and +20 µm change success smoothly.</td></tr>
             <tr><td>Leak test</td><td>The actor's input does not change when the privileged state changes.</td></tr>
-            <tr><td>Determinism</td><td>MuJoCo Warp is not bitwise deterministic (10⁻³ after 20 ms). We compare distributions.</td></tr>
-            <tr><td>Baselines</td><td>Zero action 2.9%, random actions 6.1%, spiral search 77.3%.</td></tr>
+            <tr><td>Backlash model</td><td>Corrected on 22 October: the first model added 0.6° of joint flex at every level. All backlash results in this report use the corrected model.</td></tr>
           </tbody>
         </table>
       </div>
     </details>
     <details class="more">
       <summary>Compute</summary>
-      <p>Local: one RTX 3090 Ti, 37,500 steps per second (a 300 M run takes 2.3 h). Server: five Tesla V100 GPUs, 20,500 steps per second for the peg and 11,000 for USB-C. A control run on the server gave the same curve as the local seeds (90% after 37.4 M steps against 39.7 and 41.7 M).</p>
+      <p>Local: one RTX 3090 Ti (a 300 M-step peg run takes 2.3 h). Server: five V100 GPUs (USB-C: about 7 h per 300 M-step run).</p>
     </details>
   </section>
 
@@ -492,6 +354,3 @@
     });
   });
 </script>
-
-
-
