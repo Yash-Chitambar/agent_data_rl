@@ -1,0 +1,6 @@
+/home/yashchitambar/peg_test/blind_insertion/checks/signal_checks.py:187: Pandas4Warning: Starting with pandas version 4.0 all arguments of max will be keyword-only.
+  mx = d[[f"d{j+1}" for j in range(n)]].abs().max(1).values
+/home/yashchitambar/peg_test/blind_insertion/checks/signal_checks.py:187: Pandas4Warning: Starting with pandas version 4.0 all arguments of max will be keyword-only.
+  mx = d[[f"d{j+1}" for j in range(n)]].abs().max(1).values
+  free-space sag under the peg's weight: 1.0 mm
+A-S5 yam_scale_0.06_5e-05: {'sag_mm': 0.9618429113966293, 'Fmin_vertical_1e-04': 0.053273550797078885, 'Fmin_vertical_5e-04': 0.3955589834550837, 'monotonic_vertical': False, 'Fmin_lateral_1e-04': 0.046569429060899455, 'Fmin_lateral_5e-04': 0.21293201106067122, 'monotonic_lateral': True} -> FAIL

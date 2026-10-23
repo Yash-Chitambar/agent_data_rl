@@ -1,0 +1,9 @@
+{
+ "sag_mm": 0.7256710764275143,
+ "Fmin_vertical_1e-04": 0.05433170360200469,
+ "Fmin_vertical_5e-04": 0.37865518570176904,
+ "monotonic_vertical": true,
+ "Fmin_lateral_1e-04": 0.054686971459167594,
+ "Fmin_lateral_5e-04": 0.21886310135632253,
+ "monotonic_lateral": true
+}

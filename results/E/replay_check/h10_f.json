@@ -1,0 +1,128 @@
+{
+ "title": "USB-C h10 replay check",
+ "source": "results/E/replay_check/h10.parquet",
+ "n": 2048,
+ "success_rate": 0.9521484375,
+ "failures": {
+  "left_fixture": 64,
+  "never_found": 20,
+  "wedged_partial": 10,
+  "slipped": 4
+ },
+ "shown": [
+  {
+   "world": 58,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 5.639999866485596
+  },
+  {
+   "world": 158,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 4.779999732971191
+  },
+  {
+   "world": 223,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 6.420000076293945
+  },
+  {
+   "world": 314,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 7.87999963760376
+  },
+  {
+   "world": 505,
+   "success": false,
+   "failure": "left_fixture",
+   "time": 5.960000038146973
+  },
+  {
+   "world": 258,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 280,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 297,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 354,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 374,
+   "success": false,
+   "failure": "never_found",
+   "time": 8.0
+  },
+  {
+   "world": 288,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 461,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 493,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 504,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 734,
+   "success": false,
+   "failure": "wedged_partial",
+   "time": 8.0
+  },
+  {
+   "world": 360,
+   "success": false,
+   "failure": "slipped",
+   "time": 7.859999656677246
+  },
+  {
+   "world": 533,
+   "success": false,
+   "failure": "slipped",
+   "time": 6.440000057220459
+  },
+  {
+   "world": 631,
+   "success": false,
+   "failure": "slipped",
+   "time": 6.259999752044678
+  },
+  {
+   "world": 740,
+   "success": false,
+   "failure": "slipped",
+   "time": 7.699999809265137
+  }
+ ]
+}

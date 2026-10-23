@@ -1,0 +1,134 @@
+{
+ "title": "USB-C h10 replay check",
+ "source": "results/E/replay_check/h10.parquet",
+ "n": 2048,
+ "success_rate": 0.9521484375,
+ "failures": {
+  "left_fixture": 64,
+  "never_found": 20,
+  "wedged_partial": 10,
+  "slipped": 4
+ },
+ "shown": [
+  {
+   "world": 1130,
+   "success": true,
+   "failure": "success",
+   "time": 0.35999998450279236
+  },
+  {
+   "world": 23,
+   "success": true,
+   "failure": "success",
+   "time": 0.8399999737739563
+  },
+  {
+   "world": 97,
+   "success": true,
+   "failure": "success",
+   "time": 1.1200000047683716
+  },
+  {
+   "world": 246,
+   "success": true,
+   "failure": "success",
+   "time": 1.159999966621399
+  },
+  {
+   "world": 1190,
+   "success": true,
+   "failure": "success",
+   "time": 1.2999999523162842
+  },
+  {
+   "world": 166,
+   "success": true,
+   "failure": "success",
+   "time": 1.5
+  },
+  {
+   "world": 683,
+   "success": true,
+   "failure": "success",
+   "time": 1.5199999809265137
+  },
+  {
+   "world": 953,
+   "success": true,
+   "failure": "success",
+   "time": 1.559999942779541
+  },
+  {
+   "world": 815,
+   "success": true,
+   "failure": "success",
+   "time": 1.5799999237060547
+  },
+  {
+   "world": 731,
+   "success": true,
+   "failure": "success",
+   "time": 1.5799999237060547
+  },
+  {
+   "world": 717,
+   "success": true,
+   "failure": "success",
+   "time": 1.5999999046325684
+  },
+  {
+   "world": 1901,
+   "success": true,
+   "failure": "success",
+   "time": 1.8199999332427979
+  },
+  {
+   "world": 1697,
+   "success": true,
+   "failure": "success",
+   "time": 1.8399999141693115
+  },
+  {
+   "world": 1909,
+   "success": true,
+   "failure": "success",
+   "time": 1.9799998998641968
+  },
+  {
+   "world": 1370,
+   "success": true,
+   "failure": "success",
+   "time": 2.0999999046325684
+  },
+  {
+   "world": 1569,
+   "success": true,
+   "failure": "success",
+   "time": 2.1599998474121094
+  },
+  {
+   "world": 232,
+   "success": true,
+   "failure": "success",
+   "time": 2.919999837875366
+  },
+  {
+   "world": 1021,
+   "success": true,
+   "failure": "success",
+   "time": 3.419999837875366
+  },
+  {
+   "world": 624,
+   "success": true,
+   "failure": "success",
+   "time": 3.7799999713897705
+  },
+  {
+   "world": 1837,
+   "success": true,
+   "failure": "success",
+   "time": 7.5
+  }
+ ]
+}

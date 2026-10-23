@@ -154,6 +154,7 @@ def main():
     ap.add_argument("--policy", required=True)
     ap.add_argument("--worlds", type=int, default=1536)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--near_mm", type=float, default=5.0, help="far/near split (mm); scale with part size")
     add_env_args(ap, n_variants=0, variant_seed=2000, seed=11)   # n_variants 0: one per world
     args = ap.parse_args()
     args.n_variants = args.n_variants or args.worlds
@@ -161,7 +162,7 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     env = PegEnv(EnvCfg(**env_kwargs(args, args.worlds)))
     ac = load_policy(args.policy, env, env.device)
-    data = collect(env, ac)
+    data = collect(env, ac, near_mm=args.near_mm)
     y, worlds = data["mode"], data["world"]
     train = (worlds % 2 == 0)
     test = ~train
@@ -172,7 +173,7 @@ def main():
         z_rand = torch.cat([rnd.encode(data["hist"][i:i + 8192].to(env.device))[0].cpu()
                             for i in range(0, len(y), 8192)])
     res = {"n_states": int(len(y)), "mode_counts": {m: int((y == i).sum()) for i, m in enumerate(MODES)},
-           "chance": 1 / 7}
+           "chance": 1 / 7, "near_mm": args.near_mm}
     preds = {}
     for name, X in (("latent", data["z"]), ("current_obs", data["o"]), ("random_encoder", z_rand)):
         pred = fit_probe(X, y, train)

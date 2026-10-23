@@ -106,6 +106,42 @@ All on the corrected backlash model, 2,048 starts per cell, random robot conditi
   does not. Consistent with athena5's USB-C backlash and latency results. Options for Yash: fine-tune from
   `E-usbc-proprio-curr-s0` with the noise model (as fullft3 did for backlash), or narrow the ranges (latency 1 only).
 
+### 2026-10-23 (09:00 UTC, mason) — Plan analyses: C-R3 probe, D signal and probe vs size, E7 probe, §11.5 replays
+
+Scripts: `scripts/analysis/run_probes.sh`, `run_signal_vs_size.sh`, `run_replay_check.sh`.
+`analysis/probes.py` got `--near_mm` (far/near split, scaled with part size: 5 mm x opening / 60 mm; USB-C 1 mm).
+
+**Probe (balanced accuracy over occurring modes; latent / current obs / random encoder), 1,536 worlds:**
+
+| Policy | Latent | Current obs | Random enc. | Max swap ratio inside<-search |
+|---|---|---|---|---|
+| C YAM base (C-R3) | 0.60 | 0.48 | 0.43 | 1.50 |
+| D 60 mm, 0.05 mm | 0.64 | 0.53 | 0.54 | 2.46 |
+| D 30 mm, 0.05 mm | 0.58 | 0.44 | 0.34 | 1.87 |
+| D 15 mm, 0.05 mm | 0.54 | 0.45 | 0.37 | 2.13 |
+| D 8 mm, 0.05 mm | 0.67 | 0.50 | 0.46 | 2.03 |
+| E USB-C base (E7) | 0.70 | 0.54 | 0.47 | 2.28 |
+| E USB-C h10 | 0.64 | 0.56 | 0.53 | 1.94 |
+| E USB-C no contact loss | 0.33 | 0.36 | 0.32 | 1.32 |
+
+- Gate C probe item passes (YAM latent > current obs). The latent encodes contact at every size (D Q3:
+  yes, no trend with size). Far<->near swap ratios stay 0.93-1.18 everywhere (as in the paper).
+- Without the contact loss the USB-C latent holds no contact information (0.33 = random encoder): this is
+  why that run does not learn.
+
+**Signal vs size (D §10.3 (3); CPU, YAM lab table, sigma_q 1e-4):** A-S5 F_min vertical 0.053 / 0.068 /
+0.050 / 0.054 N (60 / 30 / 15 / 8 mm, results/D/signal/*.json), lateral ~0.05 N. A-S6 drop-in (2 N press,
+1 mm clearance) joint-velocity peak-to-noise 7.3 / 9.6 / 20.9 / 24.0. The signal does not weaken as parts
+shrink (the drop-in peak grows). So the 0.05 mm losses at 30 and 8 mm are not a signal limit.
+(The Phase A YAM value 0.79 N came from the old setup with 14 mm gravity sag; not comparable.)
+
+**§11.5 replay check (h10 policy, 2,048 starts, 95.2%; 20 successes + 19 failures rendered):**
+no physics artifacts. Successes seat upright (final tilt <= 1.9 deg, seat depth -7.3 +- 0.4 mm). Wedged
+cases rest 2 mm above the port with one corner in the opening (no tunneling). But 81 of 98 failures
+(base policy: 311 of 431) end with the drive tilted > 15 deg in the grasp: the drive turns between the
+pads and the policy cannot recover. The slip detector checks translation only, so these count as
+"left fixture" / "never found". The grasp is the main USB-C failure, not the search.
+
 ### 2026-10-23 (05:00 UTC, mason) — E4 ablations: contact loss is necessary for USB-C; history 10 best
 
 Port-up USB-C, lab table, 300 M steps, seed 0, final-stage test (2,048 matched starts, no robot errors):
