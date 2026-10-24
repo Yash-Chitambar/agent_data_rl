@@ -31,28 +31,46 @@ from blind_insertion.scenes import pc_bench as S
 
 class ActPick:
     """TorchScript ACT (scripts/act/export_act.py): (state, top, wrist) -> action chunk, with the
-    dataset normalization inside. Executes `n_exec` actions of each chunk."""
+    dataset normalization inside. ensemble=k > 0: query every step and average the predictions
+    for the current step from all chunks, weights exp(-k * age) (ACT temporal ensembling);
+    otherwise execute `n_exec` actions of each chunk open loop."""
 
-    def __init__(self, path, device, n_exec=10):
+    def __init__(self, path, device, n_exec=10, ensemble=0.01):
         self.m = torch.jit.load(path, map_location=device).eval()
-        self.n_exec = n_exec
-        self.chunk = None
-        self.k = 0
+        self.n_exec, self.ens = n_exec, ensemble
 
     def reset(self, n, device):
-        self.chunk, self.k = None, 0
+        self.chunk, self.k, self.t = None, 0, 0
+        self.buf = None
         self.done_run = torch.zeros(n, dtype=torch.long, device=device)
 
+    def _query(self, env):
+        fr = env.render()
+        top = fr["top"].permute(0, 3, 1, 2).float() / 255
+        wrist = fr["wrist_cam"].permute(0, 3, 1, 2).float() / 255
+        with torch.no_grad():
+            return self.m(env.state(), top, wrist)                  # (N, C, 8)
+
     def act(self, env: PickEnv):
-        if self.chunk is None or self.k >= self.n_exec:
-            fr = env.render()
-            top = fr["top"].permute(0, 3, 1, 2).float() / 255
-            wrist = fr["wrist_cam"].permute(0, 3, 1, 2).float() / 255
-            with torch.no_grad():
-                self.chunk = self.m(env.state(), top, wrist)       # (N, chunk, 8)
-            self.k = 0
-        a = self.chunk[:, self.k]
-        self.k += 1
+        if self.ens > 0:
+            c = self._query(env)
+            N, C, D = c.shape
+            if self.buf is None:
+                self.buf = torch.zeros(N, C, C, D, device=c.device)    # [age, offset] predictions
+                self.valid = torch.zeros(C, dtype=torch.bool, device=c.device)
+            self.buf = torch.roll(self.buf, 1, dims=1)
+            self.buf[:, 0] = c
+            self.valid = torch.roll(self.valid, 1)
+            self.valid[0] = True
+            ages = torch.arange(C, device=c.device)
+            preds = self.buf[:, ages, ages]                             # chunk of age i, entry i = now
+            w = torch.exp(-self.ens * ages.float()) * self.valid
+            a = (preds * w[None, :, None]).sum(1) / w.sum()
+        else:
+            if self.chunk is None or self.k >= self.n_exec:
+                self.chunk, self.k = self._query(env), 0
+            a = self.chunk[:, self.k]
+            self.k += 1
         cmd = torch.cat([a[:, :6], torch.where(a[:, 6:7] > 0, 1.0, -1.0)], 1)
         self.done_run = torch.where(a[:, 7] > 0.5, self.done_run + 1, torch.zeros_like(self.done_run))
         return cmd, self.done_run >= 5
@@ -173,6 +191,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pick", choices=["expert", "act"], default="expert")
     ap.add_argument("--act", default="")
+    ap.add_argument("--ensemble", type=float, default=0.01, help="ACT temporal ensembling weight; 0 = chunks of 10")
     ap.add_argument("--insert", required=True)
     ap.add_argument("--episodes", type=int, default=256)
     ap.add_argument("--nworld", type=int, default=128)
@@ -184,7 +203,7 @@ def main():
     for b in range((a.episodes + a.nworld - 1) // a.nworld):
         v = B.sample_reader(1, a.seed + b)[0] if a.spec_parts else None
         env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed + b, render=a.pick == "act"), variant=v)
-        picker = ActPick(a.act, env.device) if a.pick == "act" else ExpertPick(env)
+        picker = ActPick(a.act, env.device, ensemble=a.ensemble) if a.pick == "act" else ExpertPick(env)
         ins = Inserter(a.insert, env)
         r, _ = run(env, picker, ins)
         res.append({k: x.cpu().numpy() for k, x in r.items()})
