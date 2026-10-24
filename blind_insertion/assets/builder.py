@@ -61,6 +61,9 @@ class Variant:
     grasp_z: float | None = None   # pad centre height above the peg bottom (default 0.75 L)
     grip_half: float | None = None # half width across the pads (default: peg width at x=0)
     chamfer: float = 0.0           # 45 deg lead-in on the hole's top edge (m), plan §11.1 / E4
+    peg_boxes: list = field(default_factory=list)  # extra convex boxes on the peg [(centre, half)], peg frame
+    plug_widen: float = 0.0        # move the insert's walls out along x by this (m): x clearance =
+                                   # clearance - plug_widen (anisotropic fit, e.g. USB-C spec, task H)
 
     def hole(self):
         if self.hole_spec is not None:
@@ -196,6 +199,78 @@ def sample_usbc(n: int, seed: int, *, clearance=(2e-5, 1e-4), housing=(0.015, 0.
     return out
 
 
+# USB Type-C R2.x (USB-IF): receptacle opening 8.34 (+0.06/-0.02) x 2.56 mm, plug shell
+# 8.25 x 2.40 (+-0.03) mm and 6.65 mm long, receptacle tongue 6.69 x 0.70 mm.
+USBC_REC = (0.00834, 0.00256)
+USBC_PLUG = (0.00825, 0.00240)
+USBC_PLUG_LEN = 0.00665
+USBC_TONGUE = (0.00669, 0.00070)
+
+
+def usbc_spec_variant(rec=USBC_REC, plug=USBC_PLUG, housing=0.030, neck=(0.014, 0.007, 0.028),
+                      mass=0.027, n_sides=24, chamfer=0.0) -> Variant:
+    """USB-C plug in a USB-C receptacle at true spec dimensions (task H).
+
+    Clearance differs per axis (nominal 45 um per side across the width, 80 um across the
+    thickness), so the plug is the opening offset by the thickness clearance and then widened
+    (`plug_widen`). The cavity is 6.50 mm deep: mjfit needs the hollow plug longer than the
+    cavity plus clearance, so the plug stops on the floor with the overmold (neck) 0.15 mm
+    short of the panel instead of on the panel as on the real part. Stadium ends: 24-gon (<= 11 um chord
+    error at the 1.28 mm radius).
+    """
+    c = (rec[1] - plug[1]) / 2
+    cx = (rec[0] - plug[0]) / 2
+    nw, nt, nl = neck
+    return Variant(hole_w=rec[0], hole_h=rec[1], clearance=c, depth=min(0.0065, USBC_PLUG_LEN - c - 2e-5),   # shallower only for loose curriculum parts
+                   
+                   plate_size=housing, peg_length=USBC_PLUG_LEN, peg_mass=mass, n_sides=n_sides,
+                   bottom=0.001, kind="usbc_spec",
+                   islands=[{"type": "stadium", "width": USBC_TONGUE[0], "height": USBC_TONGUE[1], "n": 8}],
+                   hole_spec={"type": "stadium", "width": rec[0], "height": rec[1], "n": n_sides},
+                   handle={"type": "rect", "width": nw, "height": nt}, handle_height=nl,
+                   chamfer=chamfer, plug_widen=c - cx)
+
+
+def reader_variant(rec=USBC_REC, plug=USBC_PLUG, housing=0.030, body=(0.036, 0.012, 0.036),
+                   neck=(0.014, 0.007, 0.028), mass=0.027, chamfer=0.0) -> Variant:
+    """SanDisk USB-C SD reader (task H) at USB-C spec dimensions (`usbc_spec_variant`).
+
+    The plug, then a neck (width, thickness, length) and the wide paddle body (width,
+    thickness, length) the gripper holds top-down across its width. Widths lie along peg x
+    (the opening's long side), thicknesses along peg y. Neck and body: photo estimates.
+    """
+    v = usbc_spec_variant(rec=rec, plug=plug, housing=housing, neck=neck, mass=mass, chamfer=chamfer)
+    bw, bt, bl = body
+    z0 = USBC_PLUG_LEN + neck[2]
+    v.kind = "reader"
+    v.peg_boxes = [((0.0, 0.0, z0 + bl / 2), (bw / 2, bt / 2, bl / 2))]
+    v.grasp_z = z0 + bl / 2          # pads at the body's centre
+    v.grip_half = bw / 2             # pads close across the body's width
+    return v
+
+
+def sample_reader(n: int, seed: int, *, clearance="spec", dim_jitter=0.0005,
+                  mass=(0.022, 0.032), chamfer=(0.0, 0.0)) -> list[Variant]:
+    """Reader pool. clearance="spec": receptacle and plug drawn uniformly within the USB-C
+    tolerances (opening 8.32-8.40 x 2.53-2.59 mm, plug 8.22-8.28 x 2.37-2.43 mm, i.e. 20-90 um
+    per side across the width and 50-110 um across the thickness); a number c: a looser
+    curriculum part, plug = opening - 2c on both axes. Neck/body +-dim_jitter, mass uniform."""
+    rng = np.random.default_rng(seed)
+    j = lambda x: float(x + rng.uniform(-dim_jitter, dim_jitter))  # noqa: E731
+    out = []
+    for _ in range(n):
+        if clearance == "spec":
+            rec = (rng.uniform(0.00832, 0.00840), rng.uniform(0.00253, 0.00259))
+            plug = (rng.uniform(0.00822, 0.00828), rng.uniform(0.00237, 0.00243))
+        else:
+            rec = USBC_REC
+            plug = (rec[0] - 2 * clearance, rec[1] - 2 * clearance)
+        out.append(reader_variant(rec=rec, plug=plug, body=(j(0.036), j(0.012), j(0.036)),
+                                  neck=(j(0.014), j(0.007), j(0.028)), mass=rng.uniform(*mass),
+                                  chamfer=float(rng.uniform(*chamfer))))
+    return out
+
+
 def scale_variant(opening: float, clearance: float, rng=None) -> Variant:
     """Phase D grid cell (plan §10.1): stadium, aspect 2.0, long side `opening`.
 
@@ -258,6 +333,13 @@ def extract_pieces(v: Variant) -> Pieces:
     del plate_z
     if v.chamfer > 0:
         fixture = _chamfer(fixture, hole_poly, v.chamfer)
+    if v.plug_widen:              # only the insert (z <= peg_length), not the handle above it
+        for pc in peg:
+            if pc[:, 2].max() <= v.peg_length + 1e-9:
+                pc[:, 0] += np.sign(pc[:, 0]) * v.plug_widen
+        peg_poly = peg_poly + np.c_[np.sign(peg_poly[:, 0]) * v.plug_widen, np.zeros(len(peg_poly))]
+    for c, h in v.peg_boxes:      # e.g. the SD reader's wide body above its neck
+        peg.append(np.array(c) + np.array(list(itertools.product(*[(-x, x) for x in h]))))
     return Pieces(fixture, peg, hole_poly, peg_poly, isl)
 
 
@@ -625,8 +707,11 @@ def _mini_model(pieces: Pieces, v: Variant, n_fix: int, n_peg: int) -> mujoco.Mj
 
 def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
           multiccd: bool = False, extra=None, backlash_arcmin: float = 0.0,
-          pad_spheres: int = 0, table_top: float | None = None) -> tuple[mujoco.MjModel, Layout]:
-    """`table_top`: add the YAM workcell table (`YAM_TABLE`) with its top at this height."""
+          pad_spheres: int = 0, table_top: float | None = None,
+          fixture_boxes=None) -> tuple[mujoco.MjModel, Layout]:
+    """`table_top`: add the YAM workcell table (`YAM_TABLE`) with its top at this height.
+    `fixture_boxes`: extra colliding boxes on the fixture body [(centre, half)] in the fixture
+    frame, e.g. the mini PC's case around the port plate (task H)."""
     spec, info = load_robot(robot, gains=gains, backlash_arcmin=backlash_arcmin, pad_spheres=pad_spheres)
     spec.option.timestep = timestep
     spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
@@ -666,6 +751,11 @@ def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
             rgba=[0.70, 0.75, 0.82, 1], priority=1, friction=[1.0, 0.01, 0.001],
             solref=[0.005, 1], solimp=[0.99, 0.999, 0.001, 0.5, 2], condim=4,
             contype=FIX_BITS[0], conaffinity=FIX_BITS[1], margin=0, gap=0))
+    for j, (c, h) in enumerate(fixture_boxes or []):
+        fix.add_geom(name=f"fixbox_{j}", type=mujoco.mjtGeom.mjGEOM_BOX, size=list(h), pos=list(c),
+                     rgba=[0.78, 0.78, 0.80, 1], friction=[1.0, 0.01, 0.001], solref=[0.005, 1],
+                     solimp=[0.99, 0.999, 0.001, 0.5, 2], condim=4,
+                     contype=FIX_BITS[0], conaffinity=FIX_BITS[1])
     if table_top is not None:
         t = YAM_TABLE
         spec.worldbody.add_geom(

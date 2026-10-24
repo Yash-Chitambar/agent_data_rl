@@ -68,7 +68,14 @@ class EnvCfg:
     grasp_along: float = 0.0055         # along the pads
     inhand_tilt_deg: float = 10.0       # about the finger (closing) axis
     grasp_height_frac: float = 0.75     # pad centre height on the peg (fraction of length)
-    start_gap: float = 0.0005           # lowest peg point above the plate at reset
+    start_gap: float = 0.0005           # lowest peg point above the plate at reset; (lo, hi): uniform
+    # "axial": the part axis is the gripper axis (all phases before H). "top" (task H): top-down
+    # grasp across the part's wide body, part axis horizontal along the tcp -x axis
+    grasp_mode: str = "axial"
+    inhand_yaw_deg: float = 0.0         # in-hand rotation about the gripper axis (top grasp)
+    grasp_y: tuple = (0.0, 0.0)         # top grasp: tcp above the part's centre plane (part y), uniform
+    fix_rpy_range_deg: tuple | None = None  # per-axis fixture rpy range (fixture frame); else fix_tilt_deg
+    fixture_boxes: list | None = None   # extra colliding boxes on the fixture (builder.build)
     # contact (log-uniform ranges)
     plate_friction: tuple = (0.5, 2.0)
     plate_timeconst: tuple = (0.0035, 0.0071)
@@ -156,7 +163,7 @@ class PegEnv:
         bl_build = max([cfg.backlash_arcmin, *nr.get("backlash_arcmin", [])])
         self.mjm, self.lay = B.build(cfg.robot, variants, gains=cfg.gains,
                                      backlash_arcmin=bl_build, pad_spheres=cfg.pad_spheres,
-                                     table_top=cfg.table_top)
+                                     table_top=cfg.table_top, fixture_boxes=cfg.fixture_boxes)
         lay = self.lay
         if cfg.pad_solimp is not None:
             self.mjm.geom_solimp[lay.pad_geoms, :3] = cfg.pad_solimp
@@ -221,6 +228,16 @@ class PegEnv:
         yaw = math.radians(lay.robot.nom_yaw_deg)
         self.R_nom = (K.rpy_mat(torch.tensor([0.0, 0.0, yaw], device=dev))
                       @ K.rpy_mat(torch.tensor([math.pi, 0.0, 0.0], device=dev)))
+        self.R_obs = self.R_nom          # observation frame of the tcp orientation (old runs: R_nom)
+        if cfg.grasp_mode == "top":
+            # tcp z = -fixture y (down when the port faces sideways), closing axis tcp y = -part x
+            # (the opening's long side), so the part axis is tcp +x; R_PG0 = R_nom^T. (The mirror
+            # grasp, tcp y = +part x, is outside the YAM's wrist limits.)
+            self.R_nom = torch.tensor([[0., -1., 0.], [0., 0., -1.], [1., 0., 0.]], device=dev)
+            base = K.rpy_mat(torch.tensor(cfg.fix_base_rpy_deg, device=dev) * math.pi / 180)
+            self.R_obs = base @ self.R_nom
+        else:
+            assert cfg.grasp_mode == "axial", cfg.grasp_mode
 
         # episode state
         H, A = cfg.history, self.n_arm
@@ -326,7 +343,9 @@ class PegEnv:
             kk = k[idx]
             fp = torch.stack([_uniform(*cfg.fix_x, m_, gen, dev), _uniform(*cfg.fix_y, m_, gen, dev),
                               _uniform(*cfg.fix_z, m_, gen, dev)], 1)
-            fR = K.rpy_mat(_uniform(-cfg.fix_tilt_deg, cfg.fix_tilt_deg, (m_, 3), gen, dev) * deg)
+            rr = torch.as_tensor(cfg.fix_rpy_range_deg if cfg.fix_rpy_range_deg is not None
+                                 else [cfg.fix_tilt_deg] * 3, dtype=torch.float32, device=dev)
+            fR = K.rpy_mat((2 * torch.rand(m_, 3, generator=gen, device=dev) - 1) * rr * deg)
             if any(cfg.fix_base_rpy_deg):
                 fR = K.rpy_mat(torch.tensor(cfg.fix_base_rpy_deg, device=dev) * deg) @ fR
             if cfg.table_top is not None:   # lowest corner of the tilted fixture on the table
@@ -336,16 +355,27 @@ class PegEnv:
                 _uniform(-cfg.grip_rot_deg, cfg.grip_rot_deg, (m_, 3), gen, dev) * deg)
             # peg in tcp frame: peg z = -tcp z, tilted about the closing axis (tcp y)
             tilt = _uniform(-cfg.inhand_tilt_deg, cfg.inhand_tilt_deg, m_, gen, dev) * deg
-            Rpg = K.rpy_mat(torch.stack([torch.full_like(tilt, math.pi), tilt, torch.zeros_like(tilt)], 1))
+            if cfg.grasp_mode == "top":    # tilt about the closing axis, yaw about the tcp axis
+                yaw = _uniform(-cfg.inhand_yaw_deg, cfg.inhand_yaw_deg, m_, gen, dev) * deg
+                Rpg = K.rpy_mat(torch.stack([torch.zeros_like(tilt), tilt, yaw], 1)) @ self.R_nom.T
+            else:
+                Rpg = K.rpy_mat(torch.stack([torch.full_like(tilt, math.pi), tilt, torch.zeros_like(tilt)], 1))
             gx = _uniform(-cfg.grasp_along, cfg.grasp_along, m_, gen, dev)
-            gp = torch.stack([gx, torch.zeros_like(gx), self.grasp_z[kk]], 1)
+            if cfg.grasp_mode == "top":    # pads close along part x: offset along the part axis
+                gy = _uniform(*cfg.grasp_y, m_, gen, dev)
+                gp = torch.stack([torch.zeros_like(gx), gy, self.grasp_z[kk] + gx], 1)
+            else:
+                gp = torch.stack([gx, torch.zeros_like(gx), self.grasp_z[kk]], 1)
             p_pt = -(Rpg @ gp[..., None])[..., 0]                 # peg origin in tcp frame
             R_pf = R_tf @ Rpg                                      # peg in fixture frame
             # peg origin xy offset; z so that the lowest bottom-edge point sits start_gap above
             off = _uniform(-cfg.peg_offset, cfg.peg_offset, (m_, 2), gen, dev)
             pts = torch.cat([self.edge_pts[kk], torch.zeros(m_, 64, 1, device=dev)], 2)
             zmin = (pts @ R_pf.transpose(1, 2))[..., 2].min(1).values
-            p_pf = torch.cat([off, (cfg.start_gap - zmin)[:, None]], 1)
+            sg = cfg.start_gap
+            gap = (_uniform(sg[0], sg[1], m_, gen, dev) if isinstance(sg, (tuple, list))
+                   else torch.full((m_,), float(sg), device=dev))
+            p_pf = torch.cat([off, (gap - zmin)[:, None]], 1)
             p_tf = p_pf - (R_tf @ p_pt[..., None])[..., 0]
             Rw = fR @ R_tf
             pw = fp + (fR @ p_tf[..., None])[..., 0]
@@ -596,7 +626,7 @@ class PegEnv:
         return torch.cat([q, qd, p, eul, tw, self.prev_action], 1)
 
     def R_world_nom(self):
-        return self.R_nom.expand(self.N, 3, 3)
+        return self.R_obs.expand(self.N, 3, 3)
 
     def peg_in_fixture(self):
         pa = self.lay.peg_qadr

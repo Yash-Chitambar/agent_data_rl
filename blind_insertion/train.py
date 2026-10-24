@@ -90,6 +90,16 @@ def make_variants(args):
         return B.sample_scale_cell(args.n_variants, args.variant_seed, float(o), float(c))
     if args.family.startswith("ood:"):
         return B.sample_ood_pegs(args.n_variants, args.variant_seed, args.family[4:])
+    if args.family == "reader":     # task H: SD reader into the mini PC's USB-C port
+        vkw = json.loads(getattr(args, "variant_kw", "") or "{}")
+        if getattr(args, "curriculum", "none") == "usbc":
+            per = args.n_variants // len(USBC_STAGES)
+            vs = []
+            for i, (c, _) in enumerate(USBC_STAGES):   # final stage: true USB-C tolerances
+                vs += B.sample_reader(per, args.variant_seed + i,
+                                      clearance="spec" if isinstance(c, tuple) else c, **vkw)
+            return vs
+        return B.sample_reader(args.n_variants, args.variant_seed, **vkw)
     if args.family == "usbc":
         vkw = json.loads(getattr(args, "variant_kw", "") or "{}")   # e.g. {"chamfer": [2e-4, 5e-4]}
         if getattr(args, "curriculum", "none") == "usbc":

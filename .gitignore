@@ -17,3 +17,5 @@ report/.build/
 report/.preview.html
 report_usbc/.build/
 report_usbc/.preview.html
+.venv-act/
+data/act/
