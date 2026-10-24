@@ -19,6 +19,7 @@ the "Ideas" section of `docs/FINDINGS.md`.
 | `third_party/mujoco_menagerie/` | Sparse clone: `flexiv_rizon4s`, `robotiq_2f85`, `i2rt_yam` (Apache/MIT). |
 | `blind_insertion/` | Our code: assets builder, batched env, policy, PPO, eval, analysis. |
 | `blind_insertion/checks/` | Phase A signal checks (A-S1..A-S10), one script each. |
+| `blind_insertion/scenes/`, `envs/pick_env.py`, `pipeline/` | Task H: mini PC + SD reader bench (`pc_bench`), batched pick env + scripted expert, pick -> insert evaluation. |
 | `scripts/` | `eval/` (batched evals), `analysis/` (probes, signal checks, replays), `report/` (figures, report data), `real/` (real-arm tools), `server/` (multi-GPU runner), `tools/` (setup checks, local queue). See `scripts/README.md`. |
 | `results/<phase>/` | Frozen CSV/Parquet + PNG per figure. |
 | `runs/` | Training checkpoints/logs (gitignored). |
@@ -103,6 +104,11 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   `cam_rand`; the YAM camera is Menagerie's `wrist_cam` (D405). `train_visual --proprio` fuses joints.
 - `load_robot` adds backlash hinges before `sphere_pads` (which compiles the spec): the other order
   fails with "more than 6 dofs in body link_1".
+- Task H (SD reader -> mini PC USB-C): USB-C parts at spec dimensions (`builder.usbc_spec_variant`,
+  `sample_reader(clearance="spec")`), top-down grasp `EnvCfg(grasp_mode="top")`, config
+  `configs/task_h_reader.json` (written by `python -m blind_insertion.scenes.pc_bench --write_config`).
+  ACT runs in a separate LeRobot venv `.venv-act` (torch cu126 build for the V100s): `scripts/act/`
+  (gen_demos -> to_lerobot -> train_act.sh -> export_act -> TorchScript loaded by `pipeline/pick_insert.py`).
 - Eval variants default to `variant_seed=1000` (unseen geometries from the training
   distribution; training uses seed 0). OOD bins: `builder.OOD_BINS`.
 

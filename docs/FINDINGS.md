@@ -11,6 +11,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
 | B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
 | C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-99% on every such test, corrected backlash model 2026-10-22). Corrected backlash costs <= 4 points for every policy (base 99.9% at 5'); latency and gains remain the conditions that need training. All 17 conditions redone on the fixed model (2026-10-22 19:30 UTC). |
+| H | Task H (SD reader into the mini PC): scene, spec-accurate USB-C, scripted expert (512/512 demos), LeRobot dataset, insertion policy training; ACT next (2026-10-24 entry). |
 | D | Tier 1 (16 runs, 150M cap, randomized noise model) on mason (`runs/queue_server/stateD`). o60_c1 and o30_c0.5 (scaled) reach 99% training success; o15_c0.2 from scratch never succeeded, so cells tighter than 1 mm now use a clearance curriculum (`--curriculum scale`). Grid: `scripts/phase_d_report.py`. |
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
@@ -84,6 +85,42 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-24 (07:45 UTC, mason) — Task H: pick the SD reader (ACT) and plug it into the mini PC (blind policy)
+
+New task close to the planned real experiment (Yash, 2026-10-24): YAM bench as RoboSimStudio
+`yam_i2rt`; GMKtec G10 mini PC (103 x 42 x 98 mm) back right with its rear panel facing the
+arms; SanDisk USB-C SD reader lying flat in front, plug towards the PC; target port: second
+USB-C from the left. The right arm picks the reader top-down (ACT on top + wrist cameras), lines
+the plug up 3-10 mm in front of the port, and hands off to the blind TCN policy.
+
+- **USB-C at spec dimensions** (USB-IF Type-C R2.x): receptacle 8.34 x 2.56 mm, plug shell
+  8.25 x 2.40 mm and 6.65 mm long, tongue 6.69 x 0.70 mm. The fit is anisotropic (45 um per
+  side across the width, 80 um across the thickness), so the plug is the opening offset by the
+  thickness clearance and widened (`Variant.plug_widen`). Final-stage parts draw opening and
+  plug within tolerance (20-90 um / 50-110 um per side). Earlier E runs used 8.5 mm plugs,
+  isotropic clearance and a 6.5 mm tongue. Cavity 6.50 mm: mjfit needs the hollow plug longer
+  than the cavity + clearance, so the plug stops on the floor with the overmold 0.15 mm short of
+  the panel. Checks: an aligned push seats every part; 0.9-1.2 mm offsets are blocked at the
+  face; 0.5-0.6 mm offsets enter by tilting (free part, no hand), as with the E physics.
+- **Top-down grasp** (`EnvCfg.grasp_mode="top"`): part axis horizontal along tcp +x, pads
+  across the 36 mm body. The mirror grasp (tcp y = +part x) is outside the YAM wrist limits.
+  In-hand yaw is 0 (parallel pads force the faces flat). `grasp_along` acts along the part axis
+  in this mode (along the closing axis it pushed the part off-centre: 45/256 dropped). The pads
+  sit 2-5 mm above the body centre (`grasp_y`) because the fingertips must clear the table.
+- **Pick scene physics** (`scenes/pc_bench.build_scene`): same builder, pads, port and case as
+  PegEnv. Two fixes for the pick: the insertion env's stiff pad contact (time constant 2 ms,
+  solimp 0.99/0.999) is needed or the 27 g part sinks millimetres into the pads; finger damping
+  200 N s/m (about 6 cm/s closing) or the constant-force fingers slam shut and throw the part.
+- **Expert** (`envs/pick_env.Expert`, privileged): 512/512 demos reach the pre-insert pose,
+  lateral error 0.15 mm, tilt 0.16 deg (after waiting for the lagging arm before closing, and an
+  integral correction of 0.85 mm servo sag). 50% of episodes have DART noise (0.01 rad) during
+  reach and carry. Data: `data/act/raw_v1` -> LeRobot `data/act/reader_pick_v1` (H.264).
+- **Insertion policy** `H-reader-proprio-top-s0` (GPU 1): usbc curriculum, contact loss,
+  history 10, randomized noise model, start gap 0.3-10 mm. 69% training success at 31 M steps
+  (stage 1).
+- Pipeline check (expert pick + stage-1 checkpoint, 64 episodes): handoff 64/64, plug 0.48 mm
+  from the axis, gap 3.7-9.1 mm; insertion 3% (expected: stage-1 policy, spec clearance).
+
 ### 2026-10-22 (19:30 UTC, mason) — Redo batch: C specialists, D fixed row + diagonal, E noise stalls
 
 All on the corrected backlash model, 2,048 starts per cell, random robot conditions for D.
