@@ -11,7 +11,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
 | B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
 | C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-99% on every such test, corrected backlash model 2026-10-22). Corrected backlash costs <= 4 points for every policy (base 99.9% at 5'); latency and gains remain the conditions that need training. All 17 conditions redone on the fixed model (2026-10-22 19:30 UTC). |
-| H | Task H (SD reader into the mini PC): scene, spec-accurate USB-C, scripted expert (512/512 demos), LeRobot dataset, fine-tuned insertion 93% (1 mm) / 90% (3 mm); expert + insert 97.7%, ACT 120k + insert 72.7% (2026-10-24 16:40 entry). |
+| H | Task H (SD reader into the mini PC): scene, spec-accurate USB-C, scripted expert (512/512 demos), LeRobot dataset, fine-tuned insertion 93% (1 mm) / 90% (3 mm); expert + insert 97.7%, ACT 200k + insert + release 85.5% inserted / 84.0% seated after release (2026-10-24 20:40 entry). |
 | D | Tier 1 (16 runs, 150M cap, randomized noise model) on mason (`runs/queue_server/stateD`). o60_c1 and o30_c0.5 (scaled) reach 99% training success; o15_c0.2 from scratch never succeeded, so cells tighter than 1 mm now use a clearance curriculum (`--curriculum scale`). Grid: `scripts/phase_d_report.py`. |
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
@@ -85,6 +85,22 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-24 (20:40 UTC, mason) — Task H: ACT 200k + release, pipeline 85.5%
+
+- Pipeline now releases after seating (`pick_insert.Release`: hold joints, open 0.4 s, lift 8 cm).
+  Expert pick: 127/128 inserted, 126/128 still seated after the hand is clear.
+- ACT + fine-tuned insertion + release, n = 256 each (`results/H/pipe_act{160,200}k_ft_release.json`):
+
+  | ACT steps | Inserted | Seated after release | Held | Handoff lateral (median / p90) | Timeout handoffs |
+  |---|---|---|---|---|---|
+  | 120k (n = 128, no release) | 72.7% | – | 95% | 5.2 / 14.5 mm | – |
+  | 160k | 84.8% | 84.4% | 99% | 5.8 / 14.8 mm | 41% |
+  | 200k | 85.5% (CI 80.7–89.3) | 84.0% | 100% | 3.6 / 9.6 mm | 34% |
+
+- The remaining failures are ACT's lateral error at handoff. One third of handoffs still happen at the
+  10 s limit (ACT does not raise `done`). Next options: handoff on arm-at-rest, more demos, or a wrist-camera crop near the port.
+- Video: `results/H/act_200k_ft_release.mp4`.
+
 ### 2026-10-24 (16:40 UTC, mason) — Task H: fine-tuned insertion + ACT 120k, pipeline 73%
 
 - **Insertion fine-tune** `H-reader-proprio-topft-s0`: 150 M steps from the stage-2 checkpoint (231 M),
