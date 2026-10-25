@@ -1,5 +1,5 @@
 {
- "_about": "Cameras on the real YAM rig (duchamp3), measured 2026-10-25. Null = not measured yet. Sim counterpart: Menagerie yam_linear_4310.xml 'wrist_cam' (a RealSense D405, RGB + depth); EnvCfg.cam_spec replaces its field of view and mount pose with wrist.sim. The real wrist cameras are RGB only (no depth), 5:4. Right wrist calibrated (intrinsics + mount pose, wrist.right); left not yet. Device paths are in scripts/real/rig.py.",
+ "_about": "Cameras and arm kinematic offsets of the real YAM rig (duchamp3), calibrated 2026-10-25. Sim counterpart: Menagerie yam_linear_4310.xml 'wrist_cam' (a RealSense D405); EnvCfg.cam_spec replaces its field of view and mount pose with wrist.sim (the right, policy-arm camera). The real wrist cameras are RGB only. Device paths: scripts/real/rig.py.",
  "wrist": {
   "model": "generic UVC webcam (Generic 'USB Camera', iSerial 'YHTek'; Realtek chip, USB 0bda:5883)",
   "count": 2,
@@ -121,63 +121,112 @@
    "_about": "Read by EnvCfg.cam_spec (blind_insertion/assets/real_camera.py). Values of the RIGHT wrist camera (the policy arm). The policy image on both sides: undistort with the intrinsics, crop the largest square centred on the principal point (policy_crop_px), resize to cam_res; the sim renders a square at fovy_deg from pose_in_link6, so no principal-point offset is needed.",
    "source": "right",
    "modality": "rgb",
-   "fovy_deg": 70.84,
-   "_fovy_note": "= 2 atan(policy_crop_px / 2 / fy) = 2 atan(482 / 677.76)",
+   "fovy_deg": 69.7,
+   "_fovy_note": "right camera: 2 atan(policy_crop_px / 2 / fy) = 2 atan(476 / 683.61)",
    "pose_in_link6": {
     "pos": [
-     0.01204,
-     0.09813,
-     0.08873
+     0.00566,
+     0.08296,
+     0.08461
     ],
     "quat": [
-     0.03851,
-     -0.00202,
-     -0.26586,
-     0.96324
+     0.0243,
+     0.00236,
+     -0.23801,
+     0.97096
     ]
    },
-   "_pose_note": "camera optical frame (OpenCV: +z along the optical axis, +y down) in the Menagerie YAM link_6 frame; {pos: [m], quat: [w, x, y, z]}. The model's D405 it replaces sat 29 mm away, 7 deg less downward."
+   "_pose_note": "camera optical frame (OpenCV: +z along the optical axis, +y down) in the Menagerie YAM link_6 frame; {pos: [m], quat: [w, x, y, z]}. Valid with the right arm's joint offsets applied to its joint readings (spec 'arms')."
   },
-  "_calib_note": "per arm, from scripts/real/calib.py (checkerboard 8x7 inner corners, 15 mm, flat on the table; camera pose by hand-eye on the Menagerie link_6 frame). intrinsics at 1280x1024 in pixels; distortion: OpenCV [k1, k2, p1, p2, k3]",
+  "_calib_note": "per arm, scripts/real/calib.py: intrinsics from hand-held frames over the whole image plus the arm's views (5-coefficient OpenCV model [k1, k2, p1, p2, k3], 1280x1024 pixels); pose by hand-eye on the Menagerie link_6 frame with the arm's joint offsets (spec 'arms') applied. The two webcams have different lenses.",
   "right": {
    "usb_port": "7-2",
-   "calibrated": "2026-10-25, data/calib/run_002",
+   "calibrated": "2026-10-25, data/calib/run_004",
    "intrinsics": {
-    "fx": 676.92,
-    "fy": 677.76,
-    "cx": 623.98,
-    "cy": 481.84
+    "fx": 682.59,
+    "fy": 683.61,
+    "cx": 632.2,
+    "cy": 476.45
    },
    "distortion": [
-    -0.38463,
-    0.23709,
-    -0.00017,
-    -0.00023,
-    -0.11092
+    -0.33005,
+    0.11007,
+    0.0014,
+    -0.00081,
+    -0.01559
    ],
-   "policy_crop_px": 964,
+   "policy_crop_px": 952,
+   "fovy_deg_for_crop": 69.7,
+   "fov_full_image_deg": [
+    86.3,
+    73.7
+   ],
    "pose_in_link6": {
     "pos": [
-     0.01204,
-     0.09813,
-     0.08873
+     0.00566,
+     0.08296,
+     0.08461
     ],
     "quat": [
-     0.03851,
-     -0.00202,
-     -0.26586,
-     0.96324
+     0.0243,
+     0.00236,
+     -0.23801,
+     0.97096
     ]
    },
    "quality": {
-    "n_views": 25,
-    "n_used": 23,
-    "intrinsics_rms_px": 0.094,
-    "holdout_px": 9.0,
-    "_holdout_note": "hand-eye hold-out reprojection; ~3.5 mm at 0.25-0.3 m, limited by the arm model (link lengths, joint offsets), not the camera"
+    "arm_views": 36,
+    "handheld_frames": 267,
+    "image_cells_covered": 50,
+    "intrinsics_rms_px": 0.739,
+    "handeye_holdout_px": 2.7,
+    "handeye_holdout_px_without_joint_offsets": 8.0
    }
   },
-  "left": null
+  "left": {
+   "usb_port": "5-2",
+   "calibrated": "2026-10-25, data/calib/run_003",
+   "intrinsics": {
+    "fx": 544.3,
+    "fy": 545.1,
+    "cx": 652.74,
+    "cy": 466.2
+   },
+   "distortion": [
+    -0.00411,
+    -0.01735,
+    0.00042,
+    0.00017,
+    0.00482
+   ],
+   "policy_crop_px": 932,
+   "fovy_deg_for_crop": 81.05,
+   "fov_full_image_deg": [
+    99.2,
+    86.4
+   ],
+   "pose_in_link6": {
+    "pos": [
+     0.00469,
+     0.08489,
+     0.0853
+    ],
+    "quat": [
+     0.01055,
+     -0.00261,
+     -0.2367,
+     0.97152
+    ]
+   },
+   "quality": {
+    "arm_views": 41,
+    "handheld_frames": 150,
+    "image_cells_covered": 50,
+    "intrinsics_rms_px": 0.229,
+    "handeye_holdout_px": 2.2,
+    "handeye_holdout_px_without_joint_offsets": 3.0
+   }
+  }
  },
  "top": {
   "model": "Stereolabs ZED 2",
@@ -235,18 +284,67 @@
   },
   "extrinsics_cam_in_right_base": {
    "pos": [
-    -0.1979,
-    0.3867,
-    0.8828
+    -0.21015,
+    0.35358,
+    0.87333
    ],
    "quat": [
-    0.17221,
-    -0.69241,
-    0.66652,
-    -0.21604
+    0.19529,
+    -0.68071,
+    0.67602,
+    -0.20369
    ],
-   "_note": "ZED rectified-left optical frame (OpenCV) in the right arm base frame, via the static board (run_002)"
+   "_note": "ZED HD1080 rectified-left optical frame (OpenCV) in the right base, via the static board (run_004)"
   },
-  "extrinsics_cam_in_left_base": null
+  "extrinsics_cam_in_left_base": {
+   "pos": [
+    -0.19795,
+    -0.25473,
+    0.87444
+   ],
+   "quat": [
+    0.19267,
+    -0.67536,
+    0.68281,
+    -0.20133
+   ],
+   "_note": "ZED HD1080 rectified-left optical frame (OpenCV) in the left base, via the static board (run_003)"
+  }
+ },
+ "arms": {
+  "_about": "Encoder zero offsets of each real arm against the Menagerie YAM kinematics (rad, joints 1-6): add them to the measured joint positions (q_model = q_measured + offset) so FK, the camera pose and the sim agree. Joints 1 and 6 are not observable by hand-eye (they trade off with the board and the camera mount) and are left at 0. Fitted 2026-10-25 with the wrist cameras; hand-eye hold-out right 8.0 -> 2.7 px, left 3.0 -> 2.2 px.",
+  "right": {
+   "joint_offsets_rad": [
+    0.0,
+    0.01267,
+    0.00026,
+    0.02318,
+    -0.01946,
+    0.0
+   ]
+  },
+  "left": {
+   "joint_offsets_rad": [
+    0.0,
+    0.02095,
+    -0.00719,
+    0.00662,
+    -0.00046,
+    0.0
+   ]
+  },
+  "left_base_in_right_base": {
+   "pos": [
+    -0.01011,
+    0.60771,
+    -0.00081
+   ],
+   "quat": [
+    0.99996,
+    -0.00224,
+    -0.00361,
+    0.00831
+   ]
+  }
  }
 }

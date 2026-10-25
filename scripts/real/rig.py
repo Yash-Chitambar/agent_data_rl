@@ -29,6 +29,17 @@ ZED_SERIAL = 20120598  # top camera, ZED 2; needs a USB 3 link for the SDK (HD72
 ZED_UVC_DEVICE = "/dev/v4l/by-id/usb-Technologies__Inc._ZED_2-video-index0"
 
 
+SPEC = Path(__file__).resolve().parents[2] / "blind_insertion/configs/real_cameras_duchamp3.json"
+
+
+def joint_offsets(side: str):
+    """Encoder zero offsets (rad, joints 1-6) of the real arm against the Menagerie kinematics the
+    sim uses: q_model = q_measured + offsets. Fitted with the wrist-camera calibration."""
+    import json
+    import numpy as np
+    return np.array(json.loads(SPEC.read_text())["arms"][side]["joint_offsets_rad"])
+
+
 def _adapter_serial(iface: Path) -> str | None:
     try:
         return (iface / "device" / ".." / "serial").resolve().read_text().strip()

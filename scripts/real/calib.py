@@ -15,6 +15,8 @@ error) holds the arm where it is until you clear it; then it returns slowly to r
     .venv/bin/python scripts/real/calib.py zed                       # ZED board pose (no motion)
     .venv/bin/python scripts/real/calib.py find --side right         # MOVES: search for the board
     .venv/bin/python scripts/real/calib.py collect --side right --n 50   # MOVES: diverse views
+    .venv/bin/python scripts/real/calib.py intrinsics --side right --run data/calib/run_NNN
+                                       # no motion: hold the board in front of the camera, edges too
     .venv/bin/python scripts/real/calib.py solve --side right        # offline
 Captures go to data/calib/<run>/ (gitignored).
 """
@@ -66,7 +68,11 @@ RECOVER_CLEARANCE = {"arm": 0.015, "wrist": 0.020}
 def calib_checker(c):
     return safety.Checker(c["arm"], c["wrist"], {b: c["wrist"] for b in WRIST_BODIES})
 PATH_SLACK = 0.02           # m: reach/lateral margin for paths from the measured pose
-BOARD_SHIFT_STOP = 0.002    # m: the ZED sees the board moved (or a base moved) -> stop and hold
+# the ZED sees the board (or a base) moved -> stop and hold: two readings in a row over
+# BOARD_SHIFT_STOP, or one over BOARD_SHIFT_JUMP. Single readings scatter 0.2-1 mm while the arm
+# shadows the board and once read 2.07 mm with the board still in place (2026-10-25, run_004).
+BOARD_SHIFT_STOP = 0.002
+BOARD_SHIFT_JUMP = 0.005
 MAX_VEL = 0.3               # rad/s joint speed cap for calibration moves
 # rad: measured vs commanded beyond this -> blocked or collision -> hold and stop. i2rt holds the
 # wrist far softer (kp 80, 80, 80, 40, 10, 10), so joints 5-6 trail their command more in a move
@@ -185,6 +191,7 @@ class Zed:
         self.K = np.array([[c.fx, 0, c.cx], [0, c.fy, c.cy], [0, 0, 1.0]])
         self.mat = sl.Mat()
         self.ref = None   # T_zed_board of the run (board-shift watchdog)
+        self.last_over = False
 
     def use_reference(self, run):
         """Load the run's T_zed_board and check the board is still there before any motion."""
@@ -342,6 +349,31 @@ def cam_mount_guess(kin):
     return T_from(R.reshape(3, 3), p["pos"])
 
 
+def cam_prior(kin, side):
+    """(T_link6_cam, K, dist) to bootstrap with: this side's calibration if the spec has it, else
+    the other side's (same webcam model and bracket), else the model's D405 and a 90 deg guess."""
+    spec = json.loads((REPO / "blind_insertion/configs/real_cameras_duchamp3.json").read_text())["wrist"]
+    for s_ in (side, "left" if side == "right" else "right"):
+        w = spec.get(s_)
+        if w and w.get("pose_in_link6") and w.get("intrinsics"):
+            R = np.zeros(9)
+            mujoco.mju_quat2Mat(R, np.array(w["pose_in_link6"]["quat"], float))
+            i = w["intrinsics"]
+            K = np.array([[i["fx"], 0, i["cx"]], [0, i["fy"], i["cy"]], [0, 0, 1.0]])
+            return T_from(R.reshape(3, 3), w["pose_in_link6"]["pos"]), K, np.array(w["distortion"], float)
+    return cam_mount_guess(kin), K_guess_from_fov(90.0), None
+
+
+def on_table(T_base_board):
+    """The board lies flat on the table: keep the estimate's horizontal position and yaw only."""
+    c = T_base_board[:3, :3] @ BOARD_CENTER + T_base_board[:3, 3]
+    x = T_base_board[:3, 0].copy()
+    x[2] = 0
+    x /= np.linalg.norm(x)
+    R = np.column_stack([x, np.cross([0, 0, 1.0], x), [0, 0, 1.0]])
+    return T_from(R, np.r_[c[:2], 0.0] - R @ BOARD_CENTER)
+
+
 def look_at(p_cam, p_target, R_ref, roll=0.0):
     """Camera (OpenCV) at p_cam with +z toward p_target; roll kept closest to R_ref, plus roll."""
     z = p_target - p_cam
@@ -413,14 +445,45 @@ def refine(X, Y, Fs, corners, K, dist):
     return unpack(r.x)
 
 
+OFFSET_JOINTS = [1, 2, 3, 4]   # joints 2-5; a joint 1 (base yaw) offset is the same as turning the
+                               # board, a joint 6 offset the same as turning the camera mount
+
+
+def fit_offsets(kin, Q, corners, K, dist, X, Y, idx):
+    """Refine X, Y and encoder zero offsets of OFFSET_JOINTS on views idx. Returns X, Y, dq (6)."""
+    from scipy.optimize import least_squares
+
+    def unpack(x):
+        dq = np.zeros(6)
+        dq[OFFSET_JOINTS] = x[12:]
+        return T_from_rt(x[:3], x[3:6]), T_from_rt(x[6:9], x[9:12]), dq
+
+    def resid(x):
+        Xx, Yy, dq = unpack(x)
+        return reproj_residual(Xx, Yy, [kin.fk(Q[i] + dq) for i in idx], [corners[i] for i in idx], K, dist).ravel()
+
+    x0 = np.r_[np.hstack(rt_from_T(X)), np.hstack(rt_from_T(Y)), np.zeros(len(OFFSET_JOINTS))]
+    return unpack(least_squares(resid, x0, loss="huber", f_scale=2.0).x)
+
+
 def solve_side(run, side, kin_paths):
     S = [json.loads(p.read_text()) | {"_name": p.stem} for p in sorted((run / side).glob("[0-9]*.json"))]
     S = [s for s in S if s["wrist_corners"] is not None]
     corners = [np.array(s["wrist_corners"], np.float32) for s in S]
     n = len(S)
-    rms, K, dist, rvs, tvs = cv2.calibrateCamera([OBJ.astype(np.float32)] * n, corners, WRIST_RES, None, None)
-    Cs = [T_from_rt(r, t) for r, t in zip(rvs, tvs)]
-    res = {"n_views": n, "intrinsics_rms_px": float(rms), "K": K.tolist(), "dist": dist.ravel().tolist()}
+    # hand-held frames (calib.py intrinsics) cover the image edges; the arm's views only its middle
+    intr = [np.array(json.loads(p.read_text())["corners"], np.float32)
+            for p in sorted((run / f"{side}_intr").glob("[0-9]*.json"))]
+    allc = corners + intr
+    # standard 5-coefficient lens model: the rational model fits the right lens 0.15 px better
+    # but its large, cancelling terms can extrapolate badly where no corners were seen (the
+    # bottom of the image, behind the finger pads, which the policy crop partly includes)
+    rms, K, dist, _, _ = cv2.calibrateCamera([OBJ.astype(np.float32)] * len(allc), allc, WRIST_RES, None, None)
+    Cs = [board_pose(c, K, dist)[0] for c in corners]
+    pts = np.concatenate(allc)
+    H, _, _ = np.histogram2d(pts[:, 0], pts[:, 1], bins=[8, 8], range=[[0, WRIST_RES[0]], [0, WRIST_RES[1]]])
+    res = {"n_views": n, "n_intrinsic_frames": len(intr), "image_cells_covered": int((H > 0).sum()),
+           "intrinsics_rms_px": float(rms), "K": K.tolist(), "dist": dist.ravel().tolist()}
     for name, path, body in kin_paths:
         kin = Kin(path, body)
         Fs = [kin.fk(np.array(s["q"][:6])) for s in S]
@@ -449,6 +512,20 @@ def solve_side(run, side, kin_paths):
         res[name] = {"T_link6_cam": X.tolist(), "T_base_board": Y.tolist(), "n_used": nk, "dropped": dropped,
                      "reproj_mean_px": float(e.mean()), "reproj_p95_px": float(np.percentile(e, 95)),
                      "holdout_mean_px": float(np.concatenate(ho).mean())}
+        # encoder zero offsets of joints 2-5, fitted with X and Y on all views (the offsets explain
+        # what looked like outliers on the right arm: 10.3 -> 2.7 px hold-out, 2026-10-25)
+        Q = np.array([s["q"][:6] for s in S])
+        Xo, Yo, dq = fit_offsets(kin, Q, corners, K, dist, X, Y, np.arange(n))
+        idx = np.random.default_rng(0).permutation(n)
+        ho = []
+        for f in range(5):
+            te = idx[f::5]
+            Xf, Yf, dqf = fit_offsets(kin, Q, corners, K, dist, Xo, Yo, np.setdiff1d(idx, te))
+            ho.append(np.linalg.norm(reproj_residual(Xf, Yf, [kin.fk(Q[i] + dqf) for i in te],
+                                                     [corners[i] for i in te], K, dist), axis=1))
+        res[name]["with_joint_offsets"] = {
+            "joint_offsets_rad": dq.tolist(), "T_link6_cam": Xo.tolist(), "T_base_board": Yo.tolist(),
+            "holdout_mean_px": float(np.concatenate(ho).mean()), "n_used": n}
     return res
 
 
@@ -477,15 +554,65 @@ def capture(run, side, idx, mover, wcam, zed, K_guess):
     d.mkdir(parents=True, exist_ok=True)
     cv2.imwrite(str(d / f"{idx:03d}.jpg"), img, [cv2.IMWRITE_JPEG_QUALITY, 95])
     (d / f"{idx:03d}.json").write_text(json.dumps(rec))
-    if shift is not None and shift > BOARD_SHIFT_STOP:
-        raise safety.SafetyStop(f"the ZED sees the board {shift * 1000:.1f} mm from its reference: "
-                                f"the board or a base moved")
+    if shift is not None and zed is not None:
+        over = shift > BOARD_SHIFT_STOP
+        if shift > BOARD_SHIFT_JUMP or (over and zed.last_over):
+            raise safety.SafetyStop(f"the ZED sees the board {shift * 1000:.1f} mm from its reference: "
+                                    f"the board or a base moved")
+        zed.last_over = over
     return c
 
 
 def K_guess_from_fov(hfov_deg=70.0):
     f = WRIST_RES[0] / 2 / np.tan(np.radians(hfov_deg) / 2)
     return np.array([[f, 0, WRIST_RES[0] / 2], [0, f, WRIST_RES[1] / 2], [0, 0, 1.0]])
+
+
+def cmd_intrinsics(a):
+    """Hand-held intrinsic capture, no arm motion: hold the board 20-40 cm in front of the wrist
+    camera and move it into every corner and along every edge, tilted. Frames are kept when the
+    board is found and has moved since the last kept frame; stops at full coverage or --seconds."""
+    run = Path(a.run)
+    out = run / f"{a.side}_intr"
+    out.mkdir(parents=True, exist_ok=True)
+    cap = cv2.VideoCapture(rig.WRIST_CAM[a.side], cv2.CAP_V4L2)
+    cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, WRIST_RES[0])
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, WRIST_RES[1])
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    cover = np.zeros((8, 8), int)
+    last, kept, t0 = None, len(list(out.glob("[0-9]*.json"))), time.time()
+    print(f"{a.side} wrist camera: move the board into every corner and edge of the view, tilted.\n"
+          f"Grid = the camera image (8 x 8): '#' has board corners, '.' still empty. Ctrl+C to stop.", flush=True)
+    try:
+        while time.time() - t0 < a.seconds:
+            ok, f = cap.read()
+            if not ok:
+                continue
+            g = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)
+            small = cv2.resize(g, None, fx=0.5, fy=0.5)
+            ok, _ = cv2.findChessboardCornersSB(small, BOARD)        # fast check, then full resolution
+            c = detect(g) if ok else None
+            if c is None:
+                continue
+            if last is not None and np.linalg.norm(c - last, axis=1).mean() < 40:
+                continue                                              # board has not moved enough
+            cells = np.clip((c / np.array(WRIST_RES) * 8).astype(int), 0, 7)
+            new = sum(cover[x, y] == 0 for x, y in set(map(tuple, cells)))
+            for x, y in set(map(tuple, cells)):
+                cover[x, y] += 1
+            cv2.imwrite(str(out / f"{kept:03d}.jpg"), f, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            (out / f"{kept:03d}.json").write_text(json.dumps({"corners": c.tolist(), "t": time.time()}))
+            kept, last = kept + 1, c
+            grid = "\n".join("   " + " ".join("#" if cover[x, y] else "." for x in range(8)) for y in range(8))
+            print(f"\nframe {kept}: +{new} new cells, {int((cover > 0).sum())}/64 covered\n{grid}", flush=True)
+            if (cover > 0).sum() >= a.cells and kept >= a.min_frames:
+                print("\ncoverage reached: done", flush=True)
+                break
+    except KeyboardInterrupt:
+        pass
+    cap.release()
+    print(f"kept {kept} frames in {out}", flush=True)
 
 
 def cmd_zed(a):
@@ -559,12 +686,11 @@ def cmd_find(a):
 def cmd_collect(a):
     run = Path(a.run)
     kin, checker = Kin(), calib_checker(PLAN_CLEARANCE)
-    X = cam_mount_guess(kin)
+    X, K, dist = cam_prior(kin, a.side)
     found = json.loads((run / a.side / "found.json").read_text())
     rec = json.loads((run / a.side / f"{found['idx']:03d}.json").read_text())
-    K = K_guess_from_fov(a.hfov)
-    T_cam_board, _ = board_pose(np.array(rec["wrist_corners"]), K, None)
-    T_base_board = kin.fk(np.array(rec["q"][:6])) @ X @ T_cam_board
+    T_cam_board, _ = board_pose(np.array(rec["wrist_corners"]), K, dist)
+    T_base_board = on_table(kin.fk(np.array(rec["q"][:6])) @ X @ T_cam_board)
     print("board centre (base frame, rough):", (T_base_board[:3, :3] @ BOARD_CENTER + T_base_board[:3, 3]).round(3))
     rng = np.random.default_rng(a.seed)
     zed = Zed() if a.zed else None
@@ -612,9 +738,13 @@ def cmd_solve(a):
     zed_p = run / "zed.json"
     if zed_p.exists():
         Tzb = np.array(json.loads(zed_p.read_text())["T_zed_board"])
-        Tbb = np.array(res["menagerie"]["T_base_board"])
-        res["menagerie"]["T_base_zed"] = (Tbb @ T_inv(Tzb)).tolist()
+        for d in (res["menagerie"], res["menagerie"]["with_joint_offsets"]):
+            d["T_base_zed"] = (np.array(d["T_base_board"]) @ T_inv(Tzb)).tolist()
     (run / f"solve_{a.side}.json").write_text(json.dumps(res, indent=1))
+    for k in ("menagerie", "i2rt"):
+        w = res[k]["with_joint_offsets"]
+        print(f"{k}: with joint offsets (deg) {np.degrees(w['joint_offsets_rad']).round(2).tolist()} "
+              f"-> hold-out {w['holdout_mean_px']:.1f} px")
     print(json.dumps({k: (v if not isinstance(v, dict) else {kk: vv for kk, vv in v.items() if "px" in kk or kk in ("n_used", "dropped")})
                       for k, v in res.items() if k not in ("K", "dist")}, indent=1))
     print("K", np.array(res["K"]).round(1).tolist(), "dist", np.round(res["dist"], 4).tolist())
@@ -623,11 +753,15 @@ def cmd_solve(a):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("zed", "find", "collect", "solve"):
+    for name in ("zed", "find", "collect", "solve", "intrinsics"):
         p = sub.add_parser(name)
         p.add_argument("--run", default="")
         if name != "zed":
             p.add_argument("--side", required=True, choices=("left", "right"))
+        if name == "intrinsics":
+            p.add_argument("--seconds", type=float, default=240)
+            p.add_argument("--cells", type=int, default=52, help="image cells (of 64) to cover")
+            p.add_argument("--min_frames", type=int, default=30)
         if name in ("find", "collect"):
             p.add_argument("--zed", action="store_true", help="also grab the ZED at every capture")
         if name == "find":
@@ -636,6 +770,6 @@ if __name__ == "__main__":
         if name == "collect":
             p.add_argument("--n", type=int, default=40)
             p.add_argument("--seed", type=int, default=0)
-            p.add_argument("--hfov", type=float, default=70.0, help="wrist FOV guess for the first board pose")
     a = ap.parse_args()
-    {"zed": cmd_zed, "find": cmd_find, "collect": cmd_collect, "solve": cmd_solve}[a.cmd](a)
+    {"zed": cmd_zed, "find": cmd_find, "collect": cmd_collect, "solve": cmd_solve,
+     "intrinsics": cmd_intrinsics}[a.cmd](a)
