@@ -115,6 +115,10 @@ class EnvCfg:
     # per-reset render randomization (plan §12.1), off by default, e.g. {"cam_pos": 0.002,
     # "cam_rot_deg": 2, "light": true, "colors": true}
     cam_rand: dict | None = None
+    # real camera spec (e.g. "blind_insertion/configs/real_cameras_duchamp3.json"): sets the wrist
+    # camera's field of view and mount pose from its wrist.sim section (assets/real_camera.py);
+    # null fields keep the model's camera and are reported as placeholders
+    cam_spec: str | None = None
     # observation corruption (Phase C); 0 = off
     q_noise: float = 0.0
     qd_noise: float = 0.0
@@ -173,6 +177,12 @@ class PegEnv:
             self.mjm.geom_solimp[lay.pad_geoms, :3] = cfg.pad_solimp
         for k_, v_ in (cfg.mj_opt or {}).items():
             setattr(self.mjm.opt, k_, v_)
+        if cfg.cam_spec:
+            from blind_insertion.assets.real_camera import apply_wrist_spec
+            self.cam_spec = apply_wrist_spec(self.mjm, cfg.cam_spec, cfg.cam_modality)
+            if self.cam_spec["placeholder"]:
+                print(f"[cam_spec] {cfg.cam_spec}: {', '.join(self.cam_spec['placeholder'])} not "
+                      f"measured yet, using the model's wrist camera for these", flush=True)
         N = self.N = cfg.nworld
         self.nK = len(variants)
         self.n_arm = len(lay.arm_qadr)

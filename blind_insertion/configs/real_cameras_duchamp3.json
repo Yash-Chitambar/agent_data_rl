@@ -19,9 +19,17 @@
   "serial_number": null,
   "_serial_note": "both cameras report the same iSerial 'YHTek', so they are told apart by USB port only",
   "arm_side": {"usb_7-2": "right", "usb_5-2": "left"},
+  "_calib_note": "intrinsics at 1280x1024: {fx, fy, cx, cy} in pixels; distortion: OpenCV coefficients [k1, k2, p1, p2, k3]",
   "intrinsics": null,
   "distortion": null,
-  "extrinsics_cam_in_gripper": null
+  "sim": {
+   "_about": "Read by EnvCfg.cam_spec (blind_insertion/assets/real_camera.py). The policy image on both sides: undistort, crop the largest square centred on the principal point (1024x1024 at 1280x1024), resize to cam_res. Null = not measured: the env keeps the model's D405 value and prints a placeholder warning.",
+   "modality": "rgb",
+   "fovy_deg": null,
+   "_fovy_note": "= 2 atan(512 / fy) with fy at 1280x1024, from the intrinsic calibration. The model's D405 placeholder is 58.0 deg (its 16:9 sensor, vertical).",
+   "pose_in_link6": null,
+   "_pose_note": "camera optical frame (OpenCV: +z along the optical axis, +y down) in the YAM link_6 frame, from the hand-eye calibration; {pos: [m], quat: [w, x, y, z]}. The model's D405 placeholder: pos [0.0, 0.070435, 0.077006], quat [0.0, 0.0, -0.21644, 0.976296]."
+  }
  },
  "top": {
   "model": "Stereolabs ZED 2",

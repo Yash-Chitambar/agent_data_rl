@@ -105,6 +105,11 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   (`configs/phase_e_usbc_side.json`). Per-world noise levels: `EnvCfg.noise_rand`.
 - Visual: `EnvCfg.cam_modality` rgb|depth|rgbd (frame channels), `depth_model` (D405-like sensor),
   `cam_rand`; the YAM camera is Menagerie's `wrist_cam` (D405). `train_visual --proprio` fuses joints.
+- Real wrist camera in sim: `EnvCfg.cam_spec = "blind_insertion/configs/real_cameras_duchamp3.json"`
+  sets the wrist camera's fovy and mount pose from the spec's `wrist.sim` section and refuses a
+  modality the real camera lacks (the real wrist cameras are RGB only). Null fields keep the D405
+  and print a placeholder warning (fovy and pose need the camera calibration). The real side feeds
+  `assets/real_camera.real_policy_image` (undistort, square crop on the principal point, resize).
 - `load_robot` adds backlash hinges before `sphere_pads` (which compiles the spec): the other order
   fails with "more than 6 dofs in body link_1".
 - Task H (SD reader -> mini PC USB-C): USB-C parts at spec dimensions (`builder.usbc_spec_variant`,
