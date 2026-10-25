@@ -1,0 +1,163 @@
+"""Safety layer for the real YAM arms on duchamp3: hold-mode connect, joint box, table clearance.
+
+Why: in i2rt's default zero-gravity (floating) mode the right arm's shoulder drifts outward under
+its own gravity compensation (i2rt applies 1.1x the model torque on joints 2-3) and drove the
+gripper into the table on connect (2026-10-25; CAN log: kp = 0, shoulder 0 -> 0.79 rad in 1.3 s,
+stopped with the finger tip at the table). i2rt does not enforce joint limits in torque mode.
+
+So:
+  * `connect(side)` uses zero_gravity_mode=False: the arm holds its current pose (PD) from the
+    first instant. Never float an arm near the table.
+  * `SafeArm.command(q)` clips each target into the joint box and to MAX_STEP rad from the
+    measured pose, then checks the target pose with forward kinematics: every mesh vertex of the
+    arm must stay CLEARANCE above the table plane (finger tips: TIP_CLEARANCE). An unsafe target
+    is not sent; the arm holds its measured pose and SafetyStop is raised.
+  * `SafeArm.read()` checks the measured pose the same way (catches drift and contact).
+
+The table plane is z = 0 in the arm's base frame: the base stands on the table (at the stop pose
+above, the finger tip computed to -7 mm with foam under it).
+
+    .venv/bin/python scripts/real/safety.py      # offline self-test, no hardware
+"""
+import sys
+from pathlib import Path
+
+import mujoco
+import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import rig  # noqa: E402
+
+TABLE_Z = 0.0           # table plane in the arm base frame (m)
+CLEARANCE = 0.04        # min height of any arm vertex above the table, except the finger tips (m)
+TIP_CLEARANCE = 0.02    # min height of the finger tips (m); insertion fixtures sit on the table
+MAX_STEP = 0.10         # max joint target change from the measured pose per command (rad)
+# Joint box = model range widened by this (rad), as i2rt's own limits (get_yam_robot). The sim
+# YAM policies (results/C rollouts) use joint 4 down to -1.701 (range -1.571); joints 2-3 rest on
+# their stops at 0. The table check below is the real protection.
+LIMIT_BUFFER = 0.15
+TIP_BODIES = ("tip_left", "tip_right")
+EE_MASS = 0.5           # kg, as in yam-control's rig_config (close to the model's 0.553 kg)
+
+
+class SafetyStop(RuntimeError):
+    pass
+
+
+def _model() -> mujoco.MjModel:
+    from i2rt.robots.utils import ArmType, GripperType, combine_arm_and_gripper_xml
+    path = combine_arm_and_gripper_xml(ArmType.from_string_name("yam"),
+                                       GripperType.from_string_name("linear_4310"), ee_mass=EE_MASS)
+    return mujoco.MjModel.from_xml_path(path)
+
+
+class Checker:
+    """Forward-kinematics table-clearance and joint-box checks on a 6-joint arm pose."""
+
+    def __init__(self):
+        self.m = _model()
+        self.d = mujoco.MjData(self.m)
+        rng = self.m.jnt_range[:6].copy()
+        self.lo, self.hi = rng[:, 0] - LIMIT_BUFFER, rng[:, 1] + LIMIT_BUFFER
+        tip_ids = {mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_BODY, b) for b in TIP_BODIES}
+        self.geoms = []  # (geom id, local vertices or None, min z)
+        for g in range(self.m.ngeom):
+            b = self.m.geom_bodyid[g]
+            if b == 0:  # world: the fixed base mesh stands on the table
+                continue
+            verts = None
+            if self.m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+                mid = self.m.geom_dataid[g]
+                a, n = self.m.mesh_vertadr[mid], self.m.mesh_vertnum[mid]
+                verts = self.m.mesh_vert[a:a + n].copy()
+            zmin = TABLE_Z + (TIP_CLEARANCE if b in tip_ids else CLEARANCE)
+            self.geoms.append((g, verts, zmin))
+
+    def clip(self, q6: np.ndarray) -> np.ndarray:
+        return np.clip(q6, self.lo, self.hi)
+
+    def in_box(self, q6: np.ndarray) -> bool:
+        return bool(np.all(q6 >= self.lo - 1e-9) and np.all(q6 <= self.hi + 1e-9))
+
+    def violation(self, q6: np.ndarray) -> str | None:
+        """None if the pose is safe, else a short reason."""
+        if not self.in_box(q6):
+            j = int(np.argmax(np.maximum(self.lo - q6, q6 - self.hi)))
+            return f"joint {j + 1} = {q6[j]:+.3f} outside [{self.lo[j]:+.3f}, {self.hi[j]:+.3f}]"
+        self.d.qpos[:] = 0
+        self.d.qpos[:6] = q6
+        mujoco.mj_kinematics(self.m, self.d)
+        for g, verts, zmin in self.geoms:
+            if verts is None:
+                z = self.d.geom_xpos[g][2] - self.m.geom_rbound[g]
+            else:
+                z = (verts @ self.d.geom_xmat[g].reshape(3, 3).T[:, 2] + self.d.geom_xpos[g][2]).min()
+            if z < zmin:
+                body = mujoco.mj_id2name(self.m, mujoco.mjtObj.mjOBJ_BODY, self.m.geom_bodyid[g])
+                return f"{body} at z = {z * 1000:+.0f} mm < {zmin * 1000:.0f} mm above the table"
+        return None
+
+
+def connect(side: str, gripper_kp: float = 2.0, gripper_kd: float = 0.5):
+    """i2rt robot for one arm, holding its current pose (PD) from the start. Gripper calibrates."""
+    from i2rt.robots.get_robot import get_yam_robot
+    from i2rt.robots.utils import ArmType, GripperType
+    return get_yam_robot(channel=rig.can_channel(side), arm_type=ArmType.from_string_name("yam"),
+                         gripper_type=GripperType.from_string_name("linear_4310"), ee_mass=EE_MASS,
+                         gripper_kp=gripper_kp, gripper_kd=gripper_kd, zero_gravity_mode=False)
+
+
+class SafeArm:
+    """Wraps an i2rt robot (7 values: 6 joints + gripper 0..1). All commands go through checks."""
+
+    def __init__(self, robot, checker: Checker | None = None):
+        self.robot = robot
+        self.check = checker or Checker()
+        q = self.read()  # raises if the arm already starts in an unsafe pose
+        self.last_safe = q
+
+    def _hold(self, q7: np.ndarray):
+        self.robot.command_joint_pos(np.asarray(q7, float))
+
+    def read(self) -> np.ndarray:
+        q = np.asarray(self.robot.get_joint_pos(), float)
+        why = self.check.violation(q[:6])
+        if why is not None:
+            self._hold(q)
+            raise SafetyStop(f"measured pose unsafe: {why}; holding")
+        return q
+
+    def command(self, q7_target) -> np.ndarray:
+        """Send a safe version of the target; returns what was sent. Raises SafetyStop if unsafe."""
+        q = self.read()
+        tgt = np.asarray(q7_target, float).copy()
+        tgt[:6] = self.check.clip(q[:6] + np.clip(tgt[:6] - q[:6], -MAX_STEP, MAX_STEP))
+        tgt[6] = float(np.clip(tgt[6], 0.0, 1.0))
+        why = self.check.violation(tgt[:6])
+        if why is not None:
+            self._hold(q)
+            raise SafetyStop(f"target unsafe: {why}; holding")
+        self.robot.command_joint_pos(tgt)
+        self.last_safe = tgt
+        return tgt
+
+    def close(self):
+        self.robot.close()
+
+
+if __name__ == "__main__":
+    c = Checker()
+    np.set_printoptions(precision=3, suppress=True)
+    print("joint box lo:", c.lo, "\njoint box hi:", c.hi)
+    cases = {  # poses logged on the real right arm, 2026-10-25
+        "rest (folded)": [0.089, 0.001, 0.001, -0.106, -0.010, -0.027],
+        "stopped on table": [0.085, 0.792, 0.007, 0.051, -0.018, -0.015],
+        "halfway out": [0.09, 0.40, 0.006, -0.096, -0.01, -0.03],
+    }
+    for name, q in cases.items():
+        print(f"{name:18s} -> {c.violation(np.array(q)) or 'OK'}")
+    # how far the shoulder may swing out from rest with the elbow folded
+    for q2 in np.arange(0.0, 0.85, 0.05):
+        if c.violation(np.array([0.09, q2, 0.006, -0.1, -0.01, -0.03])):
+            print(f"elbow folded: shoulder blocked from q2 = {q2:.2f} rad")
+            break
