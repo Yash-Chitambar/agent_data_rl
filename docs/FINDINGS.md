@@ -16,6 +16,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
+| Real rig | duchamp3 set up (2026-10-24/25): both YAMs on CAN, safety layer, software stop, both wrist cameras and the ZED calibrated, arm joint offsets measured (spec `blind_insertion/configs/real_cameras_duchamp3.json`). Not yet: latency/backlash tests, gain match, deployment loop. Branch `real-yam-setup` (PR #1). |
 
 ### Phase B results (seed 0 final checkpoints, 2,048 matched starts, unseen geometries)
 
@@ -80,11 +81,76 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Gains are not in `randall`: gain x4 still gives 52%. Measure real gains or add gain
   randomization (0.5-2x) to the noise model if the real step tests disagree with kp 80/30.
 - Measure the real YAM's command-to-encoder latency (in 20 ms control steps) and backlash: these
-  two set the D/E noise model more than q noise does.
+  two set the D/E noise model more than q noise does. The rig is ready for it (2026-10-25 entry).
+- Real-rig gaps for sim realism (2026-10-25 entry, "Open"): gains (real wrist kp 40/10/10 vs sim
+  30/30/30), joint offsets in the deployment loop, real fixture pose, finger-pad geometry, wrist
+  payload, camera exposure and frame latency.
 - Blind s2 and no-contact s1 (local queue) for the 3-seed B tables.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-25 (22:30 UTC, duchamp3) — Real YAM rig: safety, cameras calibrated, joint offsets 0.4-1.3°
+
+duchamp3 (RTX 4090) is the real-arm PC: two YAMs (i2rt, DM motors) on CANable2 adapters, two
+wrist webcams, a ZED 2 above the table. Branch `real-yam-setup` (PR #1). Tools in `scripts/real/`
+(`setup_real.sh`, `rig.py`, `safety.py`, `estop.py`, `calib.py`); results in
+`blind_insertion/configs/real_cameras_duchamp3.json` (sim reads it via `EnvCfg.cam_spec`).
+
+**Calibration** (checkerboard 8 x 7 inner corners, 15 mm; arm views from planned poses plus
+hand-held frames over the whole image; hand-eye by Park-Martin + least squares on the Menagerie
+`link_6` frame, because OpenCV 5 has no `calibrateHandEye`):
+
+| | Right wrist (policy arm) | Left wrist |
+|---|---|---|
+| Lens | fx 682.6, strong barrel (k1 -0.33), ~86 x 74° | fx 544.3, almost none (k1 -0.004), ~99 x 86° |
+| Intrinsics RMS | 0.74 px (36 arm + 267 hand-held frames) | 0.23 px (41 + 150) |
+| Policy crop / sim fovy | 952 px / 69.7° | 932 px / 81.1° |
+| Hand-eye hold-out | 2.7 px with joint offsets (8.0 without) | 2.2 px (3.0 without) |
+| Sim camera vs real corners | 0.83 px median at 480 px | 0.95 px |
+
+- The two "identical" webcams (Realtek 0bda:5883, same iSerial) have different lenses. The sim
+  camera (Menagerie D405, ~58° fovy) sat 29 mm and 7° from the real right camera.
+- **Real arms read 0.4-1.3° off the Menagerie kinematics** on joints 2-5 (right: 0.73, 0.01, 1.33,
+  -1.11°; left: 1.20, -0.41, 0.38, -0.03°). On the right arm this, not the camera, was most of the
+  hand-eye error (8.0 -> 2.7 px). 1° on a wrist joint is several mm at the gripper. Joints 1 and 6
+  are not observable this way (they trade off with the board pose and the camera mount).
+- Rig geometry: left base 0.608 m to the left of the right base, level to 0.8 mm, yaw < 1°; ZED
+  0.87 m above both bases.
+- Arm-only views covered just the image centre (15 of 64 cells): focal length and distortion
+  traded off (left fx 546 vs right 677 looked like a fit artefact). Hand-held frames (50/64
+  cells) settled it.
+
+**Hardware and safety lessons** (each cost a stop or a near miss):
+
+- **Clamp the bases.** An unclamped base nearly tipped at ~0.58 m reach. Calibration reach is now
+  capped at 0.42 m.
+- **i2rt's default zero-gravity mode floats the right arm into the table**: its 1.1x gravity
+  feed-forward beats that shoulder's friction (CAN log: kp = 0, shoulder 0 -> 0.79 rad in 1.3 s).
+  `safety.connect` uses PD hold from connect (2.9 ms float window); hold drift 0.008 rad in 5 s.
+- One CANable2 adapter (0045006F) was bad: motors timed out at random on any arm cabled to it.
+- i2rt holds the wrist at kp 10 (joints 5-6), so it trails commands by up to 0.19 rad in moves.
+  Capping each command step from the *measured* pose made that lag snowball into a stop; the cap
+  now builds on the previous command, and lag limits are per joint (0.15 / 0.2 / 0.3 rad).
+- Safety checks need real margins between levels (choose a pose 90 mm above the table at the
+  wrist, path 75, live stop 50, homing 20): with equal levels, a millimetre of sag stopped runs and
+  trapped the arm where it could not go home.
+- ZED rectified board pose: 0.05 px reprojection, 0.09 mm jitter; single readings scatter up to
+  ~1 mm while the arm shades the board, once 2.07 mm with the board still in place.
+
+**Open (sim realism)**, roughly by impact:
+
+1. Latency and backlash (`docs/REAL_YAM_LATENCY_BACKLASH.md`) not measured; the rig is ready.
+2. Gains differ: real i2rt PD kp 80/80/80/40/10/10, kd 5/5/5/1.5/1.5/1.5; sim 80/80/80/30/30/30,
+   kd 6/6/6/2/2/2. Set the real gains to the sim's, or train with the real ones.
+3. Joint offsets are in the spec (`rig.joint_offsets`) but nothing applies them yet (no deployment
+   loop); they could also be randomized in sim.
+4. Real fixture and part poses not measured (the calibrated ZED can now locate them).
+5. Real finger pads (yellow, 3D printed) differ from Menagerie's fingertips: grasp contact and
+   what the wrist camera sees.
+6. Wrist payload: sim carries the 109 g D405 bracket; the real webcam and cable are not weighed.
+7. Wrist cameras run auto exposure and white balance; frame latency not measured.
+8. The ZED is not in the sim (only needed for top-camera policies).
+
 ### 2026-10-24 (20:40 UTC, mason) — Task H: ACT 200k + release, pipeline 85.5%
 
 - Pipeline now releases after seating (`pick_insert.Release`: hold joints, open 0.4 s, lift 8 cm).
