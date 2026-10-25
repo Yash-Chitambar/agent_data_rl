@@ -11,7 +11,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
 | B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
 | C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-99% on every such test, corrected backlash model 2026-10-22). Corrected backlash costs <= 4 points for every policy (base 99.9% at 5'); latency and gains remain the conditions that need training. All 17 conditions redone on the fixed model (2026-10-22 19:30 UTC). |
-| H | Task H (SD reader into the mini PC): scene, spec-accurate USB-C, scripted expert (512/512 demos), LeRobot dataset, fine-tuned insertion 93% (1 mm) / 90% (3 mm); expert + insert 97.7%, ACT 200k + insert + release 85.5% inserted / 84.0% seated after release (2026-10-24 20:40 entry). v2 scene + gain/friction DR: insertion v2 97.3% / 95.1% / 89.5% at 1.3 / 3.9 / 6 mm (2026-10-25 06:30); ACT v2 training. |
+| H | Task H (SD reader into the mini PC): scene, spec-accurate USB-C, scripted expert (512/512 demos), LeRobot dataset, fine-tuned insertion 93% (1 mm) / 90% (3 mm); expert + insert 97.7%, ACT 200k + insert + release 85.5% inserted / 84.0% seated after release (2026-10-24 20:40 entry). v2 scene + gain/friction DR: insertion v2 97.3% / 95.1% / 89.5% at 1.3 / 3.9 / 6 mm (2026-10-25 06:30); ACT v2 + insertion v2 + release 90.6% inserted / 87.5% seated with settle handoff (2026-10-25 19:00). |
 | D | Tier 1 (16 runs, 150M cap, randomized noise model) on mason (`runs/queue_server/stateD`). o60_c1 and o30_c0.5 (scaled) reach 99% training success; o15_c0.2 from scratch never succeeded, so cells tighter than 1 mm now use a clearance curriculum (`--curriculum scale`). Grid: `scripts/phase_d_report.py`. |
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
@@ -85,6 +85,28 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-25 (19:00 UTC, mason) — Task H v2: ACT v2 + insertion v2 + release, 90.6% inserted / 87.5% seated
+
+- **ACT v2** `H-act-pick-v2`: 200k steps (12.1 h, V100) on `data/act/reader_pick_v2` = 1,536 expert demos in the v2
+  scene (all ok), a new spec reader per batch of 64, DART OU noise (tau 0.25 s) on 60% of episodes: sigma 0.01 rad in
+  approach/carry, 0.004 rad in the first 0.8 s of alignment at the port. Pick DR: friction, grip force, kp/kd,
+  frictionloss, latency 0-2 steps, encoder noise, cameras, light, colours.
+- **Pipeline** (`pipeline/pick_insert.py`, ACT -> insertion v2 -> release, spec parts, n = 256, 95% Wilson CI):
+
+  | ACT ckpt | Handoff | Inserted | Seated after release | Held | Lateral at handoff (median / p90) | Gap (median / p90) |
+  |---|---|---|---|---|---|---|
+  | 150k | done only | 82.8% (77.7-86.9) | 79.3% | 96.1% | 3.0 / 5.7 mm | 7.8 / 11.1 mm |
+  | 150k | settle | 88.3% (83.8-91.7) | 85.9% | 97.3% | 2.6 / 5.1 mm | 7.4 / 10.7 mm |
+  | 200k | done only | 79.3% (73.9-83.8) | 77.7% | 92.6% | 3.2 / 6.6 mm | 6.4 / 9.6 mm |
+  | **200k** | **settle** | **90.6% (86.4-93.6)** | **87.5%** | 96.5% | 2.5 / 5.1 mm | 6.1 / 8.9 mm |
+
+  Old ACT 200k (v1 scene, no gain DR): 85.5% / 84.0%, lateral 3.6 / 9.6 mm, 34% of handoffs at the 12 s timeout.
+- **Gap fix 1 (settle handoff)** adds 5.5-11 points: without it ACT keeps drifting at the port until done fires
+  (or the timeout), and the reader is lost more often (held 92.6% vs 96.5%). Handoff time in the video: 5.1-6.2 s (was ~7 s).
+- **Gap fix 2 (DART + per-batch parts)** halves the p90 lateral handoff error (9.6 -> 5.1 mm), inside the range where
+  insertion v2 gets 95-97%. Remaining losses: reader not held (3.5%) and failed insertions from large gaps.
+- Video: `results/H/act_v2_200k_pipeline.mp4` (8 episodes, 7 seated after release).
+
 ### 2026-10-25 (06:30 UTC, mason) — Task H v2: insertion on the measured reader with gain/friction DR, 97%/95%/90%
 
 - **Change**: v2 scene (measured reader 34.73 x 8.83 x 42 mm body, 90.46 mm long; lit lab room; top camera
