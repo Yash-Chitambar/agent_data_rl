@@ -32,6 +32,8 @@ the "Ideas" section of `docs/FINDINGS.md`.
   `.venv/bin/python ...` (or `uv run --locked`) from the repo root.
 - Set `export UV_CACHE_DIR="$PWD/.cache/uv" UV_PYTHON_INSTALL_DIR="$PWD/.python"` before uv.
 - Training deps (torch 2.14 cu130, pyarrow, h5py) are in the `train` dependency group.
+- Real-arm deps (i2rt, python-can, pyrealsense2, pyzed) are not in uv.lock (i2rt pins numpy 2.2.6):
+  `bash scripts/real/setup_real.sh` installs them into `.venv` with uv. Plain `uv sync` removes them.
 - GPU: 1x RTX 3090 Ti (24 GB). 16 CPU cores, 60 GB RAM.
 - MuJoCo 3.12.0, MuJoCo Warp 3.12.0, Warp 1.18.
 - Headless rendering: `MUJOCO_GL=egl`. Call `renderer.close()` explicitly to avoid EGL
