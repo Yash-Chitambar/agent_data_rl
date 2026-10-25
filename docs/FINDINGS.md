@@ -11,7 +11,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | A | Env, policy, PPO, eval harness built. Signal checks: see table below. |
 | B | Blind s0, s1, s3 (300M), visual s0-s2 (50M, stop rule), no-contact s0, s2 trained and evaluated. Blind s2 and no-contact s1 are in the local queue. Results match the paper (table below). |
 | C | 16 seed-0 YAM runs on the lab-table mount (mason) trained and evaluated: 16 x 13 train/test matrix (`results/C/C-matrix.*`). **Gate C closed (2026-10-21 10:15 UTC): D/E use per-world randomized noise/quant/backlash/latency** (`randall` 96-99% on every such test, corrected backlash model 2026-10-22). Corrected backlash costs <= 4 points for every policy (base 99.9% at 5'); latency and gains remain the conditions that need training. All 17 conditions redone on the fixed model (2026-10-22 19:30 UTC). |
-| H | Task H (SD reader into the mini PC): scene, spec-accurate USB-C, scripted expert (512/512 demos), LeRobot dataset, fine-tuned insertion 93% (1 mm) / 90% (3 mm); expert + insert 97.7%, ACT 200k + insert + release 85.5% inserted / 84.0% seated after release (2026-10-24 20:40 entry). |
+| H | Task H (SD reader into the mini PC): scene, spec-accurate USB-C, scripted expert (512/512 demos), LeRobot dataset, fine-tuned insertion 93% (1 mm) / 90% (3 mm); expert + insert 97.7%, ACT 200k + insert + release 85.5% inserted / 84.0% seated after release (2026-10-24 20:40 entry). v2 scene + gain/friction DR: insertion v2 97.3% / 95.1% / 89.5% at 1.3 / 3.9 / 6 mm (2026-10-25 06:30); ACT v2 training. |
 | D | Tier 1 (16 runs, 150M cap, randomized noise model) on mason (`runs/queue_server/stateD`). o60_c1 and o30_c0.5 (scaled) reach 99% training success; o15_c0.2 from scratch never succeeded, so cells tighter than 1 mm now use a clearance curriculum (`--curriculum scale`). Grid: `scripts/phase_d_report.py`. |
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
@@ -85,6 +85,26 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+### 2026-10-25 (06:30 UTC, mason) — Task H v2: insertion on the measured reader with gain/friction DR, 97%/95%/90%
+
+- **Change**: v2 scene (measured reader 34.73 x 8.83 x 42 mm body, 90.46 mm long; lit lab room; top camera
+  between the arms) and new randomization: servo kp x U(0.8, 1.25), kd x U(0.7, 1.4), joint frictionloss
+  U(0.005, 0.1), on top of the per-world encoder noise / quantization / backlash / latency (`noise_rand`).
+- **Run** `H-reader-proprio-v2-s0`: 150 M steps from `H-reader-proprio-topft-s0`, 8,192 worlds, start offsets up to
+  6 mm, history 10 (3.6 h on one V100). Training success 86-88% at the end.
+- **Eval**: unseen spec parts, the same v2 DR, n = 1,024 each (`results/H/eval_{topft,v2}_dr_*.parquet`):
+
+  | Start offset (peg_offset) | topft (before) | v2 |
+  |---|---|---|
+  | 1.3 mm | 73.5% (70.7-76.1) | **97.3%** (96.1-98.1) |
+  | 3.9 mm | 68.1% (65.1-70.8) | **95.1%** (93.6-96.3) |
+  | 6.0 mm | 60.9% (57.9-63.9) | **89.5%** (87.4-91.2) |
+
+  95% Wilson CIs. topft fails mostly by leaving the fixture (22-34%); v2 failures are almost all
+  `left_fixture` (2.7% / 4.5% / 10%), `never_found` <= 0.4%. The gain/friction DR was the main loss for the old
+  policy, and training on it recovers it fully. Video: `results/H/insert_v2.mp4` (3/3 seated).
+- ACT v2 (1,536 DART demos, new parts per batch) is training; pipeline numbers follow.
+
 ### 2026-10-24 (20:40 UTC, mason) — Task H: ACT 200k + release, pipeline 85.5%
 
 - Pipeline now releases after seating (`pick_insert.Release`: hold joints, open 0.4 s, lift 8 cm).
