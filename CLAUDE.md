@@ -114,6 +114,9 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   `scripts/real/snapshot.py` -> `data/sim_ref/<name>/`.
   Open real-vs-sim gaps (latency, gains, joint offsets, fixture, pads, payload, cameras) and their
   tests: `docs/REAL_RIG_GAPS.md`.
+- Real-arm deployment loop: `scripts/real/deploy.py` (`check` offline; `run --source hold|step|policy`):
+  50 Hz sim action scheme, sim gains (kd capped at 5: DM MIT limit), joint offsets in the observation,
+  CAN-level timing logs in `data/real_yam/`. It wraps i2rt driver methods to stamp readings and sends.
 - Real arm joint offsets: the real YAMs read 0.4-1.3 deg off on joints 2-5 against the Menagerie
   kinematics (`rig.joint_offsets(side)`, spec `arms`): add them to measured joints before FK or a policy.
   The two wrist webcams have different lenses (right ~86x74 deg, strong barrel; left ~99x86 deg).

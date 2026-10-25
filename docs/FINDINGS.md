@@ -16,7 +16,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
-| Real rig | duchamp3 set up (2026-10-24/25): both YAMs on CAN, safety layer, software stop, both wrist cameras and the ZED calibrated, arm joint offsets measured (spec `blind_insertion/configs/real_cameras_duchamp3.json`). Not yet: latency/backlash tests, gain match, deployment loop. Branch `real-yam-setup` (PR #1). |
+| Real rig | duchamp3 set up (2026-10-24/25): both YAMs on CAN, safety layer, software stop, both wrist cameras and the ZED calibrated, arm joint offsets measured (spec `blind_insertion/configs/real_cameras_duchamp3.json`). Deployment loop `scripts/real/deploy.py` (sim gains, offsets) checked against the sim; Test 1: loop latency 4.0 ms. Not yet: step test (motor delay, gain fit), backlash. Branch `real-yam-setup` (PR #1). |
 
 ### Phase B results (seed 0 final checkpoints, 2,048 matched starts, unseen geometries)
 
@@ -89,6 +89,41 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+
+### 2026-10-25 (23:05 UTC, duchamp3) — Real YAM deployment loop; Test 1: loop latency 4.0 ms, encoder 343 Hz
+
+`scripts/real/deploy.py` runs the sim's scheme on the real arm: 50 Hz, `q_target = q_meas + 0.04 a`
+through `safety.SafeArm`, observation in the model joint frame (`q + rig.joint_offsets`). The
+offsets cancel in the target (both terms are motor readings) and act only through the observation.
+
+- **Offline check** (`deploy.py check`): loop + a CPU sim arm with the right arm's offsets vs a direct
+  rollout of the scheme, 300 random-action steps: max difference 5.6e-16 rad. Loop observation vs
+  `PegEnv._actor_obs_now` (axial `phase_c_yam` and top-grasp `task_h_reader`): 1.2e-7.
+- **Gains**: the real arm now runs the sim's kp 80/80/80/30/30/30. kd is 5/5/5/2/2/2, not the sim's
+  6/6/6: the DM motors' MIT kd range ends at 5.0. No oscillation at the sim gains in a 60 s hold
+  (wrist joints moved 2 encoder counts).
+- **Test 1** (right arm, hold 60 s, a random-weight policy-sized TCN forward pass per step;
+  `data/real_yam/hold_60s*`). Timing comes from hooks in i2rt's threads (CAN-burst times of every
+  encoder reading and of the first send of each command):
+
+| | mean | std | p99 |
+|---|---|---|---|
+| Control period (ms) | 20.00 | 0.54 | |
+| Age of the reading used, at the step start (ms) | < 1.1 | | |
+| Compute: read, observation, policy, safety checks (ms) | 1.3 | 1.0 | 2.7 |
+| Action ready -> command on the CAN bus (ms) | 3.0 | 1.1 | 5.1 |
+| **Loop latency `t_send - t_obs` (ms)** | **4.0** | **1.6** | **6.1** |
+
+- So the software loop adds 0.2 control steps. The motor's own delay (bus to motion) comes from the
+  step test (Test 2); total latency = 4 ms + that.
+- One hiccup in 3,000 steps: step 230 took 41 ms of compute (cause unknown, maybe Python GC); the
+  next command was replaced before it reached the bus.
+- Encoders: DM chain loop 343 Hz (p99 period 3.1 ms). Resolution 0.381 mrad (16 bits over the DM
+  ±12.5 rad range), the same as `q_quant_bits` = 14 in the sim. Hold noise is pure quantization
+  (flips of one count).
+- Static hold error (command - reading): joint 2 -0.7 mrad, joint 4 -1.4 mrad, others 0: i2rt's
+  gravity compensation factors (1.1 on joint 2, 1.2 on joint 4) overshoot by ~0.05 N·m. Negligible.
+
 ### 2026-10-25 (22:30 UTC, duchamp3) — Real YAM rig: safety, cameras calibrated, joint offsets 0.4-1.3°
 
 duchamp3 (RTX 4090) is the real-arm PC: two YAMs (i2rt, DM motors) on CANable2 adapters, two

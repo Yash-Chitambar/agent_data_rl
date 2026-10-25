@@ -8,10 +8,10 @@ Update the status column when a gap closes. Record the result in `docs/FINDINGS.
 
 | # | Gap | Impact | Status | Needs |
 |---|---|---|---|---|
-| 0 | No deployment loop | Blocks 1-3 | open | Code only |
-| 1 | Latency and backlash not measured | High (Phase C: one 20 ms step off fails) | open | Loop; dial indicator for backlash |
-| 2 | Gains: real 80/80/80/40/10/10, sim 80/80/80/30/30/30 | High (C gain sweep) | open, decision | Loop |
-| 3 | Joint offsets not applied | High (0.4-1.3°, mm at the gripper) | measured, not applied | Loop |
+| 0 | No deployment loop | Blocks 1-3 | **done** 2026-10-25 (`scripts/real/deploy.py`, offline check passed) | - |
+| 1 | Latency and backlash not measured | High (Phase C: one 20 ms step off fails) | Test 1 done: loop 4.0 ms (std 1.6); step test and backlash open | Loop; dial indicator for backlash |
+| 2 | Gains: real 80/80/80/40/10/10, sim 80/80/80/30/30/30 | High (C gain sweep) | real runs sim kp; kd 5 not 6 on joints 1-3 (DM limit); gain fit open | Loop |
+| 3 | Joint offsets not applied | High (0.4-1.3°, mm at the gripper) | applied in deploy.py; hardware checks open | Loop |
 | 4 | Real fixture and part poses not measured | Medium | open | Real fixture on the table |
 | 5 | Finger pads: real yellow 3D-printed, sim Menagerie fingertips | Medium (contact, camera view) | open | Pad CAD or calipers |
 | 6 | Wrist payload: sim 109 g D405 bracket, real webcam + cable | Low | open | Kitchen scale |
@@ -33,7 +33,7 @@ Update the status column when a gap closes. Record the result in `docs/FINDINGS.
 
 ## 0. Deployment loop
 
-`scripts/real/deploy.py` (to write). One loop, used for the tests and for the policies:
+`scripts/real/deploy.py`. One loop, used for the tests and for the policies:
 
 - 50 Hz, the sim's control rate. In each step: read the encoders, add the joint offsets
   (`q_model = q_measured + rig.joint_offsets(side)`), compute the action, send
