@@ -84,7 +84,7 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   two set the D/E noise model more than q noise does. The rig is ready for it (2026-10-25 entry).
 - Real-rig gaps for sim realism (2026-10-25 entry, "Open"): gains (real wrist kp 40/10/10 vs sim
   30/30/30), joint offsets in the deployment loop, real fixture pose, finger-pad geometry, wrist
-  payload, camera exposure and frame latency.
+  payload, camera exposure and frame latency. Plan and tests: `docs/REAL_RIG_GAPS.md`.
 - Blind s2 and no-contact s1 (local queue) for the 3-seed B tables.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
@@ -150,6 +150,8 @@ hand-held frames over the whole image; hand-eye by Park-Martin + least squares o
 6. Wrist payload: sim carries the 109 g D405 bracket; the real webcam and cable are not weighed.
 7. Wrist cameras run auto exposure and white balance; frame latency not measured.
 8. The ZED is not in the sim (only needed for top-camera policies).
+
+Tests, pass criteria and the order to close these: `docs/REAL_RIG_GAPS.md`.
 
 ### 2026-10-25 (19:00 UTC, mason) — Task H v2: ACT v2 + insertion v2 + release, 90.6% inserted / 87.5% seated
 

@@ -110,6 +110,8 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   `Arms` floats and the right arm drifts into the table). Run `scripts/real/estop.py` in a terminal
   first: Enter holds the arm, `c` sends it home. Camera calibration: `scripts/real/calib.py`
   (zed / find / collect / solve; views accumulate per run in `data/calib/run_NNN`, gitignored).
+  Open real-vs-sim gaps (latency, gains, joint offsets, fixture, pads, payload, cameras) and their
+  tests: `docs/REAL_RIG_GAPS.md`.
 - Real arm joint offsets: the real YAMs read 0.4-1.3 deg off on joints 2-5 against the Menagerie
   kinematics (`rig.joint_offsets(side)`, spec `arms`): add them to measured joints before FK or a policy.
   The two wrist webcams have different lenses (right ~86x74 deg, strong barrel; left ~99x86 deg).
