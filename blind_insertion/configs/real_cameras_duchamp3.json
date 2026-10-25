@@ -1,35 +1,183 @@
 {
- "_about": "Cameras on the real YAM rig (duchamp3), measured 2026-10-25. Null = not measured yet. Sim counterpart: Menagerie yam_linear_4310.xml 'wrist_cam' (RealSense D405, 1.93 mm focal, 3.896 x 2.140 mm sensor, ~90 x 58 deg FOV, RGB + depth) rendered at EnvCfg.cam_res (64) square. The real wrist cameras differ: RGB only (no depth), 5:4 sensor, intrinsics and mount pose unknown until calibrated. Device paths are in scripts/real/rig.py.",
+ "_about": "Cameras on the real YAM rig (duchamp3), measured 2026-10-25. Null = not measured yet. Sim counterpart: Menagerie yam_linear_4310.xml 'wrist_cam' (a RealSense D405, RGB + depth); EnvCfg.cam_spec replaces its field of view and mount pose with wrist.sim. The real wrist cameras are RGB only (no depth), 5:4. Right wrist calibrated (intrinsics + mount pose, wrist.right); left not yet. Device paths are in scripts/real/rig.py.",
  "wrist": {
   "model": "generic UVC webcam (Generic 'USB Camera', iSerial 'YHTek'; Realtek chip, USB 0bda:5883)",
   "count": 2,
   "usb": "USB 2.0 (480 Mbps)",
-  "modalities": ["rgb"],
+  "modalities": [
+   "rgb"
+  ],
   "depth": false,
-  "sensor_resolution": [1280, 1024],
+  "sensor_resolution": [
+   1280,
+   1024
+  ],
   "aspect": "5:4",
   "modes_measured": [
-   {"format": "MJPG", "resolution": [640, 480], "fps": 60},
-   {"format": "MJPG", "resolution": [1280, 1024], "fps": 30},
-   {"format": "YUYV", "resolution": [640, 480], "fps": 30},
-   {"format": "YUYV", "resolution": [1280, 1024], "fps": 5}
+   {
+    "format": "MJPG",
+    "resolution": [
+     640,
+     480
+    ],
+    "fps": 60
+   },
+   {
+    "format": "MJPG",
+    "resolution": [
+     1280,
+     1024
+    ],
+    "fps": 30
+   },
+   {
+    "format": "YUYV",
+    "resolution": [
+     640,
+     480
+    ],
+    "fps": 30
+   },
+   {
+    "format": "YUYV",
+    "resolution": [
+     1280,
+     1024
+    ],
+    "fps": 5
+   }
   ],
-  "mjpg_resolutions": [[1280, 1024], [1280, 960], [1280, 720], [1024, 768], [960, 540], [848, 480], [800, 600], [640, 512], [640, 480], [640, 360], [352, 288], [320, 240]],
-  "yuyv_resolutions": [[640, 480], [1280, 1024], [640, 512]],
+  "mjpg_resolutions": [
+   [
+    1280,
+    1024
+   ],
+   [
+    1280,
+    960
+   ],
+   [
+    1280,
+    720
+   ],
+   [
+    1024,
+    768
+   ],
+   [
+    960,
+    540
+   ],
+   [
+    848,
+    480
+   ],
+   [
+    800,
+    600
+   ],
+   [
+    640,
+    512
+   ],
+   [
+    640,
+    480
+   ],
+   [
+    640,
+    360
+   ],
+   [
+    352,
+    288
+   ],
+   [
+    320,
+    240
+   ]
+  ],
+  "yuyv_resolutions": [
+   [
+    640,
+    480
+   ],
+   [
+    1280,
+    1024
+   ],
+   [
+    640,
+    512
+   ]
+  ],
   "serial_number": null,
   "_serial_note": "both cameras report the same iSerial 'YHTek', so they are told apart by USB port only",
-  "arm_side": {"usb_7-2": "right", "usb_5-2": "left"},
-  "_calib_note": "intrinsics at 1280x1024: {fx, fy, cx, cy} in pixels; distortion: OpenCV coefficients [k1, k2, p1, p2, k3]",
-  "intrinsics": null,
-  "distortion": null,
+  "arm_side": {
+   "usb_7-2": "right",
+   "usb_5-2": "left"
+  },
   "sim": {
-   "_about": "Read by EnvCfg.cam_spec (blind_insertion/assets/real_camera.py). The policy image on both sides: undistort, crop the largest square centred on the principal point (1024x1024 at 1280x1024), resize to cam_res. Null = not measured: the env keeps the model's D405 value and prints a placeholder warning.",
+   "_about": "Read by EnvCfg.cam_spec (blind_insertion/assets/real_camera.py). Values of the RIGHT wrist camera (the policy arm). The policy image on both sides: undistort with the intrinsics, crop the largest square centred on the principal point (policy_crop_px), resize to cam_res; the sim renders a square at fovy_deg from pose_in_link6, so no principal-point offset is needed.",
+   "source": "right",
    "modality": "rgb",
-   "fovy_deg": null,
-   "_fovy_note": "= 2 atan(512 / fy) with fy at 1280x1024, from the intrinsic calibration. The model's D405 placeholder is 58.0 deg (its 16:9 sensor, vertical).",
-   "pose_in_link6": null,
-   "_pose_note": "camera optical frame (OpenCV: +z along the optical axis, +y down) in the YAM link_6 frame, from the hand-eye calibration; {pos: [m], quat: [w, x, y, z]}. The model's D405 placeholder: pos [0.0, 0.070435, 0.077006], quat [0.0, 0.0, -0.21644, 0.976296]."
-  }
+   "fovy_deg": 70.84,
+   "_fovy_note": "= 2 atan(policy_crop_px / 2 / fy) = 2 atan(482 / 677.76)",
+   "pose_in_link6": {
+    "pos": [
+     0.01204,
+     0.09813,
+     0.08873
+    ],
+    "quat": [
+     0.03851,
+     -0.00202,
+     -0.26586,
+     0.96324
+    ]
+   },
+   "_pose_note": "camera optical frame (OpenCV: +z along the optical axis, +y down) in the Menagerie YAM link_6 frame; {pos: [m], quat: [w, x, y, z]}. The model's D405 it replaces sat 29 mm away, 7 deg less downward."
+  },
+  "_calib_note": "per arm, from scripts/real/calib.py (checkerboard 8x7 inner corners, 15 mm, flat on the table; camera pose by hand-eye on the Menagerie link_6 frame). intrinsics at 1280x1024 in pixels; distortion: OpenCV [k1, k2, p1, p2, k3]",
+  "right": {
+   "usb_port": "7-2",
+   "calibrated": "2026-10-25, data/calib/run_002",
+   "intrinsics": {
+    "fx": 676.92,
+    "fy": 677.76,
+    "cx": 623.98,
+    "cy": 481.84
+   },
+   "distortion": [
+    -0.38463,
+    0.23709,
+    -0.00017,
+    -0.00023,
+    -0.11092
+   ],
+   "policy_crop_px": 964,
+   "pose_in_link6": {
+    "pos": [
+     0.01204,
+     0.09813,
+     0.08873
+    ],
+    "quat": [
+     0.03851,
+     -0.00202,
+     -0.26586,
+     0.96324
+    ]
+   },
+   "quality": {
+    "n_views": 25,
+    "n_used": 23,
+    "intrinsics_rms_px": 0.094,
+    "holdout_px": 9.0,
+    "_holdout_note": "hand-eye hold-out reprojection; ~3.5 mm at 0.25-0.3 m, limited by the arm model (link lengths, joint offsets), not the camera"
+   }
+  },
+  "left": null
  },
  "top": {
   "model": "Stereolabs ZED 2",
@@ -37,15 +185,68 @@
   "firmware": 1523,
   "sensors_firmware": 776,
   "usb": "USB 3 (5 Gbps) required for the SDK",
-  "modalities": ["rgb", "stereo", "depth (SDK)"],
+  "modalities": [
+   "rgb",
+   "stereo",
+   "depth (SDK)"
+  ],
   "baseline_mm": 120.17,
   "_intrinsics_note": "factory calibration from the ZED SDK 5.2, rectified images (distortion removed); left and right identical",
   "intrinsics_rectified": {
-   "HD720": {"resolution": [1280, 720], "fps": 30, "fx": 523.27, "fy": 523.27, "cx": 647.54, "cy": 367.65, "hfov_deg": 101.46, "vfov_deg": 69.06},
-   "HD1080": {"resolution": [1920, 1080], "fps": 30, "fx": 1055.02, "fy": 1055.02, "cx": 975.35, "cy": 556.88, "hfov_deg": 84.60, "vfov_deg": 54.21},
-   "VGA": {"resolution": [672, 376], "fps": 30, "fx": 261.35, "fy": 261.35, "cx": 339.39, "cy": 191.38, "hfov_deg": 104.25, "vfov_deg": 71.46}
+   "HD720": {
+    "resolution": [
+     1280,
+     720
+    ],
+    "fps": 30,
+    "fx": 523.27,
+    "fy": 523.27,
+    "cx": 647.54,
+    "cy": 367.65,
+    "hfov_deg": 101.46,
+    "vfov_deg": 69.06
+   },
+   "HD1080": {
+    "resolution": [
+     1920,
+     1080
+    ],
+    "fps": 30,
+    "fx": 1055.02,
+    "fy": 1055.02,
+    "cx": 975.35,
+    "cy": 556.88,
+    "hfov_deg": 84.6,
+    "vfov_deg": 54.21
+   },
+   "VGA": {
+    "resolution": [
+     672,
+     376
+    ],
+    "fps": 30,
+    "fx": 261.35,
+    "fy": 261.35,
+    "cx": 339.39,
+    "cy": 191.38,
+    "hfov_deg": 104.25,
+    "vfov_deg": 71.46
+   }
   },
-  "extrinsics_cam_in_right_base": null,
+  "extrinsics_cam_in_right_base": {
+   "pos": [
+    -0.1979,
+    0.3867,
+    0.8828
+   ],
+   "quat": [
+    0.17221,
+    -0.69241,
+    0.66652,
+    -0.21604
+   ],
+   "_note": "ZED rectified-left optical frame (OpenCV) in the right arm base frame, via the static board (run_002)"
+  },
   "extrinsics_cam_in_left_base": null
  }
 }

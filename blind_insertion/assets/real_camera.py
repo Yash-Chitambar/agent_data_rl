@@ -10,9 +10,10 @@ A spec file (e.g. configs/real_cameras_duchamp3.json) describes the real rig's c
                  hand-eye calibration gives
 
 A null field keeps the model's own camera (Menagerie: a D405 on I2RT's bracket) and is reported
-as a placeholder. The real side must feed the policy the same image: undistort, crop the largest
-square centred on the principal point, resize to cam_res (`real_policy_image`). With that crop the
-sim needs no principal-point offset, and fovy = 2 atan(s / 2 / fy) for crop side s.
+as a placeholder. The real side must feed the policy the same image: undistort, crop the
+policy_crop_px square centred on the principal point (the largest that fits), resize to cam_res
+(`real_policy_image`). With that crop the sim needs no principal-point offset, and
+fovy = 2 atan(s / 2 / fy) for crop side s.
 """
 import json
 from pathlib import Path
@@ -90,18 +91,17 @@ def wrist_pose_in_link6(mjm: mujoco.MjModel) -> dict:
     return {"pos": (R6.T @ (d.cam_xpos[cid] - p6)).round(6).tolist(), "quat": q.round(6).tolist()}
 
 
-def real_policy_image(frame: np.ndarray, spec: dict, res: int) -> np.ndarray:
-    """Real wrist frame (H, W, 3, BGR from OpenCV) -> the (res, res, 3) RGB image the sim renders:
-    undistort, crop the largest square centred on the principal point, resize."""
+def real_policy_image(frame: np.ndarray, spec: dict, res: int, side: str = "right") -> np.ndarray:
+    """Real wrist frame of `side` (H, W, 3, BGR from OpenCV) -> the (res, res, 3) RGB image the sim
+    renders: undistort, crop policy_crop_px square centred on the principal point, resize."""
     import cv2
-    w = spec["wrist"]
-    K, dist = w.get("intrinsics"), w.get("distortion")
-    if K is None or dist is None:
-        raise ValueError("wrist intrinsics/distortion not calibrated: the spec has nulls")
+    w = spec["wrist"].get(side)
+    if not w or w.get("intrinsics") is None or w.get("distortion") is None:
+        raise ValueError(f"{side} wrist camera not calibrated: the spec has nulls")
+    K = w["intrinsics"]
     Km = np.array([[K["fx"], 0, K["cx"]], [0, K["fy"], K["cy"]], [0, 0, 1]], float)
-    und = cv2.undistort(frame, Km, np.asarray(dist, float))
-    h, wd = und.shape[:2]
+    und = cv2.undistort(frame, Km, np.asarray(w["distortion"], float))
     cx, cy = int(round(K["cx"])), int(round(K["cy"]))
-    half = min(cx, wd - cx, cy, h - cy)
+    half = w["policy_crop_px"] // 2
     crop = und[cy - half:cy + half, cx - half:cx + half]
     return cv2.cvtColor(cv2.resize(crop, (res, res), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2RGB)

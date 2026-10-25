@@ -31,7 +31,12 @@ import rig  # noqa: E402
 TABLE_Z = 0.0           # table plane in the arm base frame (m)
 CLEARANCE = 0.04        # min height of any arm vertex above the table, except the finger tips (m)
 TIP_CLEARANCE = 0.02    # min height of the finger tips (m); insertion fixtures sit on the table
-MAX_STEP = 0.10         # max joint target change from the measured pose per command (rad)
+MAX_STEP = 0.10         # max joint target change from the previous command, per command (rad)
+# max distance of a command from the measured pose (rad). The step cap works on the previous
+# command, not the measured pose: capping on the measured pose made a joint that trails its
+# command (i2rt holds the wrist at kp 10) fall ever further behind, until the tracking check
+# stopped the arm (2026-10-25). This bound still refuses commands far from where the arm is.
+MAX_DEVIATION = 0.40
 # Joint box = model range widened by this (rad), as i2rt's own limits (get_yam_robot). The sim
 # YAM policies (results/C rollouts) use joint 4 down to -1.701 (range -1.571); joints 2-3 rest on
 # their stops at 0. The table check below is the real protection.
@@ -54,7 +59,12 @@ def _model() -> mujoco.MjModel:
 class Checker:
     """Forward-kinematics table-clearance and joint-box checks on a 6-joint arm pose."""
 
-    def __init__(self):
+    def __init__(self, clearance: float = CLEARANCE, tip_clearance: float = TIP_CLEARANCE,
+                 body_clearance: dict | None = None):
+        """clearance / tip_clearance (m) above the table; body_clearance {body name: m} overrides
+        single bodies, e.g. more margin on the wrist and gripper for parts the model lacks (the
+        wrist webcam and its cable)."""
+        body_clearance = body_clearance or {}
         self.m = _model()
         self.d = mujoco.MjData(self.m)
         rng = self.m.jnt_range[:6].copy()
@@ -63,14 +73,15 @@ class Checker:
         self.geoms = []  # (geom id, local vertices or None, min z)
         for g in range(self.m.ngeom):
             b = self.m.geom_bodyid[g]
-            if b == 0:  # world: the fixed base mesh stands on the table
-                continue
+            if b == 0 or self.m.body_parentid[b] == 0:  # world (the base mesh) and link1, which
+                continue                                # only yaws: neither can move toward the table
             verts = None
             if self.m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
                 mid = self.m.geom_dataid[g]
                 a, n = self.m.mesh_vertadr[mid], self.m.mesh_vertnum[mid]
                 verts = self.m.mesh_vert[a:a + n].copy()
-            zmin = TABLE_Z + (TIP_CLEARANCE if b in tip_ids else CLEARANCE)
+            name = mujoco.mj_id2name(self.m, mujoco.mjtObj.mjOBJ_BODY, b)
+            zmin = TABLE_Z + body_clearance.get(name, tip_clearance if b in tip_ids else clearance)
             self.geoms.append((g, verts, zmin))
 
     def clip(self, q6: np.ndarray) -> np.ndarray:
@@ -111,6 +122,9 @@ class SafeArm:
     """Wraps an i2rt robot (7 values: 6 joints + gripper 0..1). All commands go through checks."""
 
     def __init__(self, robot, checker: Checker | None = None):
+        """`checker` guards every command and measured pose. Planners that use a stricter
+        Checker for their targets should give SafeArm a looser one here (a margin), or the
+        arm settling a millimetre lower than planned stops it and blocks the way home."""
         self.robot = robot
         self.check = checker or Checker()
         q = self.read()  # raises if the arm already starts in an unsafe pose
@@ -118,6 +132,7 @@ class SafeArm:
 
     def _hold(self, q7: np.ndarray):
         self.robot.command_joint_pos(np.asarray(q7, float))
+        self.last_safe = np.asarray(q7, float).copy()
 
     def read(self) -> np.ndarray:
         q = np.asarray(self.robot.get_joint_pos(), float)
@@ -128,7 +143,8 @@ class SafeArm:
         return q
 
     def command(self, q7_target) -> np.ndarray:
-        """Send the target, capped to MAX_STEP per joint; returns what was sent.
+        """Send the target, capped to MAX_STEP per joint from the previous command and refused
+        beyond MAX_DEVIATION from the measured pose; returns what was sent.
 
         An unsafe request (outside the joint box or too near the table) is refused as a whole:
         nothing is sent, the arm holds its measured pose and SafetyStop is raised. Clipping it
@@ -140,8 +156,14 @@ class SafeArm:
             self._hold(q)
             raise SafetyStop(f"target unsafe: {why}; holding")
         tgt = req.copy()
-        tgt[:6] = q[:6] + np.clip(req[:6] - q[:6], -MAX_STEP, MAX_STEP)
+        base = self.last_safe[:6]
+        tgt[:6] = base + np.clip(req[:6] - base, -MAX_STEP, MAX_STEP)
         tgt[6] = float(np.clip(req[6], 0.0, 1.0))
+        dev = np.abs(tgt[:6] - q[:6])
+        if dev.max() > MAX_DEVIATION:
+            self._hold(q)
+            j = int(np.argmax(dev))
+            raise SafetyStop(f"command {dev[j]:.2f} rad from the measured joint {j + 1}; holding")
         why = self.check.violation(tgt[:6])  # the capped step lies between two poses; check it too
         if why is not None:
             self._hold(q)

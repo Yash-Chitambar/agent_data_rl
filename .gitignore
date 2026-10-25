@@ -19,3 +19,6 @@ report_usbc/.build/
 report_usbc/.preview.html
 .venv-act/
 data/act/
+
+# real-rig calibration captures (images + joint logs)
+data/calib/

@@ -105,6 +105,11 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   (`configs/phase_e_usbc_side.json`). Per-world noise levels: `EnvCfg.noise_rand`.
 - Visual: `EnvCfg.cam_modality` rgb|depth|rgbd (frame channels), `depth_model` (D405-like sensor),
   `cam_rand`; the YAM camera is Menagerie's `wrist_cam` (D405). `train_visual --proprio` fuses joints.
+- Real rig (duchamp3): **clamp the arm bases before any motion** (an unclamped base nearly tipped at
+  ~0.58 m reach). Connect arms only through `scripts/real/safety.py` (PD hold from connect; yam-control's
+  `Arms` floats and the right arm drifts into the table). Run `scripts/real/estop.py` in a terminal
+  first: Enter holds the arm, `c` sends it home. Camera calibration: `scripts/real/calib.py`
+  (zed / find / collect / solve; views accumulate per run in `data/calib/run_NNN`, gitignored).
 - Real wrist camera in sim: `EnvCfg.cam_spec = "blind_insertion/configs/real_cameras_duchamp3.json"`
   sets the wrist camera's fovy and mount pose from the spec's `wrist.sim` section and refuses a
   modality the real camera lacks (the real wrist cameras are RGB only). Null fields keep the D405
