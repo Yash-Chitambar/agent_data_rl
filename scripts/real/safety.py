@@ -8,10 +8,10 @@ stopped with the finger tip at the table). i2rt does not enforce joint limits in
 So:
   * `connect(side)` uses zero_gravity_mode=False: the arm holds its current pose (PD) from the
     first instant. Never float an arm near the table.
-  * `SafeArm.command(q)` clips each target into the joint box and to MAX_STEP rad from the
-    measured pose, then checks the target pose with forward kinematics: every mesh vertex of the
-    arm must stay CLEARANCE above the table plane (finger tips: TIP_CLEARANCE). An unsafe target
-    is not sent; the arm holds its measured pose and SafetyStop is raised.
+  * `SafeArm.command(q)` refuses a target outside the joint box or whose pose (forward
+    kinematics) puts any arm mesh vertex less than CLEARANCE above the table plane (finger tips:
+    TIP_CLEARANCE): nothing is sent, the arm holds its measured pose and SafetyStop is raised.
+    A safe target is capped to MAX_STEP rad per joint from the measured pose.
   * `SafeArm.read()` checks the measured pose the same way (catches drift and contact).
 
 The table plane is z = 0 in the arm's base frame: the base stands on the table (at the stop pose
@@ -128,15 +128,24 @@ class SafeArm:
         return q
 
     def command(self, q7_target) -> np.ndarray:
-        """Send a safe version of the target; returns what was sent. Raises SafetyStop if unsafe."""
+        """Send the target, capped to MAX_STEP per joint; returns what was sent.
+
+        An unsafe request (outside the joint box or too near the table) is refused as a whole:
+        nothing is sent, the arm holds its measured pose and SafetyStop is raised. Clipping it
+        instead would creep toward the unsafe pose one step per call."""
         q = self.read()
-        tgt = np.asarray(q7_target, float).copy()
-        tgt[:6] = self.check.clip(q[:6] + np.clip(tgt[:6] - q[:6], -MAX_STEP, MAX_STEP))
-        tgt[6] = float(np.clip(tgt[6], 0.0, 1.0))
-        why = self.check.violation(tgt[:6])
+        req = np.asarray(q7_target, float)
+        why = self.check.violation(req[:6])
         if why is not None:
             self._hold(q)
             raise SafetyStop(f"target unsafe: {why}; holding")
+        tgt = req.copy()
+        tgt[:6] = q[:6] + np.clip(req[:6] - q[:6], -MAX_STEP, MAX_STEP)
+        tgt[6] = float(np.clip(req[6], 0.0, 1.0))
+        why = self.check.violation(tgt[:6])  # the capped step lies between two poses; check it too
+        if why is not None:
+            self._hold(q)
+            raise SafetyStop(f"step unsafe: {why}; holding")
         self.robot.command_joint_pos(tgt)
         self.last_safe = tgt
         return tgt
