@@ -16,6 +16,7 @@ the "Ideas" section of `docs/FINDINGS.md`.
 | Path | What |
 |---|---|
 | `mjfit/`, `robosimstudio/` | Git submodules, editable installs. Do not edit upstream source. |
+| `yam-control/` | Git submodule: real YAM arm and camera control (CAN, RealSense/ZED streaming, rig config). Do not edit upstream source. |
 | `third_party/mujoco_menagerie/` | Sparse clone: `flexiv_rizon4s`, `robotiq_2f85`, `i2rt_yam` (Apache/MIT). |
 | `blind_insertion/` | Our code: assets builder, batched env, policy, PPO, eval, analysis. |
 | `blind_insertion/checks/` | Phase A signal checks (A-S1..A-S10), one script each. |

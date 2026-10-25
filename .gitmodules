@@ -4,3 +4,6 @@
 [submodule "robosimstudio"]
 	path = robosimstudio
 	url = https://github.com/robosimstudio/robosimstudio.git
+[submodule "yam-control"]
+	path = yam-control
+	url = https://github.com/XinyueZhuXY/yam-control.git
