@@ -17,11 +17,14 @@ CAN_SERIAL = {
 }
 CAN_BITRATE = 1_000_000
 
-# Cameras, by USB port (these webcams have no serial number). The wrist side of each is not
-# confirmed yet; port 5-2 shows a yellow gripper finger.
-WRIST_CAM_A = "/dev/v4l/by-path/pci-0000:16:00.4-usb-0:2:1.0-video-index0"  # USB 7-2
-WRIST_CAM_B = "/dev/v4l/by-path/pci-0000:16:00.3-usb-0:2:1.0-video-index0"  # USB 5-2
-WRIST_CAM_RESOLUTION = (640, 480)  # generic UVC (Realtek 0bda:5883), YUYV, 30 fps
+# Wrist cameras, by USB port: both webcams report the same serial ("YHTek"). Sides confirmed
+# 2026-10-25 (a hand in front of the right one). Moving a cable to another port breaks this map.
+# Specs: blind_insertion/configs/real_cameras_duchamp3.json.
+WRIST_CAM = {
+    "right": "/dev/v4l/by-path/pci-0000:16:00.4-usb-0:2:1.0-video-index0",  # USB 7-2
+    "left": "/dev/v4l/by-path/pci-0000:16:00.3-usb-0:2:1.0-video-index0",   # USB 5-2
+}
+WRIST_CAM_RESOLUTION = (640, 480)  # generic UVC (Realtek 0bda:5883); MJPG 60 fps, YUYV 30 fps
 ZED_SERIAL = 20120598  # top camera, ZED 2; needs a USB 3 link for the SDK (HD720 at 30 fps)
 ZED_UVC_DEVICE = "/dev/v4l/by-id/usb-Technologies__Inc._ZED_2-video-index0"
 

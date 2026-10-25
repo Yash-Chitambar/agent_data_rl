@@ -1,0 +1,43 @@
+{
+ "_about": "Cameras on the real YAM rig (duchamp3), measured 2026-10-25. Null = not measured yet. Sim counterpart: Menagerie yam_linear_4310.xml 'wrist_cam' (RealSense D405, 1.93 mm focal, 3.896 x 2.140 mm sensor, ~90 x 58 deg FOV, RGB + depth) rendered at EnvCfg.cam_res (64) square. The real wrist cameras differ: RGB only (no depth), 5:4 sensor, intrinsics and mount pose unknown until calibrated. Device paths are in scripts/real/rig.py.",
+ "wrist": {
+  "model": "generic UVC webcam (Generic 'USB Camera', iSerial 'YHTek'; Realtek chip, USB 0bda:5883)",
+  "count": 2,
+  "usb": "USB 2.0 (480 Mbps)",
+  "modalities": ["rgb"],
+  "depth": false,
+  "sensor_resolution": [1280, 1024],
+  "aspect": "5:4",
+  "modes_measured": [
+   {"format": "MJPG", "resolution": [640, 480], "fps": 60},
+   {"format": "MJPG", "resolution": [1280, 1024], "fps": 30},
+   {"format": "YUYV", "resolution": [640, 480], "fps": 30},
+   {"format": "YUYV", "resolution": [1280, 1024], "fps": 5}
+  ],
+  "mjpg_resolutions": [[1280, 1024], [1280, 960], [1280, 720], [1024, 768], [960, 540], [848, 480], [800, 600], [640, 512], [640, 480], [640, 360], [352, 288], [320, 240]],
+  "yuyv_resolutions": [[640, 480], [1280, 1024], [640, 512]],
+  "serial_number": null,
+  "_serial_note": "both cameras report the same iSerial 'YHTek', so they are told apart by USB port only",
+  "arm_side": {"usb_7-2": "right", "usb_5-2": "left"},
+  "intrinsics": null,
+  "distortion": null,
+  "extrinsics_cam_in_gripper": null
+ },
+ "top": {
+  "model": "Stereolabs ZED 2",
+  "serial": 20120598,
+  "firmware": 1523,
+  "sensors_firmware": 776,
+  "usb": "USB 3 (5 Gbps) required for the SDK",
+  "modalities": ["rgb", "stereo", "depth (SDK)"],
+  "baseline_mm": 120.17,
+  "_intrinsics_note": "factory calibration from the ZED SDK 5.2, rectified images (distortion removed); left and right identical",
+  "intrinsics_rectified": {
+   "HD720": {"resolution": [1280, 720], "fps": 30, "fx": 523.27, "fy": 523.27, "cx": 647.54, "cy": 367.65, "hfov_deg": 101.46, "vfov_deg": 69.06},
+   "HD1080": {"resolution": [1920, 1080], "fps": 30, "fx": 1055.02, "fy": 1055.02, "cx": 975.35, "cy": 556.88, "hfov_deg": 84.60, "vfov_deg": 54.21},
+   "VGA": {"resolution": [672, 376], "fps": 30, "fx": 261.35, "fy": 261.35, "cx": 339.39, "cy": 191.38, "hfov_deg": 104.25, "vfov_deg": 71.46}
+  },
+  "extrinsics_cam_in_right_base": null,
+  "extrinsics_cam_in_left_base": null
+ }
+}
