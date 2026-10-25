@@ -1,0 +1,85 @@
+{
+ "time": "2026-10-25 15:44:48 PDT",
+ "camera_spec": "blind_insertion/configs/real_cameras_duchamp3.json",
+ "frames": "right base frame = the right arm's base, table plane z = 0; poses OpenCV camera frames {pos m, quat wxyz}; joints as measured (add spec arms offsets for the model)",
+ "zed_in_right_base": {
+  "pos": [
+   -0.21015,
+   0.35358,
+   0.87333
+  ],
+  "quat": [
+   0.19529,
+   -0.68071,
+   0.67602,
+   -0.20369
+  ],
+  "_note": "ZED HD1080 rectified-left optical frame (OpenCV) in the right base, via the static board (run_004)"
+ },
+ "left_base_in_right_base": {
+  "pos": [
+   -0.01011,
+   0.60771,
+   -0.00081
+  ],
+  "quat": [
+   0.99996,
+   -0.00224,
+   -0.00361,
+   0.00831
+  ]
+ },
+ "joints_measured": {
+  "right": [
+   1.7599374380102244,
+   0.6200885023270004,
+   0.6258106355382616,
+   -1.2895017929350736,
+   1.0034714274814984,
+   1.571107042038605,
+   0.9997219518976779
+  ],
+  "left": [
+   -1.494430457007704,
+   0.810063324940872,
+   0.29850461585412447,
+   -0.024414435034715964,
+   -0.7288853284504444,
+   -0.7790112153810934,
+   0.9991723567142563
+  ]
+ },
+ "target_in_right_base": [
+  0.27,
+  0.22,
+  0.0
+ ],
+ "wrist_cam_in_right_base": {
+  "right": {
+   "pos": [
+    0.12837,
+    0.10482,
+    0.25197
+   ],
+   "quat": [
+    -0.27793,
+    0.72963,
+    -0.62235,
+    0.05534
+   ]
+  },
+  "left": {
+   "pos": [
+    0.13527,
+    0.40465,
+    0.20966
+   ],
+   "quat": [
+    0.01267,
+    -0.52534,
+    0.76847,
+    -0.36511
+   ]
+  }
+ }
+}
