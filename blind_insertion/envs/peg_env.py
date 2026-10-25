@@ -83,6 +83,10 @@ class EnvCfg:
     finger_timeconst_scale: tuple = (0.78, 1.34)
     grip_force_scale: tuple = (1.41, 2.83)
     grip_force_base: float | None = None   # N per pad (default: robot's nominal)
+    # arm servo (log-uniform per reset; None = nominal): kp and kd scales, joint friction (N m)
+    arm_kp_scale: tuple | None = None
+    arm_kd_scale: tuple | None = None
+    arm_frictionloss: tuple | None = None
     pad_timeconst: float = 0.004           # pad contact solref time constant (x finger scale)
     pad_solimp: tuple | None = None        # e.g. (0.99, 0.999, 0.001) for light parts
     pad_spheres: int = 0                   # >0: n x n sphere grid per pad face (robust grasp contacts)
@@ -181,6 +185,10 @@ class PegEnv:
                    "body_inertia", "body_ipos", "body_iquat", "body_invweight0", "dof_invweight0"]
         if "backlash_arcmin" in nr:
             batched.append("jnt_range")
+        if cfg.arm_kp_scale or cfg.arm_kd_scale:
+            batched += ["actuator_gainprm", "actuator_biasprm"]
+        if cfg.arm_frictionloss:
+            batched.append("dof_frictionloss")
         cr = cfg.cam_rand or {}
         if cr.get("cam_pos") or cr.get("cam_rot_deg"):
             batched += ["cam_pos", "cam_quat"]
@@ -394,6 +402,11 @@ class PegEnv:
         base = lay.robot.grip_force if cfg.grip_force_base is None else (
             np.sign(lay.robot.grip_force) * cfg.grip_force_base)
         out["grip"] = base * _log_uniform(*cfg.grip_force_scale, n, gen, dev)
+        one = torch.ones(n, device=dev)
+        out["kp_s"] = _log_uniform(*cfg.arm_kp_scale, n, gen, dev) if cfg.arm_kp_scale else one
+        out["kd_s"] = _log_uniform(*cfg.arm_kd_scale, n, gen, dev) if cfg.arm_kd_scale else one
+        if cfg.arm_frictionloss:
+            out["fl"] = _log_uniform(*cfg.arm_frictionloss, (n, self.n_arm), gen, dev)
         return out
 
     def refresh_pool(self, per_world: int = 4):
@@ -462,6 +475,17 @@ class PegEnv:
         self.f["geom_friction"][ids[:, None], pads, 0] = 1.0 * st["finger_mu"][:, None]
         self.f["geom_solref"][ids[:, None], pads, 0] = cfg.pad_timeconst * st["finger_tc"][:, None]
         self.grip_force[ids] = st["grip"]
+        if cfg.arm_kp_scale or cfg.arm_kd_scale:
+            act = torch.as_tensor(lay.arm_act, device=dev)
+            kp = self.mjm.actuator_gainprm[lay.arm_act, 0]
+            kd = -self.mjm.actuator_biasprm[lay.arm_act, 2]
+            kp = torch.as_tensor(kp, dtype=torch.float32, device=dev)[None] * st["kp_s"][:, None]
+            kd = torch.as_tensor(kd, dtype=torch.float32, device=dev)[None] * st["kd_s"][:, None]
+            self.f["actuator_gainprm"][ids[:, None], act, 0] = kp
+            self.f["actuator_biasprm"][ids[:, None], act, 1] = -kp
+            self.f["actuator_biasprm"][ids[:, None], act, 2] = -kd
+        if cfg.arm_frictionloss:
+            self.f["dof_frictionloss"][ids[:, None], torch.as_tensor(lay.arm_dofadr, device=dev)] = st["fl"]
         ctrl = self.t_ctrl
         ctrl[ids[:, None], torch.as_tensor(lay.arm_act, device=dev)] = q_sol
         for a in lay.grip_act:

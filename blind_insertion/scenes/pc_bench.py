@@ -37,7 +37,10 @@ FINGER_DAMPING = 200.0            # N s/m per finger in the pick scene (see buil
 LEFT_BASE_Y = 0.62                # idle left arm base (bimanual mount, arms at y = +-0.31)
 LEFT_HOME = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)   # folded rest (out of the top camera)
 READER_XY = (0.27, 0.0)           # nominal reader centre (body) on the table
-TOP_CAM = dict(pos=(-0.05, -0.30, 0.70), look_at=(0.38, 0.02, 0.0), fovy=45.0)   # placeholder until measured   # fixed top/front camera
+# fixed top camera: on a mount midway between the two arm bases (y = LEFT_BASE_Y / 2), above the
+# bench behind the arm bases, looking down the whole bench (as the lab photo); image up = back wall. Pose is a placeholder
+# until measured (PickCfg.rand jitters it).
+TOP_CAM = dict(pos=(-0.10, LEFT_BASE_Y / 2, 0.95), look_at=(0.40, LEFT_BASE_Y / 2, 0.0), fovy=62.0, up=(1.0, 0.0, 0.0))
 CONFIG = Path(__file__).resolve().parents[1] / "configs" / "task_h_reader.json"
 
 
@@ -87,7 +90,7 @@ def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM):
     frame = spec.worldbody.add_frame(pos=[0.0, LEFT_BASE_Y, 0.0])
     frame.attach_body(left.body("arm"), "left_", "")
     spec.worldbody.add_camera(name="top", pos=list(top_cam["pos"]),
-                              xyaxes=_look_xyaxes(top_cam["pos"], top_cam["look_at"]),
+                              xyaxes=_look_xyaxes(top_cam["pos"], top_cam["look_at"], top_cam.get("up", (0, 0, 1))),
                               fovy=top_cam["fovy"])
     fix = spec.body("fixture")
     # the panel's other ports (visual), relative to the target port, from the photo:
@@ -99,12 +102,18 @@ def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM):
                      pos=[x, y, 0.0003], rgba=[0.05, 0.05, 0.06, 1], contype=0, conaffinity=0)
 
 
-def build_scene(variant=None, top_cam=TOP_CAM):
+def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True):
     """CPU model of the full task H scene (pick + insert), from the same builder as PegEnv."""
     from blind_insertion.assets import builder as B   # noqa: PLC0415
     variant = variant or B.reader_variant()
+    def decorate(sp):
+        add_scene(sp, top_cam)
+        if detailed:
+            from blind_insertion.scenes.bench_details import add_details
+            add_details(sp, variant)
+
     m, lay = B.build("yam", [variant], pad_spheres=4, table_top=0.0, fixture_boxes=pc_case_boxes(),
-                     extra=lambda sp: add_scene(sp, top_cam))
+                     extra=decorate)
     B.apply_variant_cpu(m, lay, 0)
     cfg = json.loads(CONFIG.read_text())        # the insertion env's pad contact (PegEnv._apply_starts)
     m.geom_solref[lay.pad_geoms, 0] = cfg["pad_timeconst"]
@@ -117,9 +126,15 @@ def build_scene(variant=None, top_cam=TOP_CAM):
     for j, slot in enumerate(lay.peg_slots):      # plug metal, neck black, body light grey
         z = m.geom_aabb[slot].reshape(2, 3)[0, 2] + m.geom_pos[slot, 2]
         m.geom_rgba[slot] = ([0.75, 0.75, 0.78, 1] if z < B.USBC_PLUG_LEN else
-                             [0.08, 0.08, 0.09, 1] if z < B.USBC_PLUG_LEN + 0.026 else [0.82, 0.83, 0.85, 1])
+                             [0.08, 0.08, 0.09, 1] if z < B.USBC_PLUG_LEN + variant.handle_height else [0.82, 0.83, 0.85, 1])
+    if detailed:
+        # Keep the original convex collision body, render its rounded visual shell.
+        for slot in lay.peg_slots:
+            z = m.geom_aabb[slot].reshape(2, 3)[0, 2] + m.geom_pos[slot, 2]
+            if z > B.USBC_PLUG_LEN + variant.handle_height:
+                m.geom_rgba[slot, 3] = 0
     for j in range(len(lay.fixture_slots)):
-        m.geom_rgba[lay.fixture_slots[j]] = [0.62, 0.63, 0.66, 1]
+        m.geom_rgba[lay.fixture_slots[j]] = [0.64, 0.65, 0.66, 1]
     return m, lay
 
 
@@ -171,7 +186,8 @@ def task_config():
         fix_rpy_range_deg=[0.5, 10.0, 0.5],         # PC yaw +-10 deg about the vertical (fixture y)
         fixture_boxes=pc_case_boxes(),
         grip_rot_deg=3.0, inhand_tilt_deg=5.0, inhand_yaw_deg=0.0, grasp_along=0.005,
-        grasp_y=[0.002, 0.005],                     # pads above the body centre (fingertips clear the table)
+        grasp_y=[0.0048, 0.0060],                   # tcp above the body centre: fingertips (8.6 mm below the
+                                                    # tcp) clear the table, pads cover 2.3-8.8 mm of the 8.83 mm body
         start_gap=[0.0003, 0.010],                  # handoff: plug tip 0-10 mm before the panel
         episode_s=10.0, far_z=0.03)
     return json.loads(json.dumps(usbc), parse_float=lambda x: round(float(x), 6))

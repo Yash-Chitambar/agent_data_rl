@@ -39,14 +39,30 @@ class ActPick:
     for the current step from all chunks, weights exp(-k * age) (ACT temporal ensembling);
     otherwise execute `n_exec` actions of each chunk open loop."""
 
-    def __init__(self, path, device, n_exec=10, ensemble=0.01):
+    def __init__(self, path, device, n_exec=10, ensemble=0.01, settle=True, rest_qd=0.03, rest_s=0.3,
+                 near=0.06, min_finger=0.005):
+        """settle: also hand off when the arm has rested `rest_s` (all |qd| < rest_qd rad/s) with the
+        gripper closed on the reader (finger opening > min_finger) and the tcp within `near` of
+        the nominal pre-insert pose (configured PC position, not the randomized one), for when ACT
+        does not raise `done`. Uses only joint encoders, so it runs on the real arm unchanged."""
         self.m = torch.jit.load(path, map_location=device).eval()
         self.n_exec, self.ens = n_exec, ensemble
+        self.settle, self.rest_qd, self.rest_s, self.near, self.min_finger = settle, rest_qd, rest_s, near, min_finger
 
     def reset(self, n, device):
         self.chunk, self.k, self.t = None, 0, 0
         self.buf = None
         self.done_run = torch.zeros(n, dtype=torch.long, device=device)
+        self.rest_run = torch.zeros(n, dtype=torch.long, device=device)
+
+    def _settled(self, env, closed):
+        qd = env.t_qvel[:, torch.as_tensor(env.lay.arm_dofadr, device=env.device)]
+        p_nom = torch.tensor([env.cfg.port_xy[0] - env.body_z - 0.006, env.cfg.port_xy[1],
+                              S.PORT_HEIGHT + 0.0054], device=env.device)
+        rest = ((qd.abs().max(1).values < self.rest_qd) & closed & (env.state()[:, 6] > self.min_finger)
+                & ((env.tcp_pose()[0] - p_nom).norm(dim=1) < self.near))
+        self.rest_run = torch.where(rest, self.rest_run + 1, torch.zeros_like(self.rest_run))
+        return self.rest_run >= int(self.rest_s / env.control_dt)
 
     def _query(self, env):
         fr = env.render()
@@ -77,7 +93,10 @@ class ActPick:
             self.k += 1
         cmd = torch.cat([a[:, :6], torch.where(a[:, 6:7] > 0, 1.0, -1.0)], 1)
         self.done_run = torch.where(a[:, 7] > 0.5, self.done_run + 1, torch.zeros_like(self.done_run))
-        return cmd, self.done_run >= 5
+        done = self.done_run >= 5
+        if self.settle:
+            done |= self._settled(env, cmd[:, 6] < 0)
+        return cmd, done
 
 
 class ExpertPick:
@@ -167,7 +186,7 @@ class Release:
         return self.q, self.t >= self.T
 
 
-def run(env: PickEnv, picker, inserter: Inserter, pick_s=10.0, insert_s=10.0, video=None, release=True):
+def run(env: PickEnv, picker, inserter: Inserter, pick_s=12.0, insert_s=10.0, video=None, release=True):
     N, dev = env.N, env.device
     env.reset_all()
     picker.reset(N, dev)
@@ -224,9 +243,7 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=10.0, insert_s=10.0, vi
             frames.append({k: x[:video].cpu().numpy() for k, x in env.render().items()})
         if (phase == 3).all():
             break
-    p_r, _ = env.reader_pose()
-    p_t, _ = env.tcp_pose()
-    near = (p_r - p_t).norm(dim=1) < 0.06
+    near = env.in_hand()
     held = near | success                     # still in hand at the end, or inserted
     released = success & ~near
     p, R = env.plug_in_port()
@@ -242,6 +259,7 @@ def main():
     ap.add_argument("--pick", choices=["expert", "act"], default="expert")
     ap.add_argument("--act", default="")
     ap.add_argument("--ensemble", type=float, default=0.01, help="ACT temporal ensembling weight; 0 = chunks of 10")
+    ap.add_argument("--no_settle", action="store_true", help="hand off on ACT's done flag only")
     ap.add_argument("--insert", required=True)
     ap.add_argument("--episodes", type=int, default=256)
     ap.add_argument("--nworld", type=int, default=128)
@@ -253,7 +271,7 @@ def main():
     for b in range((a.episodes + a.nworld - 1) // a.nworld):
         v = B.sample_reader(1, a.seed + b)[0] if a.spec_parts else None
         env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed + b, render=a.pick == "act"), variant=v)
-        picker = ActPick(a.act, env.device, ensemble=a.ensemble) if a.pick == "act" else ExpertPick(env)
+        picker = ActPick(a.act, env.device, ensemble=a.ensemble, settle=not a.no_settle) if a.pick == "act" else ExpertPick(env)
         ins = Inserter(a.insert, env)
         r, _ = run(env, picker, ins)
         res.append({k: x.cpu().numpy() for k, x in r.items()})

@@ -231,13 +231,20 @@ def usbc_spec_variant(rec=USBC_REC, plug=USBC_PLUG, housing=0.030, neck=(0.014, 
                    chamfer=chamfer, plug_widen=c - cx)
 
 
-def reader_variant(rec=USBC_REC, plug=USBC_PLUG, housing=0.030, body=(0.036, 0.012, 0.036),
-                   neck=(0.014, 0.007, 0.028), mass=0.027, chamfer=0.0) -> Variant:
+# Caliper photos IMG_8745–8748: body width/thickness, neck width, total tip-to-tail.
+READER_TOTAL_LENGTH = 0.09046
+READER_BODY = (0.03473, 0.00883, 0.042)  # body length estimated from photo ruler
+READER_NECK = (0.01287, 0.0045, READER_TOTAL_LENGTH - USBC_PLUG_LEN - READER_BODY[2])
+# Neck thickness (4.5 mm) and the length split are photo estimates, not caliper readings.
+
+
+def reader_variant(rec=USBC_REC, plug=USBC_PLUG, housing=0.030, body=READER_BODY,
+                   neck=READER_NECK, mass=0.027, chamfer=0.0) -> Variant:
     """SanDisk USB-C SD reader (task H) at USB-C spec dimensions (`usbc_spec_variant`).
 
     The plug, then a neck (width, thickness, length) and the wide paddle body (width,
     thickness, length) the gripper holds top-down across its width. Widths lie along peg x
-    (the opening's long side), thicknesses along peg y. Neck and body: photo estimates.
+    (the opening's long side), thicknesses along peg y. Measured envelope; length split and neck thickness remain photo estimates.
     """
     v = usbc_spec_variant(rec=rec, plug=plug, housing=housing, neck=neck, mass=mass, chamfer=chamfer)
     bw, bt, bl = body
@@ -265,8 +272,8 @@ def sample_reader(n: int, seed: int, *, clearance="spec", dim_jitter=0.0005,
         else:
             rec = USBC_REC
             plug = (rec[0] - 2 * clearance, rec[1] - 2 * clearance)
-        out.append(reader_variant(rec=rec, plug=plug, body=(j(0.036), j(0.012), j(0.036)),
-                                  neck=(j(0.014), j(0.007), j(0.028)), mass=rng.uniform(*mass),
+        out.append(reader_variant(rec=rec, plug=plug, body=tuple(j(x) for x in READER_BODY),
+                                  neck=tuple(j(x) for x in READER_NECK), mass=rng.uniform(*mass),
                                   chamfer=float(rng.uniform(*chamfer))))
     return out
 

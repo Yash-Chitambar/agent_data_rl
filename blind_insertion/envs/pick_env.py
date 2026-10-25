@@ -31,11 +31,12 @@ class PickCfg:
     nworld: int = 256
     device: str = "cuda:0"
     seed: int = 0
-    episode_s: float = 10.0
+    episode_s: float = 12.0
     substeps: int = 20
     cams: tuple = ("top", "wrist_cam")
     cam_res: tuple = (320, 240)          # width, height
     render: bool = True
+    use_textures: bool = True  # photo-referenced workbench material
     # layout randomization (arm base frame)
     port_xy: tuple = S.PORT_XY
     port_xy_range: tuple = (0.02, 0.04)  # +- x, y
@@ -47,8 +48,17 @@ class PickCfg:
     # gripper (N per finger): open pushes the fingers apart, close squeezes
     grip_open: float = 4.0
     grip_close: float = -12.0
-    # render randomization: top camera mount, lights, colours
-    rand: dict = field(default_factory=lambda: dict(cam_pos=0.01, cam_rot_deg=2.0, light=True, colors=True))
+    # render randomization: top camera mount (uncalibrated: +-3 cm, +-4 deg), wrist camera mount,
+    # lights, colours
+    rand: dict = field(default_factory=lambda: dict(cam_pos=0.03, cam_rot_deg=4.0, wrist_pos=0.003,
+                                                    wrist_rot_deg=2.0, light=True, colors=True))
+    # physics / sensor randomization per reset ({} = nominal): friction scale of reader, pads and
+    # table (log-uniform), grip squeeze (N), arm kp and kd scales (log-uniform), joint friction (N m,
+    # log-uniform), command latency (control steps, one level per world), encoder noise (rad)
+    phys: dict = field(default_factory=lambda: dict(friction=(0.6, 1.6), grip_close=(-15.0, -9.0),
+                                                    kp_scale=(0.8, 1.25), kd_scale=(0.7, 1.4),
+                                                    frictionloss=(0.005, 0.1), latency=(0, 1, 2),
+                                                    q_noise=0.0005))
     nconmax: int = 160
     njmax: int = 1200
 
@@ -67,7 +77,8 @@ class PickEnv:
         N = self.N = cfg.nworld
         self.gen = torch.Generator(device=dev)
         self.gen.manual_seed(cfg.seed)
-        batched = ["geom_rgba", "light_pos", "light_dir", "light_diffuse", "cam_pos", "cam_quat", "geom_friction"]
+        batched = ["geom_rgba", "light_pos", "light_dir", "light_diffuse", "cam_pos", "cam_quat", "geom_friction",
+                   "actuator_gainprm", "actuator_biasprm", "dof_frictionloss"]
         with wp.ScopedDevice(cfg.device):
             self.m = mjw.put_model(mjm, batch_sizes={f: N for f in batched})
             self.d = mjw.make_data(mjm, nworld=N, nconmax=cfg.nconmax, njmax=cfg.njmax)
@@ -97,6 +108,10 @@ class PickEnv:
         self.q_ready = q[0]
         self.cam_ids = [mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_CAMERA, c) for c in cfg.cams]
         self.top_cam = self.cam_ids[cfg.cams.index("top")]
+        self.wrist_cam = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_CAMERA, "wrist_cam")
+        self.max_lat = max(cfg.phys.get("latency", (0,)))
+        self.lat = torch.zeros(N, dtype=torch.long, device=dev)
+        self.grip_close = torch.full((N,), cfg.grip_close, device=dev)
         self._graph = None
         if cfg.render:
             act = [i in self.cam_ids for i in range(mjm.ncam)]
@@ -105,7 +120,7 @@ class PickEnv:
             W, H = cfg.cam_res
             with wp.ScopedDevice(cfg.device):
                 self.rc = mjw.create_render_context(mjm, nworld=N, cam_res=[(W, H)] * len(order),
-                                                    render_rgb=True, render_depth=False, use_textures=False,
+                                                    render_rgb=True, render_depth=False, use_textures=cfg.use_textures,
                                                     use_shadows=False, cam_active=act)
                 self._rgb = wp.zeros((N, H, W), dtype=wp.vec3)
         self._physics(launch=False)
@@ -146,18 +161,45 @@ class PickEnv:
         self.t_ctrl[:, self.arm_act] = q
         for a in lay.finger_qadr:
             self.t_qpos[:, int(a)] = 0.035
+        self.q_hist = q[None].repeat(self.max_lat + 1, 1, 1)       # executed-command delay line
+        self._randomize_phys()
         self.grip_cmd = torch.ones(N, device=dev)
         self._set_grip(self.grip_cmd)
         if cfg.rand:
             self._randomize_render()
         self.steps = 0
 
+    def _randomize_phys(self):
+        ph, gen, dev, N, f, f0, lay = self.cfg.phys, self.gen, self.device, self.N, self.f, self.f0, self.lay
+        lu = lambda lo, hi, shape: torch.exp(_u(math.log(lo), math.log(hi), shape, gen, dev))  # noqa: E731
+        for k in ("geom_friction", "actuator_gainprm", "actuator_biasprm", "dof_frictionloss"):
+            f[k][:] = f0[k]
+        if "friction" in ph:
+            table = mujoco.mj_name2id(self.mjm, mujoco.mjtObj.mjOBJ_GEOM, "table")
+            for geoms in (list(lay.peg_slots), list(lay.pad_geoms), [table]):
+                g = torch.as_tensor(geoms, device=dev)
+                f["geom_friction"][:, g, 0] = f0["geom_friction"][g, 0] * lu(*ph["friction"], (N, 1))
+        self.grip_close = (_u(*ph["grip_close"], N, gen, dev) if "grip_close" in ph
+                           else torch.full((N,), self.cfg.grip_close, device=dev))
+        act = self.arm_act
+        if "kp_scale" in ph:
+            kp = f0["actuator_gainprm"][act, 0] * lu(*ph["kp_scale"], (N, 1))
+            f["actuator_gainprm"][:, act, 0] = kp
+            f["actuator_biasprm"][:, act, 1] = -kp
+        if "kd_scale" in ph:
+            f["actuator_biasprm"][:, act, 2] = f0["actuator_biasprm"][act, 2] * lu(*ph["kd_scale"], (N, 1))
+        if "frictionloss" in ph:
+            dofs = torch.as_tensor(lay.arm_dofadr, device=dev)
+            f["dof_frictionloss"][:, dofs] = lu(*ph["frictionloss"], (N, len(lay.arm_dofadr)))
+        levels = torch.as_tensor(ph.get("latency", (0,)), device=dev)
+        self.lat = levels[torch.randint(len(levels), (N,), generator=gen, device=dev)]
+
     def _yaw(self, a):
         z, o = torch.zeros_like(a), torch.ones_like(a)
         return torch.stack([a.cos(), -a.sin(), z, a.sin(), a.cos(), z, z, z, o], 1).reshape(-1, 3, 3)
 
     def _set_grip(self, cmd):
-        f = torch.where(cmd > 0, torch.full_like(cmd, self.cfg.grip_open), torch.full_like(cmd, self.cfg.grip_close))
+        f = torch.where(cmd > 0, torch.full_like(cmd, self.cfg.grip_open), self.grip_close)
         for a in self.lay.grip_act:
             self.t_ctrl[:, int(a)] = f
 
@@ -168,23 +210,38 @@ class PickEnv:
             f["cam_pos"][:, c] = f0["cam_pos"][c] + _u(-r.get("cam_pos", 0), r.get("cam_pos", 0), (N, 3), gen, dev)
             rpy = _u(-r.get("cam_rot_deg", 0), r.get("cam_rot_deg", 0), (N, 3), gen, dev) * math.pi / 180
             f["cam_quat"][:, c] = K.mat_to_quat(K.quat_to_mat(f0["cam_quat"][c].expand(N, 4)) @ K.rpy_mat(rpy))
+        if (r.get("wrist_pos") or r.get("wrist_rot_deg")) and self.wrist_cam >= 0:
+            c = self.wrist_cam
+            f["cam_pos"][:, c] = f0["cam_pos"][c] + _u(-r.get("wrist_pos", 0), r.get("wrist_pos", 0), (N, 3), gen, dev)
+            rpy = _u(-r.get("wrist_rot_deg", 0), r.get("wrist_rot_deg", 0), (N, 3), gen, dev) * math.pi / 180
+            f["cam_quat"][:, c] = K.mat_to_quat(K.quat_to_mat(f0["cam_quat"][c].expand(N, 4)) @ K.rpy_mat(rpy))
         if r.get("light"):
             nl = self.mjm.nlight
             f["light_pos"][:] = f0["light_pos"] + _u(-0.4, 0.4, (N, nl, 3), gen, dev)
             dirs = f0["light_dir"] + _u(-0.3, 0.3, (N, nl, 3), gen, dev)
             f["light_dir"][:] = dirs / dirs.norm(dim=-1, keepdim=True)
-            f["light_diffuse"][:] = f0["light_diffuse"] * _u(0.5, 1.3, (N, nl, 1), gen, dev)
+            f["light_diffuse"][:] = f0["light_diffuse"] * _u(0.4, 1.6, (N, nl, 1), gen, dev)
         if r.get("colors"):
             m, lay = self.mjm, self.lay
             table = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "table")
             case = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, f"fixbox_{j}") for j in range(5)]
             case = [g for g in case if g >= 0] + list(lay.fixture_slots)
+            case += [m.geom(n).id for n in ("detail_pc_body", "detail_pc_lid") if mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, n) >= 0]
             f["geom_rgba"][:] = f0["geom_rgba"]
-            f["geom_rgba"][:, table, :3] = f0["geom_rgba"][table, :3] * _u(0.6, 1.3, (N, 3), gen, dev)
+            f["geom_rgba"][:, table, :3] = (f0["geom_rgba"][table, :3] * _u(0.5, 1.8, (N, 1), gen, dev)
+                                            * _u(0.85, 1.15, (N, 3), gen, dev)).clamp(max=1)
             grey = _u(0.45, 0.9, (N, 1), gen, dev)
             f["geom_rgba"][:, torch.as_tensor(case, device=dev), :3] = (grey + _u(-0.04, 0.04, (N, 3), gen, dev))[:, None]
             body = [int(s) for s in lay.peg_slots if m.geom_rgba[s, 0] > 0.8]   # reader body (light grey)
+            silver = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "detail_reader_silver")
+            if silver >= 0:
+                body.append(silver)
             f["geom_rgba"][:, torch.as_tensor(body, device=dev), :3] = _u(0.6, 0.95, (N, 1), gen, dev)[:, None].expand(N, len(body), 3)
+            room = [i for i in range(m.ngeom) if m.geom(i).name in ("detail_wall", "detail_raceway") or
+                    m.geom(i).name.startswith("detail_room_wall")]
+            room = torch.as_tensor(room, device=dev)                 # wall paint and brightness
+            f["geom_rgba"][:, room, :3] = (f0["geom_rgba"][room, :3] * _u(0.75, 1.2, (N, 1, 1), gen, dev)
+                                           * _u(0.95, 1.05, (N, 1, 3), gen, dev)).clamp(max=1)
 
     # ------------------------------------------------------------------ physics
     def _physics(self, launch=True):
@@ -203,6 +260,10 @@ class PickEnv:
         """action (N, 7): joint targets + gripper command; noise (N, 6) is added to the executed
         joint targets only (DART-style perturbation; the label stays the clean action)."""
         q_t = action[:, :6] + (noise if noise is not None else 0)
+        if self.max_lat > 0:                          # world n executes the command from lat[n] steps ago
+            self.q_hist = torch.roll(self.q_hist, 1, 0)
+            self.q_hist[0] = q_t
+            q_t = self.q_hist[self.lat, torch.arange(self.N, device=self.device)]
         self.t_ctrl[:, self.arm_act] = q_t
         self.grip_cmd = action[:, 6]
         self._set_grip(self.grip_cmd)
@@ -211,8 +272,10 @@ class PickEnv:
 
     # ------------------------------------------------------------------ observations
     def state(self):
-        """(N, 7): arm joints and the mean finger opening (m)."""
+        """(N, 7): arm joints (with encoder noise, PickCfg.phys q_noise) and the mean finger opening (m)."""
         q = self.t_qpos[:, self.arm_q]
+        if self.cfg.phys.get("q_noise"):
+            q = q + self.cfg.phys["q_noise"] * torch.randn(q.shape, generator=self.gen, device=self.device)
         fq = self.t_qpos[:, torch.as_tensor(self.lay.finger_qadr, device=self.device)].mean(1, keepdim=True)
         return torch.cat([q, fq], 1)
 
@@ -233,6 +296,12 @@ class PickEnv:
         pa = self.lay.peg_qadr
         return self.t_qpos[:, pa:pa + 3], K.quat_to_mat(self.t_qpos[:, pa + 3:pa + 7])
 
+    def in_hand(self, tol=0.03):
+        """Reader body centre within `tol` of the tcp (the grasp is on the body)."""
+        p_r, R_r = self.reader_pose()
+        c = p_r + (R_r @ torch.tensor([0.0, 0.0, self.body_z], device=self.device))
+        return (c - self.tcp_pose()[0]).norm(dim=1) < tol
+
     def tcp_pose(self):
         return self.chain.fk(self.t_qpos[:, self.arm_q])
 
@@ -249,7 +318,7 @@ class Expert:
     port at a random gap, hold. Cartesian waypoints, batched IK from the commanded joints."""
     PHASES = ("approach", "descend", "close", "lift", "carry", "align", "hold")
 
-    def __init__(self, env: PickEnv, v_max=0.12, w_max=1.2, gap=(0.003, 0.010), grasp_y=0.0035,
+    def __init__(self, env: PickEnv, v_max=0.12, w_max=1.2, gap=(0.003, 0.010), grasp_y=0.0054,
                  grasp_along=0.004, lateral=0.0005, close_steps=40, hold_steps=15, seed=0):
         self.env, self.v, self.w = env, v_max, w_max
         self.gap, self.gy, self.ga, self.lat = gap, grasp_y, grasp_along, lateral
@@ -331,7 +400,7 @@ class Expert:
         adv |= (ph == 2) & (self.timer >= self.close_steps)
         adv |= (ph == 3) & reached & (self.timer > 5)
         adv |= (ph == 4) & reached
-        adv |= (ph == 5) & reached & settled & ((tgt - p_a).norm(dim=1) < 2e-4)
+        adv |= (ph == 5) & reached & settled & ((tgt - p_a).norm(dim=1) < 3e-4)
         adv |= (ph == 6) & (self.timer >= self.hold_steps) & ~self.done
         if ((ph == 2) & adv).any():
             m = (ph == 2) & adv
@@ -351,8 +420,6 @@ class Expert:
         p, R = env.plug_in_port()
         lat = (p[:, :2] - self.lat_t).norm(dim=1) * 1e3
         tilt = torch.rad2deg(torch.acos(R[:, 2, 2].clamp(-1, 1)))
-        p_r, _ = env.reader_pose()
-        p_t, _ = env.tcp_pose()
-        held = (p_r - p_t).norm(dim=1) < 0.06
+        held = env.in_hand()
         ok = self.done & held & (lat < 1.0) & (tilt < 3.0)
         return dict(done=self.done, ok=ok, lat_mm=lat, gap_mm=p[:, 2] * 1e3, tilt_deg=tilt, held=held)
