@@ -278,6 +278,30 @@ class RealArm:
     def hold(self):
         self.safe._hold(np.asarray(self.robot.get_joint_pos(), float))
 
+    def move_to(self, q6_goal, max_vel=0.3):
+        """Slow smoothstep move (no logging), the straight joint path checked first. Raises
+        SafetyStop (holding) on an unsafe path, the software stop or a safety check."""
+        q0 = np.asarray(self.robot.get_joint_pos(), float)
+        q6_goal = np.asarray(q6_goal, float)
+        for a in np.linspace(0, 1, 41):
+            why = self.safe.check.violation((1 - a) * q0[:6] + a * q6_goal)
+            if why:
+                raise safety.SafetyStop(f"path to {q6_goal.round(2)} unsafe at {a:.2f}: {why}")
+        n = max(1, int(np.ceil(np.abs(q6_goal - q0[:6]).max() / (max_vel * CONTROL_DT) * 1.5)))
+        t_next = time.monotonic()
+        for i in range(1, n + 1):
+            if estop.stopped():
+                self.hold()
+                raise safety.SafetyStop("software stop (estop.py)")
+            s = i / n
+            s = s * s * (3 - 2 * s)
+            tgt = q0.copy()
+            tgt[:6] = (1 - s) * q0[:6] + s * q6_goal
+            self.safe.command(tgt)
+            t_next += CONTROL_DT
+            self.wait(t_next)
+        time.sleep(1.0)   # settle
+
     def wait(self, t_next):
         while True:
             dt = t_next - time.monotonic()
@@ -458,7 +482,7 @@ def resolve_and_save(arm, rows, stop, a, meta):
                         **{f"q_{j + 1}": r["q"][j] for j in range(6)},
                         **{f"q_cmd_{j + 1}": r["q_cmd"][j] for j in range(6)},
                         **{f"a_{j + 1}": r["a"][j] for j in range(6)}} for r in rows])
-    df.to_csv(OUT / f"{a.name}_loop.csv", index=False)
+    df.to_csv(OUT / f"timing_{a.name}.csv", index=False)   # not <name>_*.csv: the fit globs steps_joint*.csv
 
     # every encoder reading, with the command on the bus at that time (fit script format)
     sends = sorted((t, k) for k, t in tm.sent.items() if np.isfinite(t))
@@ -528,21 +552,38 @@ def cmd_run(a):
             "control_dt": CONTROL_DT, "action_scale": ACTION_SCALE, "clock": "time.monotonic",
             "started": time.strftime("%Y-%m-%d %H:%M:%S %Z")}
     rows, stop = [], None
+    q_rest = np.asarray(arm.robot.get_joint_pos(), float)[:6]
     try:
         time.sleep(1.0)    # settle at the new gains
+        if a.start:
+            arm.move_to(a.start)
         rows, stop = run_loop(arm, src, n, off)
+    except safety.SafetyStop as e:
+        stop = str(e)
     except KeyboardInterrupt:
         stop = "interrupted"
     finally:
         arm.hold()
         time.sleep(0.3)
         try:
-            resolve_and_save(arm, rows, stop, a, meta)
+            if rows:
+                resolve_and_save(arm, rows, stop, a, meta)
         finally:
             if stop:
-                print(f"STOPPED: {stop}. The arm holds; it closes when you clear the stop in estop.py.")
+                print(f"STOPPED: {stop}. The arm holds; clear the stop in estop.py to continue.", flush=True)
+                estop.STOP_FILE.write_text("stop")
                 while estop.stopped():
                     time.sleep(0.1)
+            if a.start:
+                for _ in range(3):   # back to where the run began; a stop on the way holds and waits
+                    try:
+                        arm.move_to(q_rest, max_vel=0.2)
+                        break
+                    except safety.SafetyStop as e:
+                        print(f"STOPPED on the way back: {e}. Clear the stop in estop.py to retry.", flush=True)
+                        estop.STOP_FILE.write_text("stop")
+                        while estop.stopped():
+                            time.sleep(0.1)
             arm.close()
 
 
@@ -560,6 +601,7 @@ if __name__ == "__main__":
     r.add_argument("--joint", type=int, default=1)
     r.add_argument("--amp", type=float, default=0.04)
     r.add_argument("--reps", type=int, default=10)
+    r.add_argument("--start", type=float, nargs=6, help="move here first (slowly), back to rest after")
     r.add_argument("--name", required=True)
     a = ap.parse_args()
     sys.exit({"check": cmd_check, "run": cmd_run}[a.cmd](a) or 0)

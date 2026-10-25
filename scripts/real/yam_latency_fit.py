@@ -31,11 +31,13 @@ CONTROL_DT = 0.020
 T_RESP = 0.4                                      # s of response used in the fit
 
 
-def sim_step(q0, joint, dq, scale=1.0, T=T_RESP, delay=0.0):
+def sim_step(q0, joint, dq, scale=1.0, T=T_RESP, delay=0.0, kv=None, friction=None):
     """Sim response of `joint` (0-based) to a target step dq at t = delay, from rest at q0.
     Returns t (1 ms grid from 0) and (q - q0[joint]) / dq."""
-    spec, _ = B.load_robot("yam", gains=(KP * scale, KV * scale))
+    spec, _ = B.load_robot("yam", gains=(KP * scale, (KV if kv is None else kv) * scale))
     spec.option.timestep = 0.001
+    if friction is not None:                      # Coulomb friction (N m) on the stepped joint
+        spec.joint(f"joint{joint + 1}").frictionloss = friction
     m = spec.compile()
     d = mujoco.MjData(m)
     qadr = [m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f"joint{i}")] for i in range(1, 7)]
@@ -74,7 +76,7 @@ def segments(df, min_step=0.01):
         yield j, q[pre].mean(0), dq, t[post] - t0, (q[post, j] - base) / dq
 
 
-def fit(paths, out=None):
+def fit(paths, out=None, kv=None, frictions=None):
     df_all = [pd.read_csv(p) for p in paths]
     segs = [s for df in df_all for s in segments(df)]
     if not segs:
@@ -86,21 +88,24 @@ def fit(paths, out=None):
         dq = float(np.median([abs(s[2]) for s in S]))
         t_all = np.concatenate([s[3] for s in S])
         y_all = np.concatenate([s[4] for s in S])
-        best = (np.inf, None, None)
-        for sc in SCALES:
-            ts, ys = sim_step(q0, j, dq, sc)
-            for tau in np.arange(0, 0.1005, 0.001):
-                yp = np.interp(t_all - tau, ts, ys, left=0.0)
-                err = float(np.mean((y_all - yp) ** 2))
-                if err < best[0]:
-                    best = (err, sc, tau)
-        err, sc, tau = best
+        best = (np.inf, None, None, None)
+        for fr in (frictions if frictions is not None else [None]):
+            for sc in SCALES:
+                ts, ys = sim_step(q0, j, dq, sc, kv=kv, friction=fr)
+                for tau in np.arange(0, 0.1005, 0.001):
+                    yp = np.interp(t_all - tau, ts, ys, left=0.0)
+                    err = float(np.mean((y_all - yp) ** 2))
+                    if err < best[0]:
+                        best = (err, sc, tau, fr)
+        err, sc, tau, fr = best
         y_mean_late = float(np.mean(y_all[t_all > 0.3]))
         res[f"joint{j + 1}"] = dict(n_steps=len(S), step_rad=dq, delay_ms=round(tau * 1e3, 1),
                                     delay_control_steps=round(tau / CONTROL_DT, 2), gain_scale=sc,
-                                    rms_fit=round(err ** 0.5, 4), final_fraction=round(y_mean_late, 3))
+                                    rms_fit=round(err ** 0.5, 4), final_fraction=round(y_mean_late, 3),
+                                    friction_nm=fr)
         print(f"joint{j + 1}: {len(S)} steps, delay {tau * 1e3:.0f} ms "
-              f"({tau / CONTROL_DT:.2f} control steps), gain scale {sc}, rms {err ** 0.5:.3f}")
+              f"({tau / CONTROL_DT:.2f} control steps), gain scale {sc}"
+              f"{'' if fr is None else f', friction {fr} N m'}, final {y_mean_late:.2f}, rms {err ** 0.5:.3f}")
     if out:
         Path(out).write_text(json.dumps(res, indent=1))
     return res
@@ -139,11 +144,15 @@ def main():
     f = sub.add_parser("fit")
     f.add_argument("csv", nargs="+")
     f.add_argument("--out", default="")
+    f.add_argument("--friction", type=float, nargs="+", help="also fit a Coulomb friction (N m) on the "
+                   "stepped joint from these values (the sim's is 0.01)")
+    f.add_argument("--kv", type=float, nargs=6, help="sim kd to fit against (default: the sim's); e.g. the "
+                   "real arm's 5 5 5 2 2 2, where the DM motors cap kd at 5")
     sub.add_parser("selftest")
     a = ap.parse_args()
     if a.cmd == "fit":
         paths = [p for g in a.csv for p in sorted(glob.glob(g))]
-        fit(paths, a.out or None)
+        fit(paths, a.out or None, np.array(a.kv) if a.kv else None, a.friction)
     else:
         selftest()
 

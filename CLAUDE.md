@@ -85,7 +85,7 @@ export PYTHONPATH=$PWD
 .venv/bin/python -m blind_insertion.checks.signal_checks --robot flexiv   # A-S3..A-S6 (CPU)
 .venv/bin/python scripts/report/build_report.py [--no-media]   # HTML report data/videos -> report/static/
 .venv/bin/python scripts/report/phase_c.py    # C train x test matrix -> results/C/C-matrix.{csv,png}
-.venv/bin/python scripts/real/yam_latency_fit.py fit 'data/real_yam/steps_joint*.csv'   # real-arm delay + gain fit (docs/REAL_YAM_LATENCY_BACKLASH.md)
+.venv/bin/python scripts/real/yam_latency_fit.py fit 'data/real_yam/steps_joint*.csv' --kv 5 5 5 2 2 2 --friction 0.01 0.1 0.2 0.4 0.7 1.0 1.5 2.0 3.0 4.0   # real-arm gain + friction fit (read delay from the onset, see FINDINGS)
 report/tools/preview.sh && <playwright python> report/tools/check_page.py report --page .preview.html
 ```
 

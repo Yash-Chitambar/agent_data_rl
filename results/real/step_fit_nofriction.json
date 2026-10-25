@@ -1,0 +1,62 @@
+{
+ "joint1": {
+  "n_steps": 20,
+  "step_rad": 0.04,
+  "delay_ms": 0.0,
+  "delay_control_steps": 0.0,
+  "gain_scale": 0.7,
+  "rms_fit": 0.0344,
+  "final_fraction": 1.031,
+  "friction_nm": null
+ },
+ "joint2": {
+  "n_steps": 20,
+  "step_rad": 0.040000000000000036,
+  "delay_ms": 98.0,
+  "delay_control_steps": 4.9,
+  "gain_scale": 4.0,
+  "rms_fit": 0.2625,
+  "final_fraction": 0.658,
+  "friction_nm": null
+ },
+ "joint3": {
+  "n_steps": 20,
+  "step_rad": 0.040000000000000036,
+  "delay_ms": 100.0,
+  "delay_control_steps": 5.0,
+  "gain_scale": 0.25,
+  "rms_fit": 0.5091,
+  "final_fraction": 0.087,
+  "friction_nm": null
+ },
+ "joint4": {
+  "n_steps": 20,
+  "step_rad": 0.040000000000000036,
+  "delay_ms": 1.0,
+  "delay_control_steps": 0.05,
+  "gain_scale": 0.7,
+  "rms_fit": 0.0755,
+  "final_fraction": 0.874,
+  "friction_nm": null
+ },
+ "joint5": {
+  "n_steps": 20,
+  "step_rad": 0.04,
+  "delay_ms": 0.0,
+  "delay_control_steps": 0.0,
+  "gain_scale": 0.35,
+  "rms_fit": 0.1009,
+  "final_fraction": 0.79,
+  "friction_nm": null
+ },
+ "joint6": {
+  "n_steps": 20,
+  "step_rad": 0.0399999999999999,
+  "delay_ms": 0.0,
+  "delay_control_steps": 0.0,
+  "gain_scale": 0.85,
+  "rms_fit": 0.0448,
+  "final_fraction": 0.918,
+  "friction_nm": null
+ }
+}

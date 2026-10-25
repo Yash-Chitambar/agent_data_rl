@@ -1,0 +1,149 @@
+{
+ "args": {
+  "cmd": "run",
+  "side": "right",
+  "source": "step",
+  "seconds": 60.0,
+  "gains": "sim",
+  "infer": false,
+  "policy": null,
+  "joint": 5,
+  "amp": 0.04,
+  "reps": 10,
+  "start": [
+   0.0,
+   1.2,
+   1.0,
+   -0.6,
+   0.0,
+   0.0
+  ],
+  "name": "steps_joint5"
+ },
+ "side": "right",
+ "joint_offsets_rad": [
+  0.0,
+  0.01267,
+  0.00026,
+  0.02318,
+  -0.01946,
+  0.0
+ ],
+ "arm": {
+  "gains_before": [
+   [
+    80.0,
+    80.0,
+    80.0,
+    40.0,
+    10.0,
+    10.0
+   ],
+   [
+    5.0,
+    5.0,
+    5.0,
+    1.5,
+    1.5,
+    1.5
+   ]
+  ],
+  "kp": [
+   80.0,
+   80.0,
+   80.0,
+   30.0,
+   30.0,
+   30.0
+  ],
+  "kd": [
+   5.0,
+   5.0,
+   5.0,
+   2.0,
+   2.0,
+   2.0
+  ],
+  "gravity_comp_factor": [
+   1.0,
+   1.1,
+   1.1,
+   1.2,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "coulomb_friction": [
+   0.3,
+   0.3,
+   0.3,
+   0.06,
+   0.06,
+   0.06,
+   0.0
+  ]
+ },
+ "control_dt": 0.02,
+ "action_scale": 0.04,
+ "clock": "time.monotonic",
+ "started": "2026-10-25 16:11:31 PDT",
+ "summary": {
+  "steps": 1050,
+  "stop": null,
+  "loop_period_ms": {
+   "mean": 19.999982504168788,
+   "std": 1.518620014849234,
+   "max": 61.206049984321
+  },
+  "obs_age_at_tick_ms": {
+   "mean": -0.203,
+   "std": 0.885,
+   "p50": -0.091,
+   "p99": 1.088,
+   "max": 1.125
+  },
+  "compute_ms (t_act - t_tick)": {
+   "mean": 0.539,
+   "std": 0.627,
+   "p50": 0.172,
+   "p99": 1.819,
+   "max": 2.135
+  },
+  "act_to_send_ms": {
+   "mean": 2.86,
+   "std": 0.637,
+   "p50": 2.866,
+   "p99": 4.89,
+   "max": 5.09
+  },
+  "loop_latency_ms (t_send - t_obs)": {
+   "mean": 3.195,
+   "std": 0.778,
+   "p50": 2.962,
+   "p99": 5.939,
+   "max": 6.139
+  },
+  "obs_exact_fraction": 1.0,
+  "unsent_steps": 2,
+  "encoder_rate_hz": 340.6254950531324,
+  "encoder_period_ms_p99": 3.0816045473329723,
+  "hold_error_rad (q_cmd - q, mean / std)": {
+   "mean": [
+    0.00153,
+    0.0,
+    0.00038,
+    0.00284,
+    0.00105,
+    0.00037
+   ],
+   "std": [
+    0.0006,
+    0.0,
+    1.2e-05,
+    0.000261,
+    0.015164,
+    0.000116
+   ]
+  }
+ }
+}

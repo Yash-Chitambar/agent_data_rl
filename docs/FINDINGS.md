@@ -16,7 +16,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
-| Real rig | duchamp3 set up (2026-10-24/25): both YAMs on CAN, safety layer, software stop, both wrist cameras and the ZED calibrated, arm joint offsets measured (spec `blind_insertion/configs/real_cameras_duchamp3.json`). Deployment loop `scripts/real/deploy.py` (sim gains, offsets) checked against the sim; Test 1: loop latency 4.0 ms. Not yet: step test (motor delay, gain fit), backlash. Branch `real-yam-setup` (PR #1). |
+| Real rig | duchamp3 set up (2026-10-24/25): both YAMs on CAN, safety layer, software stop, both wrist cameras and the ZED calibrated, arm joint offsets measured (spec `blind_insertion/configs/real_cameras_duchamp3.json`). Deployment loop `scripts/real/deploy.py` (sim gains, offsets) checked against the sim. Latency ~8 ms total (0.4 control step). **Real joint friction 10-150x the sim's** (joints 2-3: 1-1.5 N m). Not yet: backlash, friction in training. Branch `real-yam-setup` (PR #1). |
 
 ### Phase B results (seed 0 final checkpoints, 2,048 matched starts, unseen geometries)
 
@@ -89,6 +89,46 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+
+### 2026-10-25 (23:40 UTC, duchamp3) — Real YAM step test: latency ~8 ms; joint friction 10-150x the sim's
+
+Test 2 of `docs/REAL_YAM_LATENCY_BACKLASH.md` on the right arm, at the sim gains (kd 5 on joints 1-3,
+the DM limit), from q = (0, 1.2, 1.0, -0.6, 0, 0) (wrist 0.28 m above the table). Each joint alone:
+0.01 rad x 3 (probe), then 0.04 rad (one full action) x 10. No stop, no ringing, < 1 count of
+coupling into other joints (joint 1: 4 mrad, the base swing). Data `data/real_yam/steps_joint*.csv`,
+fits `results/real/step_fit.json` (with friction) and `step_fit_nofriction.json`.
+
+| Joint | Reached at 0.04 rad (0.01 rad) | First motion after the bus send | Fitted friction (N m) | Fitted gain scale |
+|---|---|---|---|---|
+| 1 | 103%, overshoot 9-12% (48%) | 11.4 ms (sim: 9-10) | 0.01 | 0.7 |
+| 2 | 62% (0%) | 14.4 ms | 1.0 | 0.7 |
+| 3 | 8% (0%) | 28.5 ms | 1.5 | 0.35 (not identifiable) |
+| 4 | 87% (13%) | 8.5 ms (sim: 4-5) | 0.2 | 1.5 |
+| 5 | 79% (42%) | 8.5 ms (sim: 4) | 0.2 | 1.0 |
+| 6 | 94% (77%) | 8.5 ms (sim: 3) | 0.1 | 1.5 |
+
+- **Latency.** Command on the bus -> first encoder motion is 1.5-5.5 ms later than in the sim (joints
+  1, 4-6; the encoder period is 2.9 ms, so that is the resolution). With the 4.0 ms loop part (Test 1):
+  **total ~8 ms = 0.4 control steps**, jitter 1.6 ms. Between the sim's k = 0 and k = 1: per the
+  protocol, randomize `latency` over {0, 1} (or add a sub-step delay to the env). The fit script's own
+  delay comes out 0 ms: the onset is a small part of the fitted curve and gain and friction absorb
+  it, so read the delay from the onset, not from `delay_ms`.
+- **Friction is the big gap.** The sim has `frictionloss` 0.01 N m; the fit gives 1.0 (joint 2) and
+  1.5 N m (joint 3), 0.1-0.2 on the wrist. A command closer than friction / kp does not move a
+  joint: ~12 mrad on joint 2, ~19 mrad (half an action unit) on joint 3, 3-7 mrad on the wrist. Small
+  corrective actions, the ones insertion needs, are lost on joints 2-3. Without friction the fit is
+  meaningless on joints 2-3 (delay 100 ms, gain x4 / x0.25, rms 0.26 / 0.51 vs 0.09 / 0.035).
+  i2rt's Coulomb compensation (0.3 N m x sign(velocity) on joints 1-3) does nothing at rest.
+- Joint 3's friction (8% of a 0.04 rad step, ~3 N m of command torque) is high for a DM4340: check
+  the elbow cable for drag. Joint 2 moved 110% on the first step after the move and 62% after:
+  hysteresis.
+- **Gains.** Where friction lets it be measured (joints 1, 4-6) the stiffness is 0.7-1.5x the sim's.
+  Friction and gain trade off in the fit, so these are rough.
+- **For training**: `EnvCfg.arm_frictionloss` exists but draws one log-uniform range for all joints;
+  the real arm needs per-joint ranges (joints 2-3 up to ~1.5-2 N m, wrist ~0.3). Plus
+  `arm_kp_scale` ~(0.6, 1.6) and latency {0, 1}. A policy trained on 0.01 N m will likely stall in the
+  dead band on joints 2-3.
+
 
 ### 2026-10-25 (23:05 UTC, duchamp3) — Real YAM deployment loop; Test 1: loop latency 4.0 ms, encoder 343 Hz
 
