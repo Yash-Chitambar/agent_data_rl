@@ -90,6 +90,33 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-26 (22:30 UTC, duchamp3) — ZED pose refit from 3 board positions; held-out check passes
+
+Follow-up to the entry below. `scripts/real/fit_zed.py`: one PnP over 168 corners from three board
+positions (`data/calib/zedfit/pos1-3`): 3D corners from the wrist cameras through the arms (mean of
+3-4 views), 2D from the ZED's own detections. Written to the spec (`top.extrinsics_cam_in_right_base`
+and `_in_left_base`; the old pose kept as `extrinsics_cam_in_right_base_v1`). Change: 22 mm, 1.2°
+(mostly rotation traded against translation: 1.2° at 1 m is 21 mm). `results/real/zed_refit.json`.
+
+| Wrist corners in the ZED image (mean px) | pos 1 | pos 2 | pos 3 | pos 4 (held out) |
+|---|---|---|---|---|
+| old ZED pose | 0.98 | 1.51 | 2.09 | 3.86 |
+| new ZED pose | 0.33 | 0.32 | 0.35 | 2.04 |
+
+- Held out (position 4, near the left base: right arm views only): 2.3 / 1.8 px in the ZED image,
+  ZED corners 3.2 / 2.4 px in the right wrist image (old pose: 8-11 px). Passes.
+- The held-out residual (~2 px, ~2 mm at 1 m) is the right-vs-left arm difference (2-3 mm): the fit
+  used both arms' mean, position 4 only the right arm. The ZED pose is now as good as the arms agree.
+- **The mm test was the wrong bar:** the ZED's single-board PnP depth of a 12 cm board at 1 m wobbles
+  ~5 mm between positions (+2 to +4 mm, then -4.7 mm at position 4), so it measured that, not the poses.
+  `verify_cameras.py` now passes on pixels: wrist corners <= 3 px in the ZED image, ZED corners <= 6 px
+  in each wrist image, board still (ZED re-shot after the arm views; 10 frames dropped after open).
+- A stale ZED frame once showed the board before it was rotated (25° off from both wrists, which
+  agreed): the check now catches this.
+- The right arm's CAN adapter (`canable2`, behind two chained USB 2 hubs on the ZED's controller)
+  dropped off USB twice (14:29, 14:43) for ~7 s, both while idle. The udev rule brought it back up.
+  Plug it straight into the PC: a drop during motion leaves the arm limp.
+
 ### 2026-10-26 (21:40 UTC, duchamp3) — Three-camera check: wrists agree to 1-3 mm, the ZED is 3.5-5.5 mm off
 
 `scripts/real/verify_cameras.py`: board (8 x 7, 15 mm) at a new spot on the table, (0.30, 0.34) m in

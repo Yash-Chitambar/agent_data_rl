@@ -13,9 +13,12 @@ where the ZED sees it. Run estop.py (or rigctl.py) first: Enter / space holds bo
 3. Compared in the right base frame: corner distances between every pair of views (mm), and the
    ZED's corners projected into each wrist image (px). Nothing from this run is fitted.
 
-Pass: every view within 4 mm (mean corner distance) of the ZED, and ZED corners within 6 px of the
-wrist detections (calibration hold-out: 2.2-2.7 px). Images and numbers go to --out; the summary
-also to results/real/camera_verify.json.
+Pass: in every wrist view, (a) the wrist-located corners projected into the ZED image land within
+3 px of the ZED's detections (~3 mm at 1 m; tests the ZED pose), (b) the ZED-located corners
+projected into the wrist image land within 6 px of its detections (calibration hold-out 2.2-2.7 px),
+(c) the board did not move. At least 2 views. The mm table is for information: the ZED's single-board
+PnP depth wobbles ~5 mm at 1 m (a 12 cm board), so it measures that, not the poses.
+Images and numbers go to --out; the summary also to results/real/camera_verify.json.
 """
 import argparse
 import json
@@ -36,7 +39,7 @@ from snapshot import T_pose  # noqa: E402
 
 REPO = HERE.parents[1]
 SIDES = ("right", "left")
-PASS_MM, PASS_PX = 4.0, 6.0
+PASS_ZED_PX, PASS_PX = 3.0, 6.0
 ELEVATIONS = (55, 40)   # deg, two views per arm
 
 
@@ -79,6 +82,25 @@ def plan_view(side, mover, kin, checker, tgt, X, elev, rest):
     return None, None, None
 
 
+def zed_board(out, name, discard=10):
+    """Board pose in the ZED frame from a fresh frame (the first `discard` frames are dropped)."""
+    zed = calib.Zed()
+    try:
+        for _ in range(discard):
+            zed.grab()
+        img = zed.grab()
+        c = calib.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+        if c is None:
+            raise SystemExit("the ZED does not see the board: put it on the table between the arms")
+        T_zb, rms = calib.board_pose(c, zed.K, None)
+        cv2.imwrite(str(out / f"{name}_raw.png"), img)
+        cv2.drawChessboardCorners(img, calib.BOARD, c.astype(np.float32), True)
+        cv2.imwrite(str(out / f"{name}.png"), img)
+        return T_zb, rms, c, zed.K
+    finally:
+        zed.close()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=f"data/calib/verify_{time.strftime('%Y%m%d_%H%M%S')}")
@@ -92,19 +114,8 @@ def main():
     if estop.stopped():
         raise SystemExit(f"{estop.STOP_FILE} is set: clear it first")
 
-    # 1. ZED
-    zed = calib.Zed()
-    try:
-        img = zed.grab()
-        c = calib.detect(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
-        if c is None:
-            raise SystemExit("the ZED does not see the board: put it on the table between the arms")
-        T_zb, rms = calib.board_pose(c, zed.K, None)
-        cv2.imwrite(str(out / "zed_raw.png"), img)
-        cv2.drawChessboardCorners(img, calib.BOARD, c.astype(np.float32), True)
-        cv2.imwrite(str(out / "zed.png"), img)
-    finally:
-        zed.close()
+    # 1. ZED (again after the arms are home: the board must not have moved, and a stale frame shows)
+    T_zb, rms, c_zed, zed_K = zed_board(out, "zed")
     P_zed = corners_in(T_rb_zed @ T_zb)
     center = P_zed.mean(0)
     print(f"ZED: board centre in the right base {center.round(4)} m, PnP rms {rms:.2f} px "
@@ -148,7 +159,14 @@ def main():
                     proj, _ = cv2.projectPoints(Pc, np.zeros(3), np.zeros(3), K, dist)
                     proj = proj.reshape(-1, 2)
                     px = min(np.linalg.norm(proj - c, axis=1).mean(), np.linalg.norm(proj[::-1] - c, axis=1).mean())
+                    # these wrist-located corners in the ZED image (no ZED PnP in this one)
+                    rz, _ = cv2.Rodrigues(calib.T_inv(T_rb_zed)[:3, :3])
+                    pz, _ = cv2.projectPoints(P, rz, calib.T_inv(T_rb_zed)[:3, 3], zed_K, None)
+                    pz = pz.reshape(-1, 2)
+                    zpx = min(np.linalg.norm(pz - c_zed, axis=1).mean(), np.linalg.norm(pz[::-1] - c_zed, axis=1).mean())
+                    print(f"{name}: its corners land {zpx:.1f} px from the ZED's detections in the ZED image", flush=True)
                     views[name] = {"corners": P, "q": qm[:6].tolist(), "zed_reproj_px": float(px),
+                                   "in_zed_image_px": float(zpx),
                                    "board_dist_m": float(np.linalg.norm(T_cb[:3, 3]))}
                     cv2.imwrite(str(out / f"{name}_raw.png"), f)
                     views[name]["detected_px"] = c.tolist()
@@ -172,6 +190,12 @@ def main():
         for m in movers.values():
             m.close()
 
+    T_zb2, _, c_zed2, _ = zed_board(out, "zed_after")
+    moved = np.linalg.norm(corners_in(T_zb2) - corners_in(T_zb), axis=1).max()
+    print(f"ZED before vs after the arm views: corners moved up to {moved * 1e3:.1f} mm", flush=True)
+    if moved > 0.0015:
+        print("the board moved (or the first ZED frame was stale): this position is not valid; rerun it")
+
     # 3. compare
     names = list(views)
     print("\nmean / max corner distance in the right base frame (mm):")
@@ -185,12 +209,15 @@ def main():
             row.append(f"{mn * 1e3:6.1f}/{mx * 1e3:5.1f}")
         print(f"{i:>12s}" + "".join(f"{r:>14s}" for r in row))
     wr = [n for n in names if n != "zed"]
-    ok = len(wr) == 4 and all(table[f"zed|{n}"][0] <= PASS_MM and views[n]["zed_reproj_px"] <= PASS_PX for n in wr)
-    print(f"\n{'PASS' if ok else 'FAIL'}: {len(wr)}/4 wrist views; pass = each within {PASS_MM} mm of the ZED "
-          f"and ZED corners within {PASS_PX} px in its image")
+    ok = moved <= 0.0015 and len(wr) >= 2 and all(
+        views[n]["in_zed_image_px"] <= PASS_ZED_PX and views[n]["zed_reproj_px"] <= PASS_PX for n in wr)
+    print(f"\n{'PASS' if ok else 'FAIL'}: {len(wr)}/4 wrist views; pass = wrist corners within {PASS_ZED_PX} px in the "
+          f"ZED image and ZED corners within {PASS_PX} px in each wrist image, board still")
     summary = {"time": time.strftime("%Y-%m-%d %H:%M:%S %Z"), "spec": str(rig.SPEC.relative_to(REPO)),
-               "out": a.out, "pass": ok, "pass_mm": PASS_MM, "pass_px": PASS_PX,
+               "out": a.out, "pass": ok, "pass_zed_px": PASS_ZED_PX, "pass_px": PASS_PX,
                "board_center_right_base_m": center.round(4).tolist(), "zed_pnp_rms_px": round(rms, 2),
+               "zed_moved_mm": round(float(moved) * 1e3, 2), "zed_detected_px": c_zed.tolist(),
+               "zed_detected_px_after": c_zed2.tolist(), "zed_K": np.asarray(zed_K).tolist(),
                "corner_dist_mm_mean_max": table,
                "views": {n: {**{k: v for k, v in views[n].items() if k != "corners"},
                              "corners_right_base_m": np.round(views[n]["corners"], 5).tolist()} for n in names},
