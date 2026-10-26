@@ -10,9 +10,9 @@ import numpy as np
 from scipy.spatial import ConvexHull
 
 ASSET = Path(__file__).with_suffix('') / 'flexible_4310.xml'
-# Black rubber pad (not in the upstream CAD): it fills the pocket in each soft tip's inner face,
-# ~3.5-19.5 mm from the tip end (its far edge is the notch on the real tip), flush with the face.
-# The grip surface is that flush face: the yellow lip at the tip end and the rubber.
+# Black rubber pad (not in the upstream CAD) on each soft tip's inner face, from the tip end to the
+# far edge of the CAD's rubber pocket (~19.5 mm, the notch on the real tip), flush with the face.
+# The grip surface is that flush face.
 PAD_THICKNESS = 0.001   # visible rubber sheet (the CAD pocket is ~4.4 mm deep); photo estimate
 PAD_RGBA = [.03, .03, .03, 1]
 TIP_LINK_BITS = (8, 1)            # builder.FINGER_LINK_BITS: tips collide with table and fixture only
@@ -61,7 +61,8 @@ def _tip_geometry(model, data, body, s):
     inside = (dz > lo_dz - 5e-4) & (dz < hi_dz)    # the floor's facet corners sit on the lip slice
     floor = inside & (rec > 1.5e-3) & (rec < 6e-3)
     depth = float(np.median(rec[floor]))
-    pts = np.stack([y[floor], z[floor]], 1)
+    lip = (dz <= lo_dz) & (rec < 1e-3)          # the sheet also covers the lip, to the tip end
+    pts = np.stack([y[floor | lip], z[floor | lip]], 1)
     return (a, b, c), (z.max() - hi_dz, z.max() - lo_dz), depth, pts[ConvexHull(pts).vertices], V
 
 
