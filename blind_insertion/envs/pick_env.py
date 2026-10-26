@@ -331,7 +331,7 @@ class Expert:
 
     def __init__(self, env: PickEnv, v_max=0.12, w_max=1.2, gap=(0.003, 0.010), grasp_y=None,
                  grasp_along=0.004, lateral=0.0005, close_steps=40, hold_steps=15, seed=0,
-                 bias_gain=0.1, bias_max=0.02, near_r=0.02):
+                 bias_gain=0.05, bias_max=0.02, near_r=0.02):
         self.env, self.v, self.w = env, v_max, w_max
         if grasp_y is None:     # middle of the insertion policy's in-hand range for this gripper
             grasp_y = float(np.mean(S.GRASP_Y[env.gripper]))
