@@ -6,6 +6,8 @@ One loop for the real-arm tests (docs/REAL_YAM_LATENCY_BACKLASH.md) and for poli
     joint frame (q_model = q_measured + rig.joint_offsets(side)), compute the action, send
     q_target = q_measured + action_scale * action through safety.SafeArm. The offsets cancel in
     the target (both sides are motor readings); they matter in the observation (joints and FK).
+    With the config's action_mode "accumulate" (EnvCfg): q_target = clip(q_target_prev + scale * a,
+    q_measured +- target_cap), and the observation gets q_target_prev - q_measured, as PegEnv.
   * Gains set at start (i2rt update_kp_kd). Default: the sim's YAM gains (builder "yam"), with kd
     capped at the DM motors' MIT limit (5.0: joints 1-3 get 5 instead of 6).
   * Timing: hooks in the i2rt driver threads stamp (time.monotonic) every encoder reading when it
@@ -55,15 +57,18 @@ CONTROL_DT = 0.020
 ACTION_SCALE = 0.04      # RobotInfo("yam").action_scale
 ACTION_CLIP = 3.0        # EnvCfg.action_clip
 HISTORY = 30             # EnvCfg.history
+ACTION_MODE = "relative"  # EnvCfg.action_mode: relative | accumulate
+TARGET_CAP = 0.1         # EnvCfg.target_cap (rad), accumulate only
 OUT = REPO / "data/real_yam"
 
 
 # ----------------------------------------------------------------------------- observation
 class ObsBuilder:
     """The actor observation of PegEnv._actor_obs_now for the YAM, from model-frame joints:
-    [q, qd, tcp pos, tcp euler xyz in R_obs, tcp twist, prev action], plus the 30-step history."""
+    [q, qd, tcp pos, tcp euler xyz in R_obs, tcp twist, prev action (, q_target - q_meas)], plus the
+    30-step history. The last part only in accumulate mode."""
 
-    def __init__(self, grasp_mode="axial", fix_base_rpy_deg=(0.0, 0.0, 0.0), history=HISTORY):
+    def __init__(self, grasp_mode="axial", fix_base_rpy_deg=(0.0, 0.0, 0.0), history=HISTORY, accumulate=False):
         spec, info = B.load_robot("yam")
         m = spec.compile()
         site = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, info.tcp_site)
@@ -77,6 +82,8 @@ class ObsBuilder:
             self.R_obs = K.rpy_mat(torch.tensor([0.0, 0.0, yaw])) @ K.rpy_mat(torch.tensor([math.pi, 0.0, 0.0]))
         self.history = history
         self.prev = torch.zeros(1, 6)
+        self.accumulate = accumulate
+        self.target_err = torch.zeros(1, 6)   # q_target - q_meas (encoder frame), accumulate only
         self.hist = None
 
     def now(self, q_model, qd):
@@ -85,6 +92,8 @@ class ObsBuilder:
         p, R, J = self.chain.fk(q, with_jac=True)
         tw = (J @ qd[..., None])[..., 0]
         eul = K.euler_xyz(self.R_obs.T[None] @ R)
+        if self.accumulate:
+            return torch.cat([q, qd, p, eul, tw, self.prev, self.target_err], 1)
         return torch.cat([q, qd, p, eul, tw, self.prev], 1)
 
     def push(self, q_model, qd):
@@ -99,6 +108,9 @@ class ObsBuilder:
 
     def set_prev(self, a):
         self.prev = torch.as_tensor(a, dtype=torch.float32).reshape(1, 6)
+
+    def set_target_err(self, e):
+        self.target_err = torch.as_tensor(e, dtype=torch.float32).reshape(1, 6)
 
 
 def load_actor(path, history=HISTORY):
@@ -323,7 +335,7 @@ class SimArm:
     """CPU MuJoCo YAM with the sim's actuators, in lockstep with the loop. Its encoders read
     q_true - offsets, as a real arm whose motor zeros sit off the model's."""
 
-    def __init__(self, kp, kd, offsets, q0):
+    def __init__(self, kp, kd, offsets, q0, friction=None):
         spec, info = B.load_robot("yam", gains=(kp, kd))
         spec.option.timestep = 0.001
         self.m = spec.compile()
@@ -333,6 +345,8 @@ class SimArm:
         self.dadr = np.array([self.m.jnt_dofadr[J(j)] for j in info.arm_joints])
         self.act = np.array([mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_ACTUATOR, j) for j in info.arm_joints])
         self.off = np.asarray(offsets, float)
+        if friction is not None:   # per-joint frictionloss (N m), as EnvCfg.arm_frictionloss
+            self.m.dof_frictionloss[self.dadr] = friction
         self.d.qpos[self.qadr] = q0
         self.d.ctrl[self.act] = q0
         mujoco.mj_forward(self.m, self.d)
@@ -364,8 +378,8 @@ class SimArm:
 # ----------------------------------------------------------------------------- loop
 def run_loop(arm, source, n_steps, offsets, obs=None, clock=time.monotonic):
     """Returns per-step rows. Stops (holding) on the software stop or a safety stop."""
-    obs = obs or ObsBuilder()
-    rows, grip = [], None
+    obs = obs or ObsBuilder(accumulate=ACTION_MODE == "accumulate")
+    rows, grip, q_tgt = [], None, None
     t_next = clock()
     stop = None
     for k in range(n_steps):
@@ -376,15 +390,22 @@ def run_loop(arm, source, n_steps, offsets, obs=None, clock=time.monotonic):
         t_tick = clock()
         q, qd, t_obs, exact = arm.read()
         q_model = q[:6] + offsets
+        if q_tgt is None:
+            q_tgt = q[:6].copy()   # PegEnv.reset: q_target = the start pose
+        obs.set_target_err(q_tgt - q[:6])
         a = np.clip(np.asarray(source(k, q[:6], q_model, qd[:6], obs), float), -ACTION_CLIP, ACTION_CLIP)
         t_act = clock()
         grip = q[6] if grip is None else grip
-        tgt = np.append(q[:6] + ACTION_SCALE * a, grip)
+        if ACTION_MODE == "accumulate":
+            tgt = np.append(np.clip(q_tgt + ACTION_SCALE * a, q[:6] - TARGET_CAP, q[:6] + TARGET_CAP), grip)
+        else:
+            tgt = np.append(q[:6] + ACTION_SCALE * a, grip)
         try:
             sent = arm.send(tgt, k)
         except safety.SafetyStop as e:
             stop = str(e)
             break
+        q_tgt = np.asarray(sent, float)[:6]   # what went out (safety may cap it)
         t_ret = clock()
         obs.set_prev(a)
         rows.append(dict(k=k, t_tick=t_tick, t_obs=t_obs, obs_exact=exact, t_act=t_act, t_ret=t_ret,
@@ -396,24 +417,25 @@ def run_loop(arm, source, n_steps, offsets, obs=None, clock=time.monotonic):
 
 
 # ----------------------------------------------------------------------------- offline check
-def cmd_check(a):
-    """Loop + SimArm (offsets on) against a direct rollout of the sim's action scheme."""
-    off = rig.joint_offsets("right")
-    q0 = np.array([0.0, 1.2, 1.0, -0.6, 0.0, 0.0])
-    n = 300
-    src = Random(seed=1, n=n)
-
-    # reference: PegEnv's scheme on the model directly, q_t = q + scale * a held 20 ms
-    ref = SimArm(SIM_KP, SIM_KD, np.zeros(6), q0)
-    ref_q = []
+def direct_rollout(src, n, q0, friction=None):
+    """PegEnv's action scheme on the model directly (no loop, no offsets), held 20 ms per step."""
+    ref = SimArm(SIM_KP, SIM_KD, np.zeros(6), q0, friction)
+    qs, q_tgt = [], np.asarray(q0, float).copy()
     for k in range(n):
         q = ref.d.qpos[ref.qadr].copy()
-        ref_q.append(q)
-        ref.d.ctrl[ref.act] = q + ACTION_SCALE * np.clip(src.a[k], -ACTION_CLIP, ACTION_CLIP)
+        qs.append(q)
+        a = np.clip(src(k, q, q, None, None), -ACTION_CLIP, ACTION_CLIP)
+        if ACTION_MODE == "accumulate":
+            q_tgt = np.clip(q_tgt + ACTION_SCALE * a, q - TARGET_CAP, q + TARGET_CAP)
+        else:
+            q_tgt = q + ACTION_SCALE * a
+        ref.d.ctrl[ref.act] = q_tgt
         ref.wait((k + 1) * CONTROL_DT)
-    ref_q = np.array(ref_q)
+    return np.array(qs)
 
-    sim = SimArm(SIM_KP, SIM_KD, off, q0)
+
+def loop_rollout(src, n, q0, off, friction=None):
+    sim = SimArm(SIM_KP, SIM_KD, off, q0, friction)
     est = estop.STOP_FILE
     estop.STOP_FILE = Path("/nonexistent/yam_estop_check")   # never stopped in the check
     try:
@@ -421,21 +443,58 @@ def cmd_check(a):
     finally:
         estop.STOP_FILE = est
     assert stop is None, stop
-    loop_q = np.array([r["q_model"] for r in rows])
-    err = np.abs(loop_q - ref_q).max()
-    print(f"loop vs direct sim, {n} steps of random actions, offsets {np.degrees(off).round(2)} deg: "
-          f"max joint difference {err:.2e} rad")
+    return rows
+
+
+def cmd_check(a):
+    """Loop + SimArm (offsets on) against a direct rollout of the sim's action scheme, in both
+    action modes; a stuck-elbow demo; the observation against PegEnv."""
+    global ACTION_MODE, ACTION_SCALE
+    off = rig.joint_offsets("right")
+    q0 = np.array([0.0, 1.2, 1.0, -0.6, 0.0, 0.0])
+    n = 300
+    src = Random(seed=1, n=n)
+    ok = True
+    for mode, scale in (("relative", 0.04), ("accumulate", 0.01)):
+        ACTION_MODE, ACTION_SCALE = mode, scale
+        ref_q = direct_rollout(src, n, q0)
+        rows = loop_rollout(src, n, q0, off)
+        loop_q = np.array([r["q_model"] for r in rows])
+        err = np.abs(loop_q - ref_q).max()
+        print(f"{mode} (scale {scale}): loop vs direct sim, {n} steps of random actions, offsets "
+              f"{np.degrees(off).round(2)} deg: max joint difference {err:.2e} rad")
+        print(f"  joint travel (rad): {np.abs(np.diff(ref_q, axis=0)).sum(0).round(2)}")
+        ok &= err < 1e-9
     no_off = np.abs(np.array([r["q"] for r in rows]) - ref_q).max()
     print(f"  (the raw encoder readings differ from the model by up to {no_off:.4f} rad: the offsets)")
-    travel = np.abs(np.diff(ref_q, axis=0)).sum(0)
-    print(f"  joint travel in the check (rad): {travel.round(2)}")
-    ok = err < 1e-9
 
-    # observation against PegEnv (GPU), same joints and velocities
+    # stuck elbow: left YAM joint 3 static friction 3-5 N m (FINDINGS 2026-10-26); Task H scale
+    # 0.01, the policy holds a = +3 on joint 3 for 1 s
+    fric = np.array([0.1, 1.0, 4.0, 0.2, 0.1, 0.1])
+    push = lambda k, *_: np.array([0, 0, 3.0, 0, 0, 0])  # noqa: E731
+    ACTION_SCALE = 0.01
+    for mode in ("relative", "accumulate"):
+        ACTION_MODE = mode
+        rows = loop_rollout(push, 50, q0, off, fric)
+        moved = rows[-1]["q"][2] - rows[0]["q"][2]
+        gap = max(r["q_cmd"][2] - r["q"][2] for r in rows)
+        print(f"  elbow friction 4 N m, a = +3 for 1 s, {mode}: elbow moved {moved * 1e3:.1f} mrad "
+              f"(largest target - measured {gap * 1e3:.0f} mrad)")
+        # MuJoCo's frictionloss is a soft constraint (dof_solref 0.02 s): a pushed joint creeps
+        # ~26 mrad/s whatever the friction; the real left elbow does not move at all
+        if mode == "relative":
+            ok &= abs(moved) < 0.04
+            rel = abs(moved)
+        else:
+            ok &= moved > 10 * rel
+    ACTION_MODE, ACTION_SCALE = "relative", 0.04
+
+    # observation and action scheme against PegEnv (GPU)
     try:
         ok &= check_obs_vs_env(a)
+        ok &= check_accumulate_env()
     except Exception as e:   # noqa: BLE001
-        print(f"  PegEnv observation check failed to run: {e!r}")
+        print(f"  PegEnv check failed to run: {e!r}")
         ok = False
     print("CHECK", "PASSED" if ok else "FAILED")
     return 0 if ok else 1
@@ -443,11 +502,13 @@ def cmd_check(a):
 
 def check_obs_vs_env(a):
     from blind_insertion.envs.peg_env import EnvCfg, PegEnv
-    cfgs = {"axial (phase_c_yam)": "blind_insertion/configs/phase_c_yam.json",
-            "top (task_h_reader)": "blind_insertion/configs/task_h_reader.json"}
+    cfgs = {"axial (phase_c_yam)": ("blind_insertion/configs/phase_c_yam.json", {}),
+            "top (task_h_reader)": ("blind_insertion/configs/task_h_reader.json", {}),
+            "top, accumulate, encoder offsets (task_h_reader_real)":
+                ("blind_insertion/configs/task_h_reader_real.json", {"action_mode": "accumulate"})}
     ok = True
-    for name, path in cfgs.items():
-        kw = json.load(open(REPO / path))
+    for name, (path, extra) in cfgs.items():
+        kw = {**json.load(open(REPO / path)), **extra}
         env = PegEnv(EnvCfg(**kw, nworld=4, auto_reset=False))
         env.reset(torch.arange(4, device=env.device))
         rng = np.random.default_rng(0)
@@ -457,17 +518,48 @@ def check_obs_vs_env(a):
         env.t_qpos[:, torch.as_tensor(env.lay.arm_qadr, device=env.device)] = q
         env.t_qvel[:, torch.as_tensor(env.lay.arm_dofadr, device=env.device)] = qd
         env.prev_action = torch.as_tensor(rng.normal(0, 1, (4, 6)), dtype=torch.float32, device=env.device)
+        env.q_target = q + torch.as_tensor(rng.normal(0, 0.05, (4, 6)), dtype=torch.float32, device=env.device)
         saved = env.cfg.q_noise, env.cfg.qd_noise
         o_env = env._actor_obs_now().cpu().numpy()
-        ob = ObsBuilder(kw.get("grasp_mode", "axial"), kw.get("fix_base_rpy_deg", (0.0, 0.0, 0.0)))
+        err_t = (env.q_target - env._q_meas).cpu().numpy()
+        ob = ObsBuilder(kw.get("grasp_mode", "axial"), kw.get("fix_base_rpy_deg", (0.0, 0.0, 0.0)),
+                        accumulate=env.accumulate)
         o_me = []
         for i in range(4):
             ob.set_prev(env.prev_action[i].cpu().numpy())
+            ob.set_target_err(err_t[i])
             o_me.append(ob.now(o_env[i, :6], o_env[i, 6:12]).numpy()[0])
         err = np.abs(np.array(o_me) - o_env).max()
-        print(f"  observation vs PegEnv._actor_obs_now, {name}: max difference {err:.2e} (noise {saved})")
+        print(f"  observation vs PegEnv._actor_obs_now, {name}: dim {o_env.shape[1]}, max difference {err:.2e} "
+              f"(noise {saved})")
         ok &= err < 1e-4
         del env
+    return ok
+
+
+def check_accumulate_env():
+    """PegEnv accumulate mode: q_target, the actuator targets and the cap after each step."""
+    from blind_insertion.envs.peg_env import EnvCfg, PegEnv
+    kw = {**json.load(open(REPO / "blind_insertion/configs/task_h_reader.json")), "action_mode": "accumulate"}
+    env = PegEnv(EnvCfg(**kw, nworld=8, auto_reset=False))
+    env.reset(torch.arange(8, device=env.device))
+    act = torch.as_tensor(env.lay.arm_act, device=env.device)
+    gen = torch.Generator(device=env.device).manual_seed(0)
+    worst, capped = 0.0, 0
+    for _ in range(40):   # pushes up to 0.03 rad per step: the 0.1 rad cap engages
+        a = torch.randn(8, 6, generator=gen, device=env.device) * 2 + 1.5
+        a_c = a.clamp(-env.cfg.action_clip, env.cfg.action_clip)
+        q_m, q_t0 = env._q_meas.clone(), env.q_target.clone()
+        free = q_t0 + env.scale * a_c
+        want = torch.minimum(torch.maximum(free, q_m - env.cfg.target_cap), q_m + env.cfg.target_cap)
+        capped += int((free != want).sum())
+        sent = env.t_ctrl[:, act].clone()   # before the step: last step's target
+        env.step(a)
+        worst = max(worst, float((env.q_target - want).abs().max()), float((env.t_ctrl[:, act] - want).abs().max()))
+    ok = worst < 1e-6 and capped > 0
+    print(f"  PegEnv accumulate: q_target and actuator targets vs the formula over 40 steps x 8 worlds: "
+          f"max difference {worst:.1e}, capped entries {capped}")
+    del env, sent
     return ok
 
 
@@ -542,9 +634,14 @@ def cmd_run(a):
     env = json.load(open(a.env_file)) if a.env_file else {}
     if a.source == "policy" and not a.env_file:
         raise SystemExit("--source policy needs --env_file (the policy's training config: action scale, history, grasp)")
+    global ACTION_MODE, TARGET_CAP
     ACTION_SCALE = env.get("action_scale") or ACTION_SCALE
+    ACTION_MODE = env.get("action_mode", ACTION_MODE)
+    TARGET_CAP = env.get("target_cap", TARGET_CAP)
+    if ACTION_MODE == "accumulate" and a.source != "policy":
+        raise SystemExit("hold and step compute relative actions: run them without an accumulate --env_file")
     obs = ObsBuilder(env.get("grasp_mode", "axial"), env.get("fix_base_rpy_deg", (0.0, 0.0, 0.0)),
-                     env.get("history", HISTORY))
+                     env.get("history", HISTORY), accumulate=ACTION_MODE == "accumulate")
     if a.source == "step":
         src = Step(a.joint, a.amp, a.reps)
         n = src.steps
@@ -556,7 +653,8 @@ def cmd_run(a):
     arm = RealArm(a.side, kp, kd)
     torch.set_num_threads(1)
     meta = {"args": vars(a), "side": a.side, "joint_offsets_rad": off.tolist(), "arm": arm.info(),
-            "control_dt": CONTROL_DT, "action_scale": ACTION_SCALE, "history": obs.history, "clock": "time.monotonic",
+            "control_dt": CONTROL_DT, "action_scale": ACTION_SCALE, "action_mode": ACTION_MODE,
+            "target_cap": TARGET_CAP, "history": obs.history, "clock": "time.monotonic",
             "started": time.strftime("%Y-%m-%d %H:%M:%S %Z")}
     rows, stop = [], None
     q_rest = np.asarray(arm.robot.get_joint_pos(), float)[:6]

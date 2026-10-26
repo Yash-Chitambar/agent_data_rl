@@ -110,6 +110,9 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   `Arms` floats and the right arm drifts into the table). Run `scripts/real/estop.py` in a terminal
   first: Enter holds the arm, `c` sends it home. Camera calibration: `scripts/real/calib.py`
   (zed / find / collect / solve; views accumulate per run in `data/calib/run_NNN`, gitignored).
+  Rig console: `scripts/real/rigctl.py` (curses: space = stop, o/f arms on/off, r/l one arm, h home, v camera
+  viewer, q parks the arms and quits). Off = park at the folded rest, then limp. Scripts that connect an arm
+  (`safety.connect`) take it over through `armshare.claim`: the console parks it at rest and lets go.
   Live camera view in a browser (ZED + both wrists, status, software stop): `scripts/real/camview.py`, runs in
   tmux session `camview` (`--share` gives a public share.viser.studio link, written to
   `/dev/shm/yam_cams/share_url`; tailnet: http://duchamp3.elf-altair.ts.net:8090). Cameras open only while
@@ -122,6 +125,11 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
 - Real-arm deployment loop: `scripts/real/deploy.py` (`check` offline; `run --source hold|step|policy`):
   50 Hz sim action scheme, sim gains (kd capped at 5: DM MIT limit), joint offsets in the observation,
   CAN-level timing logs in `data/real_yam/`. It wraps i2rt driver methods to stamp readings and sends.
+- `EnvCfg.action_mode = "accumulate"`: q_target += scale * a, clipped to `target_cap` (0.1 rad) from the
+  measured joint; the actor observation gets q_target - q_meas (+6 dims, so no warm start from relative
+  checkpoints). For joints stuck in static friction (real left elbow: 3-5 N m breakaway). Config
+  `configs/task_h_reader_real_acc.json`; `deploy.py` reads `action_mode`/`target_cap` from `--env_file`.
+  MuJoCo's frictionloss is soft (dof_solref 0.02 s): a pushed joint creeps ~26 mrad/s at any friction.
 - Real-robot training config: `configs/task_h_reader_real.json` (measured per-joint friction via
   `EnvCfg.arm_frictionloss` = one [lo, hi] per joint, kp/kd scale, latency {0, 1}, 14-bit encoders,
   `EnvCfg.enc_offset_deg` ±1.5° on joints 2-5: observation only, the command stays in the encoder frame).

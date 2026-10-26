@@ -90,6 +90,31 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-26 (20:40 UTC, duchamp3) — Accumulated-target actions (`EnvCfg.action_mode`); MuJoCo friction creeps
+
+- **Why:** with relative actions (q_target = q_meas + scale * a) the target re-centres on the measured
+  joint every step, so a Task H action (scale 0.01, clip 3) never pushes the elbow with more than
+  80 x 0.03 = 2.4 N m: below the real left elbow's 3.2-4.8 N m breakaway (entry below).
+- **What:** `EnvCfg.action_mode = "accumulate"`: q_target = clip(q_target + scale * a, q_meas +- target_cap),
+  `target_cap` 0.1 rad (8 N m on the elbow, past breakaway; equals safety.MAX_STEP). q_target starts at
+  the reset pose. The actor observation gets q_target - q_meas (obs 30 -> 36): without it the
+  policy cannot see the pending push. GearEnv refuses the mode. `deploy.py` mirrors it from the
+  config (`action_mode`, `target_cap`); hold/step sources stay relative.
+  Config: `configs/task_h_reader_real_acc.json` (= task_h_reader_real + accumulate).
+- **Checks** (`deploy.py check`, PASSED): loop vs direct rollout 3e-16 rad in both modes; observation vs
+  `PegEnv._actor_obs_now` 1.2e-7 (incl. the 36-dim accumulate obs with encoder offsets); PegEnv's
+  q_target and actuator targets equal the formula exactly over 40 steps x 8 worlds (363 capped
+  entries). Elbow frictionloss 4 N m, a = +3 for 1 s: relative moves it 26 mrad, accumulate 499 mrad.
+- **Smoke training** (Task H flags, 2,048 worlds, 2.6M steps): runs, 33k steps/s (relative 40k).
+  Episodes end earlier under random exploration (mean length 203 vs 433): a random action walk
+  integrates into the target. A relative checkpoint cannot warm-start it (obs dim): train from scratch,
+  or widen the first layer by hand.
+- **MuJoCo friction is soft:** `frictionloss` is a constraint with dof_solref 0.02 s, so a pushed joint
+  creeps ~26 mrad/s whatever the friction (same at 4 and 8 N m); the real elbow does not move at all.
+  dof_solref 0.005 / 0.002 s cut the creep to 7 / 3 mrad/s and make 0.04-0.1 rad steps stall as on the
+  real arm. Not changed in the env yet: a relative-action policy trained on the soft friction will
+  overrate how well it can nudge joints 2-3.
+
 ### 2026-10-26 (19:50 UTC, duchamp3) — Left YAM Tests 1-2: same latency as the right arm; elbow does not move for 0.04 rad
 
 The right arm's Tests 1-2 repeated on the left arm (same gains, start pose and step sizes).

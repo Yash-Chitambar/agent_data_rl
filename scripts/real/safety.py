@@ -110,7 +110,10 @@ class Checker:
 
 
 def connect(side: str, gripper_kp: float = 2.0, gripper_kd: float = 0.5):
-    """i2rt robot for one arm, holding its current pose (PD) from the start. Gripper calibrates."""
+    """i2rt robot for one arm, holding its current pose (PD) from the start. Gripper calibrates.
+    Takes the arm from the rig console (rigctl.py) first, if it holds it."""
+    import armshare
+    armshare.claim(side)
     from i2rt.robots.get_robot import get_yam_robot
     from i2rt.robots.utils import ArmType, GripperType
     return get_yam_robot(channel=rig.can_channel(side), arm_type=ArmType.from_string_name("yam"),
