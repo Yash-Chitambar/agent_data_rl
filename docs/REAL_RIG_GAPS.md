@@ -9,14 +9,15 @@ Update the status column when a gap closes. Record the result in `docs/FINDINGS.
 | # | Gap | Impact | Status | Needs |
 |---|---|---|---|---|
 | 0 | No deployment loop | Blocks 1-3 | **done** 2026-10-25 (`scripts/real/deploy.py`, offline check passed) | - |
-| 1 | Latency and backlash not measured | High (Phase C: one 20 ms step off fails) | Tests 1-2 done on both arms: total ~8 ms (0.4 step), friction 1-1.5 N m on joints 2-3 (sim 0.01), left elbow > 3 N m static (Task H actions cannot move it, see FINDINGS 2026-10-26); in `configs/task_h_reader_real.json` (to train); backlash open | Loop; dial indicator for backlash |
+| 1 | Latency and backlash not measured | High (Phase C: one 20 ms step off fails) | **done** (latency, friction) on both arms: total ~8 ms (0.4 step); friction 1-1.5 N m on joints 2-3 (sim 0.01); both elbows stick-slip, static 3-5 N m, sliding ~1 N m (Task H relative actions cannot move them: `EnvCfg.action_mode = "accumulate"`); all in `configs/task_h_reader_real*.json` (to train). Backlash: **not tested** (decided 2026-10-26) | - |
 | 2 | Gains: real 80/80/80/40/10/10, sim 80/80/80/30/30/30 | High (C gain sweep) | real runs sim kp; kd 5 not 6 on joints 1-3 (DM limit); fitted 0.7-1.5x on joints 1, 4-6 (2-3 friction-bound) | Loop |
-| 3 | Joint offsets not applied | High (0.4-1.3°, mm at the gripper) | applied in deploy.py; ±1.5° randomized in sim (`enc_offset_deg`); hardware checks open | Loop |
+| 3 | Joint offsets not applied | High (0.4-1.3°, mm at the gripper) | **done**: applied in deploy.py; ±1.5° randomized in sim (`enc_offset_deg`); checked by `verify_cameras.py` at new board positions (both arms agree to 2-3 mm) | - |
 | 4 | Real fixture and part poses not measured | Medium | open | Real fixture on the table |
-| 5 | Finger pads: real yellow 3D-printed, sim Menagerie fingertips | Medium (contact, camera view) | open | Pad CAD or calipers |
+| 5 | Finger pads: real yellow 3D-printed, sim Menagerie fingertips | Medium (contact, camera view) | **not doing** (decided 2026-10-26) | - |
 | 6 | Wrist payload: sim 109 g D405 bracket, real webcam + cable | Low | open | Kitchen scale |
 | 7 | Camera auto exposure / white balance, frame age unknown | Visual policies only | open | Loop + LED or flash |
-| 8 | ZED not in the sim | Top-camera policies only | open | Code only |
+| 8 | ZED not in the sim | Top-camera policies only | open (the ZED pose is verified to ~2 px / 2 mm: refit 2026-10-26, `scripts/real/fit_zed.py`) | Code only |
+| - | Camera poses in one frame (model side asked) | All camera-based work | **done** 2026-10-26: `scripts/real/verify_cameras.py` (ZED + both wrists on one board, nothing fitted) and the ZED refit; wrists agree to 1-3 mm, ZED within ~2 px held out | - |
 | - | CAN interfaces do not come up after reboot | Setup | **done** 2026-10-26: udev rule `/etc/udev/rules.d/80-yam-can.rules` (`scripts/real/setup_can_autostart.sh`); not yet seen through a reboot | - |
 
 ## Order
