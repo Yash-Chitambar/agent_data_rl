@@ -100,6 +100,7 @@ def main():
         if c is None:
             raise SystemExit("the ZED does not see the board: put it on the table between the arms")
         T_zb, rms = calib.board_pose(c, zed.K, None)
+        cv2.imwrite(str(out / "zed_raw.png"), img)
         cv2.drawChessboardCorners(img, calib.BOARD, c.astype(np.float32), True)
         cv2.imwrite(str(out / "zed.png"), img)
     finally:
@@ -149,6 +150,8 @@ def main():
                     px = min(np.linalg.norm(proj - c, axis=1).mean(), np.linalg.norm(proj[::-1] - c, axis=1).mean())
                     views[name] = {"corners": P, "q": qm[:6].tolist(), "zed_reproj_px": float(px),
                                    "board_dist_m": float(np.linalg.norm(T_cb[:3, 3]))}
+                    cv2.imwrite(str(out / f"{name}_raw.png"), f)
+                    views[name]["detected_px"] = c.tolist()
                     vis = f.copy()
                     cv2.drawChessboardCorners(vis, calib.BOARD, c.astype(np.float32), True)
                     for p in proj:
@@ -189,7 +192,10 @@ def main():
                "out": a.out, "pass": ok, "pass_mm": PASS_MM, "pass_px": PASS_PX,
                "board_center_right_base_m": center.round(4).tolist(), "zed_pnp_rms_px": round(rms, 2),
                "corner_dist_mm_mean_max": table,
-               "views": {n: {k: v for k, v in views[n].items() if k != "corners"} for n in names}}
+               "views": {n: {**{k: v for k, v in views[n].items() if k != "corners"},
+                             "corners_right_base_m": np.round(views[n]["corners"], 5).tolist()} for n in names},
+               "offset_from_zed_mm": {n: ((views[n]["corners"].mean(0) - P_zed.mean(0)) * 1e3).round(2).tolist()
+                                      for n in names if n != "zed"}}
     (out / "summary.json").write_text(json.dumps(summary, indent=1))
     (REPO / "results/real").mkdir(parents=True, exist_ok=True)
     (REPO / "results/real/camera_verify.json").write_text(json.dumps(summary, indent=1))

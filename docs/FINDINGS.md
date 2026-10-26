@@ -90,6 +90,34 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-26 (21:40 UTC, duchamp3) — Three-camera check: wrists agree to 1-3 mm, the ZED is 3.5-5.5 mm off
+
+`scripts/real/verify_cameras.py`: board (8 x 7, 15 mm) at a new spot on the table, (0.30, 0.34) m in
+the right base. The ZED finds it (1.05 m away); each wrist camera finds it from two elevations
+through FK(q + offsets) @ mount @ PnP; the left arm via the base-to-base transform. Nothing fitted.
+`results/real/camera_verify.json`.
+
+| mean / max corner distance (mm) | ZED | right 55° | right 40° | left 55° | left 40° |
+|---|---|---|---|---|---|
+| ZED | - | 5.2 / 5.6 | 5.5 / 5.8 | 3.5 / 3.9 | 3.9 / 4.1 |
+| right 55° | | - | 1.8 / 2.0 | 2.7 / 3.2 | 2.0 / 2.5 |
+| left 55° | | | | - | 0.7 / 1.0 |
+
+ZED corners projected into the wrist images: right 11.1 / 8.5 px, left 4.5 / 3.1 px (calibration
+hold-out 2.7 / 2.2 px).
+
+- **The two arms and their cameras agree** (1.8-3 mm across arms, through the base-to-base transform;
+  0.7-1.8 mm between one arm's two views). Robot base poses, joint offsets and wrist mounts hold up
+  at a new board position.
+- **The ZED is the outlier:** a uniform shift (the red ZED corners sit ~10 px up-left of the
+  detections in the right wrist image), not noise. Its pose came from one board position
+  (run_004, a 12 x 10 cm board 1.07 m away: ~100 px in the image, so a 0.5% size error is 5 mm
+  of depth). It is right there and drifts elsewhere. Square size is not it: the calibration
+  distance (1.03-1.07 m) matches this one, so a scale error cancels.
+- Fails the 4 mm / 6 px bar on the right arm only. For the ZED-free proprio policies this does not
+  matter; for a policy or a sim scene that uses the ZED pose, refit the ZED from several board
+  positions located by the wrist cameras, then check on a held-out position.
+
 ### 2026-10-26 (20:40 UTC, duchamp3) — Accumulated-target actions (`EnvCfg.action_mode`); MuJoCo friction creeps
 
 - **Why:** with relative actions (q_target = q_meas + scale * a) the target re-centres on the measured
