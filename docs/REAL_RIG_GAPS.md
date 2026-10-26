@@ -17,7 +17,7 @@ Update the status column when a gap closes. Record the result in `docs/FINDINGS.
 | 6 | Wrist payload: sim 109 g D405 bracket, real webcam + cable | Low | open | Kitchen scale |
 | 7 | Camera auto exposure / white balance, frame age unknown | Visual policies only | open | Loop + LED or flash |
 | 8 | ZED not in the sim | Top-camera policies only | open | Code only |
-| - | CAN interfaces do not come up after reboot | Setup | open | sudo, once |
+| - | CAN interfaces do not come up after reboot | Setup | **done** 2026-10-26: udev rule `/etc/udev/rules.d/80-yam-can.rules` (`scripts/real/setup_can_autostart.sh`); not yet seen through a reboot | - |
 
 ## Order
 

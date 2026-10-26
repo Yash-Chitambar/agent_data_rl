@@ -124,8 +124,11 @@ def connect(side: str, gripper_kp: float = 2.0, gripper_kd: float = 0.5):
 def close_robot(robot):
     """robot.close() without i2rt's shutdown race: its close() shuts the CAN socket while the
     motor thread may still be sending ("file descriptor cannot be a negative integer"). Stop and
-    join that thread first. The motors get no more commands either way (limp)."""
+    join that thread first, after the robot's server thread (which raises if it sees the motor
+    thread stopped). The motors get no more commands either way (limp)."""
     import threading
+    robot._stop_event.set()
+    robot._server_thread.join()
     mc = robot.motor_chain
     mc.running = False
     for t in threading.enumerate():

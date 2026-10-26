@@ -153,7 +153,12 @@ Data `data/real_yam/left_*.csv`, fit `results/real/step_fit_left.json`.
   | 0.08 | 6.4 | 74-79% | 17-20 | 1.5 |
   | 0.10 | 8.0 | 84-89% | 11-15 | 1.0 |
 
-  Static friction (breakaway) is 3.2-4.8 N m; once moving, the joint stops short by an amount that
+  Right elbow, same test (`data/real_yam/right_break_joint3_*.csv`): 0.04 rad 9% (Test 2), 0.06 rad
+  64% (22 mrad short, 1.7 N m), 0.08 rad 81% (15 mrad, 1.2 N m), 0.10 rad 89% (11 mrad, 0.85 N m).
+  The right elbow breaks away at ~3 N m (just under kp x 0.04); sliding friction ~0.9 N m, as the
+  left. Both elbows: static 3-5 N m, sliding ~1 N m.
+
+  Left: static friction (breakaway) is 3.2-4.8 N m; once moving, the joint stops short by an amount that
   shrinks with the step (faster motion coasts further): sliding friction ~1 N m. Up and down steps
   match within a few mrad, so gravity compensation is fine. Stick-slip, not a fault. MuJoCo's
   `frictionloss` has one value for both, so the sim range [0.6, 4.0] spans the two; an
