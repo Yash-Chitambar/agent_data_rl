@@ -8,6 +8,10 @@ executed joint targets (the recorded action stays the clean expert action): a sm
 first `align_noise_s` of the final alignment at the port, so the data shows recoveries near the
 port. Every batch draws a new reader within the USB-C tolerances (`builder.sample_reader`); the
 scene randomizes physics, sensors and rendering per episode (`PickCfg.phys`, `PickCfg.rand`).
+Camera timing as on the real rig: both cameras deliver 30 fps (wrist webcams MJPG 1280x1024, ZED
+HD1080) to the 50 Hz loop, so the policy sees the latest frame captured `age` before the step
+(per episode and camera: `--cam_fps`, random phase, age uniform in `--cam_age_ms`; real frame age
+not measured yet, docs/REAL_RIG_GAPS.md gap 7).
 Convert with scripts/act/to_lerobot.py (LeRobot venv).
 
     CUDA_VISIBLE_DEVICES=2 PYTHONPATH=$PWD MUJOCO_GL=egl .venv/bin/python scripts/act/gen_demos.py \
@@ -43,6 +47,8 @@ def main():
     ap.add_argument("--dart_tau", type=float, default=0.25, help="s, noise correlation time")
     ap.add_argument("--fixed_part", action="store_true", help="nominal reader in every batch")
     ap.add_argument("--episode_s", type=float, default=15.0)
+    ap.add_argument("--cam_fps", type=float, default=30.0, help="0: a fresh frame every control step")
+    ap.add_argument("--cam_age_ms", type=float, nargs=2, default=(30.0, 100.0))
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -70,9 +76,25 @@ def main():
                                               macro_block_size=8)
                    for i in range(n_ep) for c in ("top", "wrist")}
         states, actions = [], []
+        cams = (("top", "top"), ("wrist", "wrist_cam"))
+        rng = np.random.default_rng(a.seed * 1000 + b + 11)
+        age = {c: rng.uniform(*a.cam_age_ms, N) / 1e3 for c, _ in cams}          # s, per world
+        period = 1 / a.cam_fps if a.cam_fps > 0 else 0.0
+        phase = {c: rng.uniform(0, period, N) for c, _ in cams}
+        hist = []                                                              # rendered frames, newest last
+        K = int(np.ceil((a.cam_age_ms[1] / 1e3 + period) / env.control_dt)) + 2
         for t in range(T):
             fr = env.render()
-            imgs = {c: fr[k].cpu().numpy() for c, k in (("top", "top"), ("wrist", "wrist_cam"))}
+            hist = (hist + [{c: fr[k].cpu().numpy() for c, k in cams}])[-K:]
+            imgs = {}
+            for c, _ in cams:
+                if a.cam_fps > 0:   # latest capture at or before t*dt - age, on the camera's frame clock
+                    tau = t * env.control_dt - age[c]
+                    cap = np.floor((tau - phase[c]) / period) * period + phase[c]
+                    back = np.clip(t - np.floor(np.maximum(cap, 0) / env.control_dt + 1e-6).astype(int), 0, len(hist) - 1)
+                else:
+                    back = np.zeros(N, int)
+                imgs[c] = np.stack([hist[-1 - back[i]][c][i] for i in range(N)])
             list(pool.map(lambda ic: writers[ic].append_data(imgs[ic[1]][ic[0]]), writers.keys()))
             states.append(env.state().cpu().numpy())
             act, done = ex.act()
@@ -89,6 +111,7 @@ def main():
         for i in range(n_ep):
             meta = dict(episode=ep0 + i, ok=bool(r["ok"][i]), dart=bool(dart[i]), lat_mm=float(r["lat_mm"][i]),
                         grasp_tilt_deg=float(np.degrees(ex.tilt_t[i].item())),
+                        cam_age_ms={c: float(age[c][i] * 1e3) for c, _ in cams},
                         gap_mm=float(r["gap_mm"][i]), tilt_deg=float(r["tilt_deg"][i]))
             np.savez_compressed(out / f"ep{ep0 + i:05d}.npz", state=S[i].astype(np.float32),
                                 action=A[i].astype(np.float32), meta=json.dumps(meta))
