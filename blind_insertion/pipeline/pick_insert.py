@@ -40,7 +40,7 @@ class ActPick:
     otherwise execute `n_exec` actions of each chunk open loop."""
 
     def __init__(self, path, device, n_exec=10, ensemble=0.01, settle=True, rest_qd=0.03, rest_s=0.3,
-                 near=0.06, min_finger=0.005):
+                 near=0.06, min_finger=0.005, cam_fps=30.0, cam_age_ms=(30.0, 100.0), seed=0):
         """settle: also hand off when the arm has rested `rest_s` (all |qd| < rest_qd rad/s) with the
         gripper closed on the reader (finger opening > min_finger) and the tcp within `near` of
         the nominal pre-insert pose (configured PC position, not the randomized one), for when ACT
@@ -48,12 +48,38 @@ class ActPick:
         self.m = torch.jit.load(path, map_location=device).eval()
         self.n_exec, self.ens = n_exec, ensemble
         self.settle, self.rest_qd, self.rest_s, self.near, self.min_finger = settle, rest_qd, rest_s, near, min_finger
+        # camera timing as in the demos (scripts/act/gen_demos.py): 30 fps frame clock, frame age per
+        # episode and camera; cam_fps 0 = a fresh frame every step
+        self.cam_fps, self.cam_age, self.rng = cam_fps, cam_age_ms, np.random.default_rng(seed)
 
     def reset(self, n, device):
         self.chunk, self.k, self.t = None, 0, 0
         self.buf = None
         self.done_run = torch.zeros(n, dtype=torch.long, device=device)
         self.rest_run = torch.zeros(n, dtype=torch.long, device=device)
+        self.hist, self.step = [], 0
+        period = 1 / self.cam_fps if self.cam_fps > 0 else 0.0
+        self.age = {c: torch.as_tensor(self.rng.uniform(*self.cam_age, n) / 1e3, device=device) for c in ("top", "wrist_cam")}
+        self.phase = {c: torch.as_tensor(self.rng.uniform(0, period, n), device=device) for c in ("top", "wrist_cam")}
+
+    def _frames(self, env):
+        """Latest frame captured at or before now - age on each camera's frame clock (per world)."""
+        fr = env.render()
+        dt = env.control_dt
+        K = int(np.ceil((self.cam_age[1] / 1e3 + (1 / self.cam_fps if self.cam_fps else 0)) / dt)) + 2
+        self.hist = (self.hist + [fr])[-K:]
+        t, self.step = self.step, self.step + 1
+        if self.cam_fps <= 0:
+            return fr
+        period, out = 1 / self.cam_fps, {}
+        idx = torch.arange(env.N, device=env.device)
+        for c in ("top", "wrist_cam"):
+            tau = t * dt - self.age[c]
+            cap = torch.floor((tau - self.phase[c]) / period) * period + self.phase[c]
+            back = (t - torch.floor(cap.clamp(min=0) / dt + 1e-6).long()).clamp(0, len(self.hist) - 1)
+            stack = torch.stack([h[c] for h in self.hist])            # (K, N, H, W, 3), oldest first
+            out[c] = stack[len(self.hist) - 1 - back, idx]
+        return out
 
     def _settled(self, env, closed):
         qd = env.t_qvel[:, torch.as_tensor(env.lay.arm_dofadr, device=env.device)]
@@ -65,7 +91,7 @@ class ActPick:
         return self.rest_run >= int(self.rest_s / env.control_dt)
 
     def _query(self, env):
-        fr = env.render()
+        fr = self._frames(env)
         top = fr["top"].permute(0, 3, 1, 2).float() / 255
         wrist = fr["wrist_cam"].permute(0, 3, 1, 2).float() / 255
         with torch.no_grad():
@@ -186,7 +212,7 @@ class Release:
         return self.q, self.t >= self.T
 
 
-def run(env: PickEnv, picker, inserter: Inserter, pick_s=12.0, insert_s=10.0, video=None, release=True):
+def run(env: PickEnv, picker, inserter: Inserter, pick_s=15.0, insert_s=10.0, video=None, release=True):
     N, dev = env.N, env.device
     env.reset_all()
     picker.reset(N, dev)
@@ -268,12 +294,14 @@ def main():
     ap.add_argument("--seed", type=int, default=100)
     ap.add_argument("--spec_parts", action="store_true", help="draw a USB-C part within tolerance per batch")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--cam_fps", type=float, default=30.0, help="ACT camera frame clock (0: fresh frames)")
     a = ap.parse_args()
     res = []
     for b in range((a.episodes + a.nworld - 1) // a.nworld):
         v = B.sample_reader(1, a.seed + b)[0] if a.spec_parts else None
         env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed + b, render=a.pick == "act"), variant=v)
-        picker = ActPick(a.act, env.device, ensemble=a.ensemble, settle=not a.no_settle) if a.pick == "act" else ExpertPick(env)
+        picker = (ActPick(a.act, env.device, ensemble=a.ensemble, settle=not a.no_settle, cam_fps=a.cam_fps, seed=a.seed + b)
+                  if a.pick == "act" else ExpertPick(env))
         ins = Inserter(a.insert, env)
         r, _ = run(env, picker, ins)
         res.append({k: x.cpu().numpy() for k, x in r.items()})

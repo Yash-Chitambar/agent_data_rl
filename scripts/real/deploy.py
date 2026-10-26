@@ -538,11 +538,12 @@ def cmd_run(a):
         print(f"sim gains: kp {kp.tolist()}, kd {kd.tolist()} (sim kd {SIM_KD.tolist()}, DM MIT limit {DM_KD_MAX})")
     else:
         kp, kd = I2RT_KP, I2RT_KD
-    global ACTION_SCALE
+    global ACTION_SCALE, ACTION_CLIP
     env = json.load(open(a.env_file)) if a.env_file else {}
     if a.source == "policy" and not a.env_file:
         raise SystemExit("--source policy needs --env_file (the policy's training config: action scale, history, grasp)")
     ACTION_SCALE = env.get("action_scale") or ACTION_SCALE
+    ACTION_CLIP = env.get("action_clip") or ACTION_CLIP   # as trained (EnvCfg.action_clip)
     obs = ObsBuilder(env.get("grasp_mode", "axial"), env.get("fix_base_rpy_deg", (0.0, 0.0, 0.0)),
                      env.get("history", HISTORY))
     if a.source == "step":

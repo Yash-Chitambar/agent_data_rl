@@ -446,10 +446,14 @@ class Expert:
         p_a, R_a = env.tcp_pose()                               # the arm lags its command
         tgt = p_wp
         settled = ((tgt - p_a).norm(dim=1) < 1.5e-3) & (K.rot_log(R_wp @ R_a.transpose(1, 2)).norm(dim=1) < 0.03)
-        near = (ph >= 5) & ((tgt - p_a).norm(dim=1) < self.near_r)
+        # integrate at the grasp (descend) and at the port (align, hold); keep it through close and lift,
+        # let it fade during the carry. Without it in the descent the arm hung 1-6 s a few mm above the
+        # reader under joint friction (median 2.95 s), and ACT could not tell when the expert closed.
+        near = ((ph >= 5) | (ph == 1)) & ((tgt - p_a).norm(dim=1) < self.near_r)
         q_a = env.t_qpos[:, env.arm_q]
         self.bias = torch.where(near[:, None], (self.bias + self.bias_gain * (self.q_cmd - q_a)).clamp(-self.bias_max, self.bias_max),
                                 self.bias)
+        self.bias = torch.where((ph == 4)[:, None], 0.9 * self.bias, self.bias)
         # phase logic
         self.timer += 1
         adv = torch.zeros_like(reached)
