@@ -145,13 +145,13 @@ class PickEnv:
         pp = torch.stack([cfg.port_xy[0] + _u(-cfg.port_xy_range[0], cfg.port_xy_range[0], N, gen, dev),
                           cfg.port_xy[1] + _u(-cfg.port_xy_range[1], cfg.port_xy_range[1], N, gen, dev),
                           torch.full((N,), S.PORT_HEIGHT, device=dev)], 1)
-        yaw = _u(-cfg.pc_yaw_deg, cfg.pc_yaw_deg, N, gen, dev) * deg
+        yaw = (S.PC_YAW_DEG + _u(-cfg.pc_yaw_deg, cfg.pc_yaw_deg, N, gen, dev)) * deg   # around the measured yaw
         self.port_p = pp
         self.port_R = self._yaw(yaw) @ self.R_base
         self.t_mocap_pos[:, 0] = pp
         self.t_mocap_quat[:, 0] = K.mat_to_quat(self.port_R)
         # reader flat on the table, plug towards +x (turned by yaw)
-        ry = _u(-cfg.reader_yaw_deg, cfg.reader_yaw_deg, N, gen, dev) * deg
+        ry = (S.READER_YAW_DEG + _u(-cfg.reader_yaw_deg, cfg.reader_yaw_deg, N, gen, dev)) * deg
         Rr = self._yaw(ry) @ self.R_base
         c = torch.stack([cfg.reader_xy[0] + _u(-cfg.reader_xy_range[0], cfg.reader_xy_range[0], N, gen, dev),
                          cfg.reader_xy[1] + _u(-cfg.reader_xy_range[1], cfg.reader_xy_range[1], N, gen, dev)], 1)

@@ -37,6 +37,10 @@ FINGER_DAMPING = 200.0            # N s/m per finger in the pick scene (see buil
 LEFT_BASE_Y = 0.62                # idle left arm base (bimanual mount, arms at y = +-0.31)
 LEFT_HOME = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)   # folded rest (out of the top camera)
 READER_XY = (0.203937, 0.220908)           # nominal reader centre (body) on the table
+# yaw about the vertical from the calibrated ZED (pointed_zed_left.png, rays onto the table): the PC's
+# rear-panel bottom edge and the reader's body-to-plug-tip direction (2026-10-26)
+PC_YAW_DEG = 2.3
+READER_YAW_DEG = -0.7
 # top grasp height: tcp above the reader body centre (body 8.83 mm tall, centre 4.4 mm up), per gripper.
 # linear: fingertips 8.6 mm below the tcp clear the table, pads cover 2.3-8.8 mm of the body.
 # flexpoint: the tcp IS the tip ends; tips 1.5-3.0 mm above the table, the rubber pads (from 1.4 mm
@@ -161,7 +165,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
     return m, lay
 
 
-def place_reader(m, d, lay, xy=READER_XY, yaw_deg=0.0):
+def place_reader(m, d, lay, xy=READER_XY, yaw_deg=READER_YAW_DEG):
     """Reader flat on the table, plug pointing +x (rotated by yaw), body on the table."""
     from blind_insertion.envs import kinematics as K   # noqa: PLC0415
     import torch                                        # noqa: PLC0415
@@ -176,7 +180,7 @@ def place_reader(m, d, lay, xy=READER_XY, yaw_deg=0.0):
     d.qpos[pa + 3:pa + 7] = K.mat_to_quat(R).numpy()
 
 
-def place_pc(m, d, port_xy=PORT_XY, yaw_deg=0.0):
+def place_pc(m, d, port_xy=PORT_XY, yaw_deg=PC_YAW_DEG):
     from blind_insertion.envs import kinematics as K   # noqa: PLC0415
     import torch                                        # noqa: PLC0415
     R = K.rpy_mat(torch.tensor([0.0, 0.0, math.radians(yaw_deg)])) @ K.rpy_mat(
