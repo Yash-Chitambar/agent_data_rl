@@ -241,13 +241,17 @@ class PickEnv:
             f["geom_rgba"][:] = f0["geom_rgba"]
             f["geom_rgba"][:, table, :3] = (f0["geom_rgba"][table, :3] * _u(0.5, 1.8, (N, 1), gen, dev)
                                             * _u(0.85, 1.15, (N, 3), gen, dev)).clamp(max=1)
-            grey = _u(0.45, 0.9, (N, 1), gen, dev)
-            f["geom_rgba"][:, torch.as_tensor(case, device=dev), :3] = (grey + _u(-0.04, 0.04, (N, 3), gen, dev))[:, None]
-            body = [int(s) for s in lay.peg_slots if m.geom_rgba[s, 0] > 0.8]   # reader body (light grey)
+            # PC case and reader top: brightness around the colours matched to the real camera images
+            # (scenes/bench_details.py), not absolute greys (those rendered both near white)
+            case = torch.as_tensor(case, device=dev)
+            f["geom_rgba"][:, case, :3] = (f0["geom_rgba"][case, :3] * _u(0.75, 1.3, (N, 1, 1), gen, dev)
+                                           * _u(0.96, 1.04, (N, 1, 3), gen, dev)).clamp(max=1)
+            body = [int(s) for s in lay.peg_slots if m.geom_rgba[s, 3] == 0]   # hidden reader body (inside the shell)
             silver = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "detail_reader_silver")
             if silver >= 0:
                 body.append(silver)
-            f["geom_rgba"][:, torch.as_tensor(body, device=dev), :3] = _u(0.6, 0.95, (N, 1), gen, dev)[:, None].expand(N, len(body), 3)
+            body = torch.as_tensor(body, device=dev)
+            f["geom_rgba"][:, body, :3] = (f0["geom_rgba"][body, :3] * _u(0.75, 1.3, (N, 1, 1), gen, dev)).clamp(max=1)
             room = [i for i in range(m.ngeom) if m.geom(i).name in ("detail_wall", "detail_raceway") or
                     m.geom(i).name.startswith("detail_room_wall")]
             room = torch.as_tensor(room, device=dev)                 # wall paint and brightness

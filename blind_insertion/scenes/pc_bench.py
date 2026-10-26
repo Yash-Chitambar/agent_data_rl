@@ -136,7 +136,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
         m.dof_damping[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, j)]] = FINGER_DAMPING
     for j, slot in enumerate(lay.peg_slots):      # plug metal, neck black, body light grey
         z = m.geom_aabb[slot].reshape(2, 3)[0, 2] + m.geom_pos[slot, 2]
-        m.geom_rgba[slot] = ([0.75, 0.75, 0.78, 1] if z < B.USBC_PLUG_LEN else
+        m.geom_rgba[slot] = ([0.45, 0.45, 0.47, 1] if z < B.USBC_PLUG_LEN else   # plug metal: real ~150/255
                              [0.08, 0.08, 0.09, 1] if z < B.USBC_PLUG_LEN + variant.handle_height else [0.82, 0.83, 0.85, 1])
     if detailed:
         # Keep the original convex collision body, render its rounded visual shell.

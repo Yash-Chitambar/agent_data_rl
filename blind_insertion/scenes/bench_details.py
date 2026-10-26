@@ -110,11 +110,12 @@ def add_details(sp, variant):
     peg = sp.body('peg')
     c, half = variant.peg_boxes[0]
     bw, bt, bl = np.array(half)*2
-    rounded(peg,'reader_shell',(c[0],c[1]-.0003,c[2]-.0005),
-            bw,bl-.001,bt-.0006,.004,BLACK)
-    rounded(peg,'reader_silver',(0,bt/2-.00025,c[2]-.001),bw-.0014,bl-.003,.0005,.004,(.39,.40,.39,1))   # real top ~166/255
+    # The rounded shell encloses the physical box by 0.2 mm: MuJoCo Warp's renderer ignores alpha
+    # and would draw the box (a plain cube, z-fighting with the shell) in the training images.
+    rounded(peg,'reader_shell',(c[0],c[1],c[2]),bw+.0004,bl+.0004,bt+.0004,.004,BLACK)
+    rounded(peg,'reader_silver',(0,c[1]+bt/2+.00045,c[2]-.0005),bw-.0014,bl-.003,.0005,.004,(.39,.40,.39,1))   # real top ~166/255
     # SD opening at the paddle's distal end, green board and recessed black slit.
-    end=c[2]+bl/2-.0005
+    end=c[2]+bl/2+.0004
     box(peg,'sd_rim',(0,0,end),(bw*.42,bt*.28,.0002),(.31,.32,.31,1))
     box(peg,'sd_slot',(0,0,end+.00025),(bw*.39,bt*.17,.0001),BLACK)
     box(peg,'sd_board',(0,-bt*.12,end+.00036),(bw*.37,.00045,.00006),(.03,.22,.14,1))

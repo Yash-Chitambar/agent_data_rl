@@ -80,8 +80,8 @@ def decorate(spec):
         body=next(b for b in spec.bodies if b.name==prefix+'link_6')
         frame=body.add_body(name=prefix+'calibrated_webcam_visual',pos=pose['pos'],quat=pose['quat'])
         frame.add_geom(name=prefix+'webcam_housing',type=mujoco.mjtGeom.mjGEOM_BOX,
-                       pos=[0,0,-.006],size=[.015,.012,.006],rgba=[.08,.08,.08,1],
+                       pos=[0,0,-.0125],size=[.015,.012,.006],rgba=[.08,.08,.08,1],   # 6.5 mm behind the lens: clear of the +-3 mm pose jitter (PickCfg.rand)
                        contype=0,conaffinity=0,mass=0)
         frame.add_geom(name=prefix+'webcam_lens',type=mujoco.mjtGeom.mjGEOM_CYLINDER,
-                       pos=[0,0,-.001],size=[.004,.001,0],rgba=[.02,.025,.035,1],
+                       pos=[0,0,-.006],size=[.004,.0005,0],rgba=[.02,.025,.035,1],
                        contype=0,conaffinity=0,mass=0)
