@@ -104,6 +104,28 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-26 (duchamp3) — Task H pick: tilted grasp so the wrist camera sees the PC; expert under the measured real-arm physics
+
+- **Why**: the wrist camera sits on the PC side of the gripper and looks back at the tips; with a vertical grasp
+  it saw only the reader's plug. The expert now tilts the grasp 25-45 deg about the closing axis (uniform per
+  episode, `pc_bench.GRASP_TILT_DEG`), wrist leaning back toward the robot: the camera keeps the PC's rear panel
+  and port in view during carry and alignment. The tcp rises with the tilt so the low tip corner keeps the
+  untilted table clearance (`pc_bench.tip_rise`, `builder.tip_points_tcp`).
+- **Contact fixes**: 4x4 pad spheres left 1-2 contacts per pad on the tilted grasp and the reader pivoted
+  (0% ok) -> 10x10 (`pc_bench.PAD_SPHERES`). With the pyramidal cone the tilted grasp still crept about the
+  closing axis at a steady rate, faster at higher pad friction (up to 67 deg in 12 s at 1.6x) -> pad torsional
+  friction 0.05 (`PAD_TORSION`, <= 1 deg).
+- **Expert under joint friction**: per-joint integral correction at the port (was Cartesian; the stuck joint is
+  not the one the tcp error points along), handoff (`done`) only when back within 0.5 mm (the hold drifted
+  0.4-2 mm), episodes 15 s (done median 9.4 s).
+- **Real-arm DR in the pick** (`PickCfg.phys`): kp x 0.6-1.6 (real fit), kd x 0.7-1.4, measured per-joint
+  frictionloss, latency 0-1 step, encoder noise, 14-bit resolution, encoder offset error +-1.5 deg on joints
+  2-5. State and action labels are in the encoder frame (`PickEnv.step` subtracts the offset).
+- **Result** (256 worlds, all DR, `rand` on): expert ok 87.5%; every done + held episode is within 1 mm at the
+  handoff; failures: 6% stalled at the port, 4% dropped. Demo batch (64, DART on half): 93.8% ok, checks clean.
+- Insertion env: `EnvCfg.inhand_tilt_range_deg`, `pad_torsion`; config `configs/task_h_reader_real_tilt.json`
+  (real config + tilt 23-47 deg, 10x10 spheres). The old insertion policies were trained at +-5 deg: retrain.
+
 ### 2026-10-26 (00:20 UTC, duchamp3) — Encoder offset randomization: `EnvCfg.enc_offset_deg`
 
 - New `EnvCfg.enc_offset_deg` (deg half-range, per arm joint or one value): per world, uniform at every

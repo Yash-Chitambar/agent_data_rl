@@ -31,7 +31,7 @@ class PickCfg:
     nworld: int = 256
     device: str = "cuda:0"
     seed: int = 0
-    episode_s: float = 12.0
+    episode_s: float = 15.0             # tilted grasp under joint friction: expert done median 9.4 s, p90 11.8 s
     substeps: int = 20
     cams: tuple = ("top", "wrist_cam")
     cam_res: tuple = (320, 320)          # width, height
@@ -55,13 +55,17 @@ class PickCfg:
     # lights, colours
     rand: dict = field(default_factory=lambda: dict(cam_pos=0.03, cam_rot_deg=4.0, wrist_pos=0.003,
                                                     wrist_rot_deg=2.0, light=True, colors=True))
-    # physics / sensor randomization per reset ({} = nominal): friction scale of reader, pads and
-    # table (log-uniform), grip squeeze (N), arm kp and kd scales (log-uniform), joint friction (N m,
-    # log-uniform), command latency (control steps, one level per world), encoder noise (rad)
+    # physics / sensor randomization per reset ({} = nominal), from the real YAM measurements
+    # (configs/task_h_reader_real.json, docs/REAL_RIG_GAPS.md): friction scale of reader, pads and
+    # table (log-uniform), grip squeeze (N), arm kp and kd scales (log-uniform; real kp fit 0.7-1.5x,
+    # kd 5 not 6 on joints 1-3), joint friction per joint (N m, log-uniform; real 1-1.5 N m on joints
+    # 2-3), command latency (control steps, one level per world; real ~0.4), encoder noise (rad),
+    # encoder resolution (bits), encoder offset error (deg per joint, uniform +-: residual of the
+    # measured joint offsets and drift after a re-zero; observation and action frame, see step)
     phys: dict = field(default_factory=lambda: dict(friction=(0.6, 1.6), grip_close=(-15.0, -9.0),
-                                                    kp_scale=(0.8, 1.25), kd_scale=(0.7, 1.4),
+                                                    kp_scale=(0.6, 1.6), kd_scale=(0.7, 1.4),
                                                     frictionloss=((.01,.4),(.4,2.),(.6,3.),(.08,.5),(.08,.5),(.04,.3)), latency=(0, 1),
-                                                    q_noise=0.0005))
+                                                    q_noise=0.0005, q_bits=14, enc_offset_deg=(0., 1.5, 1.5, 1.5, 1.5, 0.)))
     nconmax: int = 160
     njmax: int = 1200
 
@@ -97,19 +101,7 @@ class PickEnv:
         self.f0 = {n: v[0].clone() for n, v in self.f.items()}
         self.qpos0 = torch.as_tensor(mjm.qpos0, dtype=torch.float32, device=dev)
         self.chain = K.Chain(mjm, lay.tcp_site, lay.arm_qadr, device=dev)
-        d0 = mujoco.MjData(mjm)
-        mujoco.mj_forward(mjm, d0)
-        R_s, p_s = d0.site_xmat[lay.tcp_site].reshape(3, 3), d0.site_xpos[lay.tcp_site]
-        pts = []                                       # fingertip collision hulls in the tcp frame
-        for g in range(mjm.ngeom):
-            if mjm.geom(g).name.endswith("_tip_hull") or (not cfg.physical_rig and g in lay.pad_geoms):
-                if mjm.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
-                    mid = mjm.geom_dataid[g]
-                    V = mjm.mesh_vert[mjm.mesh_vertadr[mid]:mjm.mesh_vertadr[mid] + mjm.mesh_vertnum[mid]]
-                else:                                  # box corners
-                    V = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]) * mjm.geom_size[g]
-                pts.append((V @ d0.geom_xmat[g].reshape(3, 3).T + d0.geom_xpos[g] - p_s) @ R_s)
-        self.tip_pts = torch.as_tensor(np.concatenate(pts), dtype=torch.float32, device=dev)
+        self.tip_pts = torch.as_tensor(B.tip_points_tcp(mjm, lay), dtype=torch.float32, device=dev)
         self.arm_q = torch.as_tensor(lay.arm_qadr, device=dev)
         self.arm_act = torch.as_tensor(lay.arm_act, device=dev)
         self.home = torch.tensor(lay.robot.home, dtype=torch.float32, device=dev)
@@ -130,6 +122,7 @@ class PickEnv:
         self.wrist_cam = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_CAMERA, "wrist_cam")
         self.max_lat = max(cfg.phys.get("latency", (0,)))
         self.lat = torch.zeros(N, dtype=torch.long, device=dev)
+        self.enc_off = torch.zeros(N, 6, device=dev)
         self.grip_close = torch.full((N,), cfg.grip_close, device=dev)
         self._graph = None
         if cfg.render:
@@ -217,6 +210,10 @@ class PickEnv:
                     torch.rand((N,6),generator=gen,device=dev)*(bounds[:,1].log()-bounds[:,0].log()))
             else:
                 f["dof_frictionloss"][:, dofs] = lu(*ph["frictionloss"], (N, len(lay.arm_dofadr)))
+        self.enc_off = torch.zeros(N, 6, device=dev)
+        if ph.get("enc_offset_deg"):
+            half = torch.deg2rad(torch.as_tensor(ph["enc_offset_deg"], dtype=torch.float32, device=dev))
+            self.enc_off = half * (2 * torch.rand((N, 6), generator=gen, device=dev) - 1)
         levels = torch.as_tensor(ph.get("latency", (0,)), device=dev)
         self.lat = levels[torch.randint(len(levels), (N,), generator=gen, device=dev)]
 
@@ -287,9 +284,10 @@ class PickEnv:
             wp.capture_launch(self._graph)
 
     def step(self, action: torch.Tensor, noise: torch.Tensor | None = None):
-        """action (N, 7): joint targets + gripper command; noise (N, 6) is added to the executed
-        joint targets only (DART-style perturbation; the label stays the clean action)."""
-        q_t = action[:, :6] + (noise if noise is not None else 0)
+        """action (N, 7): joint targets in the encoder frame of `state` (the real arm's frame after the
+        measured offsets) + gripper command; noise (N, 6) is added to the executed joint targets only
+        (DART-style perturbation; the label stays the clean action)."""
+        q_t = action[:, :6] - self.enc_off + (noise if noise is not None else 0)
         if self.max_lat > 0:                          # world n executes the command from lat[n] steps ago
             self.q_hist = torch.roll(self.q_hist, 1, 0)
             self.q_hist[0] = q_t
@@ -302,10 +300,14 @@ class PickEnv:
 
     # ------------------------------------------------------------------ observations
     def state(self):
-        """(N, 7): arm joints (with encoder noise, PickCfg.phys q_noise) and the mean finger opening (m)."""
-        q = self.t_qpos[:, self.arm_q]
+        """(N, 7): arm joints as the encoders read them (offset error, noise, resolution: PickCfg.phys)
+        and the mean finger opening (m)."""
+        q = self.t_qpos[:, self.arm_q] + self.enc_off
         if self.cfg.phys.get("q_noise"):
             q = q + self.cfg.phys["q_noise"] * torch.randn(q.shape, generator=self.gen, device=self.device)
+        if self.cfg.phys.get("q_bits"):
+            lsb = 2 * math.pi / 2 ** self.cfg.phys["q_bits"]
+            q = torch.round(q / lsb) * lsb
         fq = self.t_qpos[:, torch.as_tensor(self.lay.finger_qadr, device=self.device)].mean(1, keepdim=True)
         return torch.cat([q, fq], 1)
 
@@ -339,12 +341,8 @@ class PickEnv:
         return self.chain.fk(self.t_qpos[:, self.arm_q])
 
     def tip_rise(self, tilt):
-        """Height (part y, m) the tcp must rise for a grasp tilted by `tilt` (rad, about the
-        closing axis) so the lowest fingertip point keeps its untilted height."""
-        def low(t):
-            Rt = self.R_top @ K.rpy_mat(torch.stack([torch.zeros_like(t), -t, torch.zeros_like(t)], 1))
-            return (self.tip_pts @ Rt.transpose(1, 2))[..., 1].min(1).values   # part y of the tip points
-        return low(torch.zeros_like(tilt)) - low(tilt)
+        """tcp rise (part y, m) of a top grasp tilted by `tilt` (rad): pc_bench.tip_rise."""
+        return S.tip_rise(self.tip_pts, tilt)
 
     def plug_in_port(self):
         """Reader pose in the port frame: plug-tip centre p (m) and rotation R (identity =
@@ -361,7 +359,7 @@ class Expert:
 
     def __init__(self, env: PickEnv, v_max=0.12, w_max=1.2, gap=(0.003, 0.010), grasp_y=None,
                  grasp_along=0.004, lateral=0.0005, close_steps=40, hold_steps=15, seed=0,
-                 bias_gain=0.05, bias_max=0.02, near_r=0.02, grasp_tilt_deg=S.GRASP_TILT_DEG):
+                 bias_gain=0.1, bias_max=0.1, near_r=0.02, grasp_tilt_deg=S.GRASP_TILT_DEG):
         self.env, self.v, self.w = env, v_max, w_max
         if grasp_y is None:     # middle of the insertion policy's in-hand range for this gripper
             grasp_y = float(np.mean(S.GRASP_Y[env.gripper]))
@@ -372,8 +370,9 @@ class Expert:
         # untilted clearance over the table.
         self.tilt = tuple(math.radians(t) for t in grasp_tilt_deg)
         self.close_steps, self.hold_steps = close_steps, hold_steps
-        # integral correction at the port: joint friction (up to ~3 N m on joint 3, PickCfg.phys) holds
-        # the arm up to ~2 cm short of its command, so the bias must reach that far
+        # integral correction at the port, per joint (rad): joint friction (up to ~3 N m on joint 3,
+        # PickCfg.phys) holds a joint up to ~0.06 rad short of its target at the lowest kp. A Cartesian
+        # integral stalled in 16% of episodes (the stuck joint is not the one the tcp error points to).
         self.bias_gain, self.bias_max, self.near_r = bias_gain, bias_max, near_r
         self.gen = torch.Generator(device=env.device)
         self.gen.manual_seed(seed + 17)
@@ -393,7 +392,9 @@ class Expert:
         self.gap_t = _u(*self.gap, N, g, dev)
         self.lat_t = _u(-self.lat, self.lat, (N, 2), g, dev)
         self.done = torch.zeros(N, dtype=torch.bool, device=dev)
-        self.bias = torch.zeros(N, 3, device=dev)       # integral correction of servo sag (align)
+        self.p_done = torch.zeros(N, 3, device=dev)
+        self.R_done = torch.eye(3, device=dev).repeat(N, 1, 1)
+        self.bias = torch.zeros(N, 6, device=dev)       # joint-space integral correction of servo sag (align)
 
     def _grasp_pose(self):
         p, R = self.env.reader_pose()
@@ -430,7 +431,7 @@ class Expert:
             m = ph == 4
             p_wp[m], R_wp[m] = ap[m] + 0.03 * up + 0.02 * env.port_R[m][:, :, 2], aR[m]   # above and behind
             m = ph >= 5
-            p_wp[m], R_wp[m] = ap[m] + self.bias[m], aR[m]
+            p_wp[m], R_wp[m] = ap[m], aR[m]
         # move the command toward the waypoint (speed limits), IK from the commanded joints
         dp = p_wp - self.p_cmd
         dist = dp.norm(dim=1, keepdim=True)
@@ -443,10 +444,11 @@ class Expert:
         self.q_cmd, _, _ = env.chain.ik(self.p_cmd, self.R_cmd, self.q_cmd, iters=6, q_rest=env.home)
         reached = (dist[:, 0] < 5e-4) & (ang[:, 0] < 0.01)
         p_a, R_a = env.tcp_pose()                               # the arm lags its command
-        tgt = p_wp - torch.where(ph[:, None] >= 5, self.bias, torch.zeros_like(self.bias))
+        tgt = p_wp
         settled = ((tgt - p_a).norm(dim=1) < 1.5e-3) & (K.rot_log(R_wp @ R_a.transpose(1, 2)).norm(dim=1) < 0.03)
         near = (ph >= 5) & ((tgt - p_a).norm(dim=1) < self.near_r)
-        self.bias = torch.where(near[:, None], (self.bias + self.bias_gain * (tgt - p_a)).clamp(-self.bias_max, self.bias_max),
+        q_a = env.t_qpos[:, env.arm_q]
+        self.bias = torch.where(near[:, None], (self.bias + self.bias_gain * (self.q_cmd - q_a)).clamp(-self.bias_max, self.bias_max),
                                 self.bias)
         # phase logic
         self.timer += 1
@@ -457,25 +459,35 @@ class Expert:
         adv |= (ph == 3) & reached & (self.timer > 5)
         adv |= (ph == 4) & reached
         adv |= (ph == 5) & reached & settled & ((tgt - p_a).norm(dim=1) < 3e-4)
-        adv |= (ph == 6) & (self.timer >= self.hold_steps) & ~self.done
+        # hand off only on target: under joint friction and latency the arm drifts 0.4-2 mm in the hold
+        adv |= (ph == 6) & (self.timer >= self.hold_steps) & ~self.done & ((tgt - p_a).norm(dim=1) < 5e-4)
         if ((ph == 2) & adv).any():
             m = (ph == 2) & adv
             if not hasattr(self, "p_lift"):
                 self.p_lift = self.p_cmd.clone()
             self.p_lift[m] = self.p_cmd[m] + 0.07 * up
+        new = (ph == 6) & adv & ~self.done
+        if new.any():                                   # handoff pose (the hold after it can drift ~1-3 mm
+            p_h, R_h = env.plug_in_port()               # under joint friction)
+            self.p_done[new], self.R_done[new] = p_h[new], R_h[new]
         self.done |= (ph == 6) & adv
         self.phase = torch.where(adv & (ph < 6), ph + 1, ph)
         self.timer = torch.where(adv, torch.zeros_like(self.timer), self.timer)
         self.grip = torch.where(self.phase >= 2, -torch.ones_like(self.grip), torch.ones_like(self.grip))
-        return torch.cat([self.q_cmd, self.grip[:, None]], 1), self.done.clone()
+        # in the encoder frame (the privileged expert knows the offset error; ACT learns from these labels)
+        return torch.cat([self.q_cmd + self.bias + env.enc_off, self.grip[:, None]], 1), self.done.clone()
 
     def result(self):
-        """Per world: reached the hold (done), plug tip lateral error and gap (mm), tilt (deg),
-        and whether the reader is still in the hand."""
+        """Per world: reached the hold (done), plug tip lateral error and gap (mm) and tilt (deg) at
+        the handoff (when done fired; the end of the episode for worlds not done), the lateral
+        error at the end (lat_end_mm), and whether the reader is still in the hand."""
         env = self.env
         p, R = env.plug_in_port()
+        lat_end = (p[:, :2] - self.lat_t).norm(dim=1) * 1e3
+        p = torch.where(self.done[:, None], self.p_done, p)
+        R = torch.where(self.done[:, None, None], self.R_done, R)
         lat = (p[:, :2] - self.lat_t).norm(dim=1) * 1e3
         tilt = torch.rad2deg(torch.acos(R[:, 2, 2].clamp(-1, 1)))
         held = env.in_hand()
         ok = self.done & held & (lat < 1.0) & (tilt < 3.0)
-        return dict(done=self.done, ok=ok, lat_mm=lat, gap_mm=p[:, 2] * 1e3, tilt_deg=tilt, held=held)
+        return dict(done=self.done, ok=ok, lat_mm=lat, gap_mm=p[:, 2] * 1e3, tilt_deg=tilt, held=held, lat_end_mm=lat_end)

@@ -42,7 +42,7 @@ def main():
     ap.add_argument("--align_noise_s", type=float, default=0.8)
     ap.add_argument("--dart_tau", type=float, default=0.25, help="s, noise correlation time")
     ap.add_argument("--fixed_part", action="store_true", help="nominal reader in every batch")
-    ap.add_argument("--episode_s", type=float, default=12.0)
+    ap.add_argument("--episode_s", type=float, default=15.0)
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -88,6 +88,7 @@ def main():
         S, A = np.stack(states, 1), np.stack(actions, 1)
         for i in range(n_ep):
             meta = dict(episode=ep0 + i, ok=bool(r["ok"][i]), dart=bool(dart[i]), lat_mm=float(r["lat_mm"][i]),
+                        grasp_tilt_deg=float(np.degrees(ex.tilt_t[i].item())),
                         gap_mm=float(r["gap_mm"][i]), tilt_deg=float(r["tilt_deg"][i]))
             np.savez_compressed(out / f"ep{ep0 + i:05d}.npz", state=S[i].astype(np.float32),
                                 action=A[i].astype(np.float32), meta=json.dumps(meta))

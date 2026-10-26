@@ -540,6 +540,25 @@ def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: floa
     return info
 
 
+def tip_points_tcp(m: mujoco.MjModel, lay) -> np.ndarray:
+    """Fingertip collision points in the tcp frame at qpos0 (FlexPoint tip hulls; else the pad
+    boxes' corners). Used to keep a tilted top grasp's lowest tip point off the table."""
+    d0 = mujoco.MjData(m)
+    mujoco.mj_forward(m, d0)
+    R_s, p_s = d0.site_xmat[lay.tcp_site].reshape(3, 3), d0.site_xpos[lay.tcp_site]
+    hulls = [g for g in range(m.ngeom) if m.geom(g).name.endswith("_tip_hull")]
+    pts = []
+    pads = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, n) for n in ("left_pad", "right_pad")]
+    for g in hulls or [g for g in pads if g >= 0]:
+        if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+            a = m.mesh_vertadr[m.geom_dataid[g]]
+            V = m.mesh_vert[a:a + m.mesh_vertnum[m.geom_dataid[g]]]
+        else:
+            V = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]) * m.geom_size[g]
+        pts.append((V @ d0.geom_xmat[g].reshape(3, 3).T + d0.geom_xpos[g] - p_s) @ R_s)
+    return np.concatenate(pts)
+
+
 def load_robot(name: str, *, gains=None, backlash_arcmin: float = 0.0,
                pad_spheres: int = 0, gripper="linear") -> tuple[mujoco.MjSpec, RobotInfo]:
     if gripper not in ("linear", "flexpoint") or (gripper == "flexpoint" and name != "yam"):

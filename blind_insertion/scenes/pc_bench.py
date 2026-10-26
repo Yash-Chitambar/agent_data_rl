@@ -34,6 +34,7 @@ PORT_BASE_RPY_DEG = (90.0, 0.0, -90.0)   # fixture z -> world -x, x -> world -y,
 PORT_XY = (0.321370, 0.236917)             # nominal port centre on the table (arm base frame)
 
 PAD_SPHERES = 10                  # contact spheres per pad side (builder.sphere_pads); 10: a tilted grasp keeps 4+ contacts per pad (4: 1-2, the reader pivots)
+PAD_TORSION = 0.05
 FINGER_DAMPING = 200.0            # N s/m per finger in the pick scene (see build_scene)
 LEFT_BASE_Y = 0.62                # idle left arm base (bimanual mount, arms at y = +-0.31)
 LEFT_HOME = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)   # folded rest (out of the top camera)
@@ -139,6 +140,10 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
     m.geom_solref[lay.pad_geoms, 0] = cfg["pad_timeconst"]
     m.geom_solimp[lay.pad_geoms, :3] = cfg["pad_solimp"]
     m.geom_friction[lay.pad_geoms, 0] = 1.0 * 1.68   # mid of finger_friction_scale (1.41, 2.0)
+    # torsional friction (m): with point contacts and the pyramidal cone, a tilted grasp creeps about the
+    # closing axis at a steady rate, faster at higher pad friction (0.005: up to 67 deg in 12 s at 1.6x;
+    # 0.05: <= 1 deg). A rubber patch resists that twist; this stands in for it.
+    m.geom_friction[lay.pad_geoms, 1] = PAD_TORSION
     # The fingers are constant-force motors; undamped they slam shut and throw a 27 g part. The real
     # gripper is speed limited: damping gives ~6 cm/s closing at 12 N (static grip force unchanged).
     for j in lay.robot.finger_joints:
@@ -195,6 +200,20 @@ def place_pc(m, d, port_xy=PORT_XY, yaw_deg=PC_YAW_DEG):
 
 
 R_TOP_TCP = ((0., -1., 0.), (0., 0., -1.), (1., 0., 0.))   # tcp in the port/part frame (PegEnv "top")
+
+
+def tip_rise(tip_pts, tilt):
+    """Height (part y, m) the tcp of the top grasp rises when tilted by `tilt` (rad, tensor, about
+    the closing axis, PegEnv inhand_tilt sign) so the lowest fingertip point (`tip_pts`: tcp frame,
+    builder.tip_points_tcp, tensor) keeps its untilted height."""
+    from blind_insertion.envs import kinematics as K   # noqa: PLC0415
+    import torch                                        # noqa: PLC0415
+    R0 = torch.tensor(R_TOP_TCP, device=tilt.device)
+
+    def low(t):
+        Rt = R0 @ K.rpy_mat(torch.stack([torch.zeros_like(t), -t, torch.zeros_like(t)], 1))
+        return (tip_pts @ Rt.transpose(1, 2))[..., 1].min(1).values
+    return low(torch.zeros_like(tilt)) - low(tilt)
 
 
 def grasp_R_world(yaw_deg=0.0):

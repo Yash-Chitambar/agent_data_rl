@@ -215,16 +215,18 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=12.0, insert_s=10.0, vi
             inserter.start(go.nonzero()[:, 0])
             phase[go] = 1
         a_ins, q_ins = inserter.act() if inserter.hist is not None else (None, None)
-        cmd = env.t_ctrl[:, env.arm_act].clone()
+        # env.step takes encoder-frame targets (PickCfg.phys enc_offset_deg); the insertion policy and
+        # the release work on the true joints here, so their targets get the offset added
+        cmd = env.t_ctrl[:, env.arm_act] + env.enc_off
         grip = torch.where(phase == 0, a_pick[:, 6] if a_pick is not None else -1.0, torch.full((N,), -1.0, device=dev))
         grip = torch.where(phase >= 2, torch.ones_like(grip), grip)
         if a_pick is not None:
             cmd[phase == 0] = a_pick[phase == 0, :6]
         if q_ins is not None:
-            cmd[phase == 1] = q_ins[phase == 1]
+            cmd[phase == 1] = (q_ins + env.enc_off)[phase == 1]
         if (phase == 2).any():
             q_rel, rel_done = rel.act(phase == 2)
-            cmd[phase == 2] = q_rel[phase == 2]
+            cmd[phase == 2] = (q_rel + env.enc_off)[phase == 2]
             phase = torch.where((phase == 2) & rel_done, torch.full_like(phase, 3), phase)
         env.step(torch.cat([cmd, grip[:, None]], 1))
         if q_ins is not None:
