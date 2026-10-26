@@ -118,7 +118,8 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   50 Hz sim action scheme, sim gains (kd capped at 5: DM MIT limit), joint offsets in the observation,
   CAN-level timing logs in `data/real_yam/`. It wraps i2rt driver methods to stamp readings and sends.
 - Real-robot training config: `configs/task_h_reader_real.json` (measured per-joint friction via
-  `EnvCfg.arm_frictionloss` = one [lo, hi] per joint, kp/kd scale, latency {0, 1}, 14-bit encoders).
+  `EnvCfg.arm_frictionloss` = one [lo, hi] per joint, kp/kd scale, latency {0, 1}, 14-bit encoders,
+  `EnvCfg.enc_offset_deg` ±1.5° on joints 2-5: observation only, the command stays in the encoder frame).
   Policies on the real arm: `deploy.py run --source policy --policy <ckpt> --env_file <its config>`.
 - Real arm joint offsets: the real YAMs read 0.4-1.3 deg off on joints 2-5 against the Menagerie
   kinematics (`rig.joint_offsets(side)`, spec `arms`): add them to measured joints before FK or a policy.

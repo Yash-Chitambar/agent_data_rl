@@ -89,6 +89,11 @@ class EnvCfg:
     arm_kp_scale: tuple | None = None
     arm_kd_scale: tuple | None = None
     arm_frictionloss: tuple | list | None = None
+    # encoder offset error (deg, half-range, one per arm joint or one for all): per world, uniform at
+    # every reset, added to the observed joints only (q and the FK in the observation). The command
+    # q_meas + scale * a uses the encoder frame the motors servo in, so it does not shift the arm.
+    # Models the error left after the real joint-offset calibration (0.4-1.3 deg; rig spec "arms").
+    enc_offset_deg: float | list | None = None
     pad_timeconst: float = 0.004           # pad contact solref time constant (x finger scale)
     pad_solimp: tuple | None = None        # e.g. (0.99, 0.999, 0.001) for light parts
     pad_spheres: int = 0                   # >0: n x n sphere grid per pad face (robust grasp contacts)
@@ -264,6 +269,7 @@ class PegEnv:
         self.obs_dim = 2 * A + 12 + A
         self.hist = torch.zeros(N, H, self.obs_dim, device=dev)
         self.prev_action = torch.zeros(N, A, device=dev)
+        self.enc_off = torch.zeros(N, A, device=dev)   # EnvCfg.enc_offset_deg (rad)
         self.max_lat = max([cfg.latency, *nr.get("latency", [])])
         self.act_queue = torch.zeros(N, self.max_lat + 1, A, device=dev)
         # per-world noise levels (only the keys in noise_rand; the rest use the fixed fields)
@@ -524,6 +530,9 @@ class PegEnv:
             pk = cfg.latch.get("peak", [5.0, 15.0])
             self.t_latch_peak[ids] = _uniform(pk[0], pk[-1], ids.numel(), self.gen, dev)
             self.t_latch_depth[ids] = self.depth[k]
+        if cfg.enc_offset_deg:
+            half = torch.deg2rad(torch.as_tensor(cfg.enc_offset_deg, dtype=torch.float32, device=dev)).expand(self.n_arm)
+            self.enc_off[ids] = _uniform(-1.0, 1.0, (ids.numel(), self.n_arm), self.gen, dev) * half
         for key, levels in (cfg.noise_rand or {}).items():
             lv = torch.as_tensor(levels, dtype=torch.float32, device=dev)
             self.w_noise[key][ids] = lv[torch.randint(len(levels), (ids.numel(),), generator=self.gen, device=dev)]
@@ -662,7 +671,9 @@ class PegEnv:
 
     def _actor_obs_now(self):
         q, qd = self._measured()
-        self._q_meas = q
+        self._q_meas = q            # encoder frame: the command builds on this
+        if getattr(self, "enc_off", None) is not None:   # (GearEnv has no encoder offsets)
+            q = q + self.enc_off    # what the policy believes (calibration error)
         p, R, J = self.chain.fk(q, with_jac=True)
         tw = (J @ qd[..., None])[..., 0]
         eul = K.euler_xyz(self.R_world_nom().transpose(1, 2) @ R)

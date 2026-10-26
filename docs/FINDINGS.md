@@ -90,6 +90,18 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-26 (00:20 UTC, duchamp3) — Encoder offset randomization: `EnvCfg.enc_offset_deg`
+
+- New `EnvCfg.enc_offset_deg` (deg half-range, per arm joint or one value): per world, uniform at every
+  reset, added to the observed joints only (q and the FK in the observation). The command
+  `q_meas + scale * a` stays in the encoder frame the motors servo in, as on the real arm, where
+  `deploy.py` adds the calibrated offsets to the observation only.
+- `task_h_reader_real.json`: [0, 1.5, 1.5, 1.5, 1.5, 0] deg (joints 2-5; the measured offsets are
+  0.4-1.3 deg, and joints 1 and 6 are not observable by the calibration).
+- Checks (512 worlds): observed q - true q = the drawn offset (1e-7); observed TCP shifts 7.7 mm median,
+  20 mm max; zero-action drift over 50 steps identical with and without offsets (52.507 vs 52.509 mrad
+  median: the start-pose settling), so the offsets do not move the arm.
+
 ### 2026-10-25 (23:55 UTC, duchamp3) — Training config with the measured real YAM: `task_h_reader_real.json`
 
 - `EnvCfg.arm_frictionloss` now takes one `[lo, hi]` per arm joint (log-uniform per reset) as well as
@@ -97,7 +109,7 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - `configs/task_h_reader_real.json` = `task_h_reader.json` + the measured robot (2026-10-25 entries):
   friction per joint [0.01, 0.4] / [0.4, 2.0] / [0.6, 3.0] / [0.08, 0.5] / [0.08, 0.5] / [0.04, 0.3] N m
   (fit 0.01 / 1.0 / 1.5 / 0.2 / 0.2 / 0.1), `arm_kp_scale` [0.6, 1.6], `arm_kd_scale` [0.7, 1.4] (real kd
-  5 vs 6), `noise_rand` latency {0, 1}, quantization 14 bit (measured 0.381 mrad), q noise {0, 1e-4,
+  5 vs 6), `noise_rand` latency {0, 1}, quantization 14 bit (measured 0.381 mrad), encoder offsets ±1.5° on joints 2-5 (next entry), q noise {0, 1e-4,
   5e-4}, backlash {0, 1, 3, 5}' (not measured yet), history 10 (as `H-reader-proprio-v2-s0`, for `--init`).
 - Smoke run (1,024 worlds, 2 M steps from scratch): 21.6k steps/s, finite; the friction does not change
   the solver overflow counts under random actions (base 48k vs 51k).

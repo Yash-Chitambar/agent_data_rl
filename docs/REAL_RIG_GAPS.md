@@ -11,7 +11,7 @@ Update the status column when a gap closes. Record the result in `docs/FINDINGS.
 | 0 | No deployment loop | Blocks 1-3 | **done** 2026-10-25 (`scripts/real/deploy.py`, offline check passed) | - |
 | 1 | Latency and backlash not measured | High (Phase C: one 20 ms step off fails) | Tests 1-2 done: total ~8 ms (0.4 step), friction 1-1.5 N m on joints 2-3 (sim 0.01); both in `configs/task_h_reader_real.json` (to train); backlash open | Loop; dial indicator for backlash |
 | 2 | Gains: real 80/80/80/40/10/10, sim 80/80/80/30/30/30 | High (C gain sweep) | real runs sim kp; kd 5 not 6 on joints 1-3 (DM limit); fitted 0.7-1.5x on joints 1, 4-6 (2-3 friction-bound) | Loop |
-| 3 | Joint offsets not applied | High (0.4-1.3°, mm at the gripper) | applied in deploy.py; hardware checks open | Loop |
+| 3 | Joint offsets not applied | High (0.4-1.3°, mm at the gripper) | applied in deploy.py; ±1.5° randomized in sim (`enc_offset_deg`); hardware checks open | Loop |
 | 4 | Real fixture and part poses not measured | Medium | open | Real fixture on the table |
 | 5 | Finger pads: real yellow 3D-printed, sim Menagerie fingertips | Medium (contact, camera view) | open | Pad CAD or calipers |
 | 6 | Wrist payload: sim 109 g D405 bracket, real webcam + cable | Low | open | Kitchen scale |
@@ -80,7 +80,7 @@ policies trained with these, and the real wrist (kp 10) is too soft: it lagged c
   the ZED. Move the fingertip 5 mm above it, at 3 different arm poses. Measure the miss with
   calipers. Pass: < 2 mm at all poses, and smaller with the offsets than without.
 - **Sim:** randomize the joint offsets in training, about ±1.5° on joints 2-5. This covers the
-  error that remains and the drift after a motor re-zero. (`EnvCfg` has no field for this yet.)
+  error that remains and the drift after a motor re-zero. Done: `EnvCfg.enc_offset_deg`.
 - **Re-measure** after any motor work or re-zero: `calib.py collect` + `solve` (~20 min per arm).
 
 ## 4. Fixture and part poses
