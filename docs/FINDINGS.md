@@ -104,6 +104,37 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-26 (evening, duchamp3) — Task H on the real rig: insertion retraining, what blocks it, ACT v4 data
+
+- **PegEnv tilt bug (fixed, 05106fd..)**: `inhand_tilt_range_deg` first rotated the PART 25-45 deg against the
+  port (the in-hand tilt is meant for small grasp errors). Now the gripper takes the tilt and the part keeps
+  +-inhand_tilt_deg. Runs before the fix (`H-reader-proprio-tilt*`, `-tiltfix*`) are invalid.
+- **Old insertion policies do not transfer**: v2 (98.2% in its own config) gets 0.4% on `task_h_reader_real.json`
+  even without the tilt (actions are joint deltas; the real PC position puts the arm in another configuration).
+  Fine-tunes from v2 drove the part away (left_fixture).
+- **From scratch, every change delays the first captures** (usbc curriculum, low friction; base 16M steps):
+  pads 10x10 ~8M, real PC position ~10M, FlexPoint ~20M, tilt ~30M, PC position + FlexPoint ~35M, all
+  combined + real friction: none in 35-86M. No bug: three seeds on the real tilted geometry (low friction, no
+  sensor randomization) all learn; `H-reader-tilt-geo-s1` reaches the final stage at 128M, 95.4% at 184M.
+- **Fine-tunes from that policy (spec parts, offsets to 6 mm)**, training success:
+
+  | Added | Success | Note |
+  |---|---|---|
+  | enc offset +-1.5 deg, noise_rand, kp 0.6-1.6 (low friction) | 46% at 218M | slow |
+  | same, enc offset +-0.3 deg | 40% at 25M | ~4x faster: +-1.5 deg corrupts the tcp orientation obs by several deg |
+  | 30% of the measured friction (+ enc +-1.5) | 36% at 162M | |
+  | measured friction, action clip 3 | 2.5% at 107M | joint 3 cannot move: kp*0.01*3 = 1.4-2.4 N m vs up to 3 N m |
+  | measured friction, action clip 6 | 8.5% at 120M | |
+
+- **Real joint friction is the blocker for blind insertion.** A command closer than friction/kp does not
+  move joints 2-3 (12-19 mrad dead band, 1.2-1.9 action units); the paper's action scheme has no integral.
+  Options on the real side: Coulomb friction compensation (feed-forward +-tau_c in the commanded direction;
+  i2rt's 0.3 N m x sign(velocity) does nothing at rest), check joint 3's cable drag, or a larger action clip.
+- **Pick expert stalled in the descent** under joint friction (median 2.95 s, up to 6.2 s hovering a few mm
+  above the reader): ACT v3 (trained on that data) hovered and grasped 44%. Fixed with the joint integral in
+  the descent: expert 98% under full DR. v4 demos: 1,536 episodes, 97% ok -> `data/act/reader_pick_v4`, ACT v4.
+- Camera timing in demos and pipeline: 30 fps frame clock, frame age 30-100 ms per episode and camera.
+
 ### 2026-10-26 (duchamp3) — Task H pick: tilted grasp so the wrist camera sees the PC; expert under the measured real-arm physics
 
 - **Why**: the wrist camera sits on the PC side of the gripper and looks back at the tips; with a vertical grasp
