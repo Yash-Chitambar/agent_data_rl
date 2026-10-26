@@ -23,6 +23,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1]))
 import calib  # noqa: E402
+import camshare  # noqa: E402
 import estop  # noqa: E402
 import rig  # noqa: E402
 import safety  # noqa: E402
@@ -40,6 +41,7 @@ def T_pose(p):
 
 def grab_zed(out, tag):
     import pyzed.sl as sl
+    share = camshare.claim("zed")
     cam = sl.Camera()
     p = sl.InitParameters()
     p.camera_resolution = sl.RESOLUTION.HD1080
@@ -52,12 +54,14 @@ def grab_zed(out, tag):
         for _ in range(15):   # let auto exposure and the depth network settle
             cam.grab()
         cam.retrieve_image(img, sl.VIEW.LEFT)
+        share.publish(img.get_data()[:, :, :3])
         cv2.imwrite(str(out / f"{tag}_zed_left.png"), img.get_data()[:, :, :3])
         cam.retrieve_image(img, sl.VIEW.RIGHT)
         cv2.imwrite(str(out / f"{tag}_zed_right.png"), img.get_data()[:, :, :3])
         print("ZED: saved", flush=True)
     finally:
         cam.close()
+        share.release()
 
 
 def grab_wrists(out, tag, spec):

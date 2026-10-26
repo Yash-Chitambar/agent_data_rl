@@ -10,7 +10,7 @@ these scripts batch them and turn results into figures.
 | `eval/` | Batched evaluations of one checkpoint. Each writes Parquet files to `results/<phase>/`. | `phase_b.sh` (in-dist + 6 OOD bins), `phase_c.sh` (YAM robot conditions + gain sweep), `phase_e.sh` (USB-C final stage [+ capture radius + clearance sweep]), `phase_f.sh`, `phase_g.sh`, `ood.sh`, `usbc_*.sh` (USB-C latency, friction, stages, deployment grid), `usbc_capture.py` |
 | `analysis/` | Analyses that need no training: probes, signal checks, replays, failure studies. | `run_probes.sh` (probe + latent swap for C/D/E policies), `run_signal_vs_size.sh` (A-S5/A-S6 per peg size), `run_replay_check.sh` (USB-C §11.5 replays), `c_failures.py` (why latency breaks the base policy) |
 | `report/` | Results -> figures, report data and videos. | `phase_{b,c,d,g}.py` (per-phase tables and PNGs), `build_report.py` (report/static data), `make_demos.sh` + `build_demos_data.py` (example videos), `yam_example_*.{sh,py}`, `*_views.py` (renders) |
-| `real/` | Real-arm tools. | `yam_latency_fit.py` (fit latency and gains from real step-test logs; protocol in `docs/REAL_YAM_LATENCY_BACKLASH.md`) |
+| `real/` | Real-arm tools. | `yam_latency_fit.py` (fit latency and gains from real step-test logs; protocol in `docs/REAL_YAM_LATENCY_BACKLASH.md`); `camview.py` (live browser view of all rig cameras, viser) + `camshare.py` (camera handoff between the viewer and scripts) |
 | `server/` | Multi-GPU and SLURM runs: setup, job manifests, the job runner, sync. See `docs/SERVER.md`. | `run_jobs.py`, `jobs/make_manifests.py`, `jobs/*.txt`, `bootstrap.sh`, `sync_{up,down}.sh` |
 | `tools/` | Environment checks and the local single-GPU queue. | `check_setup.py`, `test_mjfit.py`, `local_queue.sh` |
 
