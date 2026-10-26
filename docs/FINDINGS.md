@@ -119,6 +119,20 @@ Data `data/real_yam/left_*.csv`, fit `results/real/step_fit_left.json`.
   Options: (a) accumulate the target (q_target += scale * a, the absolute-target scheme), (b) raise
   kp on joint 3, (c) larger action scale on joint 3. Each needs a sim retrain; (a) is the standard
   fix for stiction.
+- **Left elbow breakaway** (`data/real_yam/left_break_joint3_*.csv`, 5 reps each way, same pose):
+
+  | Step (rad) | Command torque kp x step (N m) | Reached | Left short (mrad) | kp x short (N m) |
+  |---|---|---|---|---|
+  | 0.04 | 3.2 | 1% | 40 | 3.2 |
+  | 0.06 | 4.8 | 48-57% | 29-31 | 2.4 |
+  | 0.08 | 6.4 | 74-79% | 17-20 | 1.5 |
+  | 0.10 | 8.0 | 84-89% | 11-15 | 1.0 |
+
+  Static friction (breakaway) is 3.2-4.8 N m; once moving, the joint stops short by an amount that
+  shrinks with the step (faster motion coasts further): sliding friction ~1 N m. Up and down steps
+  match within a few mrad, so gravity compensation is fine. Stick-slip, not a fault. MuJoCo's
+  `frictionloss` has one value for both, so the sim range [0.6, 4.0] spans the two; an
+  accumulated-target action scheme removes the dead band in either case.
 - `task_h_reader_real.json`: joint 3 friction range widened to [0.6, 4.0] N m to cover the left arm.
   At the top of this range the sim elbow also stalls, so training will show whether the policy copes.
 - Joint 1 friction 0.1 N m (right 0.01); joints 5-6 gain scales swap (1.5/0.5 vs 1.0/1.5): wrist gains
