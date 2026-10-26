@@ -35,6 +35,8 @@ class PickCfg:
     substeps: int = 20
     cams: tuple = ("top", "wrist_cam")
     cam_res: tuple = (320, 320)          # width, height
+    supersample: int = 2                 # render at cam_res x this, average down: anti-aliased edges
+                                         # like the real cameras (MuJoCo Warp has no anti-aliasing)
     render: bool = True
     physical_rig: bool = True
     use_textures: bool = True  # photo-referenced workbench material
@@ -121,7 +123,7 @@ class PickEnv:
             act = [i in self.cam_ids for i in range(mjm.ncam)]
             order = [i for i in range(mjm.ncam) if act[i]]    # render-context camera order
             self.rc_index = [order.index(c) for c in self.cam_ids]
-            W, H = cfg.cam_res
+            W, H = (r * cfg.supersample for r in cfg.cam_res)
             with wp.ScopedDevice(cfg.device):
                 self.rc = mjw.create_render_context(mjm, nworld=N, cam_res=[(W, H)] * len(order),
                                                     render_rgb=True, render_depth=False, use_textures=cfg.use_textures,
@@ -237,7 +239,7 @@ class PickEnv:
             table = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, "table")
             case = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, f"fixbox_{j}") for j in range(5)]
             case = [g for g in case if g >= 0] + list(lay.fixture_slots)
-            case += [m.geom(n).id for n in ("detail_pc_body", "detail_pc_lid") if mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_GEOM, n) >= 0]
+            case += [i for i in range(m.ngeom) if (m.geom(i).name.startswith("detail_pc_body") or m.geom(i).name == "detail_pc_lid")]
             f["geom_rgba"][:] = f0["geom_rgba"]
             f["geom_rgba"][:, table, :3] = (f0["geom_rgba"][table, :3] * _u(0.5, 1.8, (N, 1), gen, dev)
                                             * _u(0.85, 1.15, (N, 3), gen, dev)).clamp(max=1)
@@ -304,7 +306,10 @@ class PickEnv:
             out = {}
             for name, idx in zip(self.cfg.cams, self.rc_index):
                 mjw.get_rgb(self.rc, idx, self._rgb)
-                out[name] = (wp.to_torch(self._rgb).clamp(0, 1) * 255).to(torch.uint8)
+                rgb = wp.to_torch(self._rgb)
+                if self.cfg.supersample > 1:
+                    rgb = torch.nn.functional.avg_pool2d(rgb.permute(0, 3, 1, 2), self.cfg.supersample).permute(0, 2, 3, 1)
+                out[name] = (rgb.clamp(0, 1) * 255).to(torch.uint8)
         return out
 
     def reader_pose(self):

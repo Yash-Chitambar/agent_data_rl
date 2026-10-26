@@ -35,6 +35,25 @@ def add_details(sp, variant):
         body.add_geom(name='detail_'+name, type=mujoco.mjtGeom.mjGEOM_MESH,
                       meshname=mesh, pos=pos, rgba=color, contype=0, conaffinity=0, mass=0)
 
+    def rrect(xa, xb, za, zb, r, corners):
+        # Convex outline of [xa, xb] x [za, zb] with the named corners ('xa_za', 'xb_zb', ...) rounded.
+        pts = []
+        for cx, cz, sx, sz, key, start in [(xb, zb, -1, -1, 'xb_zb', 0), (xa, zb, 1, -1, 'xa_zb', 90),
+                                           (xa, za, 1, 1, 'xa_za', 180), (xb, za, -1, 1, 'xb_za', 270)]:
+            if key in corners:
+                pts += [[cx + sx*r + r*math.cos(a), cz + sz*r + r*math.sin(a)]
+                        for a in np.radians(np.linspace(start, start + 90, 7))]
+            else:
+                pts.append([cx, cz])
+        return pts
+
+    def prism(body, name, outline, y0, y1, color):
+        # Convex outline [(x, z)] extruded along y (up) from y0 to y1.
+        mesh = 'detail_mesh_' + name
+        sp.add_mesh(name=mesh, uservert=np.array([[x, y, z] for y in (y0, y1) for x, z in outline]).ravel().tolist())
+        body.add_geom(name='detail_'+name, type=mujoco.mjtGeom.mjGEOM_MESH,
+                      meshname=mesh, rgba=color, contype=0, conaffinity=0, mass=0)
+
     # Broad indoor illumination; no hard spotlight shadows in the reference lab.
     sp.visual.headlight.ambient = [.40,.40,.40]
     sp.visual.headlight.diffuse = [.40,.40,.40]
@@ -45,10 +64,6 @@ def add_details(sp, variant):
     # The bench is plain dark laminate. No material: MuJoCo Warp renders a material's rgba and
     # ignores geom_rgba, which disables the per-world table colour randomization (PickEnv).
     fix = sp.body('fixture')
-    # Case rim/lid and rubber plinth; the physical rear panel is left open at the target.
-    for g in sp.geoms:
-        if g.name.startswith('fixbox_'):
-            g.rgba = SILVER
     # Both Type-C openings use the original task dimensions, never photo scaling.
     from blind_insertion.assets.builder import USBC_REC, USBC_TONGUE
     next(g for g in fix.geoms if g.name == 'vis_usbc_1').rgba = [0, 0, 0, 0]
@@ -82,10 +97,19 @@ def add_details(sp, variant):
                      meshname=name,rgba=BLACK,mass=0,contype=0,conaffinity=0)
         box(fix,label+'_tongue',(offset,0,.00038),
             (USBC_TONGUE[0]/2,USBC_TONGUE[1]/2,.00004),(.08,.085,.09,1))
-    sp.geom('fixbox_0').rgba = [0,0,0,0]
-    rounded(fix,'pc_body',(.0215,-.004,-.053),.103,.090,.038,.007,SILVER)
+    # Case: one rounded footprint (7 mm corners, back and panel side) as convex pieces around the
+    # port plate. The square collision boxes (pc_bench.pc_case_boxes) are hidden: alpha 0 -> group 3.
+    from blind_insertion.scenes import pc_bench as S
+    for g in sp.geoms:
+        if g.name.startswith('fixbox_'):
+            g.rgba = [0,0,0,0]
+    x0, x1, d, p, pd, r = -S.PORT_FROM_LEFT, S.PC_SIZE[0] - S.PORT_FROM_LEFT, S.PC_SIZE[2], S.PLATE/2, S.PLATE_DEPTH, .007
+    prism(fix,'pc_body',rrect(x0,x1,-d,-pd,r,{'xa_za','xb_za'}),-.023,.015,SILVER)
+    prism(fix,'pc_body_front_left',rrect(x0,-p,-pd,0,r,{'xa_zb'}),-.023,.015,SILVER)
+    prism(fix,'pc_body_front_right',rrect(p,x1,-pd,0,r,{'xb_zb'}),-.023,.015,SILVER)
+    prism(fix,'pc_body_front_below',rrect(-p,p,-pd,0,r,set()),-.023,-p,SILVER)
     rounded(fix,'pc_lid',(.0215,.0175,-.049),.103,.098,.002,.008,SILVER)
-    rounded(fix,'pc_seam',(.0215,.0145,-.049),.102,.097,.001,.007,BLACK)
+    rounded(fix,'pc_seam',(.0215,.0156,-.049),.102,.097,.0022,.007,BLACK)   # dark line between body and lid
     rounded(fix,'pc_foot',(.0215,-.024,-.049),.099,.094,.002,.007,BLACK)
     for i in range(19):
         box(fix,f'vent{i}',(-.021+i*.0046,.012,-.0002),(.0013,.00065,.0005),BLACK)
