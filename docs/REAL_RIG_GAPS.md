@@ -9,7 +9,7 @@ Update the status column when a gap closes. Record the result in `docs/FINDINGS.
 | # | Gap | Impact | Status | Needs |
 |---|---|---|---|---|
 | 0 | No deployment loop | Blocks 1-3 | **done** 2026-10-25 (`scripts/real/deploy.py`, offline check passed) | - |
-| 1 | Latency and backlash not measured | High (Phase C: one 20 ms step off fails) | Tests 1-2 done: total ~8 ms (0.4 step) -> randomize latency {0, 1}; **friction 1-1.5 N m on joints 2-3** (sim 0.01); backlash open | Loop; dial indicator for backlash |
+| 1 | Latency and backlash not measured | High (Phase C: one 20 ms step off fails) | Tests 1-2 done: total ~8 ms (0.4 step), friction 1-1.5 N m on joints 2-3 (sim 0.01); both in `configs/task_h_reader_real.json` (to train); backlash open | Loop; dial indicator for backlash |
 | 2 | Gains: real 80/80/80/40/10/10, sim 80/80/80/30/30/30 | High (C gain sweep) | real runs sim kp; kd 5 not 6 on joints 1-3 (DM limit); fitted 0.7-1.5x on joints 1, 4-6 (2-3 friction-bound) | Loop |
 | 3 | Joint offsets not applied | High (0.4-1.3°, mm at the gripper) | applied in deploy.py; hardware checks open | Loop |
 | 4 | Real fixture and part poses not measured | Medium | open | Real fixture on the table |

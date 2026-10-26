@@ -83,10 +83,12 @@ class EnvCfg:
     finger_timeconst_scale: tuple = (0.78, 1.34)
     grip_force_scale: tuple = (1.41, 2.83)
     grip_force_base: float | None = None   # N per pad (default: robot's nominal)
-    # arm servo (log-uniform per reset; None = nominal): kp and kd scales, joint friction (N m)
+    # arm servo (log-uniform per reset; None = nominal): kp and kd scales, joint friction (N m).
+    # arm_frictionloss: (lo, hi) for every arm joint, or one [lo, hi] per arm joint (the real YAM's
+    # joints 2-3 have ~10x the wrist's friction: configs/task_h_reader_real.json)
     arm_kp_scale: tuple | None = None
     arm_kd_scale: tuple | None = None
-    arm_frictionloss: tuple | None = None
+    arm_frictionloss: tuple | list | None = None
     pad_timeconst: float = 0.004           # pad contact solref time constant (x finger scale)
     pad_solimp: tuple | None = None        # e.g. (0.99, 0.999, 0.001) for light parts
     pad_spheres: int = 0                   # >0: n x n sphere grid per pad face (robust grasp contacts)
@@ -416,7 +418,14 @@ class PegEnv:
         out["kp_s"] = _log_uniform(*cfg.arm_kp_scale, n, gen, dev) if cfg.arm_kp_scale else one
         out["kd_s"] = _log_uniform(*cfg.arm_kd_scale, n, gen, dev) if cfg.arm_kd_scale else one
         if cfg.arm_frictionloss:
-            out["fl"] = _log_uniform(*cfg.arm_frictionloss, (n, self.n_arm), gen, dev)
+            fl = cfg.arm_frictionloss
+            if np.ndim(fl) == 2:   # one [lo, hi] per arm joint
+                assert len(fl) == self.n_arm, f"arm_frictionloss: {len(fl)} ranges for {self.n_arm} arm joints"
+                lo, hi = (torch.tensor(np.asarray(fl, float)[:, i], dtype=torch.float32, device=dev) for i in (0, 1))
+                u = torch.rand((n, self.n_arm), generator=gen, device=dev)
+                out["fl"] = torch.exp(lo.log() + u * (hi.log() - lo.log()))
+            else:
+                out["fl"] = _log_uniform(*fl, (n, self.n_arm), gen, dev)
         return out
 
     def refresh_pool(self, per_world: int = 4):

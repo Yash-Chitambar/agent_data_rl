@@ -16,7 +16,7 @@ Figures and data referenced here live in `results/<phase>/`.
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
-| Real rig | duchamp3 set up (2026-10-24/25): both YAMs on CAN, safety layer, software stop, both wrist cameras and the ZED calibrated, arm joint offsets measured (spec `blind_insertion/configs/real_cameras_duchamp3.json`). Deployment loop `scripts/real/deploy.py` (sim gains, offsets) checked against the sim. Latency ~8 ms total (0.4 control step). **Real joint friction 10-150x the sim's** (joints 2-3: 1-1.5 N m). Not yet: backlash, friction in training. Branch `real-yam-setup` (PR #1). |
+| Real rig | duchamp3 set up (2026-10-24/25): both YAMs on CAN, safety layer, software stop, both wrist cameras and the ZED calibrated, arm joint offsets measured (spec `blind_insertion/configs/real_cameras_duchamp3.json`). Deployment loop `scripts/real/deploy.py` (sim gains, offsets) checked against the sim. Latency ~8 ms total (0.4 control step). **Real joint friction 10-150x the sim's** (joints 2-3: 1-1.5 N m). Training config with the real friction/latency/gains: `configs/task_h_reader_real.json` (not trained yet). Not yet: backlash. Branch `real-yam-setup` (PR #1). |
 
 ### Phase B results (seed 0 final checkpoints, 2,048 matched starts, unseen geometries)
 
@@ -89,6 +89,33 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+
+### 2026-10-25 (23:55 UTC, duchamp3) — Training config with the measured real YAM: `task_h_reader_real.json`
+
+- `EnvCfg.arm_frictionloss` now takes one `[lo, hi]` per arm joint (log-uniform per reset) as well as
+  one shared range. Checked on 512 worlds: each joint's draws stay in its own range.
+- `configs/task_h_reader_real.json` = `task_h_reader.json` + the measured robot (2026-10-25 entries):
+  friction per joint [0.01, 0.4] / [0.4, 2.0] / [0.6, 3.0] / [0.08, 0.5] / [0.08, 0.5] / [0.04, 0.3] N m
+  (fit 0.01 / 1.0 / 1.5 / 0.2 / 0.2 / 0.1), `arm_kp_scale` [0.6, 1.6], `arm_kd_scale` [0.7, 1.4] (real kd
+  5 vs 6), `noise_rand` latency {0, 1}, quantization 14 bit (measured 0.381 mrad), q noise {0, 1e-4,
+  5e-4}, backlash {0, 1, 3, 5}' (not measured yet), history 10 (as `H-reader-proprio-v2-s0`, for `--init`).
+- Smoke run (1,024 worlds, 2 M steps from scratch): 21.6k steps/s, finite; the friction does not change
+  the solver overflow counts under random actions (base 48k vs 51k).
+- With the reader's `action_scale` 0.01, joint 3's dead band (~19 mrad) is ~2 action units: expect the
+  v2 policy to drop on the first evals with this config.
+- Server run (branch `real-yam-setup`):
+
+  ```
+  .venv/bin/python -m blind_insertion.train --name H-reader-proprio-real-s0 --robot yam --family reader \
+    --variant_kw '{"clearance": "spec"}' --env_file blind_insertion/configs/task_h_reader_real.json \
+    --env_json '{"peg_offset": 0.006}' --init runs/H-reader-proprio-v2-s0/last.pt --nworld 8192 --steps 150e6
+  ```
+
+  Evaluate the v2 policy on this config first (`blind_insertion.eval --env_file ...`): it shows how much
+  the real friction costs before any retraining.
+- `deploy.py run --source policy --env_file <training config>` takes the action scale (0.01 for the
+  reader), history and grasp frame from the config; a history-10 reader checkpoint loads and acts.
+
 
 ### 2026-10-25 (23:40 UTC, duchamp3) — Real YAM step test: latency ~8 ms; joint friction 10-150x the sim's
 
