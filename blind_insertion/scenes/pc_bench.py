@@ -37,6 +37,11 @@ FINGER_DAMPING = 200.0            # N s/m per finger in the pick scene (see buil
 LEFT_BASE_Y = 0.62                # idle left arm base (bimanual mount, arms at y = +-0.31)
 LEFT_HOME = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)   # folded rest (out of the top camera)
 READER_XY = (0.203937, 0.220908)           # nominal reader centre (body) on the table
+# top grasp height: tcp above the reader body centre (body 8.83 mm tall, centre 4.4 mm up), per gripper.
+# linear: fingertips 8.6 mm below the tcp clear the table, pads cover 2.3-8.8 mm of the body.
+# flexpoint: the tcp IS the tip ends; tips 1.5-3.0 mm above the table, the rubber pads (from 1.4 mm
+# above the tips, assets/flexpoint.py) cover 2.9-8.8 mm of the body.
+GRASP_Y = {"linear": (0.0048, 0.0060), "flexpoint": (-0.0029, -0.0014)}
 # fixed top camera: on a mount midway between the two arm bases (y = LEFT_BASE_Y / 2), above the
 # bench behind the arm bases, looking down the whole bench (as the lab photo); image up = back wall. Pose is a placeholder
 # until measured (PickCfg.rand jitters it).
@@ -195,8 +200,7 @@ def task_config():
         fix_rpy_range_deg=[0.5, 10.0, 0.5],         # PC yaw +-10 deg about the vertical (fixture y)
         fixture_boxes=pc_case_boxes(),
         grip_rot_deg=3.0, inhand_tilt_deg=5.0, inhand_yaw_deg=0.0, grasp_along=0.005,
-        grasp_y=[0.0048, 0.0060],                   # tcp above the body centre: fingertips (8.6 mm below the
-                                                    # tcp) clear the table, pads cover 2.3-8.8 mm of the 8.83 mm body
+        grasp_y=list(GRASP_Y["linear"]),            # legacy config; task_h_reader_real.json uses "flexpoint"
         start_gap=[0.0003, 0.010],                  # handoff: plug tip 0-10 mm before the panel
         episode_s=10.0, far_z=0.03)
     return json.loads(json.dumps(usbc), parse_float=lambda x: round(float(x), 6))

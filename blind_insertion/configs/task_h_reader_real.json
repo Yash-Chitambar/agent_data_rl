@@ -115,8 +115,8 @@
  ],
  "inhand_yaw_deg": 0.0,
  "grasp_y": [
-  0.0048,
-  0.006
+  -0.0029,
+  -0.0014
  ],
  "history": 10,
  "arm_kp_scale": [

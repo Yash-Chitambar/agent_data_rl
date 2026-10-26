@@ -58,7 +58,7 @@ class ActPick:
     def _settled(self, env, closed):
         qd = env.t_qvel[:, torch.as_tensor(env.lay.arm_dofadr, device=env.device)]
         p_nom = torch.tensor([env.cfg.port_xy[0] - env.body_z - 0.006, env.cfg.port_xy[1],
-                              S.PORT_HEIGHT + 0.0054], device=env.device)
+                              S.PORT_HEIGHT + float(np.mean(S.GRASP_Y[env.gripper]))], device=env.device)
         rest = ((qd.abs().max(1).values < self.rest_qd) & closed & (env.state()[:, 6] > self.min_finger)
                 & ((env.tcp_pose()[0] - p_nom).norm(dim=1) < self.near))
         self.rest_run = torch.where(rest, self.rest_run + 1, torch.zeros_like(self.rest_run))

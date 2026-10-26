@@ -75,6 +75,7 @@ class PickEnv:
         if cfg.physical_rig and cfg.cam_res[0] != cfg.cam_res[1]:
             raise ValueError("Calibrated policy views require square cam_res; use physical_rig=False for legacy checkpoints")
         wp.init()
+        self.gripper = "flexpoint" if cfg.physical_rig else "linear"
         self.mjm, self.lay = S.build_scene(variant, physical=cfg.physical_rig)
         mjm, lay = self.mjm, self.lay
         N = self.N = cfg.nworld
@@ -328,11 +329,17 @@ class Expert:
     port at a random gap, hold. Cartesian waypoints, batched IK from the commanded joints."""
     PHASES = ("approach", "descend", "close", "lift", "carry", "align", "hold")
 
-    def __init__(self, env: PickEnv, v_max=0.12, w_max=1.2, gap=(0.003, 0.010), grasp_y=0.0054,
-                 grasp_along=0.004, lateral=0.0005, close_steps=40, hold_steps=15, seed=0):
+    def __init__(self, env: PickEnv, v_max=0.12, w_max=1.2, gap=(0.003, 0.010), grasp_y=None,
+                 grasp_along=0.004, lateral=0.0005, close_steps=40, hold_steps=15, seed=0,
+                 bias_gain=0.1, bias_max=0.02, near_r=0.02):
         self.env, self.v, self.w = env, v_max, w_max
+        if grasp_y is None:     # middle of the insertion policy's in-hand range for this gripper
+            grasp_y = float(np.mean(S.GRASP_Y[env.gripper]))
         self.gap, self.gy, self.ga, self.lat = gap, grasp_y, grasp_along, lateral
         self.close_steps, self.hold_steps = close_steps, hold_steps
+        # integral correction at the port: joint friction (up to ~3 N m on joint 3, PickCfg.phys) holds
+        # the arm up to ~2 cm short of its command, so the bias must reach that far
+        self.bias_gain, self.bias_max, self.near_r = bias_gain, bias_max, near_r
         self.gen = torch.Generator(device=env.device)
         self.gen.manual_seed(seed + 17)
 
@@ -400,8 +407,9 @@ class Expert:
         p_a, R_a = env.tcp_pose()                               # the arm lags its command
         tgt = p_wp - torch.where(ph[:, None] >= 5, self.bias, torch.zeros_like(self.bias))
         settled = ((tgt - p_a).norm(dim=1) < 1.5e-3) & (K.rot_log(R_wp @ R_a.transpose(1, 2)).norm(dim=1) < 0.03)
-        near = (ph >= 5) & ((tgt - p_a).norm(dim=1) < 5e-3)
-        self.bias = torch.where(near[:, None], (self.bias + 0.1 * (tgt - p_a)).clamp(-3e-3, 3e-3), self.bias)
+        near = (ph >= 5) & ((tgt - p_a).norm(dim=1) < self.near_r)
+        self.bias = torch.where(near[:, None], (self.bias + self.bias_gain * (tgt - p_a)).clamp(-self.bias_max, self.bias_max),
+                                self.bias)
         # phase logic
         self.timer += 1
         adv = torch.zeros_like(reached)

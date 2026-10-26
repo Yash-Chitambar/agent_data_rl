@@ -500,8 +500,11 @@ def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: floa
     mujoco.mj_kinematics(m0, d0)
     tcp = d0.site_xpos[mujoco.mj_name2id(m0, mujoco.mjtObj.mjOBJ_SITE, info.tcp_site)]
     new = []
+    # look geoms up by iterating: after add_geom, spec.geom(name) can return a stale element (a
+    # sphere just added to the other pad), which switched off one contact sphere per gripper
+    find = lambda name: next(x for x in spec.geoms if x.name == name)   # noqa: E731
     for pname in info.pad_geoms:
-        g = spec.geom(pname)
+        g = find(pname)
         gid = mujoco.mj_name2id(m0, mujoco.mjtObj.mjOBJ_GEOM, pname)
         # use the COMPILED pose and parent body: the compiler may fuse a joint-less pad body
         # into its parent, and then the geom's spec-local pose is in a different frame
@@ -528,6 +531,7 @@ def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: floa
             sg.margin, sg.gap, sg.group = g.margin, g.gap, 3
             sg.rgba = [0.9, 0.2, 0.2, 1.0]
             new.append(sg.name)
+        g = find(pname)
         g.contype, g.conaffinity = 0, 0
         info.no_collide.append(pname)       # also enforced on the compiled model (see build)
     info.pad_geoms = new
@@ -603,13 +607,13 @@ def _load_robot(name: str, *, gains=None, gripper="linear") -> tuple[mujoco.MjSp
         finger_links = [g.name for g in spec.geoms if g.name and ("left_" in g.name or "right_" in g.name)
                         and g.name not in pads and g.classname.name == "finger_body_collision"
                         and any(k in g.name for k in ("tip", "strut", "pad_edge"))]
+        finger_links += [g.name for g in spec.geoms if g.name.endswith("_tip_hull")]   # FlexPoint tips
         _strip_collisions(spec, keep=set(pads) | {"gripper_housing"} | set(finger_links))
+        by_name = {g.name: g for g in spec.geoms if g.name}   # not spec.geom(): see sphere_pads
         for gname in finger_links:   # fingertips must not pass through the fixture
-            gg = spec.geom(gname)
-            gg.contype, gg.conaffinity = FINGER_LINK_BITS
+            by_name[gname].contype, by_name[gname].conaffinity = FINGER_LINK_BITS
         for gname in pads + ["gripper_housing"]:
-            gg = spec.geom(gname)
-            gg.contype, gg.conaffinity = GRIP_BITS
+            by_name[gname].contype, by_name[gname].conaffinity = GRIP_BITS
         # finger: replace the position servo with a constant-force motor
         grip = spec.actuator("gripper")
         spec.delete(grip)
