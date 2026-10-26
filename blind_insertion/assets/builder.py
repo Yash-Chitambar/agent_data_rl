@@ -497,7 +497,9 @@ def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: floa
     """
     m0 = spec.compile()
     d0 = mujoco.MjData(m0)
-    mujoco.mj_kinematics(m0, d0)
+    for j in info.finger_joints:   # half open: closed FlexPoint pads overlap past the tcp, which
+        d0.qpos[m0.jnt_qposadr[mujoco.mj_name2id(m0, mujoco.mjtObj.mjOBJ_JOINT, j)]] = info.max_opening / 2
+    mujoco.mj_kinematics(m0, d0)   # would put the spheres on the pads' outer faces
     tcp = d0.site_xpos[mujoco.mj_name2id(m0, mujoco.mjtObj.mjOBJ_SITE, info.tcp_site)]
     new = []
     # look geoms up by iterating: after add_geom, spec.geom(name) can return a stale element (a

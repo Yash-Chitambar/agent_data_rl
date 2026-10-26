@@ -10,19 +10,21 @@ import numpy as np
 from scipy.spatial import ConvexHull
 
 ASSET = Path(__file__).with_suffix('') / 'flexible_4310.xml'
-# Black rubber pad on each soft tip's inner face (not in the upstream CAD). Thickness is a photo
-# estimate until measured with calipers; the contact surface is the pad's inner face.
-PAD_THICKNESS = 0.001
-PAD_LENGTH = 0.016       # from the tip end to just past the first (small) hole; user-checked against the real tips
+# Black rubber pad (not in the upstream CAD): it fills the pocket in each soft tip's inner face,
+# ~3.5-19.5 mm from the tip end (its far edge is the notch on the real tip), flush with the face.
+# The grip surface is that flush face: the yellow lip at the tip end and the rubber.
+PAD_THICKNESS = 0.001   # visible rubber sheet (the CAD pocket is ~4.4 mm deep); photo estimate
 PAD_RGBA = [.03, .03, .03, 1]
 TIP_LINK_BITS = (8, 1)            # builder.FINGER_LINK_BITS: tips collide with table and fixture only
 
 
 def _tip_geometry(model, data, body, s):
-    """Inner face of a soft tip in the source world frame (closing axis x, approach z).
+    """Inner face and rubber pocket of a soft tip in the source world frame (closing axis x,
+    approach z; tip end at max z).
 
-    `s` = +1 if the tip sits on the +x side. Returns the face plane u = a + b*z + c*y with
-    u = s*x (the tip lies at u >= plane), the face outline points (y, z) and the tip vertices.
+    `s` = +1 if the tip sits on the +x side, u = s*x. Returns the face plane u = a + b*z + c*y
+    (no tip vertex inside it), the pocket's z range (lo, hi), depth below the face, outline
+    [(y, z)], and the tip vertices.
     """
     g = next(i for i in range(model.ngeom) if model.geom_bodyid[i] == model.body(body).id
              and model.geom_type[i] == mujoco.mjtGeom.mjGEOM_MESH
@@ -31,29 +33,36 @@ def _tip_geometry(model, data, body, s):
     a0, n = model.mesh_vertadr[mid], model.mesh_vertnum[mid]
     V = model.mesh_vert[a0:a0 + n] @ data.geom_xmat[g].reshape(3, 3).T + data.geom_xpos[g]
     u, y, z = s * V[:, 0], V[:, 1], V[:, 2]
-    # face points: within 0.6 mm of the innermost vertex of their 5 mm slice along z
-    band = np.floor(z / .005)
-    umin = {b: u[band == b].min() for b in np.unique(band)}
-    lip = min(umin.values())
-    face = np.array([u[i] - umin[band[i]] < 6e-4 and umin[band[i]] < lip + 2e-3 for i in range(n)])
+    dz = z.max() - z                             # distance from the tip end
+    # face plane: fit to the innermost vertices of 0.5 mm slices 20-45 mm from the end (past the
+    # pocket), then make it the support plane of the face there and of the lip at the end
+    sl = np.floor(dz / 5e-4).astype(int)
+    umin = np.full(sl.max() + 1, np.inf)
+    np.minimum.at(umin, sl, u)
+    face = (dz > .020) & (dz < .045) & (u - umin[sl] < 3e-4)
     A = np.stack([np.ones(face.sum()), z[face], y[face]], 1)
     _, b, c = np.linalg.lstsq(A, u[face], rcond=None)[0]
-    a = (u - b * z - c * y).min()               # support plane: no tip vertex inside it
-    on = (u - (a + b * z + c * y)) < 1e-3
-    pts = np.stack([y[on], z[on]], 1)
-    return (a, b, c), _clip_below(pts[ConvexHull(pts).vertices], z.max() - PAD_LENGTH), V
-
-
-def _clip_below(poly, z0):
-    """Part of a convex polygon [(y, z)] with z >= z0 (the pad covers the face's tip end, also
-    across the recess behind the lip)."""
-    out = []
-    for p, q in zip(poly, np.roll(poly, -1, 0)):
-        if p[1] >= z0:
-            out.append(p)
-        if (p[1] - z0) * (q[1] - z0) < 0:
-            out.append(p + (q - p) * (z0 - p[1]) / (q[1] - p[1]))
-    return np.array(out)
+    r = u - b * z - c * y                        # offset from a plane with the face's slope
+    a = r[(dz < .003) | ((dz > .020) & (dz < .045))].min()
+    rec = r - a                                  # recess below the face plane
+    # pocket: from the end of the lip to the first slice back on the face plane (innermost vertex
+    # of each 0.5 mm slice; slices without vertices lie on large flat facets and are skipped)
+    rmin = np.full(sl.max() + 1, np.inf)
+    np.minimum.at(rmin, sl, rec)
+    idx = np.arange(len(rmin))
+    deep = idx[(rmin > 1.5e-3) & np.isfinite(rmin) & (idx * 5e-4 < .030)]
+    flat = idx[rmin < 5e-4]
+    for first in deep:                           # first recessed run >= 5 mm (not the rounded end)
+        nxt = flat[flat > first]
+        if len(nxt) and (nxt.min() - first) * 5e-4 >= .005:
+            break
+    lo_dz = (flat[flat < first].max() + 1) * 5e-4
+    hi_dz = nxt.min() * 5e-4
+    inside = (dz > lo_dz - 5e-4) & (dz < hi_dz)    # the floor's facet corners sit on the lip slice
+    floor = inside & (rec > 1.5e-3) & (rec < 6e-3)
+    depth = float(np.median(rec[floor]))
+    pts = np.stack([y[floor], z[floor]], 1)
+    return (a, b, c), (z.max() - hi_dz, z.max() - lo_dz), depth, pts[ConvexHull(pts).vertices], V
 
 
 def _hull_points(V, slices=8):
@@ -97,26 +106,28 @@ def install(spec):
         R = data.xmat[bid].reshape(3,3)
         sign = 1 if side == 'left' else -1
         local = lambda p: R.T @ (np.asarray(p) - data.xpos[bid])   # noqa: E731  source world -> body
-        (pa, pb, pc), outline, V = _tip_geometry(model, data, old, sign)
+        (pa, pb, pc), (z_lo, z_hi), depth, outline, V = _tip_geometry(model, data, old, sign)
         nu = np.array([1.0, -pc, -pb]) / np.linalg.norm([1.0, -pc, -pb])     # face normal (u, y, z), outward
         n_w = np.array([sign * nu[0], nu[1], nu[2]])                         # ... in the source world
-        # visual pad: the face outline, and the same outline PAD_THICKNESS toward the other tip
-        back = np.array([[sign * (pa + pb * z + pc * y), y, z] for y, z in outline])
-        verts = np.concatenate([back, back - PAD_THICKNESS * n_w])
+        # visual pad: a PAD_THICKNESS sheet in the pocket outline, flush with the face (1e-4 proud, no z-fighting)
+        front = np.array([[sign * (pa + pb * z + pc * y), y, z] for y, z in outline]) - 1e-4 * n_w
+        verts = np.concatenate([front, front + (PAD_THICKNESS + 1e-4) * n_w])
         source.add_mesh(name=side + '_pad_rubber', uservert=np.array([local(v) for v in verts]).ravel().tolist())
         body.add_geom(name=side + '_pad_visual', type=mujoco.mjtGeom.mjGEOM_MESH, meshname=side + '_pad_rubber',
                       rgba=PAD_RGBA, contype=0, conaffinity=0, mass=0)
-        # contact pad (builder.sphere_pads puts the contact spheres on its inner face): its inner
-        # face lies on the rubber's inner surface, near the tip where the reader is held
-        h, y0, z0 = .0017, .0007, .134
-        inner = np.array([sign * (pa + pb * z0 + pc * y0), y0, z0]) - PAD_THICKNESS * n_w
+        # contact pad (builder.sphere_pads puts the contact spheres on its inner face): on the flush
+        # face, from the tip end (yellow lip) over the rubber to the pocket's far edge
+        z_end = V[:, 2].max()
+        h, y0, hz = .0017, .0007, (z_end - z_lo) / 2
+        z0 = z_end - hz
+        inner = np.array([sign * (pa + pb * z0 + pc * y0), y0, z0])
         ax = n_w
         ay = np.array([0., 1, 0]) - ax[1] * ax; ay /= np.linalg.norm(ay)
         Rb = np.stack([ax, ay, np.cross(ax, ay)], 1)
         quat = np.zeros(4); mujoco.mju_mat2Quat(quat, (R.T @ Rb).flatten())
         body.add_geom(name=side+'_pad', type=mujoco.mjtGeom.mjGEOM_BOX,
                       pos=local(inner + h * n_w), quat=quat,
-                      size=[h,.0072,.0082], rgba=PAD_RGBA, group=3,
+                      size=[h,.0072,hz], rgba=PAD_RGBA, group=3,
                       contype=4, conaffinity=3, condim=4, priority=1,
                       friction=[1,.005,.0005],solref=[.01,1],mass=0)
         # the yellow tip itself keeps out of the table and the PC (not the reader: pads only)
