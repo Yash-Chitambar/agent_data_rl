@@ -1,0 +1,151 @@
+{
+ "args": {
+  "cmd": "run",
+  "side": "left",
+  "source": "step",
+  "seconds": 60.0,
+  "gains": "sim",
+  "infer": false,
+  "policy": null,
+  "env_file": null,
+  "joint": 4,
+  "amp": 0.04,
+  "reps": 10,
+  "start": [
+   0.0,
+   1.2,
+   1.0,
+   -0.6,
+   0.0,
+   0.0
+  ],
+  "name": "left_steps_joint4"
+ },
+ "side": "left",
+ "joint_offsets_rad": [
+  0.0,
+  0.02095,
+  -0.00719,
+  0.00662,
+  -0.00046,
+  0.0
+ ],
+ "arm": {
+  "gains_before": [
+   [
+    80.0,
+    80.0,
+    80.0,
+    40.0,
+    10.0,
+    10.0
+   ],
+   [
+    5.0,
+    5.0,
+    5.0,
+    1.5,
+    1.5,
+    1.5
+   ]
+  ],
+  "kp": [
+   80.0,
+   80.0,
+   80.0,
+   30.0,
+   30.0,
+   30.0
+  ],
+  "kd": [
+   5.0,
+   5.0,
+   5.0,
+   2.0,
+   2.0,
+   2.0
+  ],
+  "gravity_comp_factor": [
+   1.0,
+   1.1,
+   1.1,
+   1.2,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "coulomb_friction": [
+   0.3,
+   0.3,
+   0.3,
+   0.06,
+   0.06,
+   0.06,
+   0.0
+  ]
+ },
+ "control_dt": 0.02,
+ "action_scale": 0.04,
+ "history": 30,
+ "clock": "time.monotonic",
+ "started": "2026-10-26 12:45:13 PDT",
+ "summary": {
+  "steps": 1050,
+  "stop": null,
+  "loop_period_ms": {
+   "mean": 20.00000287807086,
+   "std": 0.027993585082593007,
+   "max": 20.104151917621493
+  },
+  "obs_age_at_tick_ms": {
+   "mean": -0.241,
+   "std": 0.773,
+   "p50": -0.208,
+   "p99": 1.017,
+   "max": 1.133
+  },
+  "compute_ms (t_act - t_tick)": {
+   "mean": 0.517,
+   "std": 0.542,
+   "p50": 0.279,
+   "p99": 1.615,
+   "max": 1.836
+  },
+  "act_to_send_ms": {
+   "mean": 2.601,
+   "std": 0.463,
+   "p50": 2.684,
+   "p99": 4.494,
+   "max": 4.677
+  },
+  "loop_latency_ms (t_send - t_obs)": {
+   "mean": 2.878,
+   "std": 0.502,
+   "p50": 2.776,
+   "p99": 5.51,
+   "max": 5.633
+  },
+  "obs_exact_fraction": 1.0,
+  "unsent_steps": 0,
+  "encoder_rate_hz": 364.4870336729787,
+  "encoder_period_ms_p99": 2.8894750867038965,
+  "hold_error_rad (q_cmd - q, mean / std)": {
+   "mean": [
+    0.0,
+    0.0,
+    0.00181,
+    0.00532,
+    0.00012,
+    -0.00042
+   ],
+   "std": [
+    0.0,
+    0.0,
+    0.000709,
+    0.01626,
+    0.000177,
+    0.000122
+   ]
+  }
+ }
+}

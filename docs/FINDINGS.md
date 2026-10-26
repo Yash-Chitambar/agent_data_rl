@@ -90,6 +90,41 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-26 (19:50 UTC, duchamp3) — Left YAM Tests 1-2: same latency as the right arm; elbow does not move for 0.04 rad
+
+The right arm's Tests 1-2 repeated on the left arm (same gains, start pose and step sizes).
+Data `data/real_yam/left_*.csv`, fit `results/real/step_fit_left.json`.
+
+- **Test 1 (60 s hold):** loop latency 3.75 ms mean, p99 5.8 (right 3.97 / 6.1); encoder 364 Hz;
+  hold error < 1.5 mrad. Same as the right arm.
+- **Test 2 (0.01 rad x 3, then 0.04 rad x 10 per joint):** no ringing, < 0.4 mrad coupling.
+
+| Joint | Reached at 0.04 rad, left (right) | First motion after send, left (right) | Fitted friction N m, left (right) | Gain scale, left (right) |
+|---|---|---|---|---|
+| 1 | 100% (103%) | 10.7 ms (11.4) | 0.1 (0.01) | 0.85 (0.7) |
+| 2 | 70% (66%) | 13.3 ms (14.4) | 1.0 (1.0) | 0.85 (0.7) |
+| 3 | **1%** (9%) | no motion (28.5) | >= 3 (1.5) | not identifiable |
+| 4 | 88% (88%) | 7.9 ms (8.5) | 0.2 (0.2) | 1.2 (1.5) |
+| 5 | 94% (79%) | 8.0 ms (8.5) | 0.1 (0.2) | 1.5 (1.0) |
+| 6 | 78% (94%) | 8.0 ms (8.5) | 0.1 (0.1) | 0.5 (1.5) |
+
+- **Latency is the same on both arms** (onsets within 1 ms): total ~8 ms, latency {0, 1} stands.
+- **The high joint 2-3 friction is the YAM, not the right arm's cable.** Both arms stick on joints 2-3
+  for 0.01 rad. The left elbow moved 1 encoder count (0.38 mrad) in 20 steps of 0.04 rad: its static
+  friction is above kp x 0.04 = 3.2 N m. The fit's 1.0 N m on joint 3 is meaningless (it barely moved).
+- **Consequence for Task H (action_scale 0.01, clip 3):** one action moves the target at most 0.03 rad
+  from the measured joint, i.e. <= 2.4 N m on the elbow. That is below the left elbow's static
+  friction, so **a Task H policy cannot move the left elbow at all**, and the right elbow only barely.
+  The target is re-centred on the measured joint every step, so the error never builds up.
+  Options: (a) accumulate the target (q_target += scale * a, the absolute-target scheme), (b) raise
+  kp on joint 3, (c) larger action scale on joint 3. Each needs a sim retrain; (a) is the standard
+  fix for stiction.
+- `task_h_reader_real.json`: joint 3 friction range widened to [0.6, 4.0] N m to cover the left arm.
+  At the top of this range the sim elbow also stalls, so training will show whether the policy copes.
+- Joint 1 friction 0.1 N m (right 0.01); joints 5-6 gain scales swap (1.5/0.5 vs 1.0/1.5): wrist gains
+  are poorly identified at these friction levels. Both inside the config's kp range except joint 6 at
+  0.5 (range 0.6-1.6).
+
 ### 2026-10-26 (00:20 UTC, duchamp3) — Encoder offset randomization: `EnvCfg.enc_offset_deg`
 
 - New `EnvCfg.enc_offset_deg` (deg half-range, per arm joint or one value): per world, uniform at every
