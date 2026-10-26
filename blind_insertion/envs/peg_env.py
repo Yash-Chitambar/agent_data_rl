@@ -391,8 +391,15 @@ class PegEnv:
                 _uniform(-cfg.grip_rot_deg, cfg.grip_rot_deg, (m_, 3), gen, dev) * deg)
             # peg in tcp frame: peg z = -tcp z, tilted about the closing axis (tcp y)
             tilt = _uniform(-cfg.inhand_tilt_deg, cfg.inhand_tilt_deg, m_, gen, dev) * deg
+            g_tilt = torch.zeros_like(tilt)
             if cfg.inhand_tilt_range_deg is not None:
-                tilt = _uniform(*cfg.inhand_tilt_range_deg, m_, gen, dev) * deg
+                # tilted grasp: the GRIPPER is tilted (the pick lines the part up with the port), so
+                # the tcp turns by -g_tilt about its closing axis and the part keeps only the in-hand
+                # error +-inhand_tilt_deg against the fixture (not the whole 25-45 deg)
+                g_tilt = _uniform(*cfg.inhand_tilt_range_deg, m_, gen, dev) * deg
+                tilt = g_tilt + tilt
+                z0 = torch.zeros_like(g_tilt)
+                R_tf = self.R_nom @ K.rpy_mat(torch.stack([z0, -g_tilt, z0], 1)) @ self.R_nom.T @ R_tf
             if cfg.grasp_mode == "top":    # tilt about the closing axis, yaw about the tcp axis
                 yaw = _uniform(-cfg.inhand_yaw_deg, cfg.inhand_yaw_deg, m_, gen, dev) * deg
                 Rpg = K.rpy_mat(torch.stack([torch.zeros_like(tilt), tilt, yaw], 1)) @ self.R_nom.T
@@ -402,7 +409,7 @@ class PegEnv:
             if cfg.grasp_mode == "top":    # pads close along part x: offset along the part axis
                 gy = _uniform(*cfg.grasp_y, m_, gen, dev)
                 if cfg.inhand_tilt_range_deg is not None:
-                    gy = gy + S.tip_rise(self.tip_pts, tilt)
+                    gy = gy + S.tip_rise(self.tip_pts, g_tilt)
                 gp = torch.stack([torch.zeros_like(gx), gy, self.grasp_z[kk] + gx], 1)
             else:
                 gp = torch.stack([gx, torch.zeros_like(gx), self.grasp_z[kk]], 1)
