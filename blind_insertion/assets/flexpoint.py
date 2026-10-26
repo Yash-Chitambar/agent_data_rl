@@ -13,7 +13,7 @@ ASSET = Path(__file__).with_suffix('') / 'flexible_4310.xml'
 # Black rubber pad on each soft tip's inner face (not in the upstream CAD). Thickness is a photo
 # estimate until measured with calipers; the contact surface is the pad's inner face.
 PAD_THICKNESS = 0.001
-PAD_LENGTH = 0.032       # from the tip end to just past the first hole (21-30 mm from the end, CAD)
+PAD_LENGTH = 0.016       # from the tip end to just past the first (small) hole; user-checked against the real tips
 PAD_RGBA = [.03, .03, .03, 1]
 TIP_LINK_BITS = (8, 1)            # builder.FINGER_LINK_BITS: tips collide with table and fixture only
 
@@ -39,9 +39,21 @@ def _tip_geometry(model, data, body, s):
     A = np.stack([np.ones(face.sum()), z[face], y[face]], 1)
     _, b, c = np.linalg.lstsq(A, u[face], rcond=None)[0]
     a = (u - b * z - c * y).min()               # support plane: no tip vertex inside it
-    on = ((u - (a + b * z + c * y)) < 1e-3) & (z > z.max() - PAD_LENGTH)
+    on = (u - (a + b * z + c * y)) < 1e-3
     pts = np.stack([y[on], z[on]], 1)
-    return (a, b, c), pts[ConvexHull(pts).vertices], V
+    return (a, b, c), _clip_below(pts[ConvexHull(pts).vertices], z.max() - PAD_LENGTH), V
+
+
+def _clip_below(poly, z0):
+    """Part of a convex polygon [(y, z)] with z >= z0 (the pad covers the face's tip end, also
+    across the recess behind the lip)."""
+    out = []
+    for p, q in zip(poly, np.roll(poly, -1, 0)):
+        if p[1] >= z0:
+            out.append(p)
+        if (p[1] - z0) * (q[1] - z0) < 0:
+            out.append(p + (q - p) * (z0 - p[1]) / (q[1] - p[1]))
+    return np.array(out)
 
 
 def _hull_points(V, slices=8):
