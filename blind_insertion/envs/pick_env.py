@@ -34,8 +34,9 @@ class PickCfg:
     episode_s: float = 12.0
     substeps: int = 20
     cams: tuple = ("top", "wrist_cam")
-    cam_res: tuple = (320, 240)          # width, height
+    cam_res: tuple = (320, 320)          # width, height
     render: bool = True
+    physical_rig: bool = True
     use_textures: bool = True  # photo-referenced workbench material
     # layout randomization (arm base frame)
     port_xy: tuple = S.PORT_XY
@@ -57,7 +58,7 @@ class PickCfg:
     # log-uniform), command latency (control steps, one level per world), encoder noise (rad)
     phys: dict = field(default_factory=lambda: dict(friction=(0.6, 1.6), grip_close=(-15.0, -9.0),
                                                     kp_scale=(0.8, 1.25), kd_scale=(0.7, 1.4),
-                                                    frictionloss=(0.005, 0.1), latency=(0, 1, 2),
+                                                    frictionloss=((.01,.4),(.4,2.),(.6,3.),(.08,.5),(.08,.5),(.04,.3)), latency=(0, 1),
                                                     q_noise=0.0005))
     nconmax: int = 160
     njmax: int = 1200
@@ -71,8 +72,10 @@ class PickEnv:
     def __init__(self, cfg: PickCfg, variant: B.Variant | None = None):
         self.cfg = cfg
         dev = self.device = torch.device(cfg.device)
+        if cfg.physical_rig and cfg.cam_res[0] != cfg.cam_res[1]:
+            raise ValueError("Calibrated policy views require square cam_res; use physical_rig=False for legacy checkpoints")
         wp.init()
-        self.mjm, self.lay = S.build_scene(variant)
+        self.mjm, self.lay = S.build_scene(variant, physical=cfg.physical_rig)
         mjm, lay = self.mjm, self.lay
         N = self.N = cfg.nworld
         self.gen = torch.Generator(device=dev)
@@ -190,7 +193,14 @@ class PickEnv:
             f["actuator_biasprm"][:, act, 2] = f0["actuator_biasprm"][act, 2] * lu(*ph["kd_scale"], (N, 1))
         if "frictionloss" in ph:
             dofs = torch.as_tensor(lay.arm_dofadr, device=dev)
-            f["dof_frictionloss"][:, dofs] = lu(*ph["frictionloss"], (N, len(lay.arm_dofadr)))
+            bounds = torch.as_tensor(ph["frictionloss"],device=dev)
+            if bounds.ndim == 2:
+                if bounds.shape != (6,2) or not bool((bounds > 0).all()):
+                    raise ValueError("frictionloss must be positive [lo, hi] bounds for six joints")
+                f["dof_frictionloss"][:, dofs] = torch.exp(bounds[:,0].log() +
+                    torch.rand((N,6),generator=gen,device=dev)*(bounds[:,1].log()-bounds[:,0].log()))
+            else:
+                f["dof_frictionloss"][:, dofs] = lu(*ph["frictionloss"], (N, len(lay.arm_dofadr)))
         levels = torch.as_tensor(ph.get("latency", (0,)), device=dev)
         self.lat = levels[torch.randint(len(levels), (N,), generator=gen, device=dev)]
 

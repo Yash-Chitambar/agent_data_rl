@@ -1,0 +1,14 @@
+{
+  "right_camera_position_error_m": 4.771173431424989e-06,
+  "left_camera_position_error_m": 2.7630880626281676e-06,
+  "both_flexpoint_meshes": true,
+  "target_port_xy": [
+    0.32137,
+    0.236917
+  ],
+  "reader_xy": [
+    0.203937,
+    0.220908
+  ],
+  "camera_check_passed": true
+}

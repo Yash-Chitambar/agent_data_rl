@@ -1,0 +1,7 @@
+{
+  "right_extrinsics_and_crop": true,
+  "left_extrinsics_and_crop": true,
+  "wrong_raw_resolution_rejected": true,
+  "left_base_transform": true,
+  "rigid_contact_spheres": 32
+}

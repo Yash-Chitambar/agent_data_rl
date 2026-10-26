@@ -31,12 +31,12 @@ PORT_HEIGHT = 0.025               # port centre above the table (m)
 PLATE = 0.030                     # square receptacle plate around the port (Variant.plate_size)
 PLATE_DEPTH = 0.0075              # USB-C cavity 6.50 mm + 1 mm floor (builder.usbc_spec_variant)
 PORT_BASE_RPY_DEG = (90.0, 0.0, -90.0)   # fixture z -> world -x, x -> world -y, y -> world z
-PORT_XY = (0.45, 0.0)             # nominal port centre on the table (arm base frame)
+PORT_XY = (0.321370, 0.236917)             # nominal port centre on the table (arm base frame)
 
 FINGER_DAMPING = 200.0            # N s/m per finger in the pick scene (see build_scene)
 LEFT_BASE_Y = 0.62                # idle left arm base (bimanual mount, arms at y = +-0.31)
 LEFT_HOME = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)   # folded rest (out of the top camera)
-READER_XY = (0.27, 0.0)           # nominal reader centre (body) on the table
+READER_XY = (0.203937, 0.220908)           # nominal reader centre (body) on the table
 # fixed top camera: on a mount midway between the two arm bases (y = LEFT_BASE_Y / 2), above the
 # bench behind the arm bases, looking down the whole bench (as the lab photo); image up = back wall. Pose is a placeholder
 # until measured (PickCfg.rand jitters it).
@@ -73,11 +73,14 @@ def _look_xyaxes(pos, look_at, up=(0, 0, 1)):
     return [*x, *np.cross(z, x)]
 
 
-def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM):
+def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM, physical=True):
     """`builder.build(extra=...)` hook: the idle left arm (visual), the fixed top camera, the
     PC's other ports and colours. Physics of the task arm, port and reader are untouched."""
     from blind_insertion.assets.builder import MENAGERIE   # noqa: PLC0415
     left = mujoco.MjSpec.from_file(str(MENAGERIE / "i2rt_yam" / "yam_linear_4310.xml"))
+    if physical:
+        from blind_insertion.assets.flexpoint import install
+        install(left)
     for k in list(left.keys) + list(left.lights) + list(left.actuators):
         left.delete(k)
     for g in left.geoms:
@@ -102,18 +105,21 @@ def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM):
                      pos=[x, y, 0.0003], rgba=[0.05, 0.05, 0.06, 1], contype=0, conaffinity=0)
 
 
-def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True):
+def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
     """CPU model of the full task H scene (pick + insert), from the same builder as PegEnv."""
     from blind_insertion.assets import builder as B   # noqa: PLC0415
     variant = variant or B.reader_variant()
     def decorate(sp):
-        add_scene(sp, top_cam)
+        add_scene(sp, top_cam, physical=physical)
         if detailed:
             from blind_insertion.scenes.bench_details import add_details
             add_details(sp, variant)
+        if physical:
+            from blind_insertion.scenes.physical_rig import decorate as decorate_rig
+            decorate_rig(sp)
 
     m, lay = B.build("yam", [variant], pad_spheres=4, table_top=0.0, fixture_boxes=pc_case_boxes(),
-                     extra=decorate)
+                     extra=decorate, gripper="flexpoint" if physical else "linear")
     B.apply_variant_cpu(m, lay, 0)
     cfg = json.loads(CONFIG.read_text())        # the insertion env's pad contact (PegEnv._apply_starts)
     m.geom_solref[lay.pad_geoms, 0] = cfg["pad_timeconst"]
@@ -135,6 +141,9 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True):
                 m.geom_rgba[slot, 3] = 0
     for j in range(len(lay.fixture_slots)):
         m.geom_rgba[lay.fixture_slots[j]] = [0.64, 0.65, 0.66, 1]
+    if physical:
+        from blind_insertion.scenes.physical_rig import apply
+        apply(m)
     return m, lay
 
 

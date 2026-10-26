@@ -125,6 +125,7 @@ class EnvCfg:
     # real camera spec (e.g. "blind_insertion/configs/real_cameras_duchamp3.json"): sets the wrist
     # camera's field of view and mount pose from its wrist.sim section (assets/real_camera.py);
     # null fields keep the model's camera and are reported as placeholders
+    gripper: str = "linear"  # flexpoint for the measured physical rig
     cam_spec: str | None = None
     # observation corruption (Phase C); 0 = off
     q_noise: float = 0.0
@@ -178,7 +179,7 @@ class PegEnv:
         bl_build = max([cfg.backlash_arcmin, *nr.get("backlash_arcmin", [])])
         self.mjm, self.lay = B.build(cfg.robot, variants, gains=cfg.gains,
                                      backlash_arcmin=bl_build, pad_spheres=cfg.pad_spheres,
-                                     table_top=cfg.table_top, fixture_boxes=cfg.fixture_boxes)
+                                     table_top=cfg.table_top, fixture_boxes=cfg.fixture_boxes, gripper=cfg.gripper)
         lay = self.lay
         if cfg.pad_solimp is not None:
             self.mjm.geom_solimp[lay.pad_geoms, :3] = cfg.pad_solimp

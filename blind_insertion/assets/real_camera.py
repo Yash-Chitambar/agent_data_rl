@@ -98,6 +98,11 @@ def real_policy_image(frame: np.ndarray, spec: dict, res: int, side: str = "righ
     w = spec["wrist"].get(side)
     if not w or w.get("intrinsics") is None or w.get("distortion") is None:
         raise ValueError(f"{side} wrist camera not calibrated: the spec has nulls")
+    expected = tuple(reversed(spec["wrist"]["sensor_resolution"]))
+    if frame.shape[:2] != expected:
+        raise ValueError(f"{side} wrist frame {frame.shape[:2]} does not match calibrated {expected}; capture at calibrated resolution before undistort/crop")
+    if res <= 0:
+        raise ValueError("policy image resolution must be positive")
     K = w["intrinsics"]
     Km = np.array([[K["fx"], 0, K["cx"]], [0, K["fy"], K["cy"]], [0, 0, 1]], float)
     und = cv2.undistort(frame, Km, np.asarray(w["distortion"], float))

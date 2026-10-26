@@ -3,6 +3,20 @@
 Running log for `docs/RESEARCH_PLAN.md`. Dated entries; newest first within each section.
 Figures and data referenced here live in `results/<phase>/`.
 
+## 2026-10-25 (Pacific): physical Task H reconstruction
+
+On `codex/physical-yam-scene`, integrated `real-yam-setup` e7b843e. Both arms now
+use upstream I2RT flexible_4310 meshes, measured left-base transform, bilateral
+wrist calibration and ZED policy crop. Object placements estimated from calibrated
+ZED rays; original measured reader and plug unchanged. See
+`docs/PHYSICAL_YAM_SCENE.md` for source revision, preprocessing and limitations.
+Camera replay transforms match saved positions to <5 um numerically. Calibrated
+render/step and manifest checks pass. Existing expert diagnostic: **0/4 held or
+completed handoffs**, finite states, final phases 4/5/4/4 under measured friction
+ranges. Do not carry over v2 success claims or launch bulk demo generation without
+contact/expert validation. FlexPoint compliance and payload are still unmeasured.
+No hardware motion, training or deployment performed in this update.
+
 ## Status summary
 
 | Phase | Status |

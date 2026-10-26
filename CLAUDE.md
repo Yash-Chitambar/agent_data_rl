@@ -186,3 +186,5 @@ clone, GPU/EGL checks, smoke runs). Jobs are manifests in `scripts/server/jobs/`
 GPU) or `scripts/server/slurm/submit.sh` (job arrays); results come back with
 `scripts/server/sync_down.sh`. `train.py` / `train_visual.py --resume` continue from `last.pt`
 (optimizer, RNG and curriculum stage included); the runners add `--resume` for partial runs.
+
+- Physical Task H scene: `docs/PHYSICAL_YAM_SCENE.md`. Defaults now use measured bilateral mounts/cameras, square RGB policy crops and upstream FlexPoint geometry. Old ACT checkpoints require their legacy scene settings; new contact compliance remains uncalibrated.

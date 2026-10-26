@@ -535,8 +535,10 @@ def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: floa
 
 
 def load_robot(name: str, *, gains=None, backlash_arcmin: float = 0.0,
-               pad_spheres: int = 0) -> tuple[mujoco.MjSpec, RobotInfo]:
-    spec, info = _load_robot(name, gains=gains)
+               pad_spheres: int = 0, gripper="linear") -> tuple[mujoco.MjSpec, RobotInfo]:
+    if gripper not in ("linear", "flexpoint") or (gripper == "flexpoint" and name != "yam"):
+        raise ValueError("gripper must be linear, or flexpoint on a YAM")
+    spec, info = _load_robot(name, gains=gains, gripper=gripper)
     if backlash_arcmin > 0:   # before sphere_pads: joints added after its spec.compile() land on link_1
         add_backlash(spec, info.arm_joints, backlash_arcmin)
     if pad_spheres > 0:
@@ -544,7 +546,7 @@ def load_robot(name: str, *, gains=None, backlash_arcmin: float = 0.0,
     return spec, info
 
 
-def _load_robot(name: str, *, gains=None) -> tuple[mujoco.MjSpec, RobotInfo]:
+def _load_robot(name: str, *, gains=None, gripper="linear") -> tuple[mujoco.MjSpec, RobotInfo]:
     if name == "flexiv":
         spec = mujoco.MjSpec.from_file(str(MENAGERIE / "flexiv_rizon4s" / "flexiv_rizon4s.xml"))
         for s in list(spec.sensors):
@@ -574,6 +576,9 @@ def _load_robot(name: str, *, gains=None) -> tuple[mujoco.MjSpec, RobotInfo]:
         return spec, info
     if name == "yam":
         spec = mujoco.MjSpec.from_file(str(MENAGERIE / "i2rt_yam" / "yam_linear_4310.xml"))
+        if gripper == "flexpoint":
+            from blind_insertion.assets.flexpoint import install
+            install(spec)
         for k in list(spec.keys):
             spec.delete(k)
         for lt in list(spec.lights):
@@ -617,7 +622,7 @@ def _load_robot(name: str, *, gains=None) -> tuple[mujoco.MjSpec, RobotInfo]:
         info = RobotInfo(name="yam", arm_joints=joints, finger_joints=["left_finger", "right_finger"],
                          tcp_site="grasp_site", base_body="arm", kp=kp, kv=kv, action_scale=0.04,
                          home=np.array([0.0, 1.96, 1.29, -0.9, 0.0, 0.0]),
-                         grip_force=-20.0, max_opening=0.0475, pad_geoms=pads,
+                         grip_force=-20.0, max_opening=0.048 if gripper == "flexpoint" else 0.0475, pad_geoms=pads,
                          gripper_geoms=["gripper_housing"], nom_yaw_deg=180.0)
         return spec, info
     raise ValueError(name)
@@ -715,11 +720,11 @@ def _mini_model(pieces: Pieces, v: Variant, n_fix: int, n_peg: int) -> mujoco.Mj
 def build(robot: str, variants: list[Variant], *, gains=None, timestep=0.001,
           multiccd: bool = False, extra=None, backlash_arcmin: float = 0.0,
           pad_spheres: int = 0, table_top: float | None = None,
-          fixture_boxes=None) -> tuple[mujoco.MjModel, Layout]:
+          fixture_boxes=None, gripper="linear") -> tuple[mujoco.MjModel, Layout]:
     """`table_top`: add the YAM workcell table (`YAM_TABLE`) with its top at this height.
     `fixture_boxes`: extra colliding boxes on the fixture body [(centre, half)] in the fixture
     frame, e.g. the mini PC's case around the port plate (task H)."""
-    spec, info = load_robot(robot, gains=gains, backlash_arcmin=backlash_arcmin, pad_spheres=pad_spheres)
+    spec, info = load_robot(robot, gains=gains, backlash_arcmin=backlash_arcmin, pad_spheres=pad_spheres, gripper=gripper)
     spec.option.timestep = timestep
     spec.option.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
     spec.option.solver = mujoco.mjtSolver.mjSOL_NEWTON
