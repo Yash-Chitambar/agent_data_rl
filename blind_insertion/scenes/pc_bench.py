@@ -33,6 +33,7 @@ PLATE_DEPTH = 0.0075              # USB-C cavity 6.50 mm + 1 mm floor (builder.u
 PORT_BASE_RPY_DEG = (90.0, 0.0, -90.0)   # fixture z -> world -x, x -> world -y, y -> world z
 PORT_XY = (0.321370, 0.236917)             # nominal port centre on the table (arm base frame)
 
+PAD_SPHERES = 10                  # contact spheres per pad side (builder.sphere_pads); 10: a tilted grasp keeps 4+ contacts per pad (4: 1-2, the reader pivots)
 FINGER_DAMPING = 200.0            # N s/m per finger in the pick scene (see build_scene)
 LEFT_BASE_Y = 0.62                # idle left arm base (bimanual mount, arms at y = +-0.31)
 LEFT_HOME = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)   # folded rest (out of the top camera)
@@ -46,6 +47,10 @@ READER_YAW_DEG = -0.7
 # flexpoint: the tcp IS the tip ends; tips 1.5-3.0 mm above the table, the rubber pads (from 1.4 mm
 # above the tips, assets/flexpoint.py) cover 2.9-8.8 mm of the body.
 GRASP_Y = {"linear": (0.0048, 0.0060), "flexpoint": (-0.0029, -0.0014)}
+# grasp tilt about the closing axis (deg, uniform per episode; PegEnv inhand_tilt sign): the wrist leans
+# back toward the robot so the wrist camera, on the PC side of the gripper, looks toward the PC
+# (untilted it looks back at the tips). GRASP_Y holds at the low tip corner (Expert raises the tcp).
+GRASP_TILT_DEG = (25.0, 45.0)
 # fixed top camera: on a mount midway between the two arm bases (y = LEFT_BASE_Y / 2), above the
 # bench behind the arm bases, looking down the whole bench (as the lab photo); image up = back wall. Pose is a placeholder
 # until measured (PickCfg.rand jitters it).
@@ -127,7 +132,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
             from blind_insertion.scenes.physical_rig import decorate as decorate_rig
             decorate_rig(sp)
 
-    m, lay = B.build("yam", [variant], pad_spheres=4, table_top=0.0, fixture_boxes=pc_case_boxes(),
+    m, lay = B.build("yam", [variant], pad_spheres=PAD_SPHERES, table_top=0.0, fixture_boxes=pc_case_boxes(),
                      extra=decorate, gripper="flexpoint" if physical else "linear")
     B.apply_variant_cpu(m, lay, 0)
     cfg = json.loads(CONFIG.read_text())        # the insertion env's pad contact (PegEnv._apply_starts)

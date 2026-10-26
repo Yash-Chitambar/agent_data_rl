@@ -97,6 +97,19 @@ class PickEnv:
         self.f0 = {n: v[0].clone() for n, v in self.f.items()}
         self.qpos0 = torch.as_tensor(mjm.qpos0, dtype=torch.float32, device=dev)
         self.chain = K.Chain(mjm, lay.tcp_site, lay.arm_qadr, device=dev)
+        d0 = mujoco.MjData(mjm)
+        mujoco.mj_forward(mjm, d0)
+        R_s, p_s = d0.site_xmat[lay.tcp_site].reshape(3, 3), d0.site_xpos[lay.tcp_site]
+        pts = []                                       # fingertip collision hulls in the tcp frame
+        for g in range(mjm.ngeom):
+            if mjm.geom(g).name.endswith("_tip_hull") or (not cfg.physical_rig and g in lay.pad_geoms):
+                if mjm.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+                    mid = mjm.geom_dataid[g]
+                    V = mjm.mesh_vert[mjm.mesh_vertadr[mid]:mjm.mesh_vertadr[mid] + mjm.mesh_vertnum[mid]]
+                else:                                  # box corners
+                    V = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]) * mjm.geom_size[g]
+                pts.append((V @ d0.geom_xmat[g].reshape(3, 3).T + d0.geom_xpos[g] - p_s) @ R_s)
+        self.tip_pts = torch.as_tensor(np.concatenate(pts), dtype=torch.float32, device=dev)
         self.arm_q = torch.as_tensor(lay.arm_qadr, device=dev)
         self.arm_act = torch.as_tensor(lay.arm_act, device=dev)
         self.home = torch.tensor(lay.robot.home, dtype=torch.float32, device=dev)
@@ -325,6 +338,14 @@ class PickEnv:
     def tcp_pose(self):
         return self.chain.fk(self.t_qpos[:, self.arm_q])
 
+    def tip_rise(self, tilt):
+        """Height (part y, m) the tcp must rise for a grasp tilted by `tilt` (rad, about the
+        closing axis) so the lowest fingertip point keeps its untilted height."""
+        def low(t):
+            Rt = self.R_top @ K.rpy_mat(torch.stack([torch.zeros_like(t), -t, torch.zeros_like(t)], 1))
+            return (self.tip_pts @ Rt.transpose(1, 2))[..., 1].min(1).values   # part y of the tip points
+        return low(torch.zeros_like(tilt)) - low(tilt)
+
     def plug_in_port(self):
         """Reader pose in the port frame: plug-tip centre p (m) and rotation R (identity =
         aligned for insertion; p_z = gap in front of the panel)."""
@@ -340,11 +361,16 @@ class Expert:
 
     def __init__(self, env: PickEnv, v_max=0.12, w_max=1.2, gap=(0.003, 0.010), grasp_y=None,
                  grasp_along=0.004, lateral=0.0005, close_steps=40, hold_steps=15, seed=0,
-                 bias_gain=0.05, bias_max=0.02, near_r=0.02):
+                 bias_gain=0.05, bias_max=0.02, near_r=0.02, grasp_tilt_deg=S.GRASP_TILT_DEG):
         self.env, self.v, self.w = env, v_max, w_max
         if grasp_y is None:     # middle of the insertion policy's in-hand range for this gripper
             grasp_y = float(np.mean(S.GRASP_Y[env.gripper]))
         self.gap, self.gy, self.ga, self.lat = gap, grasp_y, grasp_along, lateral
+        # grasp tilt about the closing axis, uniform per episode: the wrist leans back toward the
+        # robot, so the wrist camera (mounted on the PC side of the gripper, looking back at the
+        # tips) turns toward the PC. The tcp rises with the tilt so the low tip corner keeps the
+        # untilted clearance over the table.
+        self.tilt = tuple(math.radians(t) for t in grasp_tilt_deg)
         self.close_steps, self.hold_steps = close_steps, hold_steps
         # integral correction at the port: joint friction (up to ~3 N m on joint 3, PickCfg.phys) holds
         # the arm up to ~2 cm short of its command, so the bias must reach that far
@@ -359,7 +385,10 @@ class Expert:
         self.q_cmd = env.t_qpos[:, env.arm_q].clone()
         self.p_cmd, self.R_cmd = env.chain.fk(self.q_cmd)
         self.grip = torch.ones(N, device=dev)
-        self.g_off = torch.stack([torch.zeros(N, device=dev), torch.full((N,), self.gy, device=dev),
+        self.tilt_t = _u(*self.tilt, N, g, dev)
+        self.R_grip = env.R_top @ K.rpy_mat(torch.stack([torch.zeros_like(self.tilt_t), -self.tilt_t,
+                                                         torch.zeros_like(self.tilt_t)], 1))   # tcp in part frame
+        self.g_off = torch.stack([torch.zeros(N, device=dev), self.gy + env.tip_rise(self.tilt_t),
                                   self.env.body_z + _u(-self.ga, self.ga, N, g, dev)], 1)   # tcp in part frame
         self.gap_t = _u(*self.gap, N, g, dev)
         self.lat_t = _u(-self.lat, self.lat, (N, 2), g, dev)
@@ -368,7 +397,7 @@ class Expert:
 
     def _grasp_pose(self):
         p, R = self.env.reader_pose()
-        return p + (R @ self.g_off[..., None])[..., 0], R @ self.env.R_top
+        return p + (R @ self.g_off[..., None])[..., 0], R @ self.R_grip
 
     def _align_pose(self):
         """tcp pose that puts the plug tip gap_t in front of the port, using the in-hand pose
