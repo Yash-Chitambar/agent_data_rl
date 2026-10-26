@@ -143,9 +143,15 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
         for slot in lay.peg_slots:
             z = m.geom_aabb[slot].reshape(2, 3)[0, 2] + m.geom_pos[slot, 2]
             if z > B.USBC_PLUG_LEN + variant.handle_height:
-                m.geom_rgba[slot, 3] = 0
+                # MuJoCo Warp's renderer ignores alpha: give the hidden body the visible top's silver
+                m.geom_rgba[slot] = [0.39, 0.40, 0.39, 0]
     for j in range(len(lay.fixture_slots)):
-        m.geom_rgba[lay.fixture_slots[j]] = [0.64, 0.65, 0.66, 1]
+        m.geom_rgba[lay.fixture_slots[j]] = [0.50, 0.505, 0.51, 1]      # bench_details.SILVER
+    # the arm bases' visual meshes sit exactly on the table top; MuJoCo Warp's renderer z-fights them
+    # (speckles in the top camera). Lift them 0.5 mm (visual only).
+    for g in range(m.ngeom):
+        if m.body(m.geom_bodyid[g]).name in ("arm", "left_arm") and m.geom_contype[g] == m.geom_conaffinity[g] == 0:
+            m.geom_pos[g, 2] += 5e-4
     if physical:
         from blind_insertion.scenes.physical_rig import apply
         apply(m)

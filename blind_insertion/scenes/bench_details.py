@@ -7,7 +7,9 @@ import math
 import mujoco
 import numpy as np
 
-SILVER = (.64, .65, .66, 1)
+# Base colours matched to the real policy images (GPU render at the recorded pose, 2026-10-26):
+# up-facing surfaces render ~1.66x their rgba, vertical ones ~0.96x under this lighting.
+SILVER = (.50, .505, .51, 1)          # PC case: real top ~175/255
 BLACK = (.025, .028, .030, 1)
 
 
@@ -110,7 +112,7 @@ def add_details(sp, variant):
     bw, bt, bl = np.array(half)*2
     rounded(peg,'reader_shell',(c[0],c[1]-.0003,c[2]-.0005),
             bw,bl-.001,bt-.0006,.004,BLACK)
-    rounded(peg,'reader_silver',(0,bt/2-.00025,c[2]-.001),bw-.0014,bl-.003,.0005,.004,(.70,.71,.70,1))
+    rounded(peg,'reader_silver',(0,bt/2-.00025,c[2]-.001),bw-.0014,bl-.003,.0005,.004,(.39,.40,.39,1))   # real top ~166/255
     # SD opening at the paddle's distal end, green board and recessed black slit.
     end=c[2]+bl/2-.0005
     box(peg,'sd_rim',(0,0,end),(bw*.42,bt*.28,.0002),(.31,.32,.31,1))
@@ -122,11 +124,11 @@ def add_details(sp, variant):
         (variant.handle['width']*.43,.00012,variant.handle_height*.45),(.08,.085,.08,1))
 
     world=sp.worldbody
-    sp.geom('table').rgba = [.075,.08,.078,1]   # near black, as in the lab video
+    sp.geom('table').rgba = [.14,.137,.125,1]   # dark laminate: real ~60/255 incl. glare
     # Workbench backdrop: wall, outlet raceway, tool board, tools, power strip and monitors.
     # Lit lab room around the bench (lab photos): light grey walls, ceiling, grey floor (the bench
     # top is z = 0, the floor 0.75 m below), dark side benches, so no camera sees empty space.
-    WALL = (.80, .81, .82, 1)
+    WALL = (.90, .90, .89, 1)          # real ~225-240/255 (top and wrist views)
     box(world,'wall',(.83,.31,.50),(.025,3.0,1.30),WALL)
     box(world,'room_wall_right',(-.60,-2.20,.50),(1.45,.025,1.30),WALL)
     box(world,'room_wall_left',(-.60,2.80,.50),(1.45,.025,1.30),WALL)
@@ -139,7 +141,7 @@ def add_details(sp, variant):
     box(world,'room_bench_left',(.35,1.37,-.01),(.30,.38,.01),(.06,.062,.065,1))
     box(world,'room_mat',(.42,-.62,.002),(.16,.12,.002),(.15,.45,.75,1))
     box(world,'room_box_left',(.40,1.25,.03),(.05,.07,.03),(.85,.85,.83,1))
-    box(world,'raceway',(.798,.31,.09),(.012,1.20,.045),(.74,.75,.76,1))
+    box(world,'raceway',(.798,.31,.09),(.012,1.20,.045),(.92,.93,.93,1))   # real ~240/255 in the wrist views
     box(world,'pegboard',(.795,.31,.67),(.013,.68,.20),(.72,.58,.42,1))
     for y in np.arange(-.32,.96,.045):
         for z in np.arange(.51,.85,.045):
