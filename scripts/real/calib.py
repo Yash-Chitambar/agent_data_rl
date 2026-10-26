@@ -326,7 +326,7 @@ class Mover:
             self.arm.check = self.monitor
 
     def close(self):
-        self.robot.close()
+        safety.close_robot(self.robot)
 
 
 def supervised(side, kin, checker, body):

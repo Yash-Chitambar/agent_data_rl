@@ -328,7 +328,7 @@ class RealArm:
                 "coulomb_friction": np.asarray(r._coulomb_friction).tolist()}
 
     def close(self):
-        self.robot.close()
+        safety.close_robot(self.robot)
 
 
 class SimArm:

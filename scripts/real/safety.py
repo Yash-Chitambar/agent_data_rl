@@ -121,6 +121,19 @@ def connect(side: str, gripper_kp: float = 2.0, gripper_kd: float = 0.5):
                          gripper_kp=gripper_kp, gripper_kd=gripper_kd, zero_gravity_mode=False)
 
 
+def close_robot(robot):
+    """robot.close() without i2rt's shutdown race: its close() shuts the CAN socket while the
+    motor thread may still be sending ("file descriptor cannot be a negative integer"). Stop and
+    join that thread first. The motors get no more commands either way (limp)."""
+    import threading
+    mc = robot.motor_chain
+    mc.running = False
+    for t in threading.enumerate():
+        if getattr(getattr(t, "_target", None), "__self__", None) is mc and t is not threading.current_thread():
+            t.join(timeout=1.0)
+    robot.close()
+
+
 class SafeArm:
     """Wraps an i2rt robot (7 values: 6 joints + gripper 0..1). All commands go through checks."""
 
@@ -176,7 +189,7 @@ class SafeArm:
         return tgt
 
     def close(self):
-        self.robot.close()
+        close_robot(self.robot)
 
 
 if __name__ == "__main__":

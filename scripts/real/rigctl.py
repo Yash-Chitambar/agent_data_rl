@@ -98,7 +98,7 @@ class Arm(threading.Thread):
             self.mover = make_mover(self.side, self.kin, robot)
         except Exception:
             if robot is not None:   # e.g. the measured pose fails the checks: it was resting there
-                robot.close()
+                safety.close_robot(robot)
             self.held.unlink(missing_ok=True)
             self.state = "off"
             raise
@@ -202,6 +202,7 @@ def draw(scr, arms, note):
     if users:
         put(y + 3, "   cameras in use by scripts: " + ", ".join(users))
     y += 5
+    put(y - 1, f"log: {armshare.DIR / 'rigctl.log'}", curses.A_DIM)
     put(y, "space STOP   c clear   o/f both on/off   r/l toggle right/left   h home   v viewer   q quit",
         curses.A_DIM)
     put(y + 1, note)
@@ -266,4 +267,12 @@ def main(scr):
 
 
 if __name__ == "__main__":
+    # i2rt prints and logs (connect, close, motor thread errors) go to a file, not over the screen:
+    # Python-level stdout and the stderr fd; curses keeps the terminal on fd 1
+    armshare.DIR.mkdir(exist_ok=True)
+    log = open(armshare.DIR / "rigctl.log", "a", buffering=1)
+    log.write(f"--- {time.strftime('%Y-%m-%d %H:%M:%S')} rigctl started\n")
+    import os
+    os.dup2(log.fileno(), 2)
+    sys.stdout = sys.stderr = log
     curses.wrapper(main)
