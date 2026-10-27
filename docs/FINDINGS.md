@@ -104,6 +104,31 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-27 (night, duchamp3) — Task H real-rig insertion: final 300M results, ACT v4 early
+
+Two runs from the tilted-geometry policy (init `H-reader-tilt-enc03ft-s1/init_25M.pt`), enc offset +-0.3 deg,
+spec parts, offsets to 6 mm, 300M steps. **comp**: 30% of the measured joint friction, clip 3 (the arm with
+friction compensation). **uncomp**: measured friction, clip 6. PegEnv eval n=1,024 unseen geometries
+(`results/H/tilt_final/`); pipeline = expert pick -> policy, n=256, `pick_insert --phys_json` with the same
+encoder offset and friction (before: always +-1.5 deg).
+
+| Policy | Own, 3 mm | Own, 6 mm | Full friction, 3 mm | enc +-1.5 deg, 3 mm | Pipeline (expert pick) |
+|---|---|---|---|---|---|
+| comp | 90.0% | 89.0% | 65.1% | 51.8% | 97.7% [95.0, 98.9] |
+| uncomp | 83.0% | 72.4% | (own) | 40.4% | 86.3% [81.6, 90.0] |
+
+- Failures are mostly `slipped` and `never_found` (comp own: 47 / 28 of 1,024; uncomp own: 111 / 52).
+- Friction compensation is worth 7-17 points (and makes 6 mm starts as good as 3 mm). The comp policy
+  without compensation drops to 65%: it needs compensation on the real arm.
+- Encoder offset accuracy matters more: +-1.5 deg costs 38-43 points. The joint offsets must be known to
+  ~0.3 deg (re-measure `rig.joint_offsets` after each re-zero).
+- Pipeline handoff: lateral 0.55-0.61 mm median, gap 6.1 mm; pipeline success is above PegEnv because the
+  expert handoff is tighter than the PegEnv start distribution. seated_after_release 85.5% / 75.4% (the
+  released reader sags ~2 deg; the metric is strict).
+- Both runs continue to 500M (`--resume`; `final_300M.pt` kept).
+- ACT v4 (2 GPUs, AMP) at 20k steps, pipeline with the uncomp policy, n=128: 23.4% [16.9, 31.5], held at
+  handoff 48%, handoff lateral 5.5 mm median (v3 60k: 1.6%, held 19%).
+
 ### 2026-10-26 (evening, duchamp3) — Task H on the real rig: insertion retraining, what blocks it, ACT v4 data
 
 - **PegEnv tilt bug (fixed, 05106fd..)**: `inhand_tilt_range_deg` first rotated the PART 25-45 deg against the
