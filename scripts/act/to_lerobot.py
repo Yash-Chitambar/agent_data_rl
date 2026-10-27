@@ -40,7 +40,8 @@ def main():
     features = {
         "observation.images.top": {"dtype": "video", "shape": (h, w, 3), "names": ["height", "width", "channel"]},
         "observation.images.wrist": {"dtype": "video", "shape": (h, w, 3), "names": ["height", "width", "channel"]},
-        "observation.state": {"dtype": "float32", "shape": (z0["state"].shape[1],), "names": names_q + ["finger"]},
+        "observation.state": {"dtype": "float32", "shape": (z0["state"].shape[1],),
+                              "names": (names_q + ["finger"] + [f"cmd_err{i}" for i in range(1, 7)])[:z0["state"].shape[1]]},
         "action": {"dtype": "float32", "shape": (z0["action"].shape[1],), "names": names_q + ["gripper", "done"]},
     }
     ds = LeRobotDataset.create(a.repo_id, fps=50, features=features, root=root, robot_type="yam",

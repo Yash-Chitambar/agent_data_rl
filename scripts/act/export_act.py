@@ -1,6 +1,6 @@
 """Export a trained LeRobot ACT checkpoint to TorchScript for the simulation venv (LeRobot venv).
 
-The traced module takes (state (B, 7), top (B, 3, H, W), wrist (B, 3, H, W)) with images in
+The traced module takes (state (B, 7 or 13: gen_demos --cmd_err), top (B, 3, H, W), wrist (B, 3, H, W)) with images in
 [0, 1] and returns the unnormalized action chunk (B, chunk, 8). Normalization uses the
 dataset's mean/std, as LeRobot's ACT preprocessor does (MEAN_STD for state, images, action).
 
@@ -51,7 +51,7 @@ def main():
     stats = json.loads((Path(a.dataset) / "meta" / "stats.json").read_text())
     w = Wrapped(pol.model, stats).eval().to("cuda")
     H, W = pol.config.image_features["observation.images.top"].shape[1:]
-    ex = (torch.zeros(2, 7, device="cuda"), torch.rand(2, 3, H, W, device="cuda"), torch.rand(2, 3, H, W, device="cuda"))
+    ex = (torch.zeros(2, len(stats["observation.state"]["mean"]), device="cuda"), torch.rand(2, 3, H, W, device="cuda"), torch.rand(2, 3, H, W, device="cuda"))
     with torch.no_grad():
         tr = torch.jit.trace(w, ex, check_trace=False)
         ref, out = w(*ex), tr(*ex)

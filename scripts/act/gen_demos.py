@@ -49,6 +49,9 @@ def main():
     ap.add_argument("--episode_s", type=float, default=15.0)
     ap.add_argument("--cam_fps", type=float, default=30.0, help="0: a fresh frame every control step")
     ap.add_argument("--cam_age_ms", type=float, nargs=2, default=(30.0, 100.0))
+    ap.add_argument("--fric_comp", default="", help='friction feed-forward as on the real arm, e.g. {"scale":0.5,"ramp":0.02}')
+    ap.add_argument("--miss_frac", type=float, default=0.0, help="episodes whose first grasp misses (recorded from the miss)")
+    ap.add_argument("--cmd_err", action="store_true", help="state += last sent joint command - measured joints (6)")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -58,11 +61,12 @@ def main():
     t_start = time.time()
     for b in range((a.episodes + a.nworld - 1) // a.nworld):
         v = None if a.fixed_part else B.sample_reader(1, a.seed * 1000 + b)[0]
-        env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed * 1000 + b, episode_s=a.episode_s), variant=v)
+        env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed * 1000 + b, episode_s=a.episode_s,
+                              fric_comp=json.loads(a.fric_comp) if a.fric_comp else None), variant=v)
         dev, N, T = env.device, env.N, env.T
         env.gen.manual_seed(a.seed * 1000 + b)
         env.reset_all()
-        ex = Expert(env, seed=a.seed * 1000 + b)
+        ex = Expert(env, seed=a.seed * 1000 + b, miss_frac=a.miss_frac)
         ex.reset()
         g = torch.Generator(device=dev)
         g.manual_seed(a.seed * 1000 + b + 7)
@@ -75,7 +79,8 @@ def main():
                                               quality=None, ffmpeg_params=["-crf", "18", "-preset", "fast"],
                                               macro_block_size=8)
                    for i in range(n_ep) for c in ("top", "wrist")}
-        states, actions = [], []
+        states, actions, rec = [], [], []
+        last_cmd = env.state()[:, :6].clone()          # last joint command sent (encoder frame)
         cams = (("top", "top"), ("wrist", "wrist_cam"))
         rng = np.random.default_rng(a.seed * 1000 + b + 11)
         age = {c: rng.uniform(*a.cam_age_ms, N) / 1e3 for c, _ in cams}          # s, per world
@@ -95,26 +100,42 @@ def main():
                 else:
                     back = np.zeros(N, int)
                 imgs[c] = np.stack([hist[-1 - back[i]][c][i] for i in range(N)])
-            list(pool.map(lambda ic: writers[ic].append_data(imgs[ic[1]][ic[0]]), writers.keys()))
-            states.append(env.state().cpu().numpy())
+            st = env.state()
+            if a.cmd_err:
+                st = torch.cat([st, last_cmd - st[:, :6]], 1)
+            states.append(st.cpu().numpy())
             act, done = ex.act()
+            # a miss episode is recorded from the step its miss is detected (the recovery only)
+            keep = ((~ex.miss) | ((ex.retried >= 0) & (ex.retried <= t))).cpu().numpy()
+            rec.append(keep)
+            list(pool.map(lambda ic: writers[ic].append_data(imgs[ic[1]][ic[0]]),
+                          [ic for ic in writers.keys() if keep[ic[0]]]))
             actions.append(torch.cat([act, done[:, None].float()], 1).cpu().numpy())
             ou = rho * ou + math.sqrt(1 - rho ** 2) * torch.randn(N, 6, generator=g, device=dev)
             ph = ex.phase                       # no noise while descending, closing, lifting (knocks the reader)
             sig = torch.where((ph == 0) | (ph == 4), a.dart_sigma,
                               torch.where((ph == 5) & (ex.timer < n_align), a.align_sigma, 0.0))
-            env.step(act, noise=ou * (sig * dart)[:, None])
+            nz = ou * (sig * dart)[:, None]
+            env.step(act, noise=nz)
+            last_cmd = act[:, :6] + nz
         for w in writers.values():
             w.close()
         r = {k: v.cpu().numpy() for k, v in ex.result().items()}
-        S, A = np.stack(states, 1), np.stack(actions, 1)
+        S, A, M = np.stack(states, 1), np.stack(actions, 1), np.stack(rec, 1)
+        miss = ex.miss.cpu().numpy()
+        retried = ex.retried.cpu().numpy()
         for i in range(n_ep):
+            if miss[i] and retried[i] < 0:       # aimed off but the grasp held: no recovery to record
+                for c in ("top", "wrist"):
+                    (out / f"ep{ep0 + i:05d}_{c}.mp4").unlink(missing_ok=True)
+                continue
             meta = dict(episode=ep0 + i, ok=bool(r["ok"][i]), dart=bool(dart[i]), lat_mm=float(r["lat_mm"][i]),
+                        recovery=bool(miss[i]), retried=int(retried[i]), any_retry=bool(retried[i] >= 0),
                         grasp_tilt_deg=float(np.degrees(ex.tilt_t[i].item())),
                         cam_age_ms={c: float(age[c][i] * 1e3) for c, _ in cams},
                         gap_mm=float(r["gap_mm"][i]), tilt_deg=float(r["tilt_deg"][i]))
-            np.savez_compressed(out / f"ep{ep0 + i:05d}.npz", state=S[i].astype(np.float32),
-                                action=A[i].astype(np.float32), meta=json.dumps(meta))
+            np.savez_compressed(out / f"ep{ep0 + i:05d}.npz", state=S[i][M[i]].astype(np.float32),
+                                action=A[i][M[i]].astype(np.float32), meta=json.dumps(meta))
             summary.append(meta)
         ep0 += n_ep
         ok = np.mean([m["ok"] for m in summary])
@@ -122,7 +143,7 @@ def main():
         del env
     (out / "summary.json").write_text(json.dumps(dict(
         episodes=len(summary), ok=float(np.mean([m["ok"] for m in summary])), fps=50, T=T,
-        state=["joint1..6 (rad)", "finger opening (m)"], action=["joint1..6 target (rad)", "gripper (+1 open, -1 close)", "done"],
+        state=["joint1..6 (rad)", "finger opening (m)"] + (["last command - joint1..6 (rad)"] if a.cmd_err else []), action=["joint1..6 target (rad)", "gripper (+1 open, -1 close)", "done"],
         args=vars(a), episodes_meta=summary), indent=1))
 
 

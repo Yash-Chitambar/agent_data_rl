@@ -374,7 +374,8 @@ class Expert:
 
     def __init__(self, env: PickEnv, v_max=0.12, w_max=1.2, gap=(0.003, 0.010), grasp_y=None,
                  grasp_along=0.004, lateral=0.0005, close_steps=40, hold_steps=15, seed=0,
-                 bias_gain=0.1, bias_max=0.1, near_r=0.02, grasp_tilt_deg=S.GRASP_TILT_DEG):
+                 bias_gain=0.1, bias_max=0.1, near_r=0.02, grasp_tilt_deg=S.GRASP_TILT_DEG,
+                 miss_frac=0.0, miss_rise=(0.03, 0.045), lift_min=0.03):
         self.env, self.v, self.w = env, v_max, w_max
         if grasp_y is None:     # middle of the insertion policy's in-hand range for this gripper
             grasp_y = float(np.mean(S.GRASP_Y[env.gripper]))
@@ -389,6 +390,13 @@ class Expert:
         # PickCfg.phys) holds a joint up to ~0.06 rad short of its target at the lowest kp. A Cartesian
         # integral stalled in 16% of episodes (the stuck joint is not the one the tcp error points to).
         self.bias_gain, self.bias_max, self.near_r = bias_gain, bias_max, near_r
+        # recovery demos: in `miss_frac` of the episodes the first grasp closes `miss_rise` above the
+        # reader (clear of it: closer or lateral misses knocked the reader over, up to 180 deg, and the
+        # regrasp hung); every episode checks the lift (reader up >= lift_min, privileged) and on a miss
+        # reopens and grasps again on target. `retried`
+        # marks the step of the miss: scripts/act/gen_demos.py records those episodes from there on,
+        # so ACT learns the recovery, not the deliberate miss.
+        self.miss_frac, self.miss_rise, self.lift_min = miss_frac, miss_rise, lift_min
         self.gen = torch.Generator(device=env.device)
         self.gen.manual_seed(seed + 17)
 
@@ -404,6 +412,14 @@ class Expert:
                                                          torch.zeros_like(self.tilt_t)], 1))   # tcp in part frame
         self.g_off = torch.stack([torch.zeros(N, device=dev), self.gy + env.tip_rise(self.tilt_t),
                                   self.env.body_z + _u(-self.ga, self.ga, N, g, dev)], 1)   # tcp in part frame
+        self.g_true = self.g_off.clone()
+        self.miss = torch.rand(N, generator=g, device=dev) < self.miss_frac
+        off = torch.zeros(N, 3, device=dev)
+        off[:, 1] = _u(*self.miss_rise, N, g, dev)          # part y: up (the grasp height)
+        self.g_off = torch.where(self.miss[:, None], self.g_off + off, self.g_off)
+        self.retried = torch.full((N,), -1, dtype=torch.long, device=dev)     # step of the detected miss
+        self.n_steps = 0
+        self.z0 = env.reader_pose()[0][:, 2].clone()
         self.gap_t = _u(*self.gap, N, g, dev)
         self.lat_t = _u(-self.lat, self.lat, (N, 2), g, dev)
         self.done = torch.zeros(N, dtype=torch.bool, device=dev)
@@ -472,7 +488,7 @@ class Expert:
         # phase logic
         self.timer += 1
         adv = torch.zeros_like(reached)
-        adv |= (ph == 0) & reached
+        adv |= (ph == 0) & reached & (env.state()[:, 6] > 0.04)   # fingers open (~48.6 mm) before descending
         adv |= (ph == 1) & reached & settled
         adv |= (ph == 2) & (self.timer >= self.close_steps)
         adv |= (ph == 3) & reached & (self.timer > 5)
@@ -490,7 +506,16 @@ class Expert:
             p_h, R_h = env.plug_in_port()               # under joint friction)
             self.p_done[new], self.R_done[new] = p_h[new], R_h[new]
         self.done |= (ph == 6) & adv
+        # lift check: a missed grasp goes back to the approach (open), aimed on target
+        lifted = (env.reader_pose()[0][:, 2] - self.z0) > self.lift_min
+        retry = (ph == 3) & adv & ~lifted
         self.phase = torch.where(adv & (ph < 6), ph + 1, ph)
+        if retry.any():
+            self.phase[retry] = 0
+            self.g_off[retry] = self.g_true[retry]
+            self.bias[retry] = 0
+            self.retried = torch.where(retry & (self.retried < 0), torch.full_like(self.retried, self.n_steps), self.retried)
+        self.n_steps += 1
         self.timer = torch.where(adv, torch.zeros_like(self.timer), self.timer)
         self.grip = torch.where(self.phase >= 2, -torch.ones_like(self.grip), torch.ones_like(self.grip))
         # in the encoder frame (the privileged expert knows the offset error; ACT learns from these labels)

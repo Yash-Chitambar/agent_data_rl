@@ -41,14 +41,17 @@ class ActPick:
     otherwise execute `n_exec` actions of each chunk open loop."""
 
     def __init__(self, path, device, n_exec=10, ensemble=0.01, settle=True, rest_qd=0.03, rest_s=0.3,
-                 near=0.06, min_finger=0.005, cam_fps=30.0, cam_age_ms=(30.0, 100.0), seed=0):
+                 near=0.06, min_finger=0.005, cam_fps=30.0, cam_age_ms=(30.0, 100.0), seed=0, gate=True):
         """settle: also hand off when the arm has rested `rest_s` (all |qd| < rest_qd rad/s) with the
         gripper closed on the reader (finger opening > min_finger) and the tcp within `near` of
         the nominal pre-insert pose (configured PC position, not the randomized one), for when ACT
         does not raise `done`. Uses only joint encoders, so it runs on the real arm unchanged."""
         self.m = torch.jit.load(path, map_location=device).eval()
+        # state = joints + finger (7), or + last sent command - joints (13; gen_demos --cmd_err)
+        self.cmd_err = self.m.s_mean.shape[0] == 13
         self.n_exec, self.ens = n_exec, ensemble
         self.settle, self.rest_qd, self.rest_s, self.near, self.min_finger = settle, rest_qd, rest_s, near, min_finger
+        self.gate = gate
         # camera timing as in the demos (scripts/act/gen_demos.py): 30 fps frame clock, frame age per
         # episode and camera; cam_fps 0 = a fresh frame every step
         self.cam_fps, self.cam_age, self.rng = cam_fps, cam_age_ms, np.random.default_rng(seed)
@@ -59,6 +62,7 @@ class ActPick:
         self.done_run = torch.zeros(n, dtype=torch.long, device=device)
         self.rest_run = torch.zeros(n, dtype=torch.long, device=device)
         self.hist, self.step = [], 0
+        self.last_cmd = None
         period = 1 / self.cam_fps if self.cam_fps > 0 else 0.0
         self.age = {c: torch.as_tensor(self.rng.uniform(*self.cam_age, n) / 1e3, device=device) for c in ("top", "wrist_cam")}
         self.phase = {c: torch.as_tensor(self.rng.uniform(0, period, n), device=device) for c in ("top", "wrist_cam")}
@@ -95,8 +99,12 @@ class ActPick:
         fr = self._frames(env)
         top = fr["top"].permute(0, 3, 1, 2).float() / 255
         wrist = fr["wrist_cam"].permute(0, 3, 1, 2).float() / 255
+        st = env.state()
+        if self.cmd_err:
+            last = st[:, :6] if self.last_cmd is None else self.last_cmd
+            st = torch.cat([st, last - st[:, :6]], 1)
         with torch.no_grad():
-            return self.m(env.state(), top, wrist)                  # (N, C, 8)
+            return self.m(st, top, wrist)                           # (N, C, 8)
 
     def act(self, env: PickEnv):
         if self.ens > 0:
@@ -119,8 +127,12 @@ class ActPick:
             a = self.chunk[:, self.k]
             self.k += 1
         cmd = torch.cat([a[:, :6], torch.where(a[:, 6:7] > 0, 1.0, -1.0)], 1)
+        self.last_cmd = cmd[:, :6].clone()
         self.done_run = torch.where(a[:, 7] > 0.5, self.done_run + 1, torch.zeros_like(self.done_run))
-        done = self.done_run >= 5
+        # grasp gate: no handoff with the gripper open or closed on nothing (fingers ~19 mm on the
+        # reader, ~-6 mm empty); ACT keeps control and can regrasp
+        grasped = (cmd[:, 6] < 0) & (env.state()[:, 6] > self.min_finger)
+        done = (self.done_run >= 5) & (grasped if self.gate else True)
         if self.settle:
             done |= self._settled(env, cmd[:, 6] < 0)
         return cmd, done
@@ -292,6 +304,7 @@ def main():
     ap.add_argument("--act", default="")
     ap.add_argument("--ensemble", type=float, default=0.01, help="ACT temporal ensembling weight; 0 = chunks of 10")
     ap.add_argument("--no_settle", action="store_true", help="hand off on ACT's done flag only")
+    ap.add_argument("--no_gate", action="store_true", help="hand off on done even with an empty gripper")
     ap.add_argument("--insert", required=True)
     ap.add_argument("--episodes", type=int, default=256)
     ap.add_argument("--nworld", type=int, default=128)
@@ -308,7 +321,8 @@ def main():
         v = B.sample_reader(1, a.seed + b)[0] if a.spec_parts else None
         env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed + b, render=a.pick == "act", phys=phys,
                                 fric_comp=json.loads(a.fric_comp) if a.fric_comp else None), variant=v)
-        picker = (ActPick(a.act, env.device, ensemble=a.ensemble, settle=not a.no_settle, cam_fps=a.cam_fps, seed=a.seed + b)
+        picker = (ActPick(a.act, env.device, ensemble=a.ensemble, settle=not a.no_settle, cam_fps=a.cam_fps, seed=a.seed + b,
+                          gate=not a.no_gate)
                   if a.pick == "act" else ExpertPick(env))
         ins = Inserter(a.insert, env)
         r, _ = run(env, picker, ins)
