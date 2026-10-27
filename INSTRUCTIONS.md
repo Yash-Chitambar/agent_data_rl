@@ -1,5 +1,18 @@
 # Instructions for the agent on the training server
 
+> **USB-C sim-to-real handoff (2026-10-27):** For the SanDisk reader into GMKtec
+> port 2, read [the authoritative plan](docs/USB_C_SIM2REAL_PLAN.md),
+> [data contract](docs/REAL_SIM_DATA_CONTRACT.md) and
+> [mason work queue](docs/SIM_AGENT_HANDOFF.md) before using the historical queue below.
+> The published `codex/bimanual-calibrated` plan commit is the handoff reference;
+> record its exact hash. This task uses a freely resting PC, RGB ACT → proprioceptive
+> PPO → release, and a versioned dataset/supervisor. For this task these documents
+> supersede historical fixed-fixture assumptions, “no dataset” guidance, host/repo/branch
+> defaults and phase-launch instructions below. Verify mason's actual runtime and
+> preserve existing experiments. Section 1 shared-GPU rules remain in force, including
+> required authorization above two GPUs or longer than one day on any GPU. The plan
+> commit publishes documentation only; it launches neither robot motion nor training.
+
 You are taking over the remaining RL training of this project on a shared GPU server (first
 target: **jensen**, 8 × V100, `jensen.ist.berkeley.edu`, user `yashchitambar`). Another agent and
 Yash work on the local machine (athena5, 1 × RTX 3090 Ti). Read this file completely before you do
