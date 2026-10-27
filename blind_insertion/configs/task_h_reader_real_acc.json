@@ -1,0 +1,189 @@
+{
+ "robot": "yam",
+ "fix_x": [
+  0.30137,
+  0.34137
+ ],
+ "fix_y": [
+  0.196917,
+  0.276917
+ ],
+ "fix_z": [
+  0.01,
+  0.01
+ ],
+ "fix_tilt_deg": 2.0,
+ "grip_rot_deg": 3.0,
+ "inhand_tilt_deg": 5.0,
+ "grasp_along": 0.005,
+ "start_gap": [
+  0.0003,
+  0.01
+ ],
+ "episode_s": 10.0,
+ "free_height": 0.0005,
+ "seat_tol": 0.0002,
+ "success_tilt_deg": 2.0,
+ "speed_cap": 0.05,
+ "far_xy_margin": 0.01,
+ "far_z": 0.03,
+ "slip_dist": 0.006,
+ "action_scale": 0.01,
+ "grip_force_base": 6.0,
+ "pad_timeconst": 0.002,
+ "pad_solimp": [
+  0.99,
+  0.999,
+  0.001
+ ],
+ "njmax": 2048,
+ "nconmax": 256,
+ "pad_spheres": 4,
+ "table_top": 0.0,
+ "grasp_mode": "top",
+ "fix_base_rpy_deg": [
+  90.0,
+  0.0,
+  -90.0
+ ],
+ "fix_rpy_range_deg": [
+  0.5,
+  10.0,
+  0.5
+ ],
+ "fixture_boxes": [
+  [
+   [
+    0.0215,
+    -0.004,
+    -0.05275
+   ],
+   [
+    0.0515,
+    0.021,
+    0.04525
+   ]
+  ],
+  [
+   [
+    -0.0225,
+    -0.004,
+    -0.00375
+   ],
+   [
+    0.0075,
+    0.021,
+    0.00375
+   ]
+  ],
+  [
+   [
+    0.044,
+    -0.004,
+    -0.00375
+   ],
+   [
+    0.029,
+    0.021,
+    0.00375
+   ]
+  ],
+  [
+   [
+    0.0,
+    -0.02,
+    -0.00375
+   ],
+   [
+    0.015,
+    0.005,
+    0.00375
+   ]
+  ],
+  [
+   [
+    0.0,
+    0.016,
+    -0.00375
+   ],
+   [
+    0.015,
+    0.001,
+    0.00375
+   ]
+  ]
+ ],
+ "inhand_yaw_deg": 0.0,
+ "grasp_y": [
+  0.0048,
+  0.006
+ ],
+ "history": 10,
+ "arm_kp_scale": [
+  0.6,
+  1.6
+ ],
+ "arm_kd_scale": [
+  0.7,
+  1.4
+ ],
+ "arm_frictionloss": [
+  [
+   0.01,
+   0.4
+  ],
+  [
+   0.4,
+   2.0
+  ],
+  [
+   0.6,
+   4.0
+  ],
+  [
+   0.08,
+   0.5
+  ],
+  [
+   0.08,
+   0.5
+  ],
+  [
+   0.04,
+   0.3
+  ]
+ ],
+ "noise_rand": {
+  "q_noise": [
+   0,
+   0.0001,
+   0.0005
+  ],
+  "q_quant_bits": [
+   14
+  ],
+  "backlash_arcmin": [
+   0,
+   1,
+   3,
+   5
+  ],
+  "latency": [
+   0,
+   1
+  ]
+ },
+ "enc_offset_deg": [
+  0.0,
+  1.5,
+  1.5,
+  1.5,
+  1.5,
+  0.0
+ ],
+ "action_mode": "accumulate",
+ "target_cap": 0.1,
+ "gripper": "flexpoint",
+ "cam_spec": "blind_insertion/configs/real_cameras_duchamp3.json",
+ "cam_modality": "rgb"
+}

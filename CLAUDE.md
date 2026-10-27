@@ -105,18 +105,28 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   (`configs/phase_e_usbc_side.json`). Per-world noise levels: `EnvCfg.noise_rand`.
 - Visual: `EnvCfg.cam_modality` rgb|depth|rgbd (frame channels), `depth_model` (D405-like sensor),
   `cam_rand`; the YAM camera is Menagerie's `wrist_cam` (D405). `train_visual --proprio` fuses joints.
-- Real rig (duchamp3): **clamp the arm bases before any motion** (an unclamped base nearly tipped at
-  ~0.58 m reach). Connect arms only through `scripts/real/safety.py` (PD hold from connect; yam-control's
-  `Arms` floats and the right arm drifts into the table). Run `scripts/real/estop.py` in a terminal
-  first: Enter holds the arm, `c` sends it home. Camera calibration: `scripts/real/calib.py`
-  (zed / find / collect / solve; views accumulate per run in `data/calib/run_NNN`, gitignored).
-  Scene reference images for the sim (ZED + both wrists, camera poses in the right base frame):
-  `scripts/real/snapshot.py` -> `data/sim_ref/<name>/`.
-  Open real-vs-sim gaps (latency, gains, joint offsets, fixture, pads, payload, cameras) and their
-  tests: `docs/REAL_RIG_GAPS.md`.
+- Real rig (duchamp3): tools and their order in `scripts/real/README.md`. **Clamp the arm bases before any
+  motion** (an unclamped base nearly tipped at ~0.58 m reach). Connect arms only through
+  `scripts/real/safety.py` (PD hold from connect; yam-control's `Arms` floats and the right arm drifts into
+  the table); close them with `safety.close_robot` (i2rt's own close races its motor thread). Run the rig
+  console `scripts/real/rigctl.py` (space = stop, o/f arms on/off, h home, v cameras, q parks and quits) or
+  `estop.py` first. Off = park at the folded rest, then limp; scripts take an arm over through
+  `armshare.claim` (in `safety.connect`): the console parks it and lets go.
+  Live cameras: `scripts/real/camview.py` in tmux session `camview` (`--share`: public link in
+  `/dev/shm/yam_cams/share_url`; tailnet http://duchamp3.elf-altair.ts.net:8090); scripts that open a camera
+  `camshare.claim(cam)` first (calib, snapshot, verify_cameras do). CAN adapters come up by udev rule.
+  Calibration: `calib.py` (zed / find / collect / solve; runs in `data/calib/run_NNN`, gitignored), checked
+  with `verify_cameras.py` (all three cameras on one board, nothing fitted; pass on pixels, not mm: the ZED's
+  single-board depth wobbles ~5 mm at 1 m); ZED pose refit from several board spots by `fit_zed.py`.
+  Scene reference images: `snapshot.py` -> `data/sim_ref/<name>/`. Open gaps: `docs/REAL_RIG_GAPS.md`.
 - Real-arm deployment loop: `scripts/real/deploy.py` (`check` offline; `run --source hold|step|policy`):
   50 Hz sim action scheme, sim gains (kd capped at 5: DM MIT limit), joint offsets in the observation,
   CAN-level timing logs in `data/real_yam/`. It wraps i2rt driver methods to stamp readings and sends.
+- `EnvCfg.action_mode = "accumulate"`: q_target += scale * a, clipped to `target_cap` (0.1 rad) from the
+  measured joint; the actor observation gets q_target - q_meas (+6 dims, so no warm start from relative
+  checkpoints). For joints stuck in static friction (real left elbow: 3-5 N m breakaway). Config
+  `configs/task_h_reader_real_acc.json`; `deploy.py` reads `action_mode`/`target_cap` from `--env_file`.
+  MuJoCo's frictionloss is soft (dof_solref 0.02 s): a pushed joint creeps ~26 mrad/s at any friction.
 - Real-robot training config: `configs/task_h_reader_real.json` (measured per-joint friction via
   `EnvCfg.arm_frictionloss` = one [lo, hi] per joint, kp/kd scale, latency {0, 1}, 14-bit encoders,
   `EnvCfg.enc_offset_deg` ±1.5° on joints 2-5: observation only, the command stays in the encoder frame).

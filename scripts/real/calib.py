@@ -33,6 +33,7 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
+import camshare  # noqa: E402
 import estop  # noqa: E402
 import rig  # noqa: E402
 import safety  # noqa: E402
@@ -159,6 +160,7 @@ def detect(gray):
 
 class WristCam:
     def __init__(self, side):
+        self.share = camshare.claim(f"wrist_{side}")   # the live viewer lets go of the camera
         self.cap = cv2.VideoCapture(rig.WRIST_CAM[side], cv2.CAP_V4L2)
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, WRIST_RES[0])
@@ -170,10 +172,12 @@ class WristCam:
         for _ in range(6):   # drop buffered frames: the image must be from after the arm settled
             ok, f = self.cap.read()
         assert ok and f.shape[1::-1] == WRIST_RES, f"bad wrist frame {None if f is None else f.shape}"
+        self.share.publish(f)
         return f
 
     def close(self):
         self.cap.release()
+        self.share.release()
 
 
 class Zed:
@@ -182,6 +186,7 @@ class Zed:
     def __init__(self):
         import pyzed.sl as sl
         self.sl = sl
+        self.share = camshare.claim("zed")
         self.cam = sl.Camera()
         p = sl.InitParameters()
         p.camera_resolution = sl.RESOLUTION.HD1080
@@ -210,10 +215,13 @@ class Zed:
         for _ in range(2):
             self.cam.grab()
         self.cam.retrieve_image(self.mat, self.sl.VIEW.LEFT)
-        return self.mat.get_data()[:, :, :3].copy()
+        f = self.mat.get_data()[:, :, :3].copy()
+        self.share.publish(f)
+        return f
 
     def close(self):
         self.cam.close()
+        self.share.release()
 
 
 def board_pose(corners, K, dist):
@@ -318,7 +326,7 @@ class Mover:
             self.arm.check = self.monitor
 
     def close(self):
-        self.robot.close()
+        safety.close_robot(self.robot)
 
 
 def supervised(side, kin, checker, body):

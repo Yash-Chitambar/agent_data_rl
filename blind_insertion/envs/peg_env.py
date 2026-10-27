@@ -106,6 +106,12 @@ class EnvCfg:
     far_z: float = 0.05
     slip_dist: float = 0.02
     action_clip: float = 3.0
+    # "relative": q_target = q_meas + scale * a (paper). "accumulate": q_target += scale * a, kept
+    # within target_cap (rad, per joint) of q_meas, so a held action keeps pushing a joint stuck in
+    # static friction (real YAM elbow: 3-5 N m breakaway). Accumulate adds q_target - q_meas (A)
+    # to the actor observation.
+    action_mode: str = "relative"
+    target_cap: float = 0.1
     auto_reset: bool = True             # False for scripted checks
     success_tilt_deg: float = 0.0       # >0: also require the part axis within this tilt (USB-C: 2)
     speed_cap: float = 0.0              # >0: penalize EE speed above this (m/s) near the port
@@ -267,9 +273,12 @@ class PegEnv:
 
         # episode state
         H, A = cfg.history, self.n_arm
-        self.obs_dim = 2 * A + 12 + A
+        assert cfg.action_mode in ("relative", "accumulate"), cfg.action_mode
+        self.accumulate = cfg.action_mode == "accumulate"
+        self.obs_dim = 2 * A + 12 + A + (A if self.accumulate else 0)
         self.hist = torch.zeros(N, H, self.obs_dim, device=dev)
         self.prev_action = torch.zeros(N, A, device=dev)
+        self.q_target = torch.zeros(N, A, device=dev)   # accumulate mode, encoder frame
         self.enc_off = torch.zeros(N, A, device=dev)   # EnvCfg.enc_offset_deg (rad)
         self.max_lat = max([cfg.latency, *nr.get("latency", [])])
         self.act_queue = torch.zeros(N, self.max_lat + 1, A, device=dev)
@@ -514,6 +523,7 @@ class PegEnv:
             self.f["dof_frictionloss"][ids[:, None], torch.as_tensor(lay.arm_dofadr, device=dev)] = st["fl"]
         ctrl = self.t_ctrl
         ctrl[ids[:, None], torch.as_tensor(lay.arm_act, device=dev)] = q_sol
+        self.q_target[ids] = q_sol
         for a in lay.grip_act:
             ctrl[ids, int(a)] = self.grip_force[ids]
         # episode bookkeeping
@@ -678,6 +688,8 @@ class PegEnv:
         p, R, J = self.chain.fk(q, with_jac=True)
         tw = (J @ qd[..., None])[..., 0]
         eul = K.euler_xyz(self.R_world_nom().transpose(1, 2) @ R)
+        if getattr(self, "accumulate", False):
+            return torch.cat([q, qd, p, eul, tw, self.prev_action, self.q_target - self._q_meas], 1)
         return torch.cat([q, qd, p, eul, tw, self.prev_action], 1)
 
     def R_world_nom(self):
@@ -736,7 +748,12 @@ class PegEnv:
             a_apply = self.act_queue[:, 0]
         else:
             a_apply = a
-        q_t = self._q_meas + self.scale * a_apply
+        if self.accumulate:
+            c = cfg.target_cap
+            q_t = torch.minimum(torch.maximum(self.q_target + self.scale * a_apply, self._q_meas - c), self._q_meas + c)
+            self.q_target = q_t
+        else:
+            q_t = self._q_meas + self.scale * a_apply
         self.t_ctrl[:, torch.as_tensor(lay.arm_act, device=dev)] = q_t
         torch.cuda.synchronize(dev)
         self._physics()

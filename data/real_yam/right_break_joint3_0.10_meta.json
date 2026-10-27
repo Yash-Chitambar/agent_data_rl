@@ -1,0 +1,153 @@
+{
+ "args": {
+  "cmd": "run",
+  "side": "right",
+  "source": "step",
+  "seconds": 60.0,
+  "gains": "sim",
+  "infer": false,
+  "policy": null,
+  "env_file": null,
+  "joint": 3,
+  "amp": 0.1,
+  "reps": 5,
+  "start": [
+   0.0,
+   1.2,
+   1.0,
+   -0.6,
+   0.0,
+   0.0
+  ],
+  "name": "right_break_joint3_0.10"
+ },
+ "side": "right",
+ "joint_offsets_rad": [
+  0.0,
+  0.01267,
+  0.00026,
+  0.02318,
+  -0.01946,
+  0.0
+ ],
+ "arm": {
+  "gains_before": [
+   [
+    80.0,
+    80.0,
+    80.0,
+    40.0,
+    10.0,
+    10.0
+   ],
+   [
+    5.0,
+    5.0,
+    5.0,
+    1.5,
+    1.5,
+    1.5
+   ]
+  ],
+  "kp": [
+   80.0,
+   80.0,
+   80.0,
+   30.0,
+   30.0,
+   30.0
+  ],
+  "kd": [
+   5.0,
+   5.0,
+   5.0,
+   2.0,
+   2.0,
+   2.0
+  ],
+  "gravity_comp_factor": [
+   1.0,
+   1.1,
+   1.1,
+   1.2,
+   1.0,
+   1.0,
+   1.0
+  ],
+  "coulomb_friction": [
+   0.3,
+   0.3,
+   0.3,
+   0.06,
+   0.06,
+   0.06,
+   0.0
+  ]
+ },
+ "control_dt": 0.02,
+ "action_scale": 0.04,
+ "action_mode": "relative",
+ "target_cap": 0.1,
+ "history": 30,
+ "clock": "time.monotonic",
+ "started": "2026-10-26 14:34:18 PDT",
+ "summary": {
+  "steps": 550,
+  "stop": null,
+  "loop_period_ms": {
+   "mean": 20.000001311281828,
+   "std": 0.013199314404293954,
+   "max": 20.068838028237224
+  },
+  "obs_age_at_tick_ms": {
+   "mean": -0.424,
+   "std": 0.862,
+   "p50": -0.507,
+   "p99": 1.094,
+   "max": 1.138
+  },
+  "compute_ms (t_act - t_tick)": {
+   "mean": 0.708,
+   "std": 0.639,
+   "p50": 0.602,
+   "p99": 1.822,
+   "max": 2.112
+  },
+  "act_to_send_ms": {
+   "mean": 2.871,
+   "std": 0.578,
+   "p50": 2.826,
+   "p99": 4.876,
+   "max": 4.978
+  },
+  "loop_latency_ms (t_send - t_obs)": {
+   "mean": 3.156,
+   "std": 0.753,
+   "p50": 2.948,
+   "p99": 5.894,
+   "max": 5.979
+  },
+  "obs_exact_fraction": 1.0,
+  "unsent_steps": 0,
+  "encoder_rate_hz": 337.9568025973343,
+  "encoder_period_ms_p99": 3.062932945322245,
+  "hold_error_rad (q_cmd - q, mean / std)": {
+   "mean": [
+    0.00175,
+    0.00063,
+    0.00913,
+    0.00587,
+    -0.00042,
+    0.00098
+   ],
+   "std": [
+    0.00034,
+    0.001806,
+    0.041564,
+    0.004663,
+    0.000123,
+    0.000193
+   ]
+  }
+ }
+}

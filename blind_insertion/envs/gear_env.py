@@ -140,6 +140,7 @@ class GearEnv(PegEnv):
                       @ K.rpy_mat(torch.tensor([math.pi, 0.0, 0.0], device=dev)))
 
         H, A = cfg.history, self.n_arm
+        assert cfg.action_mode == "relative", "GearEnv: relative actions only"
         self.obs_dim = 2 * A + 12 + A
         self.hist = torch.zeros(N, H, self.obs_dim, device=dev)
         self.prev_action = torch.zeros(N, A, device=dev)

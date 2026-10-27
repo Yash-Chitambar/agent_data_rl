@@ -284,6 +284,34 @@
   },
   "extrinsics_cam_in_right_base": {
    "pos": [
+    -0.21424,
+    0.33335,
+    0.88196
+   ],
+   "quat": [
+    -0.20224,
+    0.68075,
+    -0.67623,
+    0.19596
+   ],
+   "_note": "ZED HD1080 rectified-left optical frame (OpenCV) in the right base: refit 2026-10-26 by scripts/real/fit_zed.py from 3 board positions located by the wrist cameras (data/calib/zedfit/pos1, data/calib/zedfit/pos2, data/calib/zedfit/pos3)"
+  },
+  "extrinsics_cam_in_left_base": {
+   "pos": [
+    -0.20232,
+    -0.27494,
+    0.88301
+   ],
+   "quat": [
+    0.19969,
+    -0.67535,
+    0.68302,
+    -0.19366
+   ],
+   "_note": "the right-base pose through arms.left_base_in_right_base"
+  },
+  "extrinsics_cam_in_right_base_v1": {
+   "pos": [
     -0.21015,
     0.35358,
     0.87333
@@ -295,20 +323,6 @@
     -0.20369
    ],
    "_note": "ZED HD1080 rectified-left optical frame (OpenCV) in the right base, via the static board (run_004)"
-  },
-  "extrinsics_cam_in_left_base": {
-   "pos": [
-    -0.19795,
-    -0.25473,
-    0.87444
-   ],
-   "quat": [
-    0.19267,
-    -0.67536,
-    0.68281,
-    -0.20133
-   ],
-   "_note": "ZED HD1080 rectified-left optical frame (OpenCV) in the left base, via the static board (run_003)"
   }
  },
  "arms": {

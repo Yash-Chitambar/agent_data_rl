@@ -1,0 +1,43 @@
+{
+ "date": "2026-10-26",
+ "script": "scripts/real/fit_zed.py",
+ "fit_runs": [
+  "data/calib/zedfit/pos1",
+  "pos2",
+  "pos3"
+ ],
+ "held_out": "data/calib/zedfit/pos4_heldout (right arm views only: the left arm had no safe view that close to its base)",
+ "pose_change": {
+  "translation_mm": [
+   -4.1,
+   -20.2,
+   8.6
+  ],
+  "rotation_deg": 1.2
+ },
+ "wrist_corners_in_zed_image_px_mean": {
+  "old_pose": {
+   "pos1": 0.98,
+   "pos2": 1.51,
+   "pos3": 2.09,
+   "pos4_heldout": 3.86
+  },
+  "new_pose": {
+   "pos1": 0.33,
+   "pos2": 0.32,
+   "pos3": 0.35,
+   "pos4_heldout": 2.04
+  }
+ },
+ "held_out_per_view_px": {
+  "in_zed_image": {
+   "right_55": 2.3,
+   "right_40": 1.8
+  },
+  "zed_in_wrist_image": {
+   "right_55": 3.2,
+   "right_40": 2.4
+  }
+ },
+ "verdict": "pass (<= 3 px in the ZED image, <= 6 px in the wrist image)"
+}

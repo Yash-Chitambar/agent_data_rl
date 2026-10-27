@@ -30,7 +30,7 @@ No hardware motion, training or deployment performed in this update.
 | E | USB-C with sphere pads: full curriculum, 91.5% at 20-100 um (athena5, old mount). E4-E6 variants built; E1 zero-shot 77.9% on the table mount. Mason: curr, chamfer, latch, side training from scratch on the table mount (no noise model, ~7.5 h each); noise (randomized), nocontact, h10, h60 queued after D tier 1. |
 | G | Gear meshing (paper's second task) built: assets, `GearEnv`, `--task gear` in train/eval, checks in `results/G/`. 15-min smoke: shaft capture 2% -> 50% in 12M steps, success not yet rising. Full run `G-gear-proprio-base-s0` + eval queued after `C-peg-proprio-base-s0`. |
 | Report | `report/` (built by `scripts/build_report.py`): HTML results page in ASD-STE100 style. |
-| Real rig | duchamp3 set up (2026-10-24/25): both YAMs on CAN, safety layer, software stop, both wrist cameras and the ZED calibrated, arm joint offsets measured (spec `blind_insertion/configs/real_cameras_duchamp3.json`). Deployment loop `scripts/real/deploy.py` (sim gains, offsets) checked against the sim. Latency ~8 ms total (0.4 control step). **Real joint friction 10-150x the sim's** (joints 2-3: 1-1.5 N m). Training config with the real friction/latency/gains: `configs/task_h_reader_real.json` (not trained yet). Not yet: backlash. Branch `real-yam-setup` (PR #1). |
+| Real rig | duchamp3 ready (2026-10-26), both arms: CAN (udev autostart), safety layer, rig console `rigctl.py` (stop, arms on/off, cameras), live browser camera view. Wrist cameras, joint offsets, base poses and the ZED calibrated and cross-checked at new board positions (wrists 1-3 mm, ZED ~2 px held out). Latency ~8 ms; joint 2-3 friction 1-1.5 N m, elbows stick-slip 3-5 N m static (accumulated-target actions added). Training configs `task_h_reader_real.json` / `_acc.json` (not trained yet). Open: fixture pose, payload, camera exposure, ZED in sim; two-arm deploy loop when needed. Branch `real-yam-setup` (PR #1). |
 
 ### Phase B results (seed 0 final checkpoints, 2,048 matched starts, unseen geometries)
 
@@ -103,6 +103,140 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - Phase F after E, with Yash's OK (~70 GPU-h).
 
 ## Discoveries
+
+### 2026-10-26 (22:30 UTC, duchamp3) — ZED pose refit from 3 board positions; held-out check passes
+
+Follow-up to the entry below. `scripts/real/fit_zed.py`: one PnP over 168 corners from three board
+positions (`data/calib/zedfit/pos1-3`): 3D corners from the wrist cameras through the arms (mean of
+3-4 views), 2D from the ZED's own detections. Written to the spec (`top.extrinsics_cam_in_right_base`
+and `_in_left_base`; the old pose kept as `extrinsics_cam_in_right_base_v1`). Change: 22 mm, 1.2°
+(mostly rotation traded against translation: 1.2° at 1 m is 21 mm). `results/real/zed_refit.json`.
+
+| Wrist corners in the ZED image (mean px) | pos 1 | pos 2 | pos 3 | pos 4 (held out) |
+|---|---|---|---|---|
+| old ZED pose | 0.98 | 1.51 | 2.09 | 3.86 |
+| new ZED pose | 0.33 | 0.32 | 0.35 | 2.04 |
+
+- Held out (position 4, near the left base: right arm views only): 2.3 / 1.8 px in the ZED image,
+  ZED corners 3.2 / 2.4 px in the right wrist image (old pose: 8-11 px). Passes.
+- The held-out residual (~2 px, ~2 mm at 1 m) is the right-vs-left arm difference (2-3 mm): the fit
+  used both arms' mean, position 4 only the right arm. The ZED pose is now as good as the arms agree.
+- **The mm test was the wrong bar:** the ZED's single-board PnP depth of a 12 cm board at 1 m wobbles
+  ~5 mm between positions (+2 to +4 mm, then -4.7 mm at position 4), so it measured that, not the poses.
+  `verify_cameras.py` now passes on pixels: wrist corners <= 3 px in the ZED image, ZED corners <= 6 px
+  in each wrist image, board still (ZED re-shot after the arm views; 10 frames dropped after open).
+- A stale ZED frame once showed the board before it was rotated (25° off from both wrists, which
+  agreed): the check now catches this.
+- The right arm's CAN adapter (`canable2`, behind two chained USB 2 hubs on the ZED's controller)
+  dropped off USB twice (14:29, 14:43) for ~7 s, both while idle. The udev rule brought it back up.
+  Plug it straight into the PC: a drop during motion leaves the arm limp.
+
+### 2026-10-26 (21:40 UTC, duchamp3) — Three-camera check: wrists agree to 1-3 mm, the ZED is 3.5-5.5 mm off
+
+`scripts/real/verify_cameras.py`: board (8 x 7, 15 mm) at a new spot on the table, (0.30, 0.34) m in
+the right base. The ZED finds it (1.05 m away); each wrist camera finds it from two elevations
+through FK(q + offsets) @ mount @ PnP; the left arm via the base-to-base transform. Nothing fitted.
+`results/real/camera_verify.json`.
+
+| mean / max corner distance (mm) | ZED | right 55° | right 40° | left 55° | left 40° |
+|---|---|---|---|---|---|
+| ZED | - | 5.2 / 5.6 | 5.5 / 5.8 | 3.5 / 3.9 | 3.9 / 4.1 |
+| right 55° | | - | 1.8 / 2.0 | 2.7 / 3.2 | 2.0 / 2.5 |
+| left 55° | | | | - | 0.7 / 1.0 |
+
+ZED corners projected into the wrist images: right 11.1 / 8.5 px, left 4.5 / 3.1 px (calibration
+hold-out 2.7 / 2.2 px).
+
+- **The two arms and their cameras agree** (1.8-3 mm across arms, through the base-to-base transform;
+  0.7-1.8 mm between one arm's two views). Robot base poses, joint offsets and wrist mounts hold up
+  at a new board position.
+- **The ZED is the outlier:** a uniform shift (the red ZED corners sit ~10 px up-left of the
+  detections in the right wrist image), not noise. Its pose came from one board position
+  (run_004, a 12 x 10 cm board 1.07 m away: ~100 px in the image, so a 0.5% size error is 5 mm
+  of depth). It is right there and drifts elsewhere. Square size is not it: the calibration
+  distance (1.03-1.07 m) matches this one, so a scale error cancels.
+- Fails the 4 mm / 6 px bar on the right arm only. For the ZED-free proprio policies this does not
+  matter; for a policy or a sim scene that uses the ZED pose, refit the ZED from several board
+  positions located by the wrist cameras, then check on a held-out position.
+
+### 2026-10-26 (20:40 UTC, duchamp3) — Accumulated-target actions (`EnvCfg.action_mode`); MuJoCo friction creeps
+
+- **Why:** with relative actions (q_target = q_meas + scale * a) the target re-centres on the measured
+  joint every step, so a Task H action (scale 0.01, clip 3) never pushes the elbow with more than
+  80 x 0.03 = 2.4 N m: below the real left elbow's 3.2-4.8 N m breakaway (entry below).
+- **What:** `EnvCfg.action_mode = "accumulate"`: q_target = clip(q_target + scale * a, q_meas +- target_cap),
+  `target_cap` 0.1 rad (8 N m on the elbow, past breakaway; equals safety.MAX_STEP). q_target starts at
+  the reset pose. The actor observation gets q_target - q_meas (obs 30 -> 36): without it the
+  policy cannot see the pending push. GearEnv refuses the mode. `deploy.py` mirrors it from the
+  config (`action_mode`, `target_cap`); hold/step sources stay relative.
+  Config: `configs/task_h_reader_real_acc.json` (= task_h_reader_real + accumulate).
+- **Checks** (`deploy.py check`, PASSED): loop vs direct rollout 3e-16 rad in both modes; observation vs
+  `PegEnv._actor_obs_now` 1.2e-7 (incl. the 36-dim accumulate obs with encoder offsets); PegEnv's
+  q_target and actuator targets equal the formula exactly over 40 steps x 8 worlds (363 capped
+  entries). Elbow frictionloss 4 N m, a = +3 for 1 s: relative moves it 26 mrad, accumulate 499 mrad.
+- **Smoke training** (Task H flags, 2,048 worlds, 2.6M steps): runs, 33k steps/s (relative 40k).
+  Episodes end earlier under random exploration (mean length 203 vs 433): a random action walk
+  integrates into the target. A relative checkpoint cannot warm-start it (obs dim): train from scratch,
+  or widen the first layer by hand.
+- **MuJoCo friction is soft:** `frictionloss` is a constraint with dof_solref 0.02 s, so a pushed joint
+  creeps ~26 mrad/s whatever the friction (same at 4 and 8 N m); the real elbow does not move at all.
+  dof_solref 0.005 / 0.002 s cut the creep to 7 / 3 mrad/s and make 0.04-0.1 rad steps stall as on the
+  real arm. Not changed in the env yet: a relative-action policy trained on the soft friction will
+  overrate how well it can nudge joints 2-3.
+
+### 2026-10-26 (19:50 UTC, duchamp3) — Left YAM Tests 1-2: same latency as the right arm; elbow does not move for 0.04 rad
+
+The right arm's Tests 1-2 repeated on the left arm (same gains, start pose and step sizes).
+Data `data/real_yam/left_*.csv`, fit `results/real/step_fit_left.json`.
+
+- **Test 1 (60 s hold):** loop latency 3.75 ms mean, p99 5.8 (right 3.97 / 6.1); encoder 364 Hz;
+  hold error < 1.5 mrad. Same as the right arm.
+- **Test 2 (0.01 rad x 3, then 0.04 rad x 10 per joint):** no ringing, < 0.4 mrad coupling.
+
+| Joint | Reached at 0.04 rad, left (right) | First motion after send, left (right) | Fitted friction N m, left (right) | Gain scale, left (right) |
+|---|---|---|---|---|
+| 1 | 100% (103%) | 10.7 ms (11.4) | 0.1 (0.01) | 0.85 (0.7) |
+| 2 | 70% (66%) | 13.3 ms (14.4) | 1.0 (1.0) | 0.85 (0.7) |
+| 3 | **1%** (9%) | no motion (28.5) | >= 3 (1.5) | not identifiable |
+| 4 | 88% (88%) | 7.9 ms (8.5) | 0.2 (0.2) | 1.2 (1.5) |
+| 5 | 94% (79%) | 8.0 ms (8.5) | 0.1 (0.2) | 1.5 (1.0) |
+| 6 | 78% (94%) | 8.0 ms (8.5) | 0.1 (0.1) | 0.5 (1.5) |
+
+- **Latency is the same on both arms** (onsets within 1 ms): total ~8 ms, latency {0, 1} stands.
+- **The high joint 2-3 friction is the YAM, not the right arm's cable.** Both arms stick on joints 2-3
+  for 0.01 rad. The left elbow moved 1 encoder count (0.38 mrad) in 20 steps of 0.04 rad: its static
+  friction is above kp x 0.04 = 3.2 N m. The fit's 1.0 N m on joint 3 is meaningless (it barely moved).
+- **Consequence for Task H (action_scale 0.01, clip 3):** one action moves the target at most 0.03 rad
+  from the measured joint, i.e. <= 2.4 N m on the elbow. That is below the left elbow's static
+  friction, so **a Task H policy cannot move the left elbow at all**, and the right elbow only barely.
+  The target is re-centred on the measured joint every step, so the error never builds up.
+  Options: (a) accumulate the target (q_target += scale * a, the absolute-target scheme), (b) raise
+  kp on joint 3, (c) larger action scale on joint 3. Each needs a sim retrain; (a) is the standard
+  fix for stiction.
+- **Left elbow breakaway** (`data/real_yam/left_break_joint3_*.csv`, 5 reps each way, same pose):
+
+  | Step (rad) | Command torque kp x step (N m) | Reached | Left short (mrad) | kp x short (N m) |
+  |---|---|---|---|---|
+  | 0.04 | 3.2 | 1% | 40 | 3.2 |
+  | 0.06 | 4.8 | 48-57% | 29-31 | 2.4 |
+  | 0.08 | 6.4 | 74-79% | 17-20 | 1.5 |
+  | 0.10 | 8.0 | 84-89% | 11-15 | 1.0 |
+
+  Right elbow, same test (`data/real_yam/right_break_joint3_*.csv`): 0.04 rad 9% (Test 2), 0.06 rad
+  64% (22 mrad short, 1.7 N m), 0.08 rad 81% (15 mrad, 1.2 N m), 0.10 rad 89% (11 mrad, 0.85 N m).
+  The right elbow breaks away at ~3 N m (just under kp x 0.04); sliding friction ~0.9 N m, as the
+  left. Both elbows: static 3-5 N m, sliding ~1 N m.
+
+  Left: static friction (breakaway) is 3.2-4.8 N m; once moving, the joint stops short by an amount that
+  shrinks with the step (faster motion coasts further): sliding friction ~1 N m. Up and down steps
+  match within a few mrad, so gravity compensation is fine. Stick-slip, not a fault. MuJoCo's
+  `frictionloss` has one value for both, so the sim range [0.6, 4.0] spans the two; an
+  accumulated-target action scheme removes the dead band in either case.
+- `task_h_reader_real.json`: joint 3 friction range widened to [0.6, 4.0] N m to cover the left arm.
+  At the top of this range the sim elbow also stalls, so training will show whether the policy copes.
+- Joint 1 friction 0.1 N m (right 0.01); joints 5-6 gain scales swap (1.5/0.5 vs 1.0/1.5): wrist gains
+  are poorly identified at these friction levels. Both inside the config's kp range except joint 6 at
+  0.5 (range 0.6-1.6).
 
 ### 2026-10-26 (00:20 UTC, duchamp3) — Encoder offset randomization: `EnvCfg.enc_offset_deg`
 
