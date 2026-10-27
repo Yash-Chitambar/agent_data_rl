@@ -5,6 +5,12 @@ Two YAM arms on CAN, a webcam on each wrist, a ZED 2 above the table. Results an
 spec (intrinsics, mounts, ZED pose, joint offsets, base-to-base pose) is
 `blind_insertion/configs/real_cameras_duchamp3.json`.
 
+## Next bimanual measurement session
+
+See [BIMANUAL_MEASUREMENT_PLAN.md](../../docs/BIMANUAL_MEASUREMENT_PLAN.md) for the
+prioritized remaining measurements, verified existing commands, tests needing a runner
+extension, and the data handoff format. It supplements the historical gap table.
+
 ## Before anything moves
 
 1. Clamp both arm bases to the table (an unclamped base nearly tipped at ~0.58 m reach).
