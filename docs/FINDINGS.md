@@ -104,6 +104,31 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-27 (late, mason) — Task H: the ACT gap was a handoff bug; ACT v5 40k 93%
+
+- **Bug** (fixed 2e5c599): `ActPick._settled` (the handoff when ACT does not raise `done`) fired
+  while the gripper closed on the reader on the table. The grasp spot is within `near` = 6 cm of the
+  nominal pre-insert pose, so the insertion policy took over at ~2 s with the reader still on the
+  table. `done_run` was 0 in all traced early handoffs. Fix: the tcp must also be within 10 mm of
+  the pre-insert height (22.9 mm; grasp ~5 mm), and the grasp must hold 0.5 s. **All earlier ACT
+  pipeline numbers have this bug**, including v4 61% and the 30%-friction 82.8%. The earlier
+  conclusion "the ACT gap is joint friction, not data" is wrong.
+- Pipeline, fixed gate, measured friction, enc +-0.3 deg, insert uncomp 500M, n=128
+  (`results/H/act_v5`):
+
+  | ACT | Feed-forward | Success | Held | Handoff lateral (median) |
+  |---|---|---|---|---|
+  | v4 40k | off | 80.5% [72.8, 86.4] | 84% | 4.9 mm |
+  | v4 100k | off | 90.6% [84.3, 94.6] | 91% | 3.5 mm |
+  | v4 100k | 0.5 / 20 mrad | **96.1% [91.2, 98.3]** | 97% | 3.2 mm |
+  | v5 20k (old gate) | 0.5 / 20 mrad | 55.5% | 58% | 6.7 mm |
+  | v5 20k | 0.5 / 20 mrad | 76.6% [68.5, 83.1] | 81% | 5.0 mm |
+  | v5 40k | 0.5 / 20 mrad | 93.0% [87.2, 96.3] | 94% | 3.0 mm |
+
+  Expert pick + uncomp 500M + feed-forward: 93.0% [89.2, 95.5]. ACT now matches the expert.
+  v5 learns faster (40k: 93.0% vs v4 80.5%, but v4 has no feed-forward there). v5 at 100k+ will
+  tell whether recovery demos and `cmd_err` add anything over v4 + feed-forward.
+
 ### 2026-10-27 (midday, mason) — Task H: feed-forward fine-tune, v5 ACT data
 
 - **Feed-forward fine-tune** `H-reader-tilt-ff-s1` (comp 500M + 150M steps, measured friction,
