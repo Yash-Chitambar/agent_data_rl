@@ -104,6 +104,26 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-27 (midday, mason) — Task H: feed-forward fine-tune, v5 ACT data
+
+- **Feed-forward fine-tune** `H-reader-tilt-ff-s1` (comp 500M + 150M steps, measured friction,
+  feed-forward 0.5 / 20 mrad; `results/H/fric_comp/ff_final`). Measured friction, feed-forward on:
+
+  | Policy | PegEnv 3 mm | PegEnv 6 mm | enc +-1.5 deg | Pipeline, FF on (n=256) | Pipeline, FF off |
+  |---|---|---|---|---|---|
+  | ff-s1 | 89.8% | 85.0% | 48.9% | 77.7% [72.2, 82.4], held 83% | 46.9% [40.9, 53.0] |
+  | uncomp 500M | 86.4% | | | 93.0% [89.2, 95.5], held 93% | 92.6% [88.7, 95.2] |
+
+  The fine-tune recovers PegEnv success (79.0% -> 89.8%) but does not transfer to the pick
+  pipeline: the reader leaves the hand in 17% of episodes. The uncomp policy is unaffected by the
+  feed-forward (93.0% vs 92.6%), so the feed-forward itself does not break the pick or carry.
+  **Use uncomp 500M for insertion on the real arm**, with or without the feed-forward. The ACT v5
+  evals use uncomp 500M + feed-forward.
+- **ACT v5 data** (bf65b1f; `data/act/raw_v5_*`): 3,072 episodes with feed-forward 0.5 / 20 mrad,
+  25% recovery (first grasp closes 30-45 mm high; privileged lift check -> reopen, regrasp; frames
+  recorded from the detected miss), `cmd_err` state (13 dims). Expert success 91.8% (v4: 97%);
+  749 of the 2,821 kept episodes are recoveries.
+
 ### 2026-10-27 (morning, mason) — Task H: 500M insertion, ACT v4 final, friction feed-forward
 
 - **500M** (resumed from 300M; `results/H/tilt_final/500M`, n=1,024 / pipeline n=256):
