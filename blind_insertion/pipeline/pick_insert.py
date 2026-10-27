@@ -41,17 +41,18 @@ class ActPick:
     otherwise execute `n_exec` actions of each chunk open loop."""
 
     def __init__(self, path, device, n_exec=10, ensemble=0.01, settle=True, rest_qd=0.03, rest_s=0.3,
-                 near=0.06, min_finger=0.005, cam_fps=30.0, cam_age_ms=(30.0, 100.0), seed=0, gate=True):
+                 near=0.06, min_finger=0.005, cam_fps=30.0, cam_age_ms=(30.0, 100.0), seed=0, gate=True, grasp_s=0.5, near_z=0.010):
         """settle: also hand off when the arm has rested `rest_s` (all |qd| < rest_qd rad/s) with the
         gripper closed on the reader (finger opening > min_finger) and the tcp within `near` of
-        the nominal pre-insert pose (configured PC position, not the randomized one), for when ACT
+        the nominal pre-insert pose (configured PC position, not the randomized one) and within `near_z`
+        of its height (the grasp spot on the table is within `near` of it), for when ACT
         does not raise `done`. Uses only joint encoders, so it runs on the real arm unchanged."""
         self.m = torch.jit.load(path, map_location=device).eval()
         # state = joints + finger (7), or + last sent command - joints (13; gen_demos --cmd_err)
         self.cmd_err = self.m.s_mean.shape[0] == 13
         self.n_exec, self.ens = n_exec, ensemble
         self.settle, self.rest_qd, self.rest_s, self.near, self.min_finger = settle, rest_qd, rest_s, near, min_finger
-        self.gate = gate
+        self.gate, self.grasp_s, self.near_z = gate, grasp_s, near_z
         # camera timing as in the demos (scripts/act/gen_demos.py): 30 fps frame clock, frame age per
         # episode and camera; cam_fps 0 = a fresh frame every step
         self.cam_fps, self.cam_age, self.rng = cam_fps, cam_age_ms, np.random.default_rng(seed)
@@ -61,6 +62,7 @@ class ActPick:
         self.buf = None
         self.done_run = torch.zeros(n, dtype=torch.long, device=device)
         self.rest_run = torch.zeros(n, dtype=torch.long, device=device)
+        self.grasp_run = torch.zeros(n, dtype=torch.long, device=device)
         self.hist, self.step = [], 0
         self.last_cmd = None
         period = 1 / self.cam_fps if self.cam_fps > 0 else 0.0
@@ -91,7 +93,8 @@ class ActPick:
         p_nom = torch.tensor([env.cfg.port_xy[0] - env.body_z - 0.006, env.cfg.port_xy[1],
                               S.PORT_HEIGHT + float(np.mean(S.GRASP_Y[env.gripper]))], device=env.device)
         rest = ((qd.abs().max(1).values < self.rest_qd) & closed & (env.state()[:, 6] > self.min_finger)
-                & ((env.tcp_pose()[0] - p_nom).norm(dim=1) < self.near))
+                & ((env.tcp_pose()[0] - p_nom).norm(dim=1) < self.near)
+                & ((env.tcp_pose()[0][:, 2] - p_nom[2]).abs() < self.near_z))
         self.rest_run = torch.where(rest, self.rest_run + 1, torch.zeros_like(self.rest_run))
         return self.rest_run >= int(self.rest_s / env.control_dt)
 
@@ -130,11 +133,14 @@ class ActPick:
         self.last_cmd = cmd[:, :6].clone()
         self.done_run = torch.where(a[:, 7] > 0.5, self.done_run + 1, torch.zeros_like(self.done_run))
         # grasp gate: no handoff with the gripper open or closed on nothing (fingers ~19 mm on the
-        # reader, ~-6 mm empty); ACT keeps control and can regrasp
+        # reader, ~-6 mm empty); ACT keeps control and can regrasp. The fingers pass through
+        # the band while closing, so the grasp must hold for grasp_s.
         grasped = (cmd[:, 6] < 0) & (env.state()[:, 6] > self.min_finger)
-        done = (self.done_run >= 5) & (grasped if self.gate else True)
+        self.grasp_run = torch.where(grasped, self.grasp_run + 1, torch.zeros_like(self.grasp_run))
+        held = self.grasp_run >= int(self.grasp_s / env.control_dt)
+        done = (self.done_run >= 5) & (held if self.gate else True)
         if self.settle:
-            done |= self._settled(env, cmd[:, 6] < 0)
+            done |= self._settled(env, cmd[:, 6] < 0) & (held if self.gate else True)
         return cmd, done
 
 
