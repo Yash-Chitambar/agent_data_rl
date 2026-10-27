@@ -8,8 +8,9 @@ insertion policy sees exactly PegEnv's actor observation (joints, velocities, tc
 previous action) and commands q_target = q_meas + scale * a.
 
 Release: once the plug is seated, the arm holds its joints, opens the gripper for `open_s`, then
-lifts the tcp straight up by `lift` (IK, fixed orientation). `seated_after` checks that the plug
-is still seated when the hand is clear.
+backs the tcp out along its approach axis by `lift` (IK, fixed orientation). `seated_after` checks that
+the plug is still seated when the hand is clear (strict: tilt <= 2 deg; a released reader sags ~1.7-2.3
+deg in the port under its weight, so a few fully inserted plugs, z ~ -6.27 mm, fail it).
 
     CUDA_VISIBLE_DEVICES=3 PYTHONPATH=$PWD MUJOCO_GL=egl .venv/bin/python -m blind_insertion.pipeline.pick_insert \
         --pick expert --insert runs/H-reader-proprio-top-s0/last.pt --episodes 256 --out results/H/pipe_expert.json
@@ -147,6 +148,8 @@ class Inserter:
         self.ac.eval()
         self.ac.obs_norm.freeze()
         self.env, self.H, self.scale = env, history, scale
+        cfg = Path(path).parent / "config.json"            # the run's training config: action clip
+        self.clip = float(json.loads(cfg.read_text())["env"].get("action_clip", 3.0)) if cfg.exists() else 3.0
         R_nom = torch.tensor(S.R_TOP_TCP, device=env.device)
         self.R_obs = K.rpy_mat(torch.tensor(S.PORT_BASE_RPY_DEG, device=env.device) * math.pi / 180) @ R_nom
         self.prev = torch.zeros(env.N, 6, device=env.device)
@@ -173,7 +176,7 @@ class Inserter:
     def act(self):
         with torch.no_grad():
             a, _ = self.ac.act_mean(self.hist)
-        a = a.clamp(-3, 3)
+        a = a.clamp(-self.clip, self.clip)
         q = self.env.t_qpos[:, self.env.arm_q]
         return a, q + self.scale * a
 
@@ -204,8 +207,9 @@ class Release:
     def act(self, active):
         env = self.env
         h = ((self.t - self.n_open).clamp(min=0).float() * self.v * env.control_dt).clamp(max=self.lift)
-        p = self.p0.clone()
-        p[:, 2] += h
+        # back out along the tcp approach axis (tcp -z): straight up dragged the part out of the port with
+        # the tilted grasp (seated after release 68% vs 76% inserted)
+        p = self.p0 - h[:, None] * self.R0[:, :, 2]
         q, _, _ = env.chain.ik(p, self.R0, self.q, iters=6, q_rest=env.home)
         self.q = torch.where((active & (self.t >= self.n_open))[:, None], q, self.q)
         self.t += active.long()
