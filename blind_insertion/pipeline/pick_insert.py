@@ -300,12 +300,14 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--cam_fps", type=float, default=30.0, help="ACT camera frame clock (0: fresh frames)")
     ap.add_argument("--phys_json", default="{}", help="override PickCfg.phys entries, e.g. enc_offset_deg")
+    ap.add_argument("--fric_comp", default="", help='friction feed-forward, e.g. {"scale":0.7,"ramp":0.01}')
     a = ap.parse_args()
     phys = {**PickCfg().phys, **json.loads(a.phys_json)}
     res = []
     for b in range((a.episodes + a.nworld - 1) // a.nworld):
         v = B.sample_reader(1, a.seed + b)[0] if a.spec_parts else None
-        env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed + b, render=a.pick == "act", phys=phys), variant=v)
+        env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed + b, render=a.pick == "act", phys=phys,
+                                fric_comp=json.loads(a.fric_comp) if a.fric_comp else None), variant=v)
         picker = (ActPick(a.act, env.device, ensemble=a.ensemble, settle=not a.no_settle, cam_fps=a.cam_fps, seed=a.seed + b)
                   if a.pick == "act" else ExpertPick(env))
         ins = Inserter(a.insert, env)
@@ -318,7 +320,7 @@ def main():
     k = int(R["success"].sum())
     lo, hi = wilson(k, n)
     he = R["hand_err_mm"]
-    out = dict(pick=a.pick, insert=a.insert, act=a.act, phys=json.loads(a.phys_json), n=n, success=k / n, ci=[lo, hi],
+    out = dict(pick=a.pick, insert=a.insert, act=a.act, phys=json.loads(a.phys_json), fric_comp=a.fric_comp, n=n, success=k / n, ci=[lo, hi],
                released=float(R["released"].mean()), seated_after_release=float(R["seated_after"].mean()),
                handoff=float(R["handoff"].mean()), held=float(R["held"].mean()),
                hand_lat_mm=dict(median=float(np.median(np.linalg.norm(he[:, :2], axis=1))),

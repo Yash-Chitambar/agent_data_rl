@@ -17,7 +17,7 @@ import torch
 import warp as wp
 
 from blind_insertion.assets import builder as B
-from blind_insertion.envs import kinematics as K
+from blind_insertion.envs import friction_comp as FC, kinematics as K
 from blind_insertion.scenes import pc_bench as S
 
 FREE, CONTACT, INSIDE = 0, 1, 2
@@ -94,6 +94,9 @@ class EnvCfg:
     arm_kp_scale: tuple | None = None
     arm_kd_scale: tuple | None = None
     arm_frictionloss: tuple | list | None = None
+    # Coulomb friction feed-forward of the real arm's servo (envs/friction_comp.py): {"tau": [6 N m]
+    # or "scale": x measured, "ramp": rad}; None = off
+    fric_comp: dict | None = None
     # encoder offset error (deg, half-range, one per arm joint or one for all): per world, uniform at
     # every reset, added to the observed joints only (q and the FK in the observation). The command
     # q_meas + scale * a uses the encoder frame the motors servo in, so it does not shift the arm.
@@ -230,6 +233,8 @@ class PegEnv:
         self.overflow_counts = torch.zeros(16, dtype=torch.long, device=dev)
         t = wp.to_torch
         self.t_qpos, self.t_qvel, self.t_ctrl = t(self.d.qpos), t(self.d.qvel), t(self.d.ctrl)
+        self.t_qfrc = t(self.d.qfrc_applied)
+        self.fric_comp = FC.parse(cfg.fric_comp)
         self.t_warm = t(self.d.qacc_warmstart)
         self.t_qacc = t(self.d.qacc)
         self.t_act = None
@@ -758,6 +763,8 @@ class PegEnv:
             a_apply = a
         q_t = self._q_meas + self.scale * a_apply
         self.t_ctrl[:, torch.as_tensor(lay.arm_act, device=dev)] = q_t
+        if self.fric_comp:
+            self.t_qfrc[:, torch.as_tensor(lay.arm_dofadr, device=dev)] = FC.feedforward(self.scale * a_apply, *self.fric_comp)
         torch.cuda.synchronize(dev)
         self._physics()
         wp.synchronize_device(cfg.device)

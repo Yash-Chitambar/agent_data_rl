@@ -44,7 +44,7 @@ import estop  # noqa: E402
 import rig  # noqa: E402
 import safety  # noqa: E402
 from blind_insertion.assets import builder as B  # noqa: E402
-from blind_insertion.envs import kinematics as K  # noqa: E402
+from blind_insertion.envs import friction_comp as FC, kinematics as K  # noqa: E402
 
 SIM_KP = np.array([80, 80, 80, 30, 30, 30], float)    # builder._load_robot "yam"
 SIM_KD = np.array([6, 6, 6, 2, 2, 2], float)
@@ -54,6 +54,7 @@ DM_KD_MAX = 5.0          # i2rt motor_drivers/utils.py: MIT kd range [0, 5] on a
 CONTROL_DT = 0.020
 ACTION_SCALE = 0.04      # RobotInfo("yam").action_scale
 ACTION_CLIP = 3.0        # EnvCfg.action_clip
+FRIC_COMP = None         # (tau, ramp): Coulomb friction feed-forward (envs/friction_comp.py), --fric_comp
 HISTORY = 30             # EnvCfg.history
 OUT = REPO / "data/real_yam"
 
@@ -273,7 +274,9 @@ class RealArm:
 
     def send(self, q7, label):
         self.timing.label = label
-        return self.safe.command(q7)
+        out = self.safe.command(q7, FRIC_COMP)
+        self.last_ff = getattr(self.safe, "last_ff", None)
+        return out
 
     def hold(self):
         self.safe._hold(np.asarray(self.robot.get_joint_pos(), float))
@@ -343,8 +346,12 @@ class SimArm:
         return q, np.append(self.d.qvel[self.dadr], 0.0), self.t, True
 
     def send(self, q7, label):
-        self.d.ctrl[self.act] = np.asarray(q7[:6]) + self.off
-        return np.asarray(q7, float)
+        q7 = np.asarray(q7, float)
+        if FRIC_COMP is not None:     # as SafeArm.command: from the target and the encoder reading
+            self.last_ff = FC.feedforward(q7[:6] - (self.d.qpos[self.qadr] - self.off), *FRIC_COMP)
+            self.d.qfrc_applied[self.dadr] = self.last_ff
+        self.d.ctrl[self.act] = q7[:6] + self.off
+        return q7
 
     def hold(self):
         pass
@@ -389,7 +396,8 @@ def run_loop(arm, source, n_steps, offsets, obs=None, clock=time.monotonic):
         obs.set_prev(a)
         rows.append(dict(k=k, t_tick=t_tick, t_obs=t_obs, obs_exact=exact, t_act=t_act, t_ret=t_ret,
                          q=q[:6].tolist(), qd=qd[:6].tolist(), q_model=q_model.tolist(),
-                         a=a.tolist(), q_cmd=np.asarray(sent)[:6].tolist()))
+                         a=a.tolist(), q_cmd=np.asarray(sent)[:6].tolist(),
+                         tau_ff=None if FRIC_COMP is None else np.asarray(arm.last_ff).tolist()))
         t_next += CONTROL_DT
         arm.wait(t_next)
     return rows, stop
@@ -437,8 +445,43 @@ def cmd_check(a):
     except Exception as e:   # noqa: BLE001
         print(f"  PegEnv observation check failed to run: {e!r}")
         ok = False
+    ok &= check_fric_comp()
     print("CHECK", "PASSED" if ok else "FAILED")
     return 0 if ok else 1
+
+
+def check_fric_comp():
+    """Step test (as on the real arm, FINDINGS 2026-10-25) on SimArm with the measured joint friction:
+    fraction of a 0.01 / 0.04 rad step reached after 1 s on joints 2-3, without and with the
+    friction feed-forward. Passes if 1.0x brings every step to >= 85% (0.7x: >= 65%; the push fades
+    within `ramp` of the target, so some error stays at < 1.0x)."""
+    global FRIC_COMP
+    q0 = np.array([0.0, 1.2, 1.0, -0.6, 0.0, 0.0])
+    est, keep = estop.STOP_FILE, FRIC_COMP
+    estop.STOP_FILE = Path("/nonexistent/yam_estop_check")
+    ok = True
+    try:
+        for name, fc in (("off", None), ("0.7x measured", FC.parse({"scale": 0.7, "ramp": 0.01})),
+                         ("1.0x measured", FC.parse({"scale": 1.0, "ramp": 0.01}))):
+            FRIC_COMP = fc
+            res = []
+            for j in (2, 3):
+                for amp in (0.01, 0.04):
+                    sim = SimArm(SIM_KP, np.minimum(SIM_KD, DM_KD_MAX), np.zeros(6), q0)
+                    sim.m.dof_frictionloss[sim.dadr] = FC.MEASURED_TAU
+                    src = Step(j, amp, reps=2)
+                    rows, stop = run_loop(sim, src, src.steps, np.zeros(6), clock=lambda: sim.t)
+                    assert stop is None, stop
+                    q = np.array([r["q"] for r in rows])[:, j - 1]
+                    n = src.n
+                    fr = [(q[n * (2 * i + 2) - 1] - q[n * (2 * i + 1) - 1]) / amp for i in range(2)]
+                    res.append(f"j{j} {amp:.2f}: {100 * np.mean(fr):4.0f}%")
+                    if fc is not None:   # MuJoCo's soft frictionloss moves partly even without it
+                        ok &= np.mean(fr) >= (0.85 if fc[0][j - 1] >= FC.MEASURED_TAU[j - 1] else 0.65)
+            print(f"  friction feed-forward {name:>14}: step reached after 1 s  " + ", ".join(res))
+    finally:
+        estop.STOP_FILE, FRIC_COMP = est, keep
+    return ok
 
 
 def check_obs_vs_env(a):
@@ -538,8 +581,10 @@ def cmd_run(a):
         print(f"sim gains: kp {kp.tolist()}, kd {kd.tolist()} (sim kd {SIM_KD.tolist()}, DM MIT limit {DM_KD_MAX})")
     else:
         kp, kd = I2RT_KP, I2RT_KD
-    global ACTION_SCALE, ACTION_CLIP
+    global ACTION_SCALE, ACTION_CLIP, FRIC_COMP
     env = json.load(open(a.env_file)) if a.env_file else {}
+    FRIC_COMP = FC.parse(json.loads(a.fric_comp) if a.fric_comp else env.get("fric_comp"))
+    print(f"friction feed-forward: {FRIC_COMP}")
     if a.source == "policy" and not a.env_file:
         raise SystemExit("--source policy needs --env_file (the policy's training config: action scale, history, grasp)")
     ACTION_SCALE = env.get("action_scale") or ACTION_SCALE
@@ -557,7 +602,7 @@ def cmd_run(a):
     arm = RealArm(a.side, kp, kd)
     torch.set_num_threads(1)
     meta = {"args": vars(a), "side": a.side, "joint_offsets_rad": off.tolist(), "arm": arm.info(),
-            "control_dt": CONTROL_DT, "action_scale": ACTION_SCALE, "history": obs.history, "clock": "time.monotonic",
+            "control_dt": CONTROL_DT, "action_scale": ACTION_SCALE, "fric_comp": FRIC_COMP, "history": obs.history, "clock": "time.monotonic",
             "started": time.strftime("%Y-%m-%d %H:%M:%S %Z")}
     rows, stop = [], None
     q_rest = np.asarray(arm.robot.get_joint_pos(), float)[:6]
@@ -606,7 +651,8 @@ if __name__ == "__main__":
     r.add_argument("--gains", default="sim", choices=["sim", "i2rt"])
     r.add_argument("--infer", action="store_true", help="hold + a policy-sized forward pass per step (timing)")
     r.add_argument("--policy", help="checkpoint for --source policy")
-    r.add_argument("--env_file", help="the policy's training config (action_scale, history, grasp_mode)")
+    r.add_argument("--env_file", help="the policy's training config (action_scale, history, grasp_mode, fric_comp)")
+    r.add_argument("--fric_comp", help='friction feed-forward, e.g. \'{"scale": 0.7, "ramp": 0.01}\' (default: env_file fric_comp, else off)')
     r.add_argument("--joint", type=int, default=1)
     r.add_argument("--amp", type=float, default=0.04)
     r.add_argument("--reps", type=int, default=10)

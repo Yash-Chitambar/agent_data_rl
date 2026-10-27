@@ -22,7 +22,7 @@ import torch
 import warp as wp
 
 from blind_insertion.assets import builder as B
-from blind_insertion.envs import kinematics as K
+from blind_insertion.envs import friction_comp as FC, kinematics as K
 from blind_insertion.scenes import pc_bench as S
 
 
@@ -66,6 +66,8 @@ class PickCfg:
                                                     kp_scale=(0.6, 1.6), kd_scale=(0.7, 1.4),
                                                     frictionloss=((.01,.4),(.4,2.),(.6,3.),(.08,.5),(.08,.5),(.04,.3)), latency=(0, 1),
                                                     q_noise=0.0005, q_bits=14, enc_offset_deg=(0., 1.5, 1.5, 1.5, 1.5, 0.)))
+    # Coulomb friction feed-forward of the real arm's servo (envs/friction_comp.py); None = off
+    fric_comp: dict | None = None
     nconmax: int = 160
     njmax: int = 1200
 
@@ -97,12 +99,15 @@ class PickEnv:
         self.t_qpos, self.t_qvel, self.t_ctrl = t(self.d.qpos), t(self.d.qvel), t(self.d.ctrl)
         self.t_warm, self.t_qacc, self.t_time = t(self.d.qacc_warmstart), t(self.d.qacc), t(self.d.time)
         self.t_mocap_pos, self.t_mocap_quat = t(self.d.mocap_pos), t(self.d.mocap_quat)
+        self.t_qfrc = t(self.d.qfrc_applied)
+        self.fric_comp = FC.parse(cfg.fric_comp)
         self.f = {n: t(getattr(self.m, n)) for n in batched}
         self.f0 = {n: v[0].clone() for n, v in self.f.items()}
         self.qpos0 = torch.as_tensor(mjm.qpos0, dtype=torch.float32, device=dev)
         self.chain = K.Chain(mjm, lay.tcp_site, lay.arm_qadr, device=dev)
         self.tip_pts = torch.as_tensor(B.tip_points_tcp(mjm, lay), dtype=torch.float32, device=dev)
         self.arm_q = torch.as_tensor(lay.arm_qadr, device=dev)
+        self.arm_dofs = torch.as_tensor(lay.arm_dofadr, device=dev)
         self.arm_act = torch.as_tensor(lay.arm_act, device=dev)
         self.home = torch.tensor(lay.robot.home, dtype=torch.float32, device=dev)
         self.R_base = K.rpy_mat(torch.tensor(S.PORT_BASE_RPY_DEG, device=dev) * math.pi / 180)
@@ -174,6 +179,8 @@ class PickEnv:
         for a in lay.finger_qadr:
             self.t_qpos[:, int(a)] = 0.035
         self.q_hist = q[None].repeat(self.max_lat + 1, 1, 1)       # executed-command delay line
+        self.tau_hist = torch.zeros_like(self.q_hist)
+        self.t_qfrc.zero_()
         self._randomize_phys()
         self.grip_cmd = torch.ones(N, device=dev)
         self._set_grip(self.grip_cmd)
@@ -288,11 +295,19 @@ class PickEnv:
         measured offsets) + gripper command; noise (N, 6) is added to the executed joint targets only
         (DART-style perturbation; the label stays the clean action)."""
         q_t = action[:, :6] - self.enc_off + (noise if noise is not None else 0)
+        # friction feed-forward from the error when the command is sent (it travels with the command)
+        tau = FC.feedforward(q_t - self.t_qpos[:, self.arm_q], *self.fric_comp) if self.fric_comp else None
         if self.max_lat > 0:                          # world n executes the command from lat[n] steps ago
             self.q_hist = torch.roll(self.q_hist, 1, 0)
             self.q_hist[0] = q_t
             q_t = self.q_hist[self.lat, torch.arange(self.N, device=self.device)]
+            if tau is not None:
+                self.tau_hist = torch.roll(self.tau_hist, 1, 0)
+                self.tau_hist[0] = tau
+                tau = self.tau_hist[self.lat, torch.arange(self.N, device=self.device)]
         self.t_ctrl[:, self.arm_act] = q_t
+        if tau is not None:
+            self.t_qfrc[:, self.arm_dofs] = tau
         self.grip_cmd = action[:, 6]
         self._set_grip(self.grip_cmd)
         self._physics()
