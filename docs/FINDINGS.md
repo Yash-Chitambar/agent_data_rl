@@ -104,12 +104,52 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-27 (morning, mason) — Task H: 500M insertion, ACT v4 final, friction feed-forward
+
+- **500M** (resumed from 300M; `results/H/tilt_final/500M`, n=1,024 / pipeline n=256):
+
+  | Policy | Own, 3 mm | Own, 6 mm | Full friction, 3 mm | enc +-1.5 deg | Pipeline (expert pick) |
+  |---|---|---|---|---|---|
+  | comp | 95.2% | 92.9% | 68.1% | 56.8% | 98.8% [96.6, 99.6] |
+  | uncomp | 90.2% | 80.4% | (own) | 47.9% | 92.6% [88.7, 95.2] |
+
+- **ACT v4** (pipeline, uncomp final_300M, enc +-0.3 deg, measured friction, n=128):
+
+  | Steps | Success | Held at handoff | Success if held |
+  |---|---|---|---|
+  | 20k | 23.4% | 48% | |
+  | 40k | 60.9% [52.3, 69.0] | 68% | 90% |
+  | 60k | 58.6% | 62% | 95% |
+  | 80k | 60.9% | 66% | |
+  | 100k | 61.7% [53.1, 69.7] | 66% | |
+
+  ACT 80k with 30% of the measured friction (comp policy): **82.8% [75.3, 88.4]**, held 87%, handoff
+  lateral 3.3 mm (vs 6.1 mm). The ACT gap is joint friction, not data: the loss still falls at 100k
+  (5.7 epochs, 0.069 -> 0.063), and the expert beats friction with a joint integral (hidden state in
+  its actions) that ACT cannot infer. ACT also signals done after a missed grasp (no recovery demos).
+- **Friction feed-forward** (`envs/friction_comp.py`, b151281): tau = c * tau_measured *
+  clip((q_target - q_meas) / ramp, -1, 1), sent with each command (i2rt `torques` field; PegEnv /
+  PickEnv `fric_comp`). comp 500M policy, measured friction, n=1,024 (`results/H/fric_comp`):
+
+  | c \ ramp | 5 mrad | 10 mrad | 20 mrad | 40 mrad |
+  |---|---|---|---|---|
+  | off | 65.7% | | | |
+  | 0.5 | | 75.9% | 79.0% | 80.7% |
+  | 0.7 | 68.4% | 71.8% | 77.2% | |
+  | 1.0 | 52.0% | 56.5% | 66.9% | |
+
+  Stronger feed-forward makes the part slip (slipped 111 at 0.5/20 mrad, 339 at 1.0/5 mrad): the
+  policy never saw the push. Fine-tune with it in the loop: `H-reader-tilt-ff-s1` (measured friction,
+  feed-forward 0.5 / 20 mrad, from comp 500M). `deploy.py check` step test on SimArm with the measured
+  friction (MuJoCo's soft frictionloss moves more than the real arm: 47% vs real 0% at 0.01 rad, j2):
+  0.01 rad steps reach 47-51% off, 75-83% at 0.7x, 87-93% at 1.0x.
+
 ### 2026-10-27 (night, duchamp3) — Task H real-rig insertion: final 300M results, ACT v4 early
 
 Two runs from the tilted-geometry policy (init `H-reader-tilt-enc03ft-s1/init_25M.pt`), enc offset +-0.3 deg,
 spec parts, offsets to 6 mm, 300M steps. **comp**: 30% of the measured joint friction, clip 3 (the arm with
 friction compensation). **uncomp**: measured friction, clip 6. PegEnv eval n=1,024 unseen geometries
-(`results/H/tilt_final/`); pipeline = expert pick -> policy, n=256, `pick_insert --phys_json` with the same
+(`results/H/tilt_final/300M`); pipeline = expert pick -> policy, n=256, `pick_insert --phys_json` with the same
 encoder offset and friction (before: always +-1.5 deg).
 
 | Policy | Own, 3 mm | Own, 6 mm | Full friction, 3 mm | enc +-1.5 deg, 3 mm | Pipeline (expert pick) |
