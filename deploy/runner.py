@@ -17,7 +17,8 @@ case: the last ACT target sits ~20 mrad ahead of the arm (cmd_err), the first in
 scale * clip of it.
 
     .venv/bin/python -m deploy.runner sim --episodes 16 --name dry          # full dry run (GPU)
-    .venv/bin/python -m deploy.runner real --name try1                      # real arm (estop.py first)
+    .venv/bin/python -m deploy.runner real --name pick1 --until pick        # real arm, pick only (estop.py first)
+    .venv/bin/python -m deploy.runner real --name try1                      # real arm, full task
 """
 from __future__ import annotations
 
@@ -66,8 +67,9 @@ class TaskH:
         self.seat = H.ReleaseTrigger(self.dt, **cfg["release_trigger"])
         self.q_ready = np.asarray(cfg["act"]["start_q_model"], float)
 
-    def episode(self, be, log=None):
-        """One attempt on backend `be`. Returns a summary; per-tick rows go to `log` (list)."""
+    def episode(self, be, log=None, until="all"):
+        """One attempt on backend `be`. Returns a summary; per-tick rows go to `log` (list).
+        until="pick": stop and hold at the handoff (grasp + pre-insert pose, no insertion)."""
         cfg = self.cfg
         T_pick, T_ins = int(cfg["act"]["pick_s"] / self.dt), int(cfg["insert"]["insert_s"] / self.dt)
         max_step = cfg["act"]["max_step_rad"]
@@ -113,6 +115,11 @@ class TaskH:
                 if go or k >= T_pick - 1:
                     phase, t_hand = INSERT, k
                     row["handoff"] = "gate" if go else "time limit"
+                    if until == "pick":
+                        stop = f"until pick: holding at the handoff ({row['handoff']})"
+                        if log is not None:
+                            log.append(row)
+                        break
                     self.ins.start(q, qd)
                     self.seat.start(torch.zeros(1, dtype=torch.long), p[None])
                 else:
@@ -169,7 +176,7 @@ def cmd_sim(a):
         be = SimBackend(cfg, task.off, task.gmap, seed=a.seed + e, device=dev, phys_json=json.loads(a.phys_json), checker=chk)
         # the sim episode starts at the ready pose + noise (PickCfg.start_q_noise), as in training
         log = []
-        r = task.episode(be, log)
+        r = task.episode(be, log, until=a.until)
         r["seed"] = a.seed + e
         r["safety_violations"] = be.violations[:20]
         r["n_safety_violations"] = len(be.violations)
@@ -191,8 +198,14 @@ def cmd_sim(a):
 
 def cmd_real(a):
     cfg = load_config(a.config)
+    from deploy import models
     from deploy.backends import RealBackend
     import estop
+    if models.verify(None):
+        raise SystemExit("models do not match deploy/models/MANIFEST.json")
+    if cfg["gripper"].get("g_reader") is None and not a.uncal_gripper:
+        raise SystemExit("gripper map is uncalibrated (gripper.g_reader null): run deploy.checks.gripper_cal, "
+                         "or pass --uncal_gripper")
     if estop.stopped():
         raise SystemExit(f"{estop.STOP_FILE} is set: clear it in estop.py first")
     dev = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -203,7 +216,7 @@ def cmd_real(a):
     out_dir.mkdir(parents=True, exist_ok=True)
     log = []
     try:
-        r = task.episode(be, log)
+        r = task.episode(be, log, until=a.until)
     finally:
         be.hold()
         np.save(out_dir / "ticks.npy", np.array(log, dtype=object), allow_pickle=True)
@@ -226,7 +239,9 @@ if __name__ == "__main__":
     s.add_argument("--seed", type=int, default=700)
     s.add_argument("--phys_json", default='{"enc_offset_deg": [0, 0.3, 0.3, 0.3, 0.3, 0]}')
     r = sub.add_parser("real")
+    r.add_argument("--uncal_gripper", action="store_true", help="run with the proportional gripper map")
     for p in (s, r):
+        p.add_argument("--until", choices=["pick", "all"], default="all", help="pick: stop and hold at the handoff")
         p.add_argument("--config", default=str(HERE / "config/task_h.json"))
         p.add_argument("--name", required=True)
     a = ap.parse_args()

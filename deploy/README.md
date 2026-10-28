@@ -43,8 +43,14 @@ keeps the low-level tools (safety, estop, rig, calib, step tests); this folder i
    30 fps and 30-100 ms true age (logged arrival age ~0-70 ms).
 6. `python -m deploy.checks.gripper_cal`: gripper map; set `gripper.close` for a 9-15 N squeeze.
 7. Place the PC and reader (below). Clamp both arm bases. Start `scripts/real/estop.py`.
-8. `python -m deploy.runner real --name try1`. Logs: `data/task_h/<name>/` (every tick: joints,
-   phase, targets, ACT latency, frame age, insertion actions) + `summary.json`.
+8. `python -m deploy.runner real --name pick1 --until pick`: ACT pick only; the arm stops and holds at
+   the handoff (reader in hand, plug in front of the port). Check the grasp and the pre-insert pose
+   (tcp vs `handoff.p_nom` in the log) before the insertion runs on the arm.
+9. `python -m deploy.runner real --name try1`: the full task. Logs: `data/task_h/<name>/` (every tick:
+   joints, phase, targets, ACT latency, frame age, insertion actions) + `summary.json`.
+
+`runner real` refuses to start when the models differ from `models/MANIFEST.json` or the gripper map is
+uncalibrated (`--uncal_gripper` overrides the second).
 
 ## Scene placement (right arm base frame, table top z = 0, +x forward, +y toward the left arm)
 
