@@ -111,11 +111,29 @@ class Checker:
 
 def connect(side: str, gripper_kp: float = 2.0, gripper_kd: float = 0.5):
     """i2rt robot for one arm, holding its current pose (PD) from the start. Gripper calibrates."""
+    import armshare
+    armshare.claim(side)
     from i2rt.robots.get_robot import get_yam_robot
     from i2rt.robots.utils import ArmType, GripperType
     return get_yam_robot(channel=rig.can_channel(side), arm_type=ArmType.from_string_name("yam"),
                          gripper_type=GripperType.from_string_name("linear_4310"), ee_mass=EE_MASS,
                          gripper_kp=gripper_kp, gripper_kd=gripper_kd, zero_gravity_mode=False)
+
+
+def close_robot(robot):
+    """robot.close() without i2rt's shutdown race: its close() shuts the CAN socket while the
+    motor thread may still be sending ("file descriptor cannot be a negative integer"). Stop and
+    join that thread first, after the robot's server thread (which raises if it sees the motor
+    thread stopped). The motors get no more commands either way (limp)."""
+    import threading
+    robot._stop_event.set()
+    robot._server_thread.join()
+    mc = robot.motor_chain
+    mc.running = False
+    for t in threading.enumerate():
+        if getattr(getattr(t, "_target", None), "__self__", None) is mc and t is not threading.current_thread():
+            t.join(timeout=1.0)
+    robot.close()
 
 
 class SafeArm:
@@ -184,7 +202,7 @@ class SafeArm:
         return tgt
 
     def close(self):
-        self.robot.close()
+        close_robot(self.robot)
 
 
 if __name__ == "__main__":

@@ -208,6 +208,11 @@ def cmd_real(a):
                          "or pass --uncal_gripper")
     if estop.stopped():
         raise SystemExit(f"{estop.STOP_FILE} is set: clear it in estop.py first")
+    g = cfg["gripper"]
+    gm = C.GripperMap(g["open"], g["close"], g["m_open"], g.get("g_reader"), g.get("m_reader", 0.019))
+    if g.get("g_empty") is None or gm.finger_m(g["g_empty"]) >= cfg["handoff"]["min_finger"]:
+        raise SystemExit("grasp gate is unvalidated: empty gripper meets the grasp threshold")
+    raise SystemExit("real runner disabled: powered-hold and operator recovery at shutdown are not yet implemented")
     dev = "cuda:0" if torch.cuda.is_available() else "cpu"
     task = TaskH(cfg, dev)
     torch.set_num_threads(2)

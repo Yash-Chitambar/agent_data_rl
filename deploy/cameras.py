@@ -82,6 +82,7 @@ class ZedTop(_Grabber):
         p = sl.InitParameters()
         p.camera_resolution = sl.RESOLUTION.HD1080
         p.camera_fps = 30
+        p.set_from_serial_number(rig.ZED_SERIAL)  # use the calibrated overhead camera
         p.depth_mode = sl.DEPTH_MODE.NONE     # see scripts/real/snapshot.py: no depth model on duchamp3
         assert self.cam.open(p) == sl.ERROR_CODE.SUCCESS, "ZED open failed (USB 3? another process?)"
         self.mat = sl.Mat()

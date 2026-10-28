@@ -28,6 +28,7 @@ OUT = C.REPO / "data/task_h/frames"
 
 
 def capture(a):
+    raise SystemExit("real capture disabled: safe return and powered-hold recovery are not yet implemented")
     from deploy.backends import RealBackend
     cfg = load_config()
     off = C.joint_offsets(cfg["side"])

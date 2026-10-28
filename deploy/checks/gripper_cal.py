@@ -14,6 +14,7 @@ and lower or raise gripper.close until it falls in that range.
     .venv/bin/python -m deploy.checks.gripper_cal          (scripts/real/estop.py running)
 """
 import time
+import select
 
 import numpy as np
 
@@ -21,29 +22,62 @@ from deploy import conventions as C  # noqa: F401  (sys.path: scripts/real)
 from deploy.runner import load_config
 
 
-def settle(robot, g, s=1.5):
-    q = np.asarray(robot.get_joint_pos(), float)
+def wait_input(prompt):
+    import estop
+    print(prompt, end="", flush=True)
+    while True:
+        if estop.stopped():
+            raise RuntimeError("software stop set; holding current command until operator retrieves reader")
+        ready, _, _ = select.select([__import__("sys").stdin], [], [], 0.05)
+        if ready:
+            return input()
+
+
+def settle(arm, g, s=1.5):
+    import estop
+    if estop.stopped():
+        raise RuntimeError("software stop set before gripper command")
+    q = arm.read()
     q[6] = g
-    robot.command_joint_pos(q)
-    time.sleep(s)
-    return float(robot.get_joint_pos()[6])
+    arm.command(q)
+    end = time.monotonic() + s
+    while time.monotonic() < end:
+        if estop.stopped():
+            q = arm.read()
+            arm._hold(q)
+            raise RuntimeError("software stop set; holding current command until operator retrieves reader")
+        time.sleep(0.02)
+    return float(arm.read()[6])
 
 
 def main():
     import safety
     cfg = load_config()
     gc = cfg["gripper"]
+    import estop
+    if estop.stopped():
+        raise SystemExit("software stop is set")
     robot = safety.connect(cfg["side"])
+    arm = safety.SafeArm(robot)
+    reader_may_be_held = False
     try:
-        safety.SafeArm(robot)                      # refuses to start from an unsafe pose
-        g_open = settle(robot, gc["open"])
-        g_empty = settle(robot, gc["close"])
-        settle(robot, gc["open"])
-        input("Hold the SD reader between the open fingers (top-down, across the body), then press Enter ")
-        g_reader = settle(robot, gc["close"], 2.0)
-        settle(robot, gc["open"])
+        g_open = settle(arm, gc["open"])
+        g_empty = settle(arm, gc["close"])
+        settle(arm, gc["open"])
+        reader_may_be_held = True  # reader may be placed at any point while waiting
+        wait_input("Hold the SD reader between the open fingers, then press Enter: ")
+        g_reader = settle(arm, gc["close"], 2.0)
+        wait_input("Hold the reader securely; press Enter to reopen the jaws: ")
+        settle(arm, gc["open"])
+        reader_may_be_held = False
+    except Exception:
+        if reader_may_be_held:
+            print("Reader may be held: maintaining power. Secure the reader and contact the operator before disconnecting.", flush=True)
+            while True:
+                time.sleep(0.1)
+        raise
     finally:
-        robot.close()
+        safety.close_robot(robot)
     gm = C.GripperMap(gc["open"], gc["close"], gc["m_open"], g_reader, gc["m_reader"])
     print(f"readings: open {g_open:.3f}, closed empty {g_empty:.3f}, closed on the reader {g_reader:.3f}")
     print(f"map -> empty {gm.finger_m(g_empty) * 1e3:.1f} mm (gate threshold {cfg['handoff']['min_finger'] * 1e3:.0f} mm), "

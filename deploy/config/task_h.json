@@ -7,10 +7,20 @@
   "insert": "deploy/models/insert.pt",
   "insert_config": "deploy/models/insert.config.json"
  },
- "fric_comp": {"scale": 0.5, "ramp": 0.02},
+ "fric_comp": {
+  "scale": 0.5,
+  "ramp": 0.02
+ },
  "act": {
   "_start": "PickEnv ready pose, model frame (tcp 18 cm above the reader area, top-down); the sim starts within +-0.08 rad of it",
-  "start_q_model": [0.82704, 1.70994, 1.73288, -1.59373, 0.0, 0.82704],
+  "start_q_model": [
+   0.82704,
+   1.70994,
+   1.73288,
+   -1.59373,
+   0.0,
+   0.82704
+  ],
   "ensemble": 0.01,
   "_max_step": "cap on each ACT target change per tick; demo targets change <= 0.048 rad per tick",
   "max_step_rad": 0.05,
@@ -18,30 +28,72 @@
  },
  "handoff": {
   "_p_nom": "nominal pre-insert tcp for the configured PC pose (handoff.nominal_preinsert): the PC must stand where scene/pc_bench.py puts it",
-  "p_nom": [0.24591, 0.236917, 0.02285],
-  "settle": true, "rest_qd": 0.03, "rest_s": 0.3, "near": 0.06, "near_z": 0.010,
-  "min_finger": 0.005, "gate": true, "grasp_s": 0.5
+  "p_nom": [
+   0.24591,
+   0.236917,
+   0.02285
+  ],
+  "settle": true,
+  "rest_qd": 0.03,
+  "rest_s": 0.3,
+  "near": 0.06,
+  "near_z": 0.01,
+  "min_finger": 0.005,
+  "gate": true,
+  "grasp_s": 0.5
  },
- "insert": {"insert_s": 10.0},
- "release_trigger": {"_why": "handoff.ReleaseTrigger: no proprio seat signal works for this policy (FINDINGS 2026-10-28)", "after_s": 5.0, "max_travel": 0.06},
- "release": {"open_s": 0.4, "lift": 0.08, "v": 0.08},
+ "insert": {
+  "insert_s": 10.0
+ },
+ "release_trigger": {
+  "_why": "handoff.ReleaseTrigger: no proprio seat signal works for this policy (FINDINGS 2026-10-28)",
+  "after_s": 5.0,
+  "max_travel": 0.06
+ },
+ "release": {
+  "open_s": 0.4,
+  "lift": 0.08,
+  "v": 0.08
+ },
  "gripper": {
   "_map": "i2rt 0 closed .. 1 open. finger opening (m) linear through (open, m_open) and (g_reader, m_reader) once measured (checks/gripper_cal.py); close = squeeze target",
-  "open": 1.0, "close": 0.0, "m_open": 0.048, "g_reader": null, "m_reader": 0.019
+  "open": 1.0,
+  "close": 0.0,
+  "m_open": 0.048,
+  "g_reader": 0.3371,
+  "m_reader": 0.019,
+  "g_empty": 0.038
  },
- "cameras": {"res": 320, "max_age_ms": 250},
+ "cameras": {
+  "res": 320,
+  "max_age_ms": 250
+ },
  "safety": {
   "_clearances": "FlexChecker, model frame, m above the table, on targets and measured poses. Dry run (sim, true joints): fingertips reach -0.6 mm (contact), but ACT's grasp targets put them down to -9 mm (the PD error presses the fingers on the table); gripper body >= 51 mm, link_6 >= 55 mm",
   "clearance": 0.04,
   "tip_clearance": -0.015,
-  "body_clearance": {"gripper": 0.015, "link_6": 0.02, "wrist_camera": 0.03}
+  "body_clearance": {
+   "gripper": 0.015,
+   "link_6": 0.02,
+   "wrist_camera": 0.03
+  }
  },
  "scene": {
   "_about": "where to put things, right arm base frame (table top z = 0, +x forward, +y toward the left arm); pc_bench.py",
-  "port_center": [0.32137, 0.236917, 0.025],
-  "pc_center_xy": [0.370, 0.215],
+  "port_center": [
+   0.32137,
+   0.236917,
+   0.025
+  ],
+  "pc_center_xy": [
+   0.37,
+   0.215
+  ],
   "pc_yaw_deg": 2.3,
-  "reader_center_xy": [0.203937, 0.220908],
+  "reader_center_xy": [
+   0.203937,
+   0.220908
+  ],
   "trained_ranges": "port +-2 cm x, +-4 cm y, PC yaw +-10 deg; reader +-3 cm x, +-5 cm y, yaw +-20 deg"
  }
 }
