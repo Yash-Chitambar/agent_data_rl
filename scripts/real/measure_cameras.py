@@ -224,6 +224,13 @@ def run(a):
     results: dict = {}
     ready = {name: threading.Event() for name in ("wrist_right", "wrist_left", "zed")}
     deadline = {"end_ns": 0}
+    import signal
+    cancelled = {"value": False}
+    def request_stop(signum, frame):
+        cancelled["value"] = True
+        deadline["end_ns"] = 0
+        start.set()
+    signal.signal(signal.SIGTERM, request_stop)
     threads = [threading.Thread(target=capture_one, args=(name, out, deadline, spec, a.policy_res,
                                                            a.save_every, a.policy_save_every, start, ready[name], results), daemon=True)
                for name in ("wrist_right", "wrist_left", "zed")]
@@ -234,8 +241,10 @@ def run(a):
         if not event.wait(max(0, readiness_deadline - time.monotonic())):
             results[name] = {"error": "camera startup did not complete before timeout"}
     start_ns = time.monotonic_ns()
-    startup_failed = bool(results)
+    startup_failed = bool(results) or cancelled["value"]
     deadline["end_ns"] = start_ns if startup_failed else start_ns + int(a.seconds * 1e9)
+    if not startup_failed and getattr(a, "ready_file", None):
+        Path(a.ready_file).write_text(json.dumps({"host_monotonic_ns": start_ns, "cameras": list(ready)}) + "\n")
     start.set()
     if startup_failed:
         print("Camera startup failed; capture window cancelled. See capture.json.", flush=True)
@@ -263,6 +272,7 @@ def run(a):
 
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--ready-file", help="write readiness marker only after all three sources initialize")
     p.add_argument("--session", required=True)
     p.add_argument("--name", required=True, help="new capture name inside session/cameras")
     p.add_argument("--seconds", type=float, default=10.0)

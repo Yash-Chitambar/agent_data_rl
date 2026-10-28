@@ -338,6 +338,16 @@ def run(a):
                              "encoder_<side>.csv contains native-arrival positions only. "
                              "Missing telemetry is null. t_send is first matching CAN burst."}
     try:
+        if getattr(a, "cameras", False):
+            ready_file = out / "cameras_ready.json"
+            camera_proc = subprocess.Popen([sys.executable, str(HERE / "measure_cameras.py"),
+                "--session", a.session, "--name", a.name, "--seconds", "300",
+                "--save-every", str(a.camera_save_every), "--ready-file", str(ready_file)])
+            deadline = time.monotonic() + 30
+            while not ready_file.exists():
+                if estop.stopped() or camera_proc.poll() is not None or time.monotonic() >= deadline:
+                    raise safety.SafetyStop("camera startup failed/stopped before arm connection")
+                time.sleep(.05)
         for side in sides:
             arm, q_initial = connect(side)
             arms[side], rest[side] = arm, np.zeros(6)
@@ -370,14 +380,8 @@ def run(a):
                     f"{side} did not reach the requested measurement pose: max error "
                     f"{np.max(np.abs(start_error)):.3f} rad > {START_POSE_TOL:.3f} rad; holding")
         time.sleep(1.0)
-        if a.cmd == "bimanual" and a.cameras:
-            camera_proc = subprocess.Popen([sys.executable, str(HERE / "measure_cameras.py"),
-                                            "--session", a.session, "--name", a.name,
-                                            "--seconds", str(min(300, a.seconds + 6)),
-                                            "--save-every", str(a.camera_save_every)])
-            time.sleep(4.0)
-            if camera_proc.poll() is not None and camera_proc.returncode != 0:
-                raise safety.SafetyStop("camera capture failed before bimanual trial; see cameras/<name>/capture.json")
+        if camera_proc is not None and camera_proc.poll() is not None:
+            raise safety.SafetyStop("camera recording ended before motion trial")
         trajectories = {moving: traj} if moving is not None else {}
         joints = {side: a.joint for side in sides}
         run_ticks(arms, centers, trajectories, joints, a.seconds, rows, infer=a.infer)
@@ -435,6 +439,8 @@ def parser():
         s.add_argument("--seconds", type=float, help="default: planned trajectory length")
         s.add_argument("--infer", action="store_true", help="dummy network forward pass; commands remain fixed-target")
         if cmd == "single":
+            s.add_argument("--cameras", action="store_true", help="initialize all three cameras before motors")
+            s.add_argument("--camera-save-every", type=int, default=5)
             s.add_argument("--side", choices=["right", "left"], required=True)
             s.add_argument("--start", type=float, nargs=6, help="encoder-frame start joints; checked slow move from folded rest")
         else:
