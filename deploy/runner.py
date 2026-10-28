@@ -112,6 +112,11 @@ class TaskH:
                            done_out=float(a[7]))
                 go = bool(self.gate(torch.tensor([a[7]]), torch.tensor([not a[6] > 0]), torch.tensor([finger]),
                                     torch.as_tensor(qd[None], dtype=torch.float32), p[None])[0])
+                if not go and k >= T_pick - 1 and be.truth() is None:
+                    stop = "pickup timeout without a valid grasp handoff"
+                    if log is not None:
+                        log.append(row)
+                    break
                 if go or k >= T_pick - 1:
                     phase, t_hand = INSERT, k
                     row["handoff"] = "gate" if go else "time limit"
