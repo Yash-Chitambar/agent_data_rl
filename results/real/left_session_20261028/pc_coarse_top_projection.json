@@ -1,0 +1,59 @@
+{
+  "source_image": "cameras/pc_contact_survey_001/zed/raw_000080.png",
+  "pixel_points": [
+    [
+      930.0,
+      579.0
+    ],
+    [
+      1028.0,
+      579.0
+    ],
+    [
+      1033.0,
+      667.0
+    ],
+    [
+      927.0,
+      667.0
+    ]
+  ],
+  "feature": "hand-selected approximate top corners",
+  "assumed_top_plane_z_m": 0.0215,
+  "corners_right_base_m": [
+    [
+      0.31297787032924573,
+      0.3870786479178333,
+      0.021499999999999964
+    ],
+    [
+      0.31340095242009625,
+      0.29335034076298566,
+      0.021500000000000075
+    ],
+    [
+      0.21970605770150284,
+      0.2905287704030318,
+      0.021499999999999964
+    ],
+    [
+      0.21920090516719068,
+      0.3868170300504634,
+      0.021499999999999964
+    ]
+  ],
+  "center_right_base_m": [
+    0.2663214464045089,
+    0.3394436972835786,
+    0.02149999999999999
+  ],
+  "edge_lengths_m": [
+    0.0937292620293634,
+    0.0937373701125889,
+    0.09628958471721707,
+    0.09377733009055982
+  ],
+  "status": "coarse survey only; not a robot contact target",
+  "uncertainty_m": null,
+  "limitations": "Pixel selection, rounded case edges, camera/base uncertainties and model origin assumption unresolved. Contact requires additional verification."
+}

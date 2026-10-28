@@ -1,0 +1,61 @@
+{
+  "trials": [
+    {
+      "trial": "left_rest_j1_fit",
+      "steps": 1300,
+      "unsent": 0,
+      "tracking_rms_rad": 0.004498845464589335,
+      "encoder_range_rad": 0.01373311970702673
+    },
+    {
+      "trial": "left_rest_j2_fit",
+      "steps": 1300,
+      "unsent": 0,
+      "tracking_rms_rad": 0.00489268331050059,
+      "encoder_range_rad": 0.0049591821164263195
+    },
+    {
+      "trial": "left_rest_j3_fit",
+      "steps": 1300,
+      "unsent": 0,
+      "tracking_rms_rad": 0.005064203179785923,
+      "encoder_range_rad": 0.0
+    },
+    {
+      "trial": "left_rest_j4_fit",
+      "steps": 1300,
+      "unsent": 0,
+      "tracking_rms_rad": 0.005597084411765816,
+      "encoder_range_rad": 0.0015259021896696368
+    },
+    {
+      "trial": "left_rest_j5_fit",
+      "steps": 1300,
+      "unsent": 0,
+      "tracking_rms_rad": 0.003685427980624168,
+      "encoder_range_rad": 0.008773937590600411
+    },
+    {
+      "trial": "left_rest_j6_fit",
+      "steps": 1300,
+      "unsent": 0,
+      "tracking_rms_rad": 0.0037878516593758903,
+      "encoder_range_rad": 0.012207217517357094
+    }
+  ],
+  "camera_coverage": {
+    "zed": {
+      "frames": 6836,
+      "covers_all_trials": true
+    },
+    "wrist_left": {
+      "frames": 4789,
+      "covers_all_trials": true
+    },
+    "wrist_right": {
+      "frames": 4788,
+      "covers_all_trials": true
+    }
+  },
+  "limitations": "Host-clock overlap only; no synchronized exposures or policy consumption. Small-signal folded-rest data, not full dynamics identification."
+}

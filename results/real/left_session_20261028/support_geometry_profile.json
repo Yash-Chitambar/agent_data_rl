@@ -1,0 +1,41 @@
+{
+  "schema": "bimanual_support_geometry_v1",
+  "status": "provisional measured reference; not adopted by live safety",
+  "world_frame": "right_arm_base",
+  "table_plane_z_m": -0.023,
+  "source": "operator mounting-platform measurement 2.3 cm",
+  "uncertainty_m": null,
+  "origin_assumption": "arm-base/model z=0 at the platform mounting surface",
+  "platform_height_m": 0.023,
+  "pc": {
+    "height_with_feet_m": 0.0445,
+    "top_z_right_base_m": 0.0215,
+    "source": "prior operator measurements; top z assumes PC rests on surveyed table"
+  },
+  "board_plane_check": {
+    "position1_z_m": -0.0209,
+    "position2_z_m": -0.0218,
+    "height_above_provisional_table_m": [
+      0.0021,
+      0.0012
+    ],
+    "board_thickness_m": null,
+    "note": "These residuals are consistent in scale with a board above table, but do not measure thickness or establish absolute accuracy."
+  },
+  "live_safety_modified": false,
+  "camera_extrinsics_modified": false,
+  "mounting_plate": {
+    "type": "single shared plate spanning both arm bases",
+    "height_above_table_m": 0.023,
+    "top_plane_z_right_base_m": 0.0,
+    "pc_on_plate": false,
+    "extent_description": "operator: extends from base to base only; remaining surface is lower table",
+    "footprint_m": null,
+    "footprint_status": "not surveyed; do not invent extent or remove its collision volume"
+  },
+  "contact_planning_requirements": [
+    "represent both lower table and shared mounting plate",
+    "verify path clearance from plate edge as well as tabletop",
+    "retain measured camera/base uncertainty"
+  ]
+}
