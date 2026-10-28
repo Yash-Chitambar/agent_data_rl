@@ -56,6 +56,7 @@ ACTION_SCALE = 0.04      # RobotInfo("yam").action_scale
 ACTION_CLIP = 3.0        # EnvCfg.action_clip
 FRIC_COMP = None         # (tau, ramp): Coulomb friction feed-forward (envs/friction_comp.py), --fric_comp
 HISTORY = 30             # EnvCfg.history
+SETTLE_TOL = 0.010       # rad, move_to(settle_trim=True) stops when all joints are this close (gate 0.02; sim start +-0.08)
 OUT = REPO / "data/real_yam"
 
 
@@ -282,7 +283,7 @@ class RealArm:
     def hold(self):
         self.safe._hold(np.asarray(self.robot.get_joint_pos(), float))
 
-    def move_to(self, q6_goal, max_vel=0.3, approach_fric_comp=False):
+    def move_to(self, q6_goal, max_vel=0.3, approach_fric_comp=False, settle_trim=False):
         """Slow smoothstep move (no logging), the straight joint path checked first. Raises
         SafetyStop (holding) on an unsafe path, the software stop or a safety check."""
         q0 = np.asarray(self.robot.get_joint_pos(), float)
@@ -307,17 +308,34 @@ class RealArm:
                                           measured=measured.tolist(), mode="move_to"))
             t_next += CONTROL_DT
             self.wait(t_next)
-        # Log the previously unobserved settling interval. The baseline command stays held.
-        for _ in range(50):
+        # Settle, logged. Without the trim the baseline command stays held for 1 s. With it
+        # (deploy/approach_trim.py: bounded integral on all joints against static friction), until
+        # every joint is within SETTLE_TOL of the goal for 0.2 s, at most 15 s.
+        trim, recent = None, collections.deque(maxlen=10)
+        if settle_trim:
+            from deploy.approach_trim import ApproachTrim, settled
+            trim = ApproachTrim()
+        t_next = time.monotonic()
+        for _ in range(750 if settle_trim else 50):
             if estop.stopped():
                 self.hold()
                 raise safety.SafetyStop("software stop during settle")
-            if approach_fric_comp:
-                self.safe.command(tgt, FRIC_COMP)
             measured = np.asarray(self.robot.get_joint_pos(), float)
-            self.motion_trace.append(dict(host_monotonic=time.monotonic(), target=tgt.tolist(),
-                measured=measured.tolist(), mode="settle", approach_fric_comp=approach_fric_comp))
-            time.sleep(CONTROL_DT)
+            corrected = tgt.copy()
+            bias = np.zeros(6)
+            if trim is not None:
+                recent.append(q6_goal - measured[:6])
+                if settled(recent, SETTLE_TOL) and len(recent) == recent.maxlen:
+                    break
+                bias = trim.step(q6_goal - measured[:6], CONTROL_DT)
+                corrected[:6] += bias
+            if approach_fric_comp or trim is not None:
+                self.safe.command(corrected, FRIC_COMP if approach_fric_comp else None)
+            self.motion_trace.append(dict(host_monotonic=time.monotonic(), target=corrected.tolist(),
+                nominal_target=tgt.tolist(), bias=bias.tolist(), measured=measured.tolist(),
+                mode="settle", approach_fric_comp=approach_fric_comp))
+            t_next += CONTROL_DT
+            self.wait(t_next)
         actual = np.asarray(self.robot.get_joint_pos(), float)[:6]
         if np.max(np.abs(actual - q6_goal)) > 0.02:
             self.hold()

@@ -71,11 +71,13 @@ class RealBackend:
     def wait(self, t_next):
         self.arm.wait(t_next)
 
-    def move_to(self, q6_motor, grip01=1.0):
+    def move_to(self, q6_motor, grip01=1.0, settle_trim=False):
+        """Slow move; settle_trim: settle onto the goal with the bounded integral trim (the ready pose,
+        which the arm's static friction otherwise misses by 20+ mrad on joint 3)."""
         q7 = np.asarray(self.arm.robot.get_joint_pos(), float)
         q7[6] = grip01
         self.arm.safe.command(q7)
-        self.arm.move_to(q6_motor, max_vel=0.1)
+        self.arm.move_to(q6_motor, max_vel=0.1, settle_trim=settle_trim)
 
     def stopped(self):
         import estop
@@ -168,7 +170,7 @@ class SimBackend:
     def wait(self, t_next):
         pass
 
-    def move_to(self, q6_motor, grip01=1.0):
+    def move_to(self, q6_motor, grip01=1.0, settle_trim=False):
         """Teleport (the sim episode starts at the ready pose + noise, as in training)."""
 
     def stopped(self):

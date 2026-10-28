@@ -73,7 +73,7 @@ class TaskH:
         cfg = self.cfg
         T_pick, T_ins = int(cfg["act"]["pick_s"] / self.dt), int(cfg["insert"]["insert_s"] / self.dt)
         max_step = cfg["act"]["max_step_rad"]
-        be.move_to(self.q_ready - self.off, grip01=self.gmap.open)
+        be.move_to(self.q_ready - self.off, grip01=self.gmap.open, settle_trim=True)
         self.act.reset()
         self.gate.reset(1, "cpu")
         self.seat.reset(1, "cpu")
@@ -220,10 +220,13 @@ def cmd_real(a):
     if estop.stopped():
         raise SystemExit(f"{estop.STOP_FILE} is set: clear it in estop.py first")
     g = cfg["gripper"]
-    gm = C.GripperMap(g["open"], g["close"], g["m_open"], g.get("g_reader"), g.get("m_reader", 0.019))
-    if g.get("g_empty") is None or gm.finger_m(g["g_empty"]) >= cfg["handoff"]["min_finger"]:
-        raise SystemExit("grasp gate is unvalidated: empty gripper meets the grasp threshold")
-    raise SystemExit("real runner disabled: powered-hold and operator recovery at shutdown are not yet implemented")
+    from deploy.grasp import reader_present
+    if g.get("g_empty") is None or not reader_present(g["g_reader"], g["g_empty"], g["g_reader"]):
+        raise SystemExit("invalid real grasp calibration")
+    if not g.get("verified_reader_gate", False):
+        raise SystemExit("real empty/held-reader grasp gate validation is pending")
+    if not cfg.get("verified_start_envelope", False):
+        raise SystemExit("measured starting-envelope validation is pending")
     dev = "cuda:0" if torch.cuda.is_available() else "cpu"
     task = TaskH(cfg, dev)
     torch.set_num_threads(2)
@@ -236,7 +239,8 @@ def cmd_real(a):
     finally:
         be.hold()
         np.save(out_dir / "ticks.npy", np.array(log, dtype=object), allow_pickle=True)
-        be.close()
+        from deploy.recovery import supported_shutdown
+        supported_shutdown(be)
     ms = [x["act_ms"] for x in log if "act_ms" in x]
     ages = [x["age_ms"] for x in log if "age_ms" in x]
     r["timing"] = dict(act_ms_p50=float(np.median(ms)) if ms else None, act_ms_max=float(np.max(ms)) if ms else None,

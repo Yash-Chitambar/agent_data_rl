@@ -9,6 +9,9 @@ logged age of roughly 0-70 ms. deploy/checks/timing.py --cameras measures rate a
 Policy images match the sim renders: wrist = undistort + principal-point square crop + resize
 (assets/real_camera.real_policy_image); top = ZED HD1080 rectified left, square crop, resize
 (scenes/physical_rig.real_top_policy_image). Both 320 x 320 RGB.
+Each capture thread makes the policy image once per new frame (10-14 ms for both cameras, too much
+for the 20 ms control tick when done in the loop); frames() hands out the newest one. The age still
+runs from the raw frame's arrival.
 """
 from __future__ import annotations
 
@@ -30,6 +33,7 @@ from blind_insertion.scenes.physical_rig import real_top_policy_image  # noqa: E
 class _Grabber:
     def __init__(self, name):
         self.name, self.frame, self.t, self.n = name, None, None, 0
+        self.prep, self.policy = None, None      # prep(raw) -> policy image, set by Cameras
         self.lock, self.stop_ev = threading.Lock(), threading.Event()
         self.th = threading.Thread(target=self._loop, daemon=True)
 
@@ -39,12 +43,17 @@ class _Grabber:
             if f is None:
                 continue
             t = time.monotonic()
+            pol = self.prep(f) if self.prep is not None else None
             with self.lock:
-                self.frame, self.t, self.n = f, t, self.n + 1
+                self.frame, self.policy, self.t, self.n = f, pol, t, self.n + 1
 
     def latest(self):
         with self.lock:
             return self.frame, self.t, self.n
+
+    def latest_policy(self):
+        with self.lock:
+            return self.policy, self.t, self.n
 
     def close(self):
         self.stop_ev.set()
@@ -105,23 +114,23 @@ class Cameras:
     def __init__(self, side="right", res=320, max_age_s=0.25, timeout_s=5.0):
         self.spec, self.side, self.res, self.max_age = load_spec(rig.SPEC), side, res, max_age_s
         self.cams = {"top": ZedTop(), "wrist": WristCam(side)}
+        self.cams["top"].prep = lambda f: real_top_policy_image(f, res)
+        self.cams["wrist"].prep = lambda f: real_policy_image(f, self.spec, res, side)
         t0 = time.monotonic()
-        while any(c.latest()[0] is None for c in self.cams.values()):
+        while any(c.latest_policy()[0] is None for c in self.cams.values()):
             if time.monotonic() - t0 > timeout_s:
                 self.close()
-                raise RuntimeError("no frames from " + ", ".join(k for k, c in self.cams.items() if c.latest()[0] is None))
+                raise RuntimeError("no frames from " + ", ".join(k for k, c in self.cams.items() if c.latest_policy()[0] is None))
             time.sleep(0.01)
 
     def frames(self):
         now = time.monotonic()
         out, age, n = {}, {}, {}
         for k, c in self.cams.items():
-            f, t, n[k] = c.latest()
+            out[k], t, n[k] = c.latest_policy()
             age[k] = now - t
             if age[k] > self.max_age:
                 raise RuntimeError(f"{k} camera frame is {age[k] * 1e3:.0f} ms old (limit {self.max_age * 1e3:.0f} ms)")
-            out[k] = (real_top_policy_image(f, self.res) if k == "top"
-                      else real_policy_image(f, self.spec, self.res, self.side))
         return out, age, n
 
     def close(self):

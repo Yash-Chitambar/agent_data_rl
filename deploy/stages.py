@@ -27,6 +27,13 @@ class ActStage:
         self.m = torch.jit.load(path, map_location=self.dev).eval()
         self.cmd_err = self.m.s_mean.shape[0] == 13
         self.ens = H.TemporalEnsemble(ensemble)
+        # warm-up: the first two TorchScript calls profile and compile (354 + 298 ms; 402 ms on the
+        # first real tick of pick1, 2026-10-28, while the arm held at the ready pose)
+        self.reset()
+        img = np.zeros((320, 320, 3), np.uint8)
+        for _ in range(4):                  # through step() itself: other inputs re-profile
+            self.step(np.zeros(6), 0.0, img, img)
+        self.reset()
 
     def reset(self):
         self.ens.reset()

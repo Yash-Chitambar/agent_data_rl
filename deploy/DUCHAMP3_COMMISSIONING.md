@@ -21,3 +21,62 @@ Camera-first stationary check and 301-step small-motion check completed without 
 Offline analysis: ready approach uses SafeArm.command without the configured task friction feedforward, whereas policy sends use it. This is a controller-semantics mismatch, not evidence for changing joint calibration. The approach trace also omitted the one-second settling interval. Added settling samples and an explicit, default-off approach_fric_comp candidate. No new gains, offsets or tracking tolerances were adopted. Candidate must be validated on small motions before a full ready approach. Friction feedforward values in the existing code are estimates/command terms, not measured output torque.
 
 Folded-rest controller comparisons, cameras active: 0.005-rad and 0.015-rad joint-3 pulses completed with no reported communication faults and torque disabled afterward. At 0.015 rad, baseline joint-3 RMS target error was 9.698 mrad and observed range 0.763 mrad; configured feedforward RMS 9.458 mrad, range 0.381 mrad. Single sequential comparisons are not sufficient for controller identification; neither condition tracked the pulse meaningfully. Feedforward is not promoted. Preserve original files data/task_h/approach_controller_001.json and approach_controller_002.json as controller dead-zone evidence, with uncalibrated computed effort distinguished from torque measurements. No further amplitude increase or tracking-tolerance relaxation adopted.
+
+## 2026-10-28: ready pose, grasp gate, camera loop cost
+
+Ready pose attained. Root cause of the misses: static friction, not calibration or gravity model. Out/back
+lag on joint 3 at the intermediate pose was +24 / -7 mrad (friction band ~1.2 N m beyond the 0.75 N m
+feed-forward, plus ~0.7 N m under-compensation). i2rt's gravity model (linear_4310 + 0.5 kg, x1.1 on
+joint 3) and the sim's FlexPoint model differ by 0.05 N m (intermediate) / 0.2 N m (ready) on joint 3,
+so a model swap would not help. The sim already randomizes joint-3 friction over 0.6-3 N m.
+Fix: `move_to(settle_trim=True)` (deploy/approach_trim.py): bounded integral on all six joints after
+the slow move, 10 mrad/s rate, 50 mrad cap, 2 mrad deadband, stops when all joints are within
+SETTLE_TOL = 10 mrad for 0.2 s (at most 15 s); every command still passes SafeArm. Used for the ready
+pose in runner.py and act_frames.py, not for the return to rest (joints 2-3 sit on their stops).
+`checks/ready_settle.py` run 001 (objects clear, jaws empty): stick-slip on joints 2 and 3 (7-10 mrad
+overshoots, trim -23 mrad on joint 2), all joints within 3.3 mrad after 13.2 s (tol 5 mrad then);
+held 2 s with the trim and 1 s with it dropped (as ACT's first tick): no drift, max 3.3 mrad. PASS,
+returned to rest, torque off. `verified_start_envelope` set.
+
+Earlier "measured start fails 0/4 in sim" result withdrawn: its harness edited sim state after reset.
+A harness with a fixed nominal start also gave only 6/16, while the stock runner on the same seeds
+(2000-2015) gave 14/16 seated: such harnesses are invalid, not the start pose. Moot now that the
+real arm reaches the ready pose within 3.3 mrad.
+
+Grasp gate (`checks/grasp_gate.py` run 001, 3 reps, operator holding the reader): empty 0.015,
+reader 0.249-0.257, every verdict right. The scale differs from the calibration session (empty
+0.038, reader 0.337): i2rt calibrates the gripper on each connect. Config now g_empty 0.015,
+g_reader 0.254: gate band 0.134-0.373 classifies both sessions. `verified_reader_gate` set. The
+finger map for ACT's state uses the same g_reader (19 mm). Squeeze force still not measured.
+
+Timing: ACT p99 2.86 ms. Cameras 29.8 / 35.7 fps. Preprocessing both policy images took 10-14 ms
+inside the 20 ms tick; it now runs once per frame in each capture thread (frames() 0.01 ms in the
+loop). Logged age at use now includes preprocessing: top p50 20 / p99 35 ms, wrist p50 22 / p99 41 ms
+(in the demos' 0-70 ms logged-age window). Sim dry run after the changes: 4/4 seated.
+
+## 2026-10-28: first ACT pick (pick1), placement, table height
+
+Placement: the first ready capture (ready1) had the reader at +40 / +87 mm and yaw +23 deg, the PC
+port at +42 / +81 mm off nominal: outside the trained ranges. `checks/placement.py` (ZED frame, no
+arm motion) finds both objects and prints the move; after one correction both were within 6 mm
+(ready2). ACT real-vs-sim chunk difference dropped from 0.07-0.30 rad to 0.02-0.16 rad per joint.
+
+pick1 (`runner real --until pick`): ACT descended toward the reader in 1.6 s, never slowed, and the
+SafeArm refused a target with the fingertip 15 mm below model z = 0. The operator saw the open
+fingertips ~3 cm ABOVE the table. ACT servoes on the wrist image, so it kept descending.
+Cause: the real tabletop is ~30 mm below the arm base frame's z = 0. The sim (pc_bench, table_top=0.0)
+puts it at z = 0. Evidence: `checks/table_probe.py` run 002 (fingertips hovering, gaps by ruler at
+three spots): table at model z -28, -34, -30 mm. The calibration board lying on the table
+(verify_lab_20261027*, three spots) fitted at z -22, -23, -20 mm for its top face. The YAMs stand on a
+~23 mm mount plate, and the Menagerie base mesh reaches 10 mm below the base origin: ~33 mm.
+Consequences in the current sim-trained stack: the reader and the port are 3 cm lower relative to the
+arm than in training, the handoff gate's p_nom z (near_z 1 cm) cannot be met, and the placement
+back-projections (objects assumed at z = 0) carry ~15 mm of parallax.
+Fix (next physical session, docs/REAL_RIG_GAPS.md gap 9): raise the workspace by ~30 mm (flat board under the reader and the PC) and re-probe. No board was available on 2026-10-28.
+Proper fix: sim table_top / object heights at -0.033 and the base plate in the scene; retrain ACT and
+the insertion policy.
+
+ACT cold start: the first two TorchScript calls took 354 + 298 ms (402 ms on pick1's first tick, arm
+holding). ActStage now warms up through step() at load: first tick 2.6 ms.
+The probe's first run stopped on an untrimmed intermediate move (joint 2 missed by 20.04 mrad):
+every probe move except the return to rest now uses the settle trim.

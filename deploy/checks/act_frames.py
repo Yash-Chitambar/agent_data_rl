@@ -37,7 +37,7 @@ def capture(a):
     be = RealBackend(cfg, off)
     q_start = be.read()[0].copy()
     try:
-        be.move_to(np.asarray(cfg["act"]["start_q_model"]) - off, grip01=cfg["gripper"]["open"])
+        be.move_to(np.asarray(cfg["act"]["start_q_model"]) - off, grip01=cfg["gripper"]["open"], settle_trim=True)
         q, qd, g, _ = be.read()
         raw = {k: c.latest()[0] for k, c in be.cams.cams.items()}
         pol, age, _ = be.frames()

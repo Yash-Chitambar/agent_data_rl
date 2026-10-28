@@ -11,14 +11,14 @@ from deploy.recovery import supported_shutdown
 def main():
     import estop
     if estop.stopped(): raise SystemExit('software stop is set')
-    out=C.REPO/'data/task_h/intermediate_feedforward_001.json'
+    out=C.REPO/'data/task_h/intermediate_trim_001.json'
     if out.exists(): raise SystemExit(f'refusing overwrite {out}')
     cfg=load_config();be=RealBackend(cfg,C.joint_offsets('right'))
     q0=be.read()[0].copy();result='incomplete';ok=False
     try:
         if np.max(np.abs(q0[1:3]))>.05: raise RuntimeError('not at folded rest')
         goal=np.array([.15,.3,.3,-.3,0.,.15])
-        be.arm.move_to(goal,max_vel=.05,approach_fric_comp=True)
+        be.arm.move_to(goal,max_vel=.05,approach_fric_comp=True,settle_trim=True)
         reached=be.read()[0].copy()
         print('Intermediate reached; returning to recorded rest.',flush=True)
         be.arm.move_to(q0,max_vel=.05,approach_fric_comp=True)

@@ -72,7 +72,7 @@ def main():
             dt = time.monotonic() - t0
             for c in ages:
                 print(f"{c}: {(n[c] - n0[c]) / dt:5.1f} fps, frame age at use {stats(ages[c])}")
-            print(f"preprocessing both frames: {stats(pre)}")
+            print(f"frames() in the loop (policy images made in the capture threads): {stats(pre)}")
         finally:
             cams.close()
 
