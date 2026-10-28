@@ -63,9 +63,9 @@ def capture(a):
                 cv2.imwrite(str(d / f"{name}_failure_raw.png"), frame)
         print(f"Capture/return stopped: {exc}. Arm remains powered. Do not terminate this process.", flush=True)
         # A failed return must never disable a raised arm automatically.
-        import time
-        while True:
-            time.sleep(0.1)
+        from deploy.recovery import supported_shutdown
+        supported_shutdown(be)
+        return
     be.close()
     d = OUT / a.name
     d.mkdir(parents=True, exist_ok=True)
