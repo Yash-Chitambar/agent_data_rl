@@ -41,3 +41,7 @@ Use `contact_events.csv` for both arms. Event timestamps must identify actual ev
 ## Outstanding before live session
 
 Review and test arm ownership, camera loss, stop during approach/contact, write failure, early camera termination, partial-log retention and supported shutdown. Existing measurement runner return behavior is not yet certified for loaded/contact trials. Do not use a normal automatic return while a gripper holds the PC. Freeze the actual working controller profile independently for each arm; do not import experimental deployment-branch gains/trim silently.
+
+## Stationary left/right grasp collector
+
+`measure_grasp_stationary.py --side left --session SESSION --name left_reader_001 --rig-code-root /home/yashc/agent_data_rl` uses the explicitly selected working rig's safety/ownership code. It accepts either side and sends no arm trajectories. Connect with empty jaws; it records open and empty-closed readings, waits for the operator to place/support the reader, records object-held readback and operator retention confirmation, then waits for retrieval before opening. On interruption while an object may be held it retains power until explicit SECURED confirmation. Only normalized readings and qualitative retention are measured. Syntax checked; full hardware commissioning is pending its first supervised trial. No PC force or compliance accuracy is implied.
