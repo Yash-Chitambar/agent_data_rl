@@ -88,7 +88,7 @@ def main():
     be.close()
 
     sc = cfg["safety"]
-    fc = FlexChecker(off, sc["clearance"], sc["tip_clearance"], sc.get("body_clearance"))
+    fc = FlexChecker(off, sc["clearance"], sc["tip_clearance"], sc.get("body_clearance"), sc.get("table_z", 0.0))
     why = fc.violation(qr - off)
     ok &= why is None
     print(f"{'ok  ' if why is None else 'FAIL'} 7 FlexChecker: ready pose -> {why or 'safe'}")

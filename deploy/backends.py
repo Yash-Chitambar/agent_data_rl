@@ -47,7 +47,7 @@ class RealBackend:
         self.cams = Cameras(cfg["side"], cfg["cameras"]["res"], cfg["cameras"]["max_age_ms"] / 1e3)
         self.arm = D.RealArm(cfg["side"], D.SIM_KP, kd)
         sc = cfg["safety"]
-        chk = FlexChecker(offsets, clearance=sc["clearance"], tip_clearance=sc["tip_clearance"], body_clearance=sc.get("body_clearance"))
+        chk = FlexChecker(offsets, clearance=sc["clearance"], tip_clearance=sc["tip_clearance"], body_clearance=sc.get("body_clearance"), table_z=sc.get("table_z", 0.0))
         self.arm.safe = safety.SafeArm(self.arm.robot, chk)    # the move_to path checks use it too
         self.arm.safe._hold(np.asarray(self.arm.robot.get_joint_pos(), float))
         self.off = offsets

@@ -101,3 +101,23 @@ What the sim agent needs from it:
   (joint 2-3 static friction ~1-2 N m, 7-10 mrad slips) for the sim friction model.
 - `grasp_gate_001.json`, `gripper_cal_20261027.json`: gripper readings (scale changes per connect).
 - `ctrl_seed2000/`, `dry_*`: sim dry runs of the deploy runner (14/16, 4/4, 4/4 seated).
+
+## 2026-10-28: pick2 on the bare table (diagnostic): where the trained stack fails
+
+Config `deploy/config/task_h_bare_table.json`: task_h.json with `safety.table_z = -0.028` (clearances from
+the measured table) and `handoff.p_nom` z lowered by 28 mm. Diagnostic only. Loop clean: ACT max 5.8 ms,
+tick p99 20.1 ms.
+- **Grasp height (policy, not hardware).** ACT descends to tcp z -21 mm (sim: +4 mm), tracked to ~1 mm
+  (lowest target -20.9, lowest measured -22.0), then lifts while closing. Real table ~-30 mm: the tips
+  stop ~9 mm above it and the pads close on the top edge of the 8.8 mm reader (operator). Gripper reads
+  0.04 = empty. ACT compensated ~25 of the 33 mm from the images; the rest is its learned grasp height.
+- **Regrasp.** 5 attempts in 15 s (descend, close, lift ~30 mm, open, re-aim): the recovery behaviour
+  runs but never changes the height. Timeout -> "pickup timeout without a valid grasp handoff", hold.
+- **Grasp xy (unconfirmed).** tcp at x 195-210 mm; the reader, with the ZED back-projection redone at
+  the real table height, is near x ~220 mm: possibly 1-3 cm short along the plug axis.
+- **Not reached yet:** carry, handoff gate (p_nom), insertion, release.
+For the new policy (sim agent): put the sim tabletop at z = -0.033 in the arm base frame with the
+mount plates (or the operator adds a ~30 mm riser, gap 9), randomize table height (+-10 mm) and
+port height with it, regenerate ACT demos, retrain ACT; retrain the insertion policy with the port
+at table + 25 mm (its fix_z is a single value and its observation has the absolute tcp). Data:
+`data/task_h/pick2/ticks.npy` (see the transfer note above).

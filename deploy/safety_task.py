@@ -25,8 +25,12 @@ TIP_BODIES = ("left_finger", "right_finger")
 
 
 class FlexChecker(safety.Checker):
-    def __init__(self, offsets, clearance=safety.CLEARANCE, tip_clearance=safety.TIP_CLEARANCE, body_clearance=None):
+    def __init__(self, offsets, clearance=safety.CLEARANCE, tip_clearance=safety.TIP_CLEARANCE, body_clearance=None,
+                 table_z=safety.TABLE_Z):
+        """table_z: the real tabletop in the model frame (config safety.table_z; duchamp3 ~ -0.03 without a
+        riser under the workspace, docs/REAL_RIG_GAPS.md gap 9); clearances count from it."""
         body_clearance = body_clearance or {}
+        self.table_z = table_z
         spec, _ = B.load_robot("yam", gripper="flexpoint")
         self.m = spec.compile()
         self.d = mujoco.MjData(self.m)
@@ -49,7 +53,7 @@ class FlexChecker(safety.Checker):
                 verts = self.m.mesh_vert[a:a + n].copy()
             elif self.m.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX:
                 verts = np.array(np.meshgrid(*[[-1, 1]] * 3)).reshape(3, -1).T * self.m.geom_size[g]
-            zmin = safety.TABLE_Z + body_clearance.get(name, tip_clearance if b in tip_ids else clearance)
+            zmin = table_z + body_clearance.get(name, tip_clearance if b in tip_ids else clearance)
             self.geoms.append((g, verts, zmin))
         self.qadr = np.array([self.m.jnt_qposadr[mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_JOINT, f"joint{i}")]
                               for i in range(1, 7)])
@@ -94,5 +98,5 @@ class FlexChecker(safety.Checker):
             z = self._bottom(g, verts)
             if z < zmin:
                 body = mujoco.mj_id2name(self.m, mujoco.mjtObj.mjOBJ_BODY, self.m.geom_bodyid[g])
-                return f"{body} at z = {z * 1000:+.0f} mm < {zmin * 1000:.0f} mm above the table"
+                return f"{body} at {(z - self.table_z) * 1000:+.0f} mm < {(zmin - self.table_z) * 1000:.0f} mm above the table (model z {z * 1000:+.0f} mm)"
         return None

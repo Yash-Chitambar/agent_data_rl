@@ -183,7 +183,7 @@ def cmd_sim(a):
     res = []
     for e in range(a.episodes):
         sc = cfg["safety"]
-        chk = FlexChecker(task.off, sc["clearance"], sc["tip_clearance"], sc.get("body_clearance"))
+        chk = FlexChecker(task.off, sc["clearance"], sc["tip_clearance"], sc.get("body_clearance"), sc.get("table_z", 0.0))
         be = SimBackend(cfg, task.off, task.gmap, seed=a.seed + e, device=dev, phys_json=json.loads(a.phys_json), checker=chk)
         # the sim episode starts at the ready pose + noise (PickCfg.start_q_noise), as in training
         log = []
