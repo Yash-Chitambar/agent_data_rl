@@ -1,0 +1,32 @@
+{
+  "run": "data/real_yam/usbc_lab_20261027/motion/right_rest_empty_j3_triangle_001",
+  "source": "steps",
+  "initial_state": "first steps observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
+  "joint3_frictionloss_nm": 2.0,
+  "limitations": [
+    "contacts disabled",
+    "driver gravity and friction feedforward are not reproduced",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth"
+  ],
+  "native_feedback_samples": 8918,
+  "joint_rmse_rad": [
+    1.1558083500611809e-05,
+    0.0007548343807058407,
+    0.0024259999055063074,
+    0.0024961825495191984,
+    9.723976966625366e-06,
+    1.0368842086479155e-05
+  ],
+  "joint_peak_abs_error_rad": [
+    7.559809809853544e-05,
+    0.0007665188612491669,
+    0.004462428381630627,
+    0.0026866219659727464,
+    0.0003814782784477052,
+    0.0003815411465483802
+  ],
+  "model_timestep_s": 0.001
+}

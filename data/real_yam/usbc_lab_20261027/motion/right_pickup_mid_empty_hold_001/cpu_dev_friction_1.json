@@ -1,0 +1,31 @@
+{
+  "run": "data/real_yam/usbc_lab_20261027/motion/right_pickup_mid_empty_hold_001",
+  "initial_state": "first approach observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
+  "joint3_frictionloss_nm": 1.0,
+  "limitations": [
+    "contacts disabled",
+    "driver gravity and friction feedforward are not reproduced",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth"
+  ],
+  "native_feedback_samples": 2319,
+  "joint_rmse_rad": [
+    0.0020207199815200825,
+    0.004047236132074694,
+    0.015474758296729556,
+    0.006112186805190388,
+    0.0028056942334347326,
+    0.0024882679044224416
+  ],
+  "joint_peak_abs_error_rad": [
+    0.006177545532982552,
+    0.006684432625534309,
+    0.02225151240780565,
+    0.019945818339971874,
+    0.004961082531193492,
+    0.005273526093314995
+  ],
+  "model_timestep_s": 0.001
+}

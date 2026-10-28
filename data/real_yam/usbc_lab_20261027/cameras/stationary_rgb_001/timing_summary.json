@@ -1,0 +1,53 @@
+{
+  "capture": "stationary_rgb_001",
+  "method": "host receive intervals in this collector; sampled PNG compression is buffered; preprocessing occurs on capture thread",
+  "limitations": [
+    "Wrist exposure timestamps and policy consumption are unavailable",
+    "ZED image and host clocks are unaligned",
+    "Rates include camera, driver, processing and scheduling effects; not intrinsic camera rates"
+  ],
+  "cameras": {
+    "zed": {
+      "frames": 446,
+      "host_receive_rate_hz": 29.649350894266487,
+      "interval_ms_median": 33.440193,
+      "interval_ms_p95": 35.57625899999999,
+      "preprocess_ms_median": 6.449662,
+      "preprocess_ms_p95": 8.0816745,
+      "exact_frame_repeats": 0,
+      "sampled_raw_frames": 45,
+      "policy_crop_resolution": [
+        320,
+        320
+      ]
+    },
+    "wrist_right": {
+      "frames": 295,
+      "host_receive_rate_hz": 19.96093704909669,
+      "interval_ms_median": 62.408245,
+      "interval_ms_p95": 64.3900645,
+      "preprocess_ms_median": 9.691596,
+      "preprocess_ms_p95": 12.659640000000001,
+      "exact_frame_repeats": 0,
+      "sampled_raw_frames": 30,
+      "policy_crop_resolution": [
+        320,
+        320
+      ]
+    },
+    "wrist_left": {
+      "frames": 296,
+      "host_receive_rate_hz": 19.978013344370765,
+      "interval_ms_median": 62.60878,
+      "interval_ms_p95": 64.2490413,
+      "preprocess_ms_median": 9.2438725,
+      "preprocess_ms_p95": 11.877533750000001,
+      "exact_frame_repeats": 0,
+      "sampled_raw_frames": 30,
+      "policy_crop_resolution": [
+        320,
+        320
+      ]
+    }
+  }
+}

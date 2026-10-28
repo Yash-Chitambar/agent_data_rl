@@ -1,0 +1,292 @@
+{
+  "schema": "usbc-rig-profile-v0",
+  "profile_id": "duchamp3-usbc-provisional-20261027",
+  "validation_status": "provisional_not_for_training_or_deployment",
+  "frame": "right_arm_base",
+  "quaternion_order": "wxyz",
+  "task": {
+    "target": "SanDisk USB-C SD reader to GMKtec second USB-C port",
+    "support_mode": "free",
+    "support_validation": "manual contact motion not yet characterized"
+  },
+  "pc": {
+    "measurements": {
+      "mass": {
+        "value": 0.284,
+        "unit": "kg",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "pc_mass_01",
+        "method": "scale",
+        "notes": "Operator reported 284 g; scale resolution and repeat readings pending.",
+        "validation_status": "operator_reported"
+      },
+      "width": {
+        "value": 0.1025,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "pc_width_01",
+        "method": "calipers",
+        "notes": "operator reported 102.5 mm; orientation left-right when viewing port panel; repeat/resolution pending",
+        "validation_status": "operator_reported"
+      },
+      "depth": {
+        "value": 0.097,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "pc_depth_front_back_01",
+        "method": "calipers",
+        "notes": "operator reported length 97.00 mm; assumed front-back depth, confirm orientation; repeat/resolution pending",
+        "validation_status": "operator_reported"
+      },
+      "body_height": {
+        "value": 0.0412,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "pc_height_without_feet_01",
+        "method": "calipers",
+        "notes": "operator reported 41.2 mm; repeat/resolution pending",
+        "validation_status": "operator_reported"
+      },
+      "height_with_feet": {
+        "value": 0.0445,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "pc_height_with_feet_01",
+        "method": "calipers",
+        "notes": "operator reported 44.5 mm; repeat/resolution pending",
+        "validation_status": "operator_reported"
+      },
+      "pad_count": {
+        "value": 4.0,
+        "unit": "count",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "pc_feet_count_01",
+        "method": "visual",
+        "notes": "Operator reports four round underside pads; pad diameters, locations, material and individual heights pending.",
+        "validation_status": "operator_reported"
+      },
+      "pad_diameter": {
+        "value": 0.005,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "pc_pad_diameter_01",
+        "method": "calipers_reported",
+        "notes": "Operator answered 5 mm to pad-diameter request; exact repeatability/resolution pending. Four pads modeled at bottom corners by operator preference; insets not measured.",
+        "validation_status": "operator_reported"
+      }
+    },
+    "pad_height_derived": {
+      "value": 0.0032999999999999974,
+      "unit": "m",
+      "uncertainty": null,
+      "source_trials": [
+        "pc_height_with_feet_01",
+        "pc_height_without_feet_01"
+      ],
+      "validation_status": "derived_from_operator_report"
+    },
+    "pad_locations": {
+      "value": "near_bottom_corners",
+      "validation_status": "operator_assumption",
+      "inset_m": null
+    },
+    "mass_distribution_and_inertia": null,
+    "port_2_pose": null
+  },
+  "reader": {
+    "measurements": {
+      "mass": {
+        "value": 0.017,
+        "unit": "kg",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "reader_mass_01",
+        "method": "operator_report",
+        "notes": "Operator reports 17 g for the USB-C hub/reader; scale resolution and repeat readings pending.",
+        "validation_status": "operator_reported"
+      },
+      "body_width": {
+        "value": 0.0346,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "reader_body_width_01",
+        "method": "calipers",
+        "notes": "Operator reported 34.6 mm across silver body using calipers; instrument resolution, uncertainty and repeat measurements pending.",
+        "validation_status": "operator_reported"
+      },
+      "body_length": {
+        "value": 0.0296,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "reader_body_length_01",
+        "method": "calipers",
+        "notes": "Operator reported 29.6 mm for silver body only; caliper resolution and repeat readings pending.",
+        "validation_status": "operator_reported"
+      },
+      "body_thickness": {
+        "value": 0.00875,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "reader_body_thickness_01",
+        "method": "calipers",
+        "notes": "Operator reported 8.75 mm between silver body flat faces; caliper resolution and repeat readings pending.",
+        "validation_status": "operator_reported"
+      },
+      "neck_length": {
+        "value": 0.0434,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "reader_neck_length_01",
+        "method": "calipers",
+        "notes": "Operator reported 43.4 mm from silver body to metal USB-C plug; excludes plug. Caliper resolution and repeat readings pending.",
+        "validation_status": "operator_reported"
+      },
+      "neck_width": {
+        "value": 0.01296,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "reader_neck_width_01",
+        "method": "calipers",
+        "notes": "Operator reported 12.96 mm across black neck; caliper resolution and repeat readings pending.",
+        "validation_status": "operator_reported"
+      },
+      "neck_thickness": {
+        "value": 0.007,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "reader_neck_thickness_01",
+        "method": "calipers",
+        "notes": "Operator reported 7 mm between black neck top and bottom faces; caliper resolution and repeat readings pending.",
+        "validation_status": "operator_reported"
+      },
+      "plug_protrusion": {
+        "value": 0.0058,
+        "unit": "m",
+        "uncertainty": null,
+        "uncertainty_reason": "not reported",
+        "source_trial": "reader_plug_protrusion_01",
+        "method": "calipers",
+        "notes": "Operator reported 5.8 mm from black neck edge to metal USB-C plug tip; caliper resolution and repeat readings pending.",
+        "validation_status": "operator_reported"
+      }
+    },
+    "plug_protrusion_repeat_trials": [
+      "reader_plug_protrusion_01",
+      "reader_plug_protrusion_02",
+      "reader_plug_protrusion_03"
+    ],
+    "legacy_plug_axial_length": {
+      "value": 0.00665,
+      "unit": "m",
+      "source": "blind_insertion/assets/builder.py:USBC_PLUG_LEN",
+      "validation_status": "legacy_unverified"
+    },
+    "plug_length_note": "Reported exposed protrusion is 0.0058 m; compare definitions and seating geometry before changing legacy plug dimensions.",
+    "neck_flexibility": null,
+    "inertia": null
+  },
+  "controller": {
+    "source_run": "data/real_yam/usbc_lab_20261027/motion/right_pickup_mid_empty_hold_001/run.json",
+    "gains_and_compensation": {
+      "gains_before": [
+        [
+          80.0,
+          80.0,
+          80.0,
+          40.0,
+          10.0,
+          10.0
+        ],
+        [
+          5.0,
+          5.0,
+          5.0,
+          1.5,
+          1.5,
+          1.5
+        ]
+      ],
+      "kp": [
+        80.0,
+        80.0,
+        80.0,
+        30.0,
+        30.0,
+        30.0
+      ],
+      "kd": [
+        5.0,
+        5.0,
+        5.0,
+        2.0,
+        2.0,
+        2.0
+      ],
+      "gravity_comp_factor": [
+        1.0,
+        1.1,
+        1.1,
+        1.2,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "coulomb_friction": [
+        0.3,
+        0.3,
+        0.3,
+        0.06,
+        0.06,
+        0.06,
+        0.0
+      ]
+    },
+    "joint_offset_rad": [
+      0.0,
+      0.01267,
+      0.00026,
+      0.02318,
+      -0.01946,
+      0.0
+    ],
+    "validation_status": "logged_baseline_not_fitted",
+    "measured_torque": null
+  },
+  "camera": {
+    "spec_path": "blind_insertion/configs/real_cameras_duchamp3.json",
+    "spec_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+    "policy_crop_resolution": [
+      320,
+      320
+    ],
+    "policy_consumption_timestamps": null,
+    "validation_status": "calibration_retained_with_few_mm_relative_pose_uncertainty"
+  },
+  "unresolved": [
+    "port_2 pose and recess",
+    "PC feet insets and material",
+    "PC/reader inertias",
+    "contact force and compliance",
+    "reader neck flexibility",
+    "actual policy-consumed frame IDs",
+    "held-out controller validation"
+  ],
+  "source_sha256": {
+    "measurements.csv": "e157d47ba2e634fa851539b9c82dc7f77b5b4f3fb7ae4653af53a21232f4f82f",
+    "motion_run.json": "47fbfccb573e23382f22d46fbbcab1ba068d8ecee14f53e1dba250ea9f6f0f81",
+    "camera_spec": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c"
+  }
+}

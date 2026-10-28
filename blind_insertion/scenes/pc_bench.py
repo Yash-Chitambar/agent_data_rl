@@ -105,10 +105,69 @@ def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM, physical=True):
                      pos=[x, y, 0.0003], rgba=[0.05, 0.05, 0.06, 1], contype=0, conaffinity=0)
 
 
-def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
-    """CPU model of the full task H scene (pick + insert), from the same builder as PegEnv."""
+def _free_pc_spec(spec, profile):
+    """Turn the fixture into an experimental free PC with four approximate feet.
+
+    Uniform-box inertia and foot inset/friction are assumptions, not measurements. This is
+    a CPU scene for physics evaluation; existing Warp environments still use fixed fixtures.
+    """
+    vals = profile['pc']['measurements']
+    w, h, depth = (float(vals[k]['value']) for k in ('width', 'body_height', 'depth'))
+    mass = float(vals['mass']['value'])
+    foot_h = float(profile['pc']['pad_height_derived']['value'])
+    radius = float(vals['pad_diameter']['value']) / 2
+    if (min(w, h, depth, mass, foot_h, radius) <= 0 or radius * 2 >= min(w, depth)
+            or int(vals['pad_count']['value']) != 4 or PORT_HEIGHT - foot_h <= PLATE / 2):
+        raise ValueError('invalid PC dimensions, mass or feet')
+    fix = spec.body('fixture')
+    fix.mocap = False
+    fix.add_freejoint(name='pc_free_joint')
+    fix.explicitinertial = True
+    fix.mass = mass
+    # Box center in fixture coordinates: x across panel, y vertical, z into PC.
+    fix.ipos = [w / 2 - PORT_FROM_LEFT, -PORT_HEIGHT + foot_h + h / 2, -depth / 2]
+    fix.iquat = [1, 0, 0, 0]
+    fix.inertia = [mass * (h*h + depth*depth) / 12,
+                   mass * (w*w + depth*depth) / 12,
+                   mass * (w*w + h*h) / 12]
+    # Fixture/table previously shared a non-colliding bit. Add a dedicated support bit.
+    support_bit = 16
+    table = spec.geom('table')
+    table.conaffinity |= support_bit
+    for geom in fix.geoms:
+        if geom.name.startswith(('fix_', 'fixbox_')):
+            geom.contype |= support_bit
+    for x in (-PORT_FROM_LEFT + radius, w - PORT_FROM_LEFT - radius):
+        for z in (-radius, -depth + radius):
+            fix.add_geom(name=f'pc_pad_{len(fix.geoms)}', type=mujoco.mjtGeom.mjGEOM_CYLINDER,
+                         pos=[x, -PORT_HEIGHT + foot_h / 2, z],
+                         quat=[math.sqrt(.5), math.sqrt(.5), 0, 0], size=[radius, foot_h / 2, 0],
+                         rgba=[.1, .1, .1, 1], mass=0, contype=support_bit, conaffinity=1,
+                         priority=2, friction=[.6, .01, .001], condim=4)
+
+
+def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
+                support_mode='fixed', profile=None):
+    """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode."""
     from blind_insertion.assets import builder as B   # noqa: PLC0415
-    variant = variant or B.reader_variant()
+    if support_mode not in ('fixed', 'free'):
+        raise ValueError(f'unsupported PC support mode: {support_mode}')
+    if support_mode == 'free':
+        if profile is None or profile.get('schema') != 'usbc-rig-profile-v0':
+            raise ValueError('free PC scene requires an explicit provisional measured profile')
+        if detailed:
+            raise ValueError('legacy decorative PC geometry is not compatible with the measured free scene; use detailed=False')
+        r = profile['reader']['measurements']
+        pc = profile['pc']['measurements']
+        feet_h = float(profile['pc']['pad_height_derived']['value'])
+        size = (float(pc['width']['value']), float(pc['body_height']['value']), float(pc['depth']['value']))
+        boxes = pc_case_boxes(port_h=PORT_HEIGHT - feet_h, size=size)
+        variant = variant or B.reader_variant(body=tuple(float(r[k]['value']) for k in ('body_width','body_thickness','body_length')),
+                                               neck=tuple(float(r[k]['value']) for k in ('neck_width','neck_thickness','neck_length')),
+                                               mass=float(r['mass']['value']))
+    else:
+        boxes = pc_case_boxes()
+        variant = variant or B.reader_variant()
     def decorate(sp):
         add_scene(sp, top_cam, physical=physical)
         if detailed:
@@ -117,8 +176,10 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
         if physical:
             from blind_insertion.scenes.physical_rig import decorate as decorate_rig
             decorate_rig(sp)
+        if support_mode == 'free':
+            _free_pc_spec(sp, profile)
 
-    m, lay = B.build("yam", [variant], pad_spheres=4, table_top=0.0, fixture_boxes=pc_case_boxes(),
+    m, lay = B.build("yam", [variant], pad_spheres=4, table_top=0.0, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")
     B.apply_variant_cpu(m, lay, 0)
     cfg = json.loads(CONFIG.read_text())        # the insertion env's pad contact (PegEnv._apply_starts)
@@ -167,8 +228,20 @@ def place_pc(m, d, port_xy=PORT_XY, yaw_deg=0.0):
     import torch                                        # noqa: PLC0415
     R = K.rpy_mat(torch.tensor([0.0, 0.0, math.radians(yaw_deg)])) @ K.rpy_mat(
         torch.tensor(PORT_BASE_RPY_DEG) * math.pi / 180)
-    d.mocap_pos[0] = [port_xy[0], port_xy[1], PORT_HEIGHT]
-    d.mocap_quat[0] = K.mat_to_quat(R).numpy()
+    position = [port_xy[0], port_xy[1], PORT_HEIGHT]
+    quat = K.mat_to_quat(R).numpy()
+    body = m.body('fixture').id
+    mid = int(m.body_mocapid[body])
+    if mid >= 0:
+        d.mocap_pos[mid] = position
+        d.mocap_quat[mid] = quat
+    else:
+        joint = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, 'pc_free_joint')
+        if joint < 0:
+            raise ValueError('fixture has neither mocap nor PC free joint')
+        qadr, dadr = m.jnt_qposadr[joint], m.jnt_dofadr[joint]
+        d.qpos[qadr:qadr + 7] = [*position, *quat]
+        d.qvel[dadr:dadr + 6] = 0
 
 
 R_TOP_TCP = ((0., -1., 0.), (0., 0., -1.), (1., 0., 0.))   # tcp in the port/part frame (PegEnv "top")

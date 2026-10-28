@@ -1,0 +1,29 @@
+{
+  "status": "no acceptable candidate found; not evidence of unreachable task",
+  "target_tcp_right_base_m": [
+    0.178,
+    0.144,
+    0.18
+  ],
+  "target_yaw_assumption_deg": 11,
+  "joint3_encoder_fixed_rad": 0.004768444342717615,
+  "method": "two-seed bounded five-joint least-squares IK, position/orientation residual and table/reach path check",
+  "candidates": [
+    {
+      "position_error_mm": 59.17,
+      "orientation_error_deg": 80.32,
+      "table_reach_path": "passed"
+    },
+    {
+      "position_error_mm": 92.64,
+      "orientation_error_deg": 84.08,
+      "table_reach_path": "rejected; finger clearance 73 mm versus 75 mm"
+    }
+  ],
+  "limitations": [
+    "approximate reader pose and camera calibration",
+    "only two seeds and one height tried",
+    "no PC, cable or other-arm collision certification",
+    "not tested on robot"
+  ]
+}

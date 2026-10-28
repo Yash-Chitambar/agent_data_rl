@@ -220,6 +220,24 @@ a payload larger than the code-sync cutoff and deliberate corruption. Current
 `scripts/server/sync_up.sh` is code sync and its size filtering is not a recording
 transfer mechanism. No new sync command is claimed implemented in this plan commit.
 
+Local implementation after the plan commit: `scripts/server/sync_usbc_session.py` creates a SHA-256 manifest for a finalized session directory, supports resumable checksum-based rsync to a staging directory, verifies destination contents, and creates `usbc_session_complete.json` only after verification. It refuses a different manifest or an unrelated nonempty destination and never deletes destination files. Local offline checks covered a 55 MiB interrupted partial file, source mutation, destination corruption and conflicts. Remote behavior still needs verification on mason when its actual address is available. The active duchamp3 session is still being collected: do not create its immutable manifest until it is finalized. Stage the separate `data/sim_ref/usbc_lab_20261027_port/` images, relevant calibration files and camera spec into the bundle before manifesting; they are not automatically included when only `data/real_yam/usbc_lab_20261027/` is synced.
+
+Once collection is finalized, a new staging bundle can be created and verified without altering the source session:
+
+```bash
+.venv/bin/python scripts/server/sync_usbc_session.py stage data/real_yam/usbc_lab_20261027 /path/to/new_bundle \
+  --reference data/sim_ref/usbc_lab_20261027_port \
+  --reference data/calib/usbc_recal_20261027 \
+  --reference data/calib/run_001 \
+  --metadata blind_insertion/configs/real_cameras_duchamp3.json \
+  --metadata docs/USB_C_IMAGE_HANDOFF_20261027.md
+.venv/bin/python scripts/server/sync_usbc_session.py manifest /path/to/new_bundle
+.venv/bin/python scripts/server/sync_usbc_session.py verify /path/to/new_bundle
+.venv/bin/python scripts/server/sync_usbc_session.py sync /path/to/new_bundle /absolute/remote/staging/path --host user@server
+```
+
+Add any other calibration or episode references used by the finalized manifest before freezing it. `stage` refuses an existing bundle; after `manifest`, any change to the source bundle fails verification. The destination completion marker indicates that all manifest files and their checksums were verified, not that the measurement or policy gates passed.
+
 Commit code, plans, compact manifests and summaries; transfer raw video/images and
 weights through artifact storage. Each compact manifest records immutable artifact
 location, size and hash. Collection acceptance requires offline replay and schema/fault

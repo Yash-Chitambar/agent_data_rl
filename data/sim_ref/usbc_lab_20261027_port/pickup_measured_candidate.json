@@ -1,0 +1,25 @@
+{
+  "source_image": "pickup_measured_zed_left.png",
+  "reader_xy_assumption_m": [
+    0.178,
+    0.144
+  ],
+  "reader_yaw_assumption_deg": 11.0,
+  "tcp_target_right_base_m": [
+    0.178,
+    0.144,
+    0.18
+  ],
+  "candidate_encoder_joints_rad": [
+    0.6816,
+    1.4241,
+    1.4587,
+    -1.6162,
+    0.0195,
+    0.4897
+  ],
+  "ik_position_residual_m": 4.8e-08,
+  "ik_orientation_residual_rad": 2e-07,
+  "path_check": "offline table/reach checker passed from zero joints; actual start pose, PC/reader, other arm, cable and real gripper clearance not verified",
+  "status": "offline candidate only; not authorized for motion until complete path and live scene reviewed"
+}

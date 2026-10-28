@@ -1,0 +1,145 @@
+{
+  "created_utc": "2026-10-28T05:28:45.419438+00:00",
+  "args": {
+    "cmd": "single",
+    "session": "data/real_yam/usbc_lab_20261027",
+    "name": "right_pickup_high_empty_hold_001",
+    "run": true,
+    "mode": "hold",
+    "joint": 3,
+    "amp": 0.02,
+    "rate": 0.02,
+    "dwell": 1.0,
+    "reps": 3,
+    "seconds": 10.0,
+    "infer": false,
+    "side": "right",
+    "start": [
+      0.6816,
+      1.4241,
+      1.4587,
+      -1.6162,
+      0.0195,
+      0.4897
+    ]
+  },
+  "calibration_file": "/home/yashc/agent_data_rl/blind_insertion/configs/real_cameras_duchamp3.json",
+  "control_dt_s": 0.02,
+  "feedback_note": "q and qd are raw encoder-frame state; q_target_velocity_rad_s is the finite difference of planned targets, not a motor velocity command. joint_eff_driver and temperatures are uncalibrated driver reports, not measured output torque. Motor current and output torque are unavailable. encoder_<side>.csv contains native-arrival positions only. Missing telemetry is null. t_send is first matching CAN burst.",
+  "arm": {
+    "right": {
+      "initial_q_encoder": [
+        -0.009346150911726525,
+        0.0036240177004653873,
+        0.005149919890135024,
+        -0.0993743801022351,
+        0.013542381933318026,
+        -0.034142061493861675
+      ],
+      "rest_target_q_encoder": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "start_q_encoder": [
+        0.6816,
+        1.4241,
+        1.4587,
+        -1.6162,
+        0.0195,
+        0.4897
+      ],
+      "interface": "can0",
+      "gains": {
+        "gains_before": [
+          [
+            80.0,
+            80.0,
+            80.0,
+            40.0,
+            10.0,
+            10.0
+          ],
+          [
+            5.0,
+            5.0,
+            5.0,
+            1.5,
+            1.5,
+            1.5
+          ]
+        ],
+        "kp": [
+          80.0,
+          80.0,
+          80.0,
+          30.0,
+          30.0,
+          30.0
+        ],
+        "kd": [
+          5.0,
+          5.0,
+          5.0,
+          2.0,
+          2.0,
+          2.0
+        ],
+        "gravity_comp_factor": [
+          1.0,
+          1.1,
+          1.1,
+          1.2,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "coulomb_friction": [
+          0.3,
+          0.3,
+          0.3,
+          0.06,
+          0.06,
+          0.06,
+          0.0
+        ]
+      },
+      "joint_offset_rad": [
+        0.0,
+        0.01267,
+        0.00026,
+        0.02318,
+        -0.01946,
+        0.0
+      ],
+      "measurement_pose_q_encoder": [
+        0.6816,
+        1.4241,
+        1.4587,
+        -1.6162,
+        0.0195,
+        0.4897
+      ],
+      "measurement_pose_reached_q_encoder": [
+        0.6773098344396118,
+        1.41432059205005,
+        1.4295796139467463,
+        -1.6115434500648487,
+        0.015068284122987663,
+        0.4861905851834898
+      ],
+      "measurement_pose_error_rad": [
+        -0.004290165560388193,
+        -0.009779407949950025,
+        -0.029120386053253844,
+        0.004656549935151411,
+        -0.004431715877012337,
+        -0.003509414816510237
+      ]
+    }
+  },
+  "stop_reason": "right did not reach the requested measurement pose: max error 0.029 rad > 0.020 rad; holding"
+}

@@ -1,0 +1,45 @@
+{
+  "source_image": "reader_pickup_start_zed_left.png",
+  "metadata": "reader_pickup_start.json",
+  "camera_spec": "blind_insertion/configs/real_cameras_duchamp3.json",
+  "world_frame": "right arm base; metres; yaw about +z",
+  "method": "manual pixel landmarks projected with rectified ZED intrinsics/extrinsics; rays intersect assumed feature heights",
+  "pixel_landmarks": {
+    "reader_body_center_px": [
+      1197,
+      716
+    ],
+    "reader_plug_tip_px": [
+      1176,
+      655
+    ],
+    "pc_front_panel_center_approx_px": [
+      1130,
+      582
+    ]
+  },
+  "projected_estimates": {
+    "reader_body_center_xy_m": [
+      0.17836701842747285,
+      0.1439568718990871
+    ],
+    "reader_body_top_height_assumed_m": 0.008,
+    "usb_plug_tip_xy_m": [
+      0.24168820539384908,
+      0.15618075021426658
+    ],
+    "plug_tip_height_assumed_m": 0.004,
+    "plug_axis_yaw_deg": 10.926294212244883,
+    "pc_front_panel_center_xy_m": [
+      0.3083503234293705,
+      0.19673643693101853
+    ],
+    "pc_panel_height_assumed_m": 0.025
+  },
+  "uncertainty_estimate": {
+    "reader_xy_m": 0.01,
+    "reader_yaw_deg": 10,
+    "reason": "manual pixels, assumed feature heights, active extrinsic few-mm uncertainty; housing corners are blurred and do not fit a rectangle consistently"
+  },
+  "status": "provisional scene initialization only; do not fit reader footprint or port geometry from this estimate; USB-C target center remains unresolved"
+}

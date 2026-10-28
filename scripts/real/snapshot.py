@@ -106,7 +106,8 @@ def cmd_point(a):
     T_r_l = T_pose(spec["arms"]["left_base_in_right_base"])
     tgt_r = np.array([a.target[0], a.target[1], 0.0])
     goals = {}
-    for side in SIDES:   # plan both before anything moves
+    sides = (a.side,) if getattr(a, "side", None) else SIDES
+    for side in sides:   # plan selected arms before anything moves
         tgt = tgt_r if side == "right" else (calib.T_inv(T_r_l) @ np.append(tgt_r, 1))[:3]
         X = T_pose(spec["wrist"][side]["pose_in_link6"])
         goals[side] = (tgt, X)
@@ -115,11 +116,11 @@ def cmd_point(a):
 
     movers, rest = {}, {}
     try:
-        for side in SIDES:
+        for side in sides:
             movers[side] = calib.Mover(side, kin, checker)
             rest[side] = movers[side].joints()
         plans = {}
-        for side in SIDES:
+        for side in sides:
             tgt, X = goals[side]
             off = rig.joint_offsets(side)
             R_ref = (kin.fk(rest[side][:6] + off) @ X)[:3, :3]
@@ -148,12 +149,12 @@ def cmd_point(a):
             if q is None:
                 raise SystemExit(f"{side}: no safe pose looks at {tgt.round(3)}; nothing moved")
             plans[side] = q
-        for side in SIDES:
+        for side in sides:
             print(f"moving {side}", flush=True)
             movers[side].move_to(plans[side])
-        q_now = {s: movers[s].joints() for s in SIDES}
+        q_now = {s: movers[s].joints() for s in sides}
         cams = {}
-        for s in SIDES:
+        for s in sides:
             T = kin.fk(q_now[s][:6] + rig.joint_offsets(s)) @ goals[s][1]
             if s == "left":
                 T = T_r_l @ T
@@ -161,10 +162,22 @@ def cmd_point(a):
             qq = np.zeros(4)
             mujoco.mju_mat2Quat(qq, T[:3, :3].flatten())
             cams[s] = {"pos": T[:3, 3].round(5).tolist(), "quat": qq.round(5).tolist()}
-        grab_zed(out, a.tag)
-        grab_wrists(out, a.tag, spec)
-        write_meta(out, a.tag, spec, q_now, {"target_in_right_base": tgt_r.tolist(),
-                                             "wrist_cam_in_right_base": cams})
+        if not getattr(a, "move_only", False):
+            grab_zed(out, a.tag)
+            for s in sides:
+                w = calib.WristCam(s)
+                try:
+                    f = w.grab()
+                finally:
+                    w.close()
+                cv2.imwrite(str(out / f"{a.tag}_wrist_{s}.png"), f)
+                cv2.imwrite(str(out / f"{a.tag}_wrist_{s}_policy.png"),
+                            cv2.cvtColor(real_policy_image(f, spec, 480, s), cv2.COLOR_RGB2BGR))
+            write_meta(out, a.tag, spec, q_now, {"target_in_right_base": tgt_r.tolist(),
+                                                 "wrist_cam_in_right_base": cams})
+        if getattr(a, "hold", False):
+            print("At target pose. Press Enter when ready to return this arm to its starting pose.", flush=True)
+            input()
     except (safety.SafetyStop, KeyboardInterrupt) as e:
         for m in movers.values():
             m.hold()
@@ -188,5 +201,8 @@ if __name__ == "__main__":
     c.add_argument("--out", required=True)
     c.add_argument("--target", type=float, nargs=2, required=True, help="x y (m) in the right base frame")
     c.add_argument("--tag", default="pointed")
+    c.add_argument("--side", choices=SIDES, help="move only this arm")
+    c.add_argument("--move-only", action="store_true", help="move and hold without taking images")
+    c.add_argument("--hold", action="store_true", help="wait for Enter before returning to start")
     a = ap.parse_args()
     {"capture": cmd_capture, "point": cmd_point}[a.cmd](a)

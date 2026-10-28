@@ -1,0 +1,7 @@
+# USB-C lab handoff branch
+
+This branch preserves the duchamp3 USB-C lab tools, compact session records and two reference images, independently of the physical-validation deployment branch. The original session directory on duchamp3 remains the source of the full raw recordings. Some CSV line endings were normalized in this compact Git copy; use the original session bundle and its own checksums for raw-data provenance.
+
+The overhead ZED left and centered right-wrist reference images are included. Other images, videos, robot logs and camera frames mentioned in the image handoff and session README remain artifacts on duchamp3 and must be transferred with `scripts/server/sync_usbc_session.py` or another checksum-verified artifact transfer; paths listed in those documents are not all present in this Git branch. Model weights are likewise not included.
+
+The free-PC scene, friction experiments and measurement collectors are provisional research tools, not a validated training profile or a deployment-ready safety system. The `measure_grasp.py` hardware procedure requires an operator: an earlier reader was dropped when torque was disabled; consult the session events and README before use. No gripping or insertion force has been measured. Camera extrinsic candidate validation was inconclusive; preserve the lab's active camera spec and independently assess calibration differences in other branches.

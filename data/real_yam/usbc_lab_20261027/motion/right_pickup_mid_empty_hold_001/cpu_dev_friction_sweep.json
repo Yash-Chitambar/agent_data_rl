@@ -1,0 +1,48 @@
+{
+  "status": "development sensitivity sweep; no candidate promoted",
+  "measurement": "same midpoint approach, no held-out data",
+  "candidates": [
+    {
+      "frictionloss_nm": 0.01,
+      "joint3_rmse_rad": 0.026623146738214323,
+      "final_joint3_sim_minus_real_rad": 0.02746212222258604,
+      "artifact_stem": "cpu_baseline_replay"
+    },
+    {
+      "frictionloss_nm": 0.5,
+      "joint3_rmse_rad": 0.021032416567188836,
+      "final_joint3_sim_minus_real_rad": 0.024805548275630973,
+      "artifact_stem": "cpu_dev_friction_0p5"
+    },
+    {
+      "frictionloss_nm": 1,
+      "joint3_rmse_rad": 0.015474758296729556,
+      "final_joint3_sim_minus_real_rad": 0.02225151240780565,
+      "artifact_stem": "cpu_dev_friction_1"
+    },
+    {
+      "frictionloss_nm": 2,
+      "joint3_rmse_rad": 0.005686644488909238,
+      "final_joint3_sim_minus_real_rad": 0.017457881495377747,
+      "artifact_stem": "cpu_dev_friction_2"
+    },
+    {
+      "frictionloss_nm": 3,
+      "joint3_rmse_rad": 0.008560854083323096,
+      "final_joint3_sim_minus_real_rad": 0.013064814018031057,
+      "artifact_stem": "cpu_dev_friction_3"
+    },
+    {
+      "frictionloss_nm": 4,
+      "joint3_rmse_rad": 0.018414268520622605,
+      "final_joint3_sim_minus_real_rad": 0.009056902953004653,
+      "artifact_stem": "cpu_dev_friction_4"
+    }
+  ],
+  "limitations": [
+    "no contacts",
+    "real driver gravity/friction feedforward is not reproduced",
+    "single approach, fixed timestep; no repeatability or held-out evaluation",
+    "frictionloss is a simulator parameter, not a measured torque or contact force"
+  ]
+}

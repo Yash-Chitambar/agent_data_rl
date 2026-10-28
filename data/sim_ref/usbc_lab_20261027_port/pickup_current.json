@@ -1,0 +1,32 @@
+{
+ "time": "2026-10-27 22:16:16 PDT",
+ "camera_spec": "blind_insertion/configs/real_cameras_duchamp3.json",
+ "frames": "right base frame = the right arm's base, table plane z = 0; poses OpenCV camera frames {pos m, quat wxyz}; joints as measured (add spec arms offsets for the model)",
+ "zed_in_right_base": {
+  "pos": [
+   -0.21424,
+   0.33335,
+   0.88196
+  ],
+  "quat": [
+   -0.20224,
+   0.68075,
+   -0.67623,
+   0.19596
+  ],
+  "_note": "ZED HD1080 rectified-left optical frame (OpenCV) in the right base: refit 2026-10-26 by scripts/real/fit_zed.py from 3 board positions located by the wrist cameras (data/calib/zedfit/pos1, data/calib/zedfit/pos2, data/calib/zedfit/pos3)"
+ },
+ "left_base_in_right_base": {
+  "pos": [
+   -0.01011,
+   0.60771,
+   -0.00081
+  ],
+  "quat": [
+   0.99996,
+   -0.00224,
+   -0.00361,
+   0.00831
+  ]
+ }
+}

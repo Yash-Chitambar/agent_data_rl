@@ -1,0 +1,19 @@
+item,side,quantity,value,unit,uncertainty,method,trial_id,notes
+arm_base_axis_centers,both,center_distance_approx,,,,manual tape estimate,base_spacing_informal_01,Operator reports approximately 607-608 mm between joint-1 base-axis centers; tape precision no better than 1 mm; individual repeat readings not recorded; numeric value intentionally left blank.
+gmk_tec_pc,none,mass,0.284,kg,,scale,pc_mass_01,Operator reported 284 g; scale resolution and repeat readings pending.
+gmk_tec_pc,none,width,0.1025,m,,calipers,pc_width_01,operator reported 102.5 mm; orientation left-right when viewing port panel; repeat/resolution pending
+gmk_tec_pc,none,depth_front_back,0.097,m,,calipers,pc_depth_front_back_01,"operator reported length 97.00 mm; assumed front-back depth, confirm orientation; repeat/resolution pending"
+gmk_tec_pc,none,height_without_feet,0.0412,m,,calipers,pc_height_without_feet_01,operator reported 41.2 mm; repeat/resolution pending
+gmk_tec_pc,none,height_with_feet,0.0445,m,,calipers,pc_height_with_feet_01,operator reported 44.5 mm; repeat/resolution pending
+gmk_tec_pc_feet,none,pad_count,4.0,count,,visual,pc_feet_count_01,"Operator reports four round underside pads; pad diameters, locations, material and individual heights pending."
+gmk_tec_pc_feet,none,pad_diameter,0.005,m,,calipers_reported,pc_pad_diameter_01,Operator answered 5 mm to pad-diameter request; exact repeatability/resolution pending. Four pads modeled at bottom corners by operator preference; insets not measured.
+sandisk_usb_c_sd_reader,none,mass,0.017,kg,,operator_report,reader_mass_01,Operator reports 17 g for the USB-C hub/reader; scale resolution and repeat readings pending.
+sandisk_usb_c_sd_reader_body,none,width,0.0346,m,,calipers,reader_body_width_01,"Operator reported 34.6 mm across silver body using calipers; instrument resolution, uncertainty and repeat measurements pending."
+sandisk_usb_c_sd_reader_body,none,length,0.0296,m,,calipers,reader_body_length_01,Operator reported 29.6 mm for silver body only; caliper resolution and repeat readings pending.
+sandisk_usb_c_sd_reader_body,none,thickness,0.00875,m,,calipers,reader_body_thickness_01,Operator reported 8.75 mm between silver body flat faces; caliper resolution and repeat readings pending.
+sandisk_usb_c_sd_reader_neck,none,length,0.0434,m,,calipers,reader_neck_length_01,Operator reported 43.4 mm from silver body to metal USB-C plug; excludes plug. Caliper resolution and repeat readings pending.
+sandisk_usb_c_sd_reader_neck,none,width,0.01296,m,,calipers,reader_neck_width_01,Operator reported 12.96 mm across black neck; caliper resolution and repeat readings pending.
+sandisk_usb_c_sd_reader_neck,none,thickness,0.007,m,,calipers,reader_neck_thickness_01,Operator reported 7 mm between black neck top and bottom faces; caliper resolution and repeat readings pending.
+sandisk_usb_c_sd_reader_plug,none,protrusion,0.0058,m,,calipers,reader_plug_protrusion_01,Operator reported 5.8 mm from black neck edge to metal USB-C plug tip; caliper resolution and repeat readings pending.
+sandisk_usb_c_sd_reader_plug,none,protrusion,0.0058,m,,calipers,reader_plug_protrusion_02,Second operator-reported reading: 5.8 mm; instrument resolution pending.
+sandisk_usb_c_sd_reader_plug,none,protrusion,0.0058,m,,calipers,reader_plug_protrusion_03,Third operator-reported reading: 5.8 mm; instrument resolution pending.

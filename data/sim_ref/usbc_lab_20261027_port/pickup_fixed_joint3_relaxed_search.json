@@ -1,0 +1,21 @@
+{
+  "status": "no candidate found; search does not prove unreachable",
+  "reader_center_assumption_m": [
+    0.178,
+    0.144
+  ],
+  "tcp_height_m": 0.18,
+  "joint3_encoder_fixed_rad": 0.004768444342717615,
+  "orientation": "tool z axis down; yaw unrestricted",
+  "method": "25 seeded bounded least-squares IK attempts with finite-difference Jacobian",
+  "acceptance": {
+    "position_error_m": 0.005,
+    "tool_tilt_deg": 10
+  },
+  "candidates_meeting_pose_tolerance": 0,
+  "limitations": [
+    "one height and fixed joint-3 value only",
+    "approximate reader pose and extrinsics",
+    "no real robot test or full collision clearance"
+  ]
+}

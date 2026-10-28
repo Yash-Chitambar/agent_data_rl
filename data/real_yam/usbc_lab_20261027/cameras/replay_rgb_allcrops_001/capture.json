@@ -1,0 +1,63 @@
+{
+  "started_utc": "2026-10-28T05:57:02.607425+00:00",
+  "host_start_monotonic_ns": 1908549388224774,
+  "requested_seconds": 8.0,
+  "calibration_file": "/home/yashc/agent_data_rl/blind_insertion/configs/real_cameras_duchamp3.json",
+  "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "save_every": 10,
+  "policy_save_every": 1,
+  "startup_failed": false,
+  "results": {
+    "zed": {
+      "frames": 239,
+      "exact_repeats": 0,
+      "settings": {
+        "resolution": [
+          1920,
+          1080
+        ],
+        "fps": 30,
+        "view": "SDK rectified left",
+        "depth_mode": "NONE",
+        "serial": 20120598
+      }
+    },
+    "wrist_right": {
+      "frames": 156,
+      "exact_repeats": 0,
+      "settings": {
+        "fps": 30.0,
+        "fourcc": 1196444237.0,
+        "exposure": 50.0,
+        "gain": 64.0,
+        "white_balance": 4600.0,
+        "focus": -1.0,
+        "auto_exposure": 3.0,
+        "resolution": [
+          1280,
+          1024
+        ],
+        "device": "/dev/v4l/by-path/pci-0000:16:00.4-usb-0:2:1.0-video-index0"
+      }
+    },
+    "wrist_left": {
+      "frames": 156,
+      "exact_repeats": 0,
+      "settings": {
+        "fps": 30.0,
+        "fourcc": 1196444237.0,
+        "exposure": 100.0,
+        "gain": 64.0,
+        "white_balance": 4600.0,
+        "focus": -1.0,
+        "auto_exposure": 3.0,
+        "resolution": [
+          1280,
+          1024
+        ],
+        "device": "/dev/v4l/by-path/pci-0000:16:00.3-usb-0:2:1.0-video-index0"
+      }
+    }
+  },
+  "clock_note": "ZED image timestamps and host monotonic timestamps have not been aligned. Wrist hardware exposure time and policy consumption time are unavailable; policy_ready_ns is preprocessing completion, not model input time."
+}

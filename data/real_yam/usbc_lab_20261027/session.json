@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "created_utc": "2026-10-27T22:58:53.425689+00:00",
+  "local_timezone": "PDT",
+  "git_commit": "100b92def19b653228c794160928f92a00667de9",
+  "calibration_file": "/home/yashc/agent_data_rl/blind_insertion/configs/real_cameras_duchamp3.json",
+  "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "operator": "yashc",
+  "session_id": "usbc_lab_20261027",
+  "world_frame": "right_arm_base; metres; quaternion w,x,y,z",
+  "joint_frame": "raw motor encoder; q_model = q_encoder + calibrated_offset",
+  "clock_domains": {
+    "host_monotonic_ns": "CLOCK_MONOTONIC; not directly UTC or camera hardware time"
+  },
+  "mounts_and_payload": "both arm bases clamped; payload details pending",
+  "surface_condition": "desk surface; material and condition pending",
+  "notes": "ZED board run_001; cross-camera verification data/calib/verify_lab_20261027 PASS on three views; left_40 had no safe pose; free PC task; manual dimensions pending"
+}

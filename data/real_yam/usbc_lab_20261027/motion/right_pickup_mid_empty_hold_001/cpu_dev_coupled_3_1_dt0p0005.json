@@ -1,0 +1,46 @@
+{
+  "run": "data/real_yam/usbc_lab_20261027/motion/right_pickup_mid_empty_hold_001",
+  "source": "approach",
+  "initial_state": "first approach observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
+  "joint3_frictionloss_nm": 0.0,
+  "experimental_stiction_nm": [
+    3.0,
+    1.0
+  ],
+  "experimental_stiction_mode": "coupled",
+  "experimental_state_steps": {
+    "sticking": 3122,
+    "sliding": 10241
+  },
+  "limitations": [
+    "contacts disabled",
+    "driver gravity and friction feedforward are not reproduced",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth"
+  ],
+  "native_feedback_samples": 2319,
+  "input_sha256": {
+    "run.json": "47fbfccb573e23382f22d46fbbcab1ba068d8ecee14f53e1dba250ea9f6f0f81",
+    "approach.csv": "1127c0488fb171d35b8a6d09fe674d63ac118d3a512c252e7b682726a1980614",
+    "encoder_right.csv": "227d7435d54d00a9fa418ff8431d4e35ea6535657ba151193cbd50b7ee4f8155"
+  },
+  "joint_rmse_rad": [
+    0.002019860721228911,
+    0.004063218478874106,
+    0.014654119774851976,
+    0.006220238433106404,
+    0.002806511984201214,
+    0.002487271163728796
+  ],
+  "joint_peak_abs_error_rad": [
+    0.006181793496038505,
+    0.006695122581804491,
+    0.02092812128854582,
+    0.02086109959279292,
+    0.004962204035580125,
+    0.005272570799880999
+  ],
+  "model_timestep_s": 0.0005
+}
