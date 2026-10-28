@@ -110,7 +110,13 @@ class TaskH:
                 a = self.act.step(q, finger, fr["top"], fr["wrist"])
                 row.update(act_ms=(time.perf_counter() - t0) * 1e3, age_ms={c: x * 1e3 for c, x in age.items()},
                            done_out=float(a[7]))
-                go = bool(self.gate(torch.tensor([a[7]]), torch.tensor([not a[6] > 0]), torch.tensor([finger]),
+                closed_with_reader = not a[6] > 0
+                if be.truth() is None:
+                    from deploy.grasp import reader_present
+                    gc = cfg["gripper"]
+                    closed_with_reader &= reader_present(g, gc["g_empty"], gc["g_reader"])
+                    row["reader_present_encoder"] = bool(closed_with_reader)
+                go = bool(self.gate(torch.tensor([a[7]]), torch.tensor([closed_with_reader]), torch.tensor([finger]),
                                     torch.as_tensor(qd[None], dtype=torch.float32), p[None])[0])
                 if not go and k >= T_pick - 1 and be.truth() is None:
                     stop = "pickup timeout without a valid grasp handoff"
