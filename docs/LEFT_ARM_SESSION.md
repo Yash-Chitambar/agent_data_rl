@@ -45,3 +45,9 @@ Review and test arm ownership, camera loss, stop during approach/contact, write 
 ## Stationary left/right grasp collector
 
 `measure_grasp_stationary.py --side left --session SESSION --name left_reader_001 --rig-code-root /home/yashc/agent_data_rl` uses the explicitly selected working rig's safety/ownership code. It accepts either side and sends no arm trajectories. Connect with empty jaws; it records open and empty-closed readings, waits for the operator to place/support the reader, records object-held readback and operator retention confirmation, then waits for retrieval before opening. On interruption while an object may be held it retains power until explicit SECURED confirmation. Only normalized readings and qualitative retention are measured. Syntax checked; full hardware commissioning is pending its first supervised trial. No PC force or compliance accuracy is implied.
+
+## Shared evidence export
+
+After collection, `scripts/tools/export_bimanual_profile.py --session LEFT_SESSION --right-session RIGHT_SESSION --camera-spec CAMERA_JSON --out NEW_PROFILE_JSON` exports per-arm controller evidence, left grasp trials, mounting geometry, retained left-base transform and source checksums. It refuses overwrite. The exporter does not fit parameters or fill missing PC–arm contact values. Use a new output version after new measurements. Current local snapshot: `/home/yashc/left_bimanual_session/bimanual_evidence_v1.json`.
+
+The mounting platform is one shared plate under both bases, 23 mm above the PC tabletop. Its footprint remains to be surveyed; retain both collision surfaces rather than lowering a single table geom and discarding the platform. An overhead marker survey is a coarse geometric reference, not force or compliance measurement.
