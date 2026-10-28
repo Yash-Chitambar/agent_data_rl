@@ -1,9 +1,9 @@
 {
- "staged": "2026-10-28 02:48:18 UTC",
+ "staged": "2026-10-28 03:51:28 UTC",
  "files": {
   "act_pick.pt": {
-   "source": "/home/yashchitambar/peg_test/runs/H-act-pick-v5/act_60k_traced.pt",
-   "sha256": "d9ae6535b4a469562eddbc9ddb31c6eaf4491602d804f91188e124cc657f33d6"
+   "source": "/home/yashchitambar/peg_test/runs/H-act-pick-v5/act_100k_traced.pt",
+   "sha256": "0cb5933c1a5b54507f76094faa518b70c3824b882c4d427e0d62b731a26d89c2"
   },
   "insert.pt": {
    "source": "/home/yashchitambar/peg_test/runs/H-reader-tilt-uncomp-s1/last.pt",
@@ -14,5 +14,5 @@
    "sha256": "8d3a131b5872d39e27d3a424e516c2166a9be6f57a8aff8628d50d8b6f12bf32"
   }
  },
- "note": "provisional: v5 60k until the 80k/100k comparison"
+ "note": "v5 100k: pipeline 96.9% [94.0, 98.4], n=256 seed 300 (80k: 92.2%)"
 }

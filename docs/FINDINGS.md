@@ -104,6 +104,44 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-28 (night, mason) — Task H: ACT v5 100k chosen; deploy/ runner; release needs a timer
+
+- **Finalist comparison** (v5 80k vs 100k only), same 256 episodes (seed 300), fixed gate, uncomp
+  500M insertion, enc +-0.3 deg, feed-forward 0.5 / 20 mrad (`results/H/act_v5/*_n256*`):
+
+  | ACT | Success | Seated after release | Held | Handoff lateral (median / p90) |
+  |---|---|---|---|---|
+  | v5 80k | 92.2% [88.2, 94.9] | 87.1% | 94% | 2.6 / 6.6 mm |
+  | v5 100k | **96.9% [94.0, 98.4]** | **91.4%** | 98% | 3.1 / 5.7 mm |
+
+  v5 100k goes to the real arm (staged in `deploy/models`, MANIFEST with sha256). At n=128
+  (seed 100) 100k gave 96.9% too.
+- **The insertion policy never stops pushing after the plug seats.** Training episodes end at
+  success, so it has not seen those states. The hand slides along the reader: tcp travel since the
+  handoff is 11-23 mm at first seating (it also slides before seating) and 55 mm median, 189 mm p90
+  after 10 s. Neither a speed stall nor a travel threshold detects seating (travel >= 4-10 mm fires
+  on 0/64 seated plugs). Seated fraction against time after the handoff (64 worlds, v5 60k): 2 s 48%,
+  3 s 79%, 5 s 90%, 10 s 88% (ever seated 89%). So the real arm releases at 5 s, or at 60 mm of tcp
+  travel (`handoff.ReleaseTrigger`). Same 256 episodes, v5 80k: seated after release 89.8% with the
+  trigger vs 87.1% with the sim-truth release. The timed release costs nothing.
+- **deploy/** (5b3cc98): one 50 Hz runner mirroring `pick_insert.run`. Handoff gate, ACT
+  ensembling and the release trigger are one module (`pipeline/handoff.py`) for sim and real;
+  `deploy/checks/handoff_equiv.py` shows it equals the code behind all earlier numbers.
+  `checks/conventions.py` matches the deploy kinematics, ready pose, pre-insert point, insertion
+  observation, offsets and gripper map to the sim. `scripts/real/deploy.py`'s ObsBuilder uses the linear
+  gripper tcp: wrong for this task (FlexPoint), not used.
+- **Dry run** (`deploy.runner sim`, the real runner code on one PickEnv world, encoder-frame
+  observations, v5 60k): 12/16 seated after release; all 16 handoffs within 7 mm lateral; the 4
+  failures are insertion misses (plug ends 17-21 mm off in y). Every target was replayed through
+  SafeArm's rules: 0 violations with the task clearances.
+- **Safety clearances.** ACT's grasp targets put the fingertips up to 9 mm below the table (the PD
+  error presses the fingers down; true sim fingertips reach -0.6 mm). safety.Checker (linear gripper,
+  tips >= 20 mm, raw motor angles) would stop every grasp. Task checker: FlexPoint model, model frame,
+  fingertips >= -15 mm, gripper >= 15 mm, link_6 >= 20 mm. Demo joint states replayed through FK
+  showed fingers at -17 mm: that was the demos' encoder offset error (+-1.5 deg), not the sim.
+- **ACT inference**: 22 ms (model) / 41 ms (full step) on a busy V100, tick 20 ms. Must be measured
+  on duchamp3 (RTX 4090) before the first run (`deploy/checks/timing.py`).
+
 ### 2026-10-27 (late, mason) — Task H: the ACT gap was a handoff bug; ACT v5 40k 93%
 
 - **Bug** (fixed 2e5c599): `ActPick._settled` (the handoff when ACT does not raise `done`) fired

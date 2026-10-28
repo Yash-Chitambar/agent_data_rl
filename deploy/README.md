@@ -31,7 +31,7 @@ keeps the low-level tools (safety, estop, rig, calib, step tests); this folder i
 
 ## Before the first run (in this order)
 
-1. On mason: `python -m deploy.models stage --act <chosen ACT> --insert runs/H-reader-tilt-uncomp-s1/last.pt`;
+1. On mason (done: ACT v5 100k, 96.9% in the sim pipeline): `python -m deploy.models stage --act runs/H-act-pick-v5/act_100k_traced.pt --insert runs/H-reader-tilt-uncomp-s1/last.pt`;
    copy `deploy/models/` to duchamp3; there `python -m deploy.models verify`.
 2. `python deploy/checks/handoff_equiv.py` (shared module = the logic the sim evals used).
 3. `python -m deploy.checks.conventions` (GPU) and `python -m deploy.runner sim --episodes 16 --name dry`
@@ -60,7 +60,8 @@ handoff gate's pre-insert point (`handoff.p_nom`) assumes the nominal PC: place 
 ## Open items
 
 - **ACT on real images**: sim-only, closed with domain randomization if it fails (no real demos).
-- **Release on the real arm**: see FINDINGS 2026-10-28; the insertion policy keeps pushing after the
-  plug seats (never trained past success), so the release trigger matters.
+- **Release**: 5 s after the handoff (or 60 mm of tcp travel). The insertion policy keeps pushing after
+  the plug seats (never trained past success) and no proprio seat signal works; in sim the timed
+  release keeps 89.8% seated vs 87.1% for the sim-truth release (FINDINGS 2026-10-28).
 - **Squeeze force** and the gripper map: measured on the rig (step 6).
 - **Safety clearances**: provisional (`safety.*`); the fingers must reach the table for the grasp.
