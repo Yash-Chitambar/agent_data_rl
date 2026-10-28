@@ -43,12 +43,13 @@ class RealBackend:
         self.D, self.safety = D, safety
         D.FRIC_COMP = FC.parse(cfg["fric_comp"])
         kd = np.minimum(D.SIM_KD, D.DM_KD_MAX)
+        # Complete potentially blocking SDK initialization before motor control starts.
+        self.cams = Cameras(cfg["side"], cfg["cameras"]["res"], cfg["cameras"]["max_age_ms"] / 1e3)
         self.arm = D.RealArm(cfg["side"], D.SIM_KP, kd)
         sc = cfg["safety"]
         chk = FlexChecker(offsets, clearance=sc["clearance"], tip_clearance=sc["tip_clearance"], body_clearance=sc.get("body_clearance"))
         self.arm.safe = safety.SafeArm(self.arm.robot, chk)    # the move_to path checks use it too
         self.arm.safe._hold(np.asarray(self.arm.robot.get_joint_pos(), float))
-        self.cams = Cameras(cfg["side"], cfg["cameras"]["res"], cfg["cameras"]["max_age_ms"] / 1e3)
         self.off = offsets
         self.control_dt = D.CONTROL_DT
         self.k = 0
@@ -74,7 +75,7 @@ class RealBackend:
         q7 = np.asarray(self.arm.robot.get_joint_pos(), float)
         q7[6] = grip01
         self.arm.safe.command(q7)
-        self.arm.move_to(q6_motor)
+        self.arm.move_to(q6_motor, max_vel=0.1)
 
     def stopped(self):
         import estop
