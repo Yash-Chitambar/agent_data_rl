@@ -282,7 +282,7 @@ class RealArm:
     def hold(self):
         self.safe._hold(np.asarray(self.robot.get_joint_pos(), float))
 
-    def move_to(self, q6_goal, max_vel=0.3):
+    def move_to(self, q6_goal, max_vel=0.3, approach_fric_comp=False):
         """Slow smoothstep move (no logging), the straight joint path checked first. Raises
         SafetyStop (holding) on an unsafe path, the software stop or a safety check."""
         q0 = np.asarray(self.robot.get_joint_pos(), float)
@@ -301,13 +301,23 @@ class RealArm:
             s = s * s * (3 - 2 * s)
             tgt = q0.copy()
             tgt[:6] = (1 - s) * q0[:6] + s * q6_goal
-            sent = self.safe.command(tgt)
+            sent = self.safe.command(tgt, FRIC_COMP if approach_fric_comp else None)
             measured = np.asarray(self.robot.get_joint_pos(), float)
             self.motion_trace.append(dict(host_monotonic=time.monotonic(), target=sent.tolist(),
                                           measured=measured.tolist(), mode="move_to"))
             t_next += CONTROL_DT
             self.wait(t_next)
-        time.sleep(1.0)   # settle
+        # Log the previously unobserved settling interval. The baseline command stays held.
+        for _ in range(50):
+            if estop.stopped():
+                self.hold()
+                raise safety.SafetyStop("software stop during settle")
+            if approach_fric_comp:
+                self.safe.command(tgt, FRIC_COMP)
+            measured = np.asarray(self.robot.get_joint_pos(), float)
+            self.motion_trace.append(dict(host_monotonic=time.monotonic(), target=tgt.tolist(),
+                measured=measured.tolist(), mode="settle", approach_fric_comp=approach_fric_comp))
+            time.sleep(CONTROL_DT)
         actual = np.asarray(self.robot.get_joint_pos(), float)[:6]
         if np.max(np.abs(actual - q6_goal)) > 0.02:
             self.hold()
