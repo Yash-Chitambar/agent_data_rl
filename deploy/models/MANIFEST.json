@@ -1,0 +1,18 @@
+{
+ "staged": "2026-10-28 02:48:18 UTC",
+ "files": {
+  "act_pick.pt": {
+   "source": "/home/yashchitambar/peg_test/runs/H-act-pick-v5/act_60k_traced.pt",
+   "sha256": "d9ae6535b4a469562eddbc9ddb31c6eaf4491602d804f91188e124cc657f33d6"
+  },
+  "insert.pt": {
+   "source": "/home/yashchitambar/peg_test/runs/H-reader-tilt-uncomp-s1/last.pt",
+   "sha256": "0f2effa671176be8f6a77f1528616d8975f52d57ab24216149036760d93a121b"
+  },
+  "insert.config.json": {
+   "source": "/home/yashchitambar/peg_test/runs/H-reader-tilt-uncomp-s1/config.json",
+   "sha256": "8d3a131b5872d39e27d3a424e516c2166a9be6f57a8aff8628d50d8b6f12bf32"
+  }
+ },
+ "note": "provisional: v5 60k until the 80k/100k comparison"
+}

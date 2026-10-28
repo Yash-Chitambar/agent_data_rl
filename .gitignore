@@ -22,3 +22,6 @@ data/act/
 
 # real-rig calibration captures (images + joint logs)
 data/calib/
+
+# real/dry Task H runner logs and frames (deploy/runner.py)
+data/task_h/

@@ -30,6 +30,7 @@ from blind_insertion.analysis.stats import wilson
 from blind_insertion.assets import builder as B
 from blind_insertion.envs import kinematics as K
 from blind_insertion.envs.pick_env import Expert, PickCfg, PickEnv
+from blind_insertion.pipeline import handoff as H
 from blind_insertion.policies.tcn_actor_critic import ActorCritic
 from blind_insertion.scenes import pc_bench as S
 
@@ -51,18 +52,19 @@ class ActPick:
         # state = joints + finger (7), or + last sent command - joints (13; gen_demos --cmd_err)
         self.cmd_err = self.m.s_mean.shape[0] == 13
         self.n_exec, self.ens = n_exec, ensemble
-        self.settle, self.rest_qd, self.rest_s, self.near, self.min_finger = settle, rest_qd, rest_s, near, min_finger
-        self.gate, self.grasp_s, self.near_z = gate, grasp_s, near_z
+        self.ensemble = H.TemporalEnsemble(ensemble)
+        self.gate_kw = dict(settle=settle, rest_qd=rest_qd, rest_s=rest_s, near=near, near_z=near_z,
+                            min_finger=min_finger, gate=gate, grasp_s=grasp_s)
+        self.handoff = None
         # camera timing as in the demos (scripts/act/gen_demos.py): 30 fps frame clock, frame age per
         # episode and camera; cam_fps 0 = a fresh frame every step
         self.cam_fps, self.cam_age, self.rng = cam_fps, cam_age_ms, np.random.default_rng(seed)
 
     def reset(self, n, device):
         self.chunk, self.k, self.t = None, 0, 0
-        self.buf = None
-        self.done_run = torch.zeros(n, dtype=torch.long, device=device)
-        self.rest_run = torch.zeros(n, dtype=torch.long, device=device)
-        self.grasp_run = torch.zeros(n, dtype=torch.long, device=device)
+        self.ensemble.reset()
+        self.handoff = None                   # built on the first act (needs the env's port and part)
+        self.n_dev = (n, device)
         self.hist, self.step = [], 0
         self.last_cmd = None
         period = 1 / self.cam_fps if self.cam_fps > 0 else 0.0
@@ -88,16 +90,6 @@ class ActPick:
             out[c] = stack[len(self.hist) - 1 - back, idx]
         return out
 
-    def _settled(self, env, closed):
-        qd = env.t_qvel[:, torch.as_tensor(env.lay.arm_dofadr, device=env.device)]
-        p_nom = torch.tensor([env.cfg.port_xy[0] - env.body_z - 0.006, env.cfg.port_xy[1],
-                              S.PORT_HEIGHT + float(np.mean(S.GRASP_Y[env.gripper]))], device=env.device)
-        rest = ((qd.abs().max(1).values < self.rest_qd) & closed & (env.state()[:, 6] > self.min_finger)
-                & ((env.tcp_pose()[0] - p_nom).norm(dim=1) < self.near)
-                & ((env.tcp_pose()[0][:, 2] - p_nom[2]).abs() < self.near_z))
-        self.rest_run = torch.where(rest, self.rest_run + 1, torch.zeros_like(self.rest_run))
-        return self.rest_run >= int(self.rest_s / env.control_dt)
-
     def _query(self, env):
         fr = self._frames(env)
         top = fr["top"].permute(0, 3, 1, 2).float() / 255
@@ -110,20 +102,12 @@ class ActPick:
             return self.m(st, top, wrist)                           # (N, C, 8)
 
     def act(self, env: PickEnv):
+        if self.handoff is None:
+            p_nom = H.nominal_preinsert(env.cfg.port_xy, env.body_z, env.gripper)
+            self.handoff = H.HandoffGate(p_nom, env.control_dt, **self.gate_kw)
+            self.handoff.reset(*self.n_dev)
         if self.ens > 0:
-            c = self._query(env)
-            N, C, D = c.shape
-            if self.buf is None:
-                self.buf = torch.zeros(N, C, C, D, device=c.device)    # [age, offset] predictions
-                self.valid = torch.zeros(C, dtype=torch.bool, device=c.device)
-            self.buf = torch.roll(self.buf, 1, dims=1)
-            self.buf[:, 0] = c
-            self.valid = torch.roll(self.valid, 1)
-            self.valid[0] = True
-            ages = torch.arange(C, device=c.device)
-            preds = self.buf[:, ages, ages]                             # chunk of age i, entry i = now
-            w = torch.exp(-self.ens * ages.float()) * self.valid
-            a = (preds * w[None, :, None]).sum(1) / w.sum()
+            a = self.ensemble(self._query(env))
         else:
             if self.chunk is None or self.k >= self.n_exec:
                 self.chunk, self.k = self._query(env), 0
@@ -131,16 +115,9 @@ class ActPick:
             self.k += 1
         cmd = torch.cat([a[:, :6], torch.where(a[:, 6:7] > 0, 1.0, -1.0)], 1)
         self.last_cmd = cmd[:, :6].clone()
-        self.done_run = torch.where(a[:, 7] > 0.5, self.done_run + 1, torch.zeros_like(self.done_run))
-        # grasp gate: no handoff with the gripper open or closed on nothing (fingers ~19 mm on the
-        # reader, ~-6 mm empty); ACT keeps control and can regrasp. The fingers pass through
-        # the band while closing, so the grasp must hold for grasp_s.
-        grasped = (cmd[:, 6] < 0) & (env.state()[:, 6] > self.min_finger)
-        self.grasp_run = torch.where(grasped, self.grasp_run + 1, torch.zeros_like(self.grasp_run))
-        held = self.grasp_run >= int(self.grasp_s / env.control_dt)
-        done = (self.done_run >= 5) & (held if self.gate else True)
-        if self.settle:
-            done |= self._settled(env, cmd[:, 6] < 0) & (held if self.gate else True)
+        # handoff gate (pipeline/handoff.py, shared with the real runner)
+        qd = env.t_qvel[:, torch.as_tensor(env.lay.arm_dofadr, device=env.device)]
+        done = self.handoff(a[:, 7], cmd[:, 6] < 0, env.state()[:, 6], qd, env.tcp_pose()[0])
         return cmd, done
 
 
@@ -234,7 +211,10 @@ class Release:
         return self.q, self.t >= self.T
 
 
-def run(env: PickEnv, picker, inserter: Inserter, pick_s=15.0, insert_s=10.0, video=None, release=True):
+def run(env: PickEnv, picker, inserter: Inserter, pick_s=15.0, insert_s=10.0, video=None, release=True,
+        release_on="truth"):
+    """release_on: "truth" releases when the plug is seated (sim ground truth); "proprio" when
+    handoff.ReleaseTrigger fires, as the real runner does (success then means seated_after)."""
     N, dev = env.N, env.device
     env.reset_all()
     picker.reset(N, dev)
@@ -250,6 +230,11 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=15.0, insert_s=10.0, vi
     hand_tilt = torch.zeros(N, device=dev)
     success = torch.zeros(N, dtype=torch.bool, device=dev)
     t_ins = torch.zeros(N, dtype=torch.long, device=dev)
+    seat = H.ReleaseTrigger(env.control_dt) if release_on == "proprio" else None
+    if seat is not None:
+        seat.reset(N, dev)
+    rel_seated = torch.zeros(N, dtype=torch.bool, device=dev)     # seated (truth) when the release started
+    t_rel = torch.full((N,), -1, device=dev)
     frames = []
     for t in range(T_pick + T_ins + T_rel):
         a_pick, done = picker.act(env) if (phase == 0).any() else (None, None)
@@ -261,6 +246,8 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=15.0, insert_s=10.0, vi
             hand_tilt[go] = torch.rad2deg(torch.acos(R[go][:, 2, 2].clamp(-1, 1)))
             t_hand[go] = t
             inserter.start(go.nonzero()[:, 0])
+            if seat is not None:
+                seat.start(go.nonzero()[:, 0], env.tcp_pose()[0])
             phase[go] = 1
         a_ins, q_ins = inserter.act() if inserter.hist is not None else (None, None)
         # env.step takes encoder-frame targets (PickCfg.phys enc_offset_deg); the insertion policy and
@@ -285,9 +272,15 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=15.0, insert_s=10.0, vi
         seated = (p[:, 2] < -(depth - tol)) & (tilt <= 2.0)
         new = (phase == 1) & seated
         success |= new
-        if release and new.any():
-            rel.start(new.nonzero()[:, 0])
-        phase = torch.where(new, torch.full_like(phase, 2 if release else 3), phase)
+        if seat is None:
+            trig = new
+        else:
+            trig = seat(phase == 1, env.tcp_pose()[0]) | ((phase == 1) & (t_ins >= T_ins))
+        rel_seated |= trig & seated
+        t_rel = torch.where(trig, t, t_rel)
+        if release and trig.any():
+            rel.start(trig.nonzero()[:, 0])
+        phase = torch.where(trig, torch.full_like(phase, 2 if release else 3), phase)
         phase = torch.where((phase == 1) & (t_ins >= T_ins), torch.full_like(phase, 3), phase)
         if video is not None and t % 2 == 0:
             frames.append({k: x[:video].cpu().numpy() for k, x in env.render().items()})
@@ -301,7 +294,8 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=15.0, insert_s=10.0, vi
     seated_after = success & (p[:, 2] < -(depth - tol)) & (tilt <= 2.0) & (released if release else True)
     return dict(success=success, handoff=t_hand >= 0, hand_err_mm=hand_err, hand_tilt=hand_tilt,
                 t_hand_s=t_hand * env.control_dt, t_insert_s=t_ins * env.control_dt, held=held,
-                released=released, seated_after=seated_after), frames
+                released=released, seated_after=seated_after, rel_seated=rel_seated,
+                t_release_s=t_rel * env.control_dt), frames
 
 
 def main():
@@ -320,6 +314,8 @@ def main():
     ap.add_argument("--cam_fps", type=float, default=30.0, help="ACT camera frame clock (0: fresh frames)")
     ap.add_argument("--phys_json", default="{}", help="override PickCfg.phys entries, e.g. enc_offset_deg")
     ap.add_argument("--fric_comp", default="", help='friction feed-forward, e.g. {"scale":0.7,"ramp":0.01}')
+    ap.add_argument("--release_on", default="truth", choices=["truth", "proprio"],
+                    help="release when seated (sim truth) or on handoff.ReleaseTrigger (as on the real arm)")
     a = ap.parse_args()
     phys = {**PickCfg().phys, **json.loads(a.phys_json)}
     res = []
@@ -331,7 +327,7 @@ def main():
                           gate=not a.no_gate)
                   if a.pick == "act" else ExpertPick(env))
         ins = Inserter(a.insert, env)
-        r, _ = run(env, picker, ins)
+        r, _ = run(env, picker, ins, release_on=a.release_on)
         res.append({k: x.cpu().numpy() for k, x in r.items()})
         print(f"batch {b}: success {r['success'].float().mean():.3f}", flush=True)
         del env
@@ -342,7 +338,8 @@ def main():
     he = R["hand_err_mm"]
     out = dict(pick=a.pick, insert=a.insert, act=a.act, phys=json.loads(a.phys_json), fric_comp=a.fric_comp, n=n, success=k / n, ci=[lo, hi],
                released=float(R["released"].mean()), seated_after_release=float(R["seated_after"].mean()),
-               handoff=float(R["handoff"].mean()), held=float(R["held"].mean()),
+               handoff=float(R["handoff"].mean()), held=float(R["held"].mean()), release_on=a.release_on,
+               seated_at_release=float(R["rel_seated"].mean()),
                hand_lat_mm=dict(median=float(np.median(np.linalg.norm(he[:, :2], axis=1))),
                                 p90=float(np.quantile(np.linalg.norm(he[:, :2], axis=1), 0.9))),
                hand_gap_mm=dict(median=float(np.median(he[:, 2])), p10=float(np.quantile(he[:, 2], 0.1)),
