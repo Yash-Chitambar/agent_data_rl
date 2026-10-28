@@ -108,26 +108,28 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--image", help="saved ZED HD1080 rectified-left frame instead of a live one")
     ap.add_argument("--name", default=time.strftime("%Y%m%d_%H%M%S"))
+    ap.add_argument("--table_z", type=float, default=0.0, help="tabletop in the base frame (m); -0.03 on the bare duchamp3 table")
     a = ap.parse_args()
     cfg = load_config()
     img = cv2.imread(a.image) if a.image else grab()
     cam = TopCam()
     r_nom, pc_nom, port = nominal()
+    tz = a.table_z
     w, h, d = S.PC_SIZE
     vis = img.copy()
     pxs = lambda pts: np.array([cam.px(p) for p in pts], np.int32)  # noqa: E731
     # nominal footprints (green: reader, magenta: PC top/bottom), trained ranges (yellow), port (red)
-    cv2.polylines(vis, [pxs(rect(r_nom, S.READER_YAW_DEG, *READER_BODY, READER_TOP))], True, (0, 255, 0), 2)
-    cv2.arrowedLine(vis, tuple(cam.px(np.r_[r_nom, 0]).astype(int)), tuple(cam.px(np.r_[r_nom + [0.07, 0], 0]).astype(int)),
+    cv2.polylines(vis, [pxs(rect(r_nom, S.READER_YAW_DEG, *READER_BODY, tz + READER_TOP))], True, (0, 255, 0), 2)
+    cv2.arrowedLine(vis, tuple(cam.px(np.r_[r_nom, tz]).astype(int)), tuple(cam.px(np.r_[r_nom + [0.07, 0], tz]).astype(int)),
                     (0, 255, 0), 2, tipLength=0.2)
-    cv2.polylines(vis, [pxs(rect(r_nom, 0, 0.06, 0.10, 0))], True, (0, 255, 255), 1)
-    for z in (0.0, h):
-        cv2.polylines(vis, [pxs(rect(pc_nom, S.PC_YAW_DEG, d, w, z))], True, (255, 0, 255), 2 if z else 1)
-    cv2.polylines(vis, [pxs(rect(port[:2], 0, 0.04, 0.08, port[2]))], True, (0, 255, 255), 1)
-    cv2.circle(vis, tuple(cam.px(port).astype(int)), 6, (0, 0, 255), -1)
+    cv2.polylines(vis, [pxs(rect(r_nom, 0, 0.06, 0.10, tz))], True, (0, 255, 255), 1)
+    for z in (tz, tz + h):
+        cv2.polylines(vis, [pxs(rect(pc_nom, S.PC_YAW_DEG, d, w, z))], True, (255, 0, 255), 2 if z > tz else 1)
+    cv2.polylines(vis, [pxs(rect(port[:2], 0, 0.04, 0.08, tz + port[2]))], True, (0, 255, 255), 1)
+    cv2.circle(vis, tuple(cam.px(port + [0, 0, tz]).astype(int)), 6, (0, 0, 255), -1)
     rep = {}
-    found_r = find_blob(img, cam, r_nom, READER_TOP, 0.14, READER_BODY[0] * READER_BODY[1])
-    found_pc = find_blob(img, cam, pc_nom, h, 0.20, w * d)
+    found_r = find_blob(img, cam, r_nom, tz + READER_TOP, 0.14, READER_BODY[0] * READER_BODY[1])
+    found_pc = find_blob(img, cam, pc_nom, tz + h, 0.20, w * d)
     lines = []
     if found_r is None:
         lines.append("reader: not found near its nominal spot (bright body on the table)")

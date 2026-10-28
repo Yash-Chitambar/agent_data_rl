@@ -121,3 +121,35 @@ mount plates (or the operator adds a ~30 mm riser, gap 9), randomize table heigh
 port height with it, regenerate ACT demos, retrain ACT; retrain the insertion policy with the port
 at table + 25 mm (its fix_z is a single value and its observation has the absolute tcp). Data:
 `data/task_h/pick2/ticks.npy` (see the transfer note above).
+
+## 2026-10-28: real runs with the virtual lift (pick3, try1-3): the failure list for the next policy
+
+Runner additions: `virtual_lift` (deploy/conventions.VirtualLift: the policies run in a frame 30 mm
+higher; joint positions AND velocities mapped, targets mapped back; sim with `sim_table_z` -0.030:
+12/16 seated with the lift vs 0/8 without (pick2 reproduced in sim), baseline 14/16 on the same seeds),
+a fingertip floor clamp (targets pressing the tips past SafeArm's limit are moved up instead of stopping
+the run), 10 Hz policy-frame recording to `data/task_h/<run>/frames/`, `placement --table_z`.
+All runs: ACT max 5.9 ms, tick p99 20.1 ms, no communication faults.
+
+1. **Table height** (gap 9): fixed for the trained policies by `virtual_lift`; the grasp now reaches the
+   reader (real tcp z -24..-26 mm, table ~-30).
+2. **Placement measured at the wrong height**: the ZED placement assumed objects at z = 0; with the
+   table at -30 mm the PC port was really 28 mm too far out (fixed with `--table_z -0.030`).
+3. **ACT presses into the table at the grasp** (try1): targets 15 mm below the table -> SafeArm stop.
+   Fixed by the floor clamp (try2: 37 clamps, max 3 mm).
+4. **Grasp lands 1-2 cm behind the body centre along the plug axis** (operator: "a little too behind";
+   wrist frames: pads on the rear edge). ACT's grasp x stays ~190-205 mm whatever the reader x
+   (pick3 ~222, try2 217, try3 202): proprio-driven, as the height was. Edge grasps slip out on the
+   lift: pick3 2 of 3 attempts, try2 5 of 5, try3 1 of 2. Suspects: real pad position vs the model
+   tcp (FlexPoint geometry), the policy's weak visual x correction, the squeeze force (never measured).
+5. **Plug hits the PC panel during the carry** (try3, frames 380-415): the rear grasp makes the plug
+   stick out ~15 mm more than in training; at contact the reader pivots and levers out of the
+   fingers. The carry itself arrived at the port row, close to aligned.
+6. **Handoff gate never fired** in any run: ACT's "done" output peaks at 0.15-0.19 near the port;
+   pick3 ended 23 mm off p_nom in y, 7 mm in z.
+7. **No recovery after a drop**: ACT drifts toward +x/+y, opening and closing the gripper, until the
+   15 s timeout.
+8. **Not observed yet on the real arm**: the blind insertion, release.
+For the new policy: sim table at -0.030 with mount plates (+-10 mm), measure the real pad/tcp offset
+(e.g. close on a ruler under the wrist camera) and randomize grasp_along around it, measure the
+squeeze force (gripper.close), PC x/y spread as measured (+-15 mm), demos that recover from a drop.

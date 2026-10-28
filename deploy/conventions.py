@@ -93,3 +93,53 @@ class Robot:
                                  (self.R_base @ self.R_top)[None], self.home[None], iters=200, q_rest=self.home)
         assert pe.item() < 1e-3, "ready pose IK failed"
         return q[0].cpu().numpy().astype(float)
+
+
+class VirtualLift:
+    """The policies' frame shifted by `dz` (m) in z: they see the arm as if its tcp stood dz higher than it
+    does, i.e. the table dz higher than it is. On duchamp3 the tabletop is ~30 mm below the base frame's
+    z = 0 (docs/REAL_RIG_GAPS.md gap 9) and the policies were trained with it at 0: dz = 0.030 restores the
+    trained geometry. The wrist camera rides on the gripper, so its view already matches the shifted pose.
+
+    to_policy(q_real) -> q_policy (tcp + dz, same rotation); to_robot(q_policy) -> q_real (tcp - dz). Exact
+    6-DoF Newton steps (no joint clamping: q_policy is never commanded), warm-started from the last
+    solution; 3 steps < 0.001 mm for a 30 mm shift."""
+
+    def __init__(self, robot: Robot, dz: float, iters: int = 3):
+        from blind_insertion.envs.kinematics import rot_log
+        self.ch, self.dz, self.iters, self.rot_log = robot.chain, float(dz), iters, rot_log
+        self.warm = {}
+
+    def _shift(self, q, dz, key):
+        q = torch.as_tensor(np.asarray(q, np.float64))[None]
+        p_t, R_t = self.ch.fk(q.float())
+        p_t = p_t + torch.tensor([[0.0, 0.0, dz]])
+        x = self.warm.get(key, q)
+        if (x - q).abs().max() > 0.5:
+            x = q
+        for _ in range(self.iters):
+            p, R, J = self.ch.fk(x.float(), with_jac=True)
+            e = torch.cat([p_t - p, self.rot_log(R_t @ R.transpose(1, 2))], 1).double()
+            J = J.double()
+            x = x + (J.transpose(1, 2) @ torch.linalg.solve(J @ J.transpose(1, 2) + 1e-9 * torch.eye(6, dtype=torch.float64),
+                                                            e[..., None]))[..., 0]
+        self.warm[key] = x
+        return x[0].numpy().astype(float)
+
+    def shift(self, q, dz):
+        """q with the tcp moved dz (m) in z, same rotation."""
+        return self._shift(q, dz, "shift")
+
+    def to_policy(self, q_real):
+        return np.asarray(q_real, float).copy() if self.dz == 0 else self._shift(q_real, self.dz, "policy")
+
+    def vel_to_policy(self, q_real, q_policy, qd_real):
+        """Joint velocities giving the same tcp twist at q_policy as qd_real at q_real."""
+        if self.dz == 0:
+            return np.asarray(qd_real, float).copy()
+        Jr = self.ch.fk(torch.as_tensor(np.asarray(q_real, np.float32))[None], with_jac=True)[2][0].double()
+        Jp = self.ch.fk(torch.as_tensor(np.asarray(q_policy, np.float32))[None], with_jac=True)[2][0].double()
+        return torch.linalg.solve(Jp, Jr @ torch.as_tensor(np.asarray(qd_real, np.float64))).numpy()
+
+    def to_robot(self, q_policy):
+        return np.asarray(q_policy, float).copy() if self.dz == 0 else self._shift(q_policy, -self.dz, "robot")

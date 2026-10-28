@@ -104,7 +104,8 @@ class SimBackend:
         from blind_insertion.envs.pick_env import PickCfg, PickEnv
         phys = {**PickCfg().phys, **(phys_json or {})}
         v = B.sample_reader(1, seed)[0]
-        self.env = PickEnv(PickCfg(nworld=1, seed=seed, phys=phys, fric_comp=cfg["fric_comp"], device=device), variant=v)
+        self.env = PickEnv(PickCfg(nworld=1, seed=seed, phys=phys, fric_comp=cfg["fric_comp"], device=device,
+                                    table_z=cfg.get("sim_table_z", 0.0)), variant=v)
         self.env.reset_all()
         self.off, self.gmap, self.control_dt = offsets, gmap, self.env.control_dt
         self.depth = v.depth

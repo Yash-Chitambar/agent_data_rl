@@ -66,6 +66,15 @@ class TaskH:
         self.gate = H.HandoffGate(h["p_nom"], self.dt, **{k: v for k, v in h.items() if k != "p_nom"})
         self.seat = H.ReleaseTrigger(self.dt, **cfg["release_trigger"])
         self.q_ready = np.asarray(cfg["act"]["start_q_model"], float)
+        # the policies' frame (C.VirtualLift): ACT, the gate, the insertion policy and the release work in it;
+        # targets go to the arm through to_robot. virtual_lift = 0: the policy frame is the model frame.
+        self.vf = C.VirtualLift(self.robot, cfg.get("virtual_lift", 0.0))
+        # fingertip floor: a target pressing the tips lower than this (2 mm above SafeArm's limit) is moved up
+        # to it instead of stopping the run (try1, 2026-10-28: ACT pressed the tips into the table at the grasp)
+        from deploy.safety_task import FlexChecker
+        sc = cfg["safety"]
+        self.floor_chk = FlexChecker(np.zeros(6), sc["clearance"], sc["tip_clearance"], sc.get("body_clearance"), sc.get("table_z", 0.0))
+        self.floor = sc.get("table_z", 0.0) + sc["tip_clearance"] + 0.002
 
     def episode(self, be, log=None, until="all"):
         """One attempt on backend `be`. Returns a summary; per-tick rows go to `log` (list).
@@ -73,13 +82,15 @@ class TaskH:
         cfg = self.cfg
         T_pick, T_ins = int(cfg["act"]["pick_s"] / self.dt), int(cfg["insert"]["insert_s"] / self.dt)
         max_step = cfg["act"]["max_step_rad"]
-        be.move_to(self.q_ready - self.off, grip01=self.gmap.open, settle_trim=True)
+        be.move_to(self.vf.to_robot(self.q_ready) - self.off, grip01=self.gmap.open, settle_trim=True)
         self.act.reset()
         self.gate.reset(1, "cpu")
         self.seat.reset(1, "cpu")
         phase, t_hand, t_rel, t_ins, a_ins, stop = PICK, None, None, 0, None, None
         seated_at_release = None
         last = None
+        self.rec = []      # (k, phase, policy frames) at 10 Hz on the real arm, written by cmd_real
+        record = be.truth() is None
         t_next = be.clock()
         k = 0
         for k in range(T_pick + T_ins + self.rel.T + 2):
@@ -88,11 +99,15 @@ class TaskH:
                 break
             t_tick = be.clock()
             q_mot, qd, g, t_obs = be.read()
-            q = q_mot + self.off
+            q_real = q_mot + self.off
+            q = self.vf.to_policy(q_real)
+            qd = self.vf.vel_to_policy(q_real, q, qd)
             finger = self.gmap.finger_m(g)
             p, _, tw = self.robot.fk(q, qd)
             row = dict(k=k, t=t_tick, phase=phase, q=q.tolist(), qd=qd.tolist(), grip=g, finger_mm=finger * 1e3,
                        tcp_mm=(p.numpy() * 1e3).round(2).tolist())
+            if self.vf.dz:
+                row["q_real"] = q_real.tolist()
             last = last if last is not None else q.copy()
             if phase == INSERT:
                 self.ins.push(a_ins, q, qd)
@@ -106,6 +121,8 @@ class TaskH:
                     self.rel.start(q)
             if phase == PICK:
                 fr, age, _ = be.frames()
+                if record and k % 5 == 0:
+                    self.rec.append((k, phase, fr))
                 t0 = time.perf_counter()
                 a = self.act.step(q, finger, fr["top"], fr["wrist"])
                 row.update(act_ms=(time.perf_counter() - t0) * 1e3, age_ms={c: x * 1e3 for c, x in age.items()},
@@ -137,6 +154,11 @@ class TaskH:
                     tgt = last + np.clip(a[:6] - last, -max_step, max_step)
                     grip = self.gmap.command(a[6])
                     self.act.sent(tgt)
+            if record and phase != PICK and k % 5 == 0:
+                try:
+                    self.rec.append((k, phase, be.frames()[0]))
+                except RuntimeError:      # a stale frame: only the recording misses it
+                    pass
             if phase == INSERT:
                 a_ins = self.ins.act()
                 tgt, grip = q + self.ins.scale * a_ins, self.gmap.close
@@ -149,8 +171,16 @@ class TaskH:
             if phase == DONE:
                 break
             row["target"] = tgt.tolist()
+            tgt_real = self.vf.to_robot(tgt)
+            h = self.floor_chk.heights(tgt_real)
+            low = min(h["left_finger"], h["right_finger"])
+            if low < self.floor:
+                tgt_real = self.vf.shift(tgt_real, self.floor - low)
+                row["floor_mm"] = round((self.floor - low) * 1e3, 2)
+            if self.vf.dz:
+                row["target_real"] = tgt_real.tolist()
             try:
-                be.send(tgt - self.off, grip)
+                be.send(tgt_real - self.off, grip)
             except Exception as e:  # noqa: BLE001   (safety.SafetyStop: the arm holds)
                 stop = f"{type(e).__name__}: {e}"
                 break
@@ -163,6 +193,11 @@ class TaskH:
             t_next += self.dt
             be.wait(t_next)
         be.hold()
+        if record:
+            try:
+                self.rec.append((k, "end", be.frames()[0]))
+            except RuntimeError:
+                pass
         out = dict(phase=PHASES[phase], ticks=k, stop=stop, t_hand_s=None if t_hand is None else t_hand * self.dt,
                    t_release_s=None if t_rel is None else t_rel * self.dt)
         tr = be.truth()
@@ -170,6 +205,16 @@ class TaskH:
             out["truth_end"] = tr
             out["seated_at_release"] = seated_at_release
         return out
+
+
+def save_frames(d, rec):
+    """Policy images recorded by TaskH.episode: <k>_<phase>_{top,wrist}.jpg (RGB -> BGR)."""
+    import cv2
+    d.mkdir(parents=True, exist_ok=True)
+    for k, ph, fr in rec:
+        tag = ph if isinstance(ph, str) else PHASES[ph]
+        for c, im in fr.items():
+            cv2.imwrite(str(d / f"{k:04d}_{tag}_{c}.jpg"), cv2.cvtColor(im, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 90])
 
 
 def cmd_sim(a):
@@ -239,6 +284,7 @@ def cmd_real(a):
     finally:
         be.hold()
         np.save(out_dir / "ticks.npy", np.array(log, dtype=object), allow_pickle=True)
+        save_frames(out_dir / "frames", getattr(task, "rec", []))
         from deploy.recovery import supported_shutdown
         supported_shutdown(be)
     ms = [x["act_ms"] for x in log if "act_ms" in x]

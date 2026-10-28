@@ -1,5 +1,7 @@
 {
- "_about": "DIAGNOSTIC: task_h.json for the bare duchamp3 table (no riser, docs/REAL_RIG_GAPS.md gap 9). The policies were trained with the tabletop at model z = 0; the real one is ~30 mm lower. Safety clearances count from the measured table and the handoff point moves down with it, so a run shows where the trained policies fail. Not for production runs. Task H real-arm runner (deploy/runner.py). Lengths m, angles rad, times s. Values copied from the sim must match it: deploy/checks/conventions.py checks them.",
+ "_about": "Bare duchamp3 table (no riser, docs/REAL_RIG_GAPS.md gap 9): the tabletop is ~30 mm below the base frame's z = 0, the policies were trained with it at 0. virtual_lift = 0.030 runs the policies in a frame 30 mm higher (deploy/conventions.VirtualLift): the arm starts 30 mm lower than act.start_q_model and every target maps down. sim_table_z: the dry run's table (runner sim). Safety clearances count from the measured table (safety.table_z). Task H real-arm runner (deploy/runner.py). Lengths m, angles rad, times s. Values copied from the sim must match it: deploy/checks/conventions.py checks them.",
+ "virtual_lift": 0.03,
+ "sim_table_z": -0.03,
  "side": "right",
  "control_dt": 0.02,
  "models": {
@@ -33,7 +35,7 @@
   "p_nom": [
    0.24591,
    0.236917,
-   -0.00515
+   0.02285
   ],
   "settle": true,
   "rest_qd": 0.03,
@@ -42,8 +44,7 @@
   "near_z": 0.01,
   "min_finger": 0.005,
   "gate": true,
-  "grasp_s": 0.5,
-  "_p_nom_bare_table": "z lowered by -0.028 m with the table (the port stands on it)"
+  "grasp_s": 0.5
  },
  "insert": {
   "insert_s": 10.0

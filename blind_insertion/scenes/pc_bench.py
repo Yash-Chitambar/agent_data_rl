@@ -32,6 +32,12 @@ PLATE = 0.030                     # square receptacle plate around the port (Var
 PLATE_DEPTH = 0.0075              # USB-C cavity 6.50 mm + 1 mm floor (builder.usbc_spec_variant)
 PORT_BASE_RPY_DEG = (90.0, 0.0, -90.0)   # fixture z -> world -x, x -> world -y, y -> world z
 PORT_XY = (0.321370, 0.236917)             # nominal port centre on the table (arm base frame)
+# Real tabletop in the right arm base frame on duchamp3: the YAMs stand on ~23 mm mount plates and the
+# Menagerie base mesh reaches 10 mm below the base origin (-33 mm); measured -28/-34/-30 mm with the
+# fingertips (deploy/checks/table_probe.py) and -20..-23 mm on the calibration board's top face
+# (2026-10-28). Heights in this file (PORT_HEIGHT, the reader) are above the tabletop.
+REAL_TABLE_Z = -0.030
+BASE_MESH_LOW = -0.010             # lowest point of the YAM base mesh in its own frame
 
 PAD_SPHERES = 10                  # contact spheres per pad side (builder.sphere_pads); 10: a tilted grasp keeps 4+ contacts per pad (4: 1-2, the reader pivots)
 PAD_TORSION = 0.05
@@ -120,12 +126,19 @@ def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM, physical=True):
                      pos=[x, y, 0.0003], rgba=[0.05, 0.05, 0.06, 1], contype=0, conaffinity=0)
 
 
-def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
-    """CPU model of the full task H scene (pick + insert), from the same builder as PegEnv."""
+def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True, table_z=0.0):
+    """CPU model of the full task H scene (pick + insert), from the same builder as PegEnv.
+    table_z: tabletop height in the arm base frame (REAL_TABLE_Z on duchamp3; 0 = the scene the current
+    policies were trained in). Below the base mesh, mount plates fill the gap under both arms."""
     from blind_insertion.assets import builder as B   # noqa: PLC0415
     variant = variant or B.reader_variant()
     def decorate(sp):
         add_scene(sp, top_cam, physical=physical)
+        if table_z < BASE_MESH_LOW:
+            h = (BASE_MESH_LOW - table_z) / 2
+            for name, y in (("mount_plate_right", 0.0), ("mount_plate_left", LEFT_BASE_Y)):
+                sp.worldbody.add_geom(name=name, type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.07, 0.07, h],
+                                      pos=[0.0, y, table_z + h], rgba=[0.6, 0.6, 0.62, 1], contype=0, conaffinity=0)
         if detailed:
             from blind_insertion.scenes.bench_details import add_details
             add_details(sp, variant)
@@ -133,7 +146,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True):
             from blind_insertion.scenes.physical_rig import decorate as decorate_rig
             decorate_rig(sp)
 
-    m, lay = B.build("yam", [variant], pad_spheres=PAD_SPHERES, table_top=0.0, fixture_boxes=pc_case_boxes(),
+    m, lay = B.build("yam", [variant], pad_spheres=PAD_SPHERES, table_top=table_z, fixture_boxes=pc_case_boxes(),
                      extra=decorate, gripper="flexpoint" if physical else "linear")
     B.apply_variant_cpu(m, lay, 0)
     cfg = json.loads(CONFIG.read_text())        # the insertion env's pad contact (PegEnv._apply_starts)

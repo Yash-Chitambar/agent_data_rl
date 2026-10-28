@@ -39,6 +39,7 @@ class PickCfg:
                                          # like the real cameras (MuJoCo Warp has no anti-aliasing)
     render: bool = True
     physical_rig: bool = True
+    table_z: float = 0.0                 # tabletop in the arm base frame (S.REAL_TABLE_Z: the real rig)
     use_textures: bool = True  # photo-referenced workbench material
     # layout randomization (arm base frame)
     port_xy: tuple = S.PORT_XY
@@ -84,7 +85,7 @@ class PickEnv:
             raise ValueError("Calibrated policy views require square cam_res; use physical_rig=False for legacy checkpoints")
         wp.init()
         self.gripper = "flexpoint" if cfg.physical_rig else "linear"
-        self.mjm, self.lay = S.build_scene(variant, physical=cfg.physical_rig)
+        self.mjm, self.lay = S.build_scene(variant, physical=cfg.physical_rig, table_z=cfg.table_z)
         mjm, lay = self.mjm, self.lay
         N = self.N = cfg.nworld
         self.gen = torch.Generator(device=dev)
@@ -117,8 +118,8 @@ class PickEnv:
         self.body_half_t = float(v.peg_boxes[0][1][1])
         self.T = int(round(cfg.episode_s / (cfg.substeps * mjm.opt.timestep)))
         self.control_dt = cfg.substeps * mjm.opt.timestep
-        # ready pose: tcp 18 cm above the reader area, top-down, plug direction +x
-        q, pe, _ = self.chain.ik(torch.tensor([[cfg.reader_xy[0], cfg.reader_xy[1], 0.18]], device=dev),
+        # ready pose: tcp 18 cm above the reader area (above the table), top-down, plug direction +x
+        q, pe, _ = self.chain.ik(torch.tensor([[cfg.reader_xy[0], cfg.reader_xy[1], cfg.table_z + 0.18]], device=dev),
                                  (self.R_base @ self.R_top)[None], self.home[None], iters=200, q_rest=self.home)
         assert pe.item() < 1e-3, "ready pose IK failed"
         self.q_ready = q[0]
@@ -155,7 +156,7 @@ class PickEnv:
         # PC: port position and yaw
         pp = torch.stack([cfg.port_xy[0] + _u(-cfg.port_xy_range[0], cfg.port_xy_range[0], N, gen, dev),
                           cfg.port_xy[1] + _u(-cfg.port_xy_range[1], cfg.port_xy_range[1], N, gen, dev),
-                          torch.full((N,), S.PORT_HEIGHT, device=dev)], 1)
+                          torch.full((N,), cfg.table_z + S.PORT_HEIGHT, device=dev)], 1)
         yaw = (S.PC_YAW_DEG + _u(-cfg.pc_yaw_deg, cfg.pc_yaw_deg, N, gen, dev)) * deg   # around the measured yaw
         self.port_p = pp
         self.port_R = self._yaw(yaw) @ self.R_base
@@ -170,7 +171,7 @@ class PickEnv:
         pa = lay.peg_qadr
         self.t_qpos[:, pa] = c[:, 0] - body[:, 0]
         self.t_qpos[:, pa + 1] = c[:, 1] - body[:, 1]
-        self.t_qpos[:, pa + 2] = self.body_half_t + 1e-4
+        self.t_qpos[:, pa + 2] = cfg.table_z + self.body_half_t + 1e-4
         self.t_qpos[:, pa + 3:pa + 7] = K.mat_to_quat(Rr)
         # arm: ready pose + noise, fingers open
         q = self.q_ready + _u(-cfg.start_q_noise, cfg.start_q_noise, (N, 6), gen, dev)
