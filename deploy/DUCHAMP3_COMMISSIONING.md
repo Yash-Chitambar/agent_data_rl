@@ -80,3 +80,24 @@ ACT cold start: the first two TorchScript calls took 354 + 298 ms (402 ms on pic
 holding). ActStage now warms up through step() at load: first tick 2.6 ms.
 The probe's first run stopped on an untrimmed intermediate move (joint 2 missed by 20.04 mrad):
 every probe move except the return to rest now uses the settle trim.
+
+## TO DO: transfer the 2026-10-28 rig data to the server (for the sim agent)
+
+`data/task_h/` is gitignored (34 MB): it lives only on duchamp3. Copy it to the server by ssh (no
+deletes on the destination), into the same path in the server checkout, then tell the sim agent:
+
+    rsync -az --update -e ssh ~/agent_data_rl-physical-validate/data/task_h/ <user>@<server>:<repo>/data/task_h/
+    # data/calib/verify_lab_20261027* (board-on-table heights) are in ~/agent_data_rl/data/calib/: copy them too
+
+What the sim agent needs from it:
+- `table_probe_002.json`: tabletop at model z -28/-34/-30 mm (gap 9, docs/REAL_RIG_GAPS.md). The sim's
+  `table_top=0.0` (scenes/pc_bench.py, PickEnv reader/port heights, task_config fix_z) is 3 cm too high
+  unless a ~30 mm board goes under the real workspace. Decide with the operator which side changes.
+- `pick1/ticks.npy`: first real ACT pick (descent profile, targets, ACT latency, frame ages), stopped by
+  the -15 mm fingertip limit ~3 cm above the reader.
+- `frames/ready1`, `frames/ready2` (+ `sim_vs_real.png`): real ZED and wrist policy images at the ready
+  pose; ready1 misplaced objects, ready2 within 6 mm of nominal. `placement/*.json|png`: measured poses.
+- `ready_settle_001.json`, `intermediate_*.json`, `approach_controller_*.json`: joint stick-slip traces
+  (joint 2-3 static friction ~1-2 N m, 7-10 mrad slips) for the sim friction model.
+- `grasp_gate_001.json`, `gripper_cal_20261027.json`: gripper readings (scale changes per connect).
+- `ctrl_seed2000/`, `dry_*`: sim dry runs of the deploy runner (14/16, 4/4, 4/4 seated).
