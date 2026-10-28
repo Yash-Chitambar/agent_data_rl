@@ -1,0 +1,7 @@
+{
+  "frame": "/home/yashc/left_bimanual_session/cameras/left_pc_view_001/wrist_left/raw_000460.png",
+  "host_receive_ns": 1959125740779453,
+  "joint_observation_ns": 1959125653357247,
+  "arrival_offset_ms": 87.422206,
+  "limitation": "Host arrival alignment only; exposure time unknown"
+}

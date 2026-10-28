@@ -1,16 +1,17 @@
 {
   "schema": "bimanual_support_geometry_v1",
-  "status": "provisional measured reference; not adopted by live safety",
+  "status": "measured table reference; platform footprint and contact planning unresolved",
   "world_frame": "right_arm_base",
-  "table_plane_z_m": -0.023,
+  "table_plane_z_m": -0.030163695454597475,
   "source": "operator mounting-platform measurement 2.3 cm",
   "uncertainty_m": null,
   "origin_assumption": "arm-base/model z=0 at the platform mounting surface",
   "platform_height_m": 0.023,
   "pc": {
     "height_with_feet_m": 0.0445,
-    "top_z_right_base_m": 0.0215,
-    "source": "prior operator measurements; top z assumes PC rests on surveyed table"
+    "top_z_right_base_m": null,
+    "source": "prior operator measurements; top z assumes PC rests on surveyed table",
+    "top_z_model_estimate_m": 0.014336304545402523
   },
   "board_plane_check": {
     "position1_z_m": -0.0209,
@@ -37,5 +38,30 @@
     "represent both lower table and shared mounting plate",
     "verify path clearance from plate edge as well as tabletop",
     "retain measured camera/base uncertainty"
-  ]
+  ],
+  "physical_table_relative_to_mounting_surface_z_m": -0.023,
+  "model_base_mesh_bottom_z_m": -0.0100000008,
+  "model_table_z_estimate_m": -0.0330000008,
+  "model_origin_note": "Model fixed base mesh bottom is -10 mm. Treat mesh bottom as candidate mounting interface; earlier -23 mm table assumption is not a valid model-frame contact target.",
+  "prior_table_probe": {
+    "source": "/home/yashc/agent_data_rl-physical-validate/data/task_h/table_probe_002.json",
+    "sha256": "80ac9185c8bc6c9f1b348e6f338ea8812f4b96c380ecff594ff78b38c0ff0fa2",
+    "raw_gap_mm": [
+      4.5,
+      5.1,
+      4.9
+    ],
+    "status": "operator confirmed centimetres; corrected interpretation saved separately",
+    "candidate_table_z_if_raw_was_cm_m": [
+      -0.027882916927337645,
+      -0.033739284634590146,
+      -0.030163695454597475
+    ]
+  },
+  "table_plane_frame": "MuJoCo robot model frame",
+  "table_observed_range_m": [
+    -0.033739284634590146,
+    -0.027882916927337645
+  ],
+  "table_plane_source": "corrected_table_probe.json"
 }

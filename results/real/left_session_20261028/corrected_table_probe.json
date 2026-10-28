@@ -1,0 +1,47 @@
+{
+  "source": "/home/yashc/agent_data_rl-physical-validate/data/task_h/table_probe_002.json",
+  "source_sha256": "80ac9185c8bc6c9f1b348e6f338ea8812f4b96c380ecff594ff78b38c0ff0fa2",
+  "correction": "operator confirms numeric gap entries were centimetres despite gap_mm field name",
+  "raw_file_modified": false,
+  "spots": [
+    {
+      "tcp_model_m": [
+        0.20525220036506653,
+        0.16536004841327667,
+        0.017117083072662354
+      ],
+      "raw_gap_value": 4.5,
+      "confirmed_raw_unit": "cm",
+      "gap_mm": 45.0,
+      "table_z_model_m": -0.027882916927337645
+    },
+    {
+      "tcp_model_m": [
+        0.1510520726442337,
+        0.22488988935947418,
+        0.01726071536540985
+      ],
+      "raw_gap_value": 5.1,
+      "confirmed_raw_unit": "cm",
+      "gap_mm": 51.0,
+      "table_z_model_m": -0.033739284634590146
+    },
+    {
+      "tcp_model_m": [
+        0.2666047215461731,
+        0.1909584403038025,
+        0.018836304545402527
+      ],
+      "raw_gap_value": 4.9,
+      "confirmed_raw_unit": "cm",
+      "gap_mm": 49.0,
+      "table_z_model_m": -0.030163695454597475
+    }
+  ],
+  "table_z_model_m_median": -0.030163695454597475,
+  "observed_table_z_range_m": [
+    -0.033739284634590146,
+    -0.027882916927337645
+  ],
+  "uncertainty_note": "Three manual gap readings; observed spread is not a calibrated confidence interval. No plane tilt validated."
+}
