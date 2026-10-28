@@ -124,10 +124,12 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   | v5 20k (old gate) | 0.5 / 20 mrad | 55.5% | 58% | 6.7 mm |
   | v5 20k | 0.5 / 20 mrad | 76.6% [68.5, 83.1] | 81% | 5.0 mm |
   | v5 40k | 0.5 / 20 mrad | 93.0% [87.2, 96.3] | 94% | 3.0 mm |
+  | v5 60k | 0.5 / 20 mrad | **97.7% [93.3, 99.2]** | 98% | 2.6 mm |
 
   Expert pick + uncomp 500M + feed-forward: 93.0% [89.2, 95.5]. ACT now matches the expert.
   v5 learns faster (40k: 93.0% vs v4 80.5%, but v4 has no feed-forward there). v5 at 100k+ will
-  tell whether recovery demos and `cmd_err` add anything over v4 + feed-forward.
+  tell whether recovery demos and `cmd_err` add anything over v4 + feed-forward. Sim demo videos
+  (8 episodes, same seed; 7/8 each): `results/H/demos_v4ff`, `results/H/demos_v5`.
 
 ### 2026-10-27 (midday, mason) — Task H: feed-forward fine-tune, v5 ACT data
 
