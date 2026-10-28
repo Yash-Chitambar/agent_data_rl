@@ -54,6 +54,21 @@ class FlexChecker(safety.Checker):
         self.qadr = np.array([self.m.jnt_qposadr[mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_JOINT, f"joint{i}")]
                               for i in range(1, 7)])
 
+    def _bottom(self, g, verts):
+        """Lowest world z of the geom; account for capsule/cylinder orientation."""
+        if verts is not None:
+            return float((verts @ self.d.geom_xmat[g].reshape(3, 3).T[:, 2] + self.d.geom_xpos[g][2]).min())
+        kind = self.m.geom_type[g]
+        axis_z = abs(float(self.d.geom_xmat[g].reshape(3, 3)[2, 2]))
+        radius, half_length = self.m.geom_size[g][:2]
+        if kind == mujoco.mjtGeom.mjGEOM_CAPSULE:
+            extent = radius + half_length * axis_z
+        elif kind == mujoco.mjtGeom.mjGEOM_CYLINDER:
+            extent = half_length * axis_z + radius * np.sqrt(max(0.0, 1.0 - axis_z * axis_z))
+        else:
+            extent = self.m.geom_rbound[g]
+        return float(self.d.geom_xpos[g][2] - extent)
+
     def heights(self, q6_model):
         """{body: lowest point above the table (m)} at a model-frame pose."""
         self.d.qpos[:] = 0
@@ -61,8 +76,7 @@ class FlexChecker(safety.Checker):
         mujoco.mj_kinematics(self.m, self.d)
         out = {}
         for g, verts, _ in self.geoms:
-            z = (self.d.geom_xpos[g][2] - self.m.geom_rbound[g] if verts is None
-                 else (verts @ self.d.geom_xmat[g].reshape(3, 3).T[:, 2] + self.d.geom_xpos[g][2]).min())
+            z = self._bottom(g, verts)
             b = mujoco.mj_id2name(self.m, mujoco.mjtObj.mjOBJ_BODY, self.m.geom_bodyid[g])
             out[b] = min(out.get(b, np.inf), float(z))
         return out
@@ -77,10 +91,7 @@ class FlexChecker(safety.Checker):
         self.d.qpos[self.qadr] = q6 + self.off
         mujoco.mj_kinematics(self.m, self.d)
         for g, verts, zmin in self.geoms:
-            if verts is None:
-                z = self.d.geom_xpos[g][2] - self.m.geom_rbound[g]
-            else:
-                z = (verts @ self.d.geom_xmat[g].reshape(3, 3).T[:, 2] + self.d.geom_xpos[g][2]).min()
+            z = self._bottom(g, verts)
             if z < zmin:
                 body = mujoco.mj_id2name(self.m, mujoco.mjtObj.mjOBJ_BODY, self.m.geom_bodyid[g])
                 return f"{body} at z = {z * 1000:+.0f} mm < {zmin * 1000:.0f} mm above the table"
