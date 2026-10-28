@@ -28,19 +28,45 @@ OUT = C.REPO / "data/task_h/frames"
 
 
 def capture(a):
-    raise SystemExit("real capture disabled: safe return and powered-hold recovery are not yet implemented")
     from deploy.backends import RealBackend
     cfg = load_config()
     off = C.joint_offsets(cfg["side"])
+    d = OUT / a.name
+    if d.exists():
+        raise SystemExit(f"refusing to overwrite {d}")
     be = RealBackend(cfg, off)
+    q_start = be.read()[0].copy()
     try:
         be.move_to(np.asarray(cfg["act"]["start_q_model"]) - off, grip01=cfg["gripper"]["open"])
         q, qd, g, _ = be.read()
         raw = {k: c.latest()[0] for k, c in be.cams.cams.items()}
         pol, age, _ = be.frames()
-    finally:
+        # Persist observations before attempting the return, including on return failure.
+        d.mkdir(parents=True, exist_ok=False)
+        for k in raw:
+            cv2.imwrite(str(d / f"{k}_raw.png"), raw[k])
+            cv2.imwrite(str(d / f"{k}_policy.png"), cv2.cvtColor(pol[k], cv2.COLOR_RGB2BGR))
+        (d / "state.json").write_text(json.dumps(dict(q_motor=q.tolist(), q_model=(q + off).tolist(), grip=g,
+            age_ms={k: v * 1e3 for k, v in age.items()}), indent=1))
+        be.move_to(q_start, grip01=cfg["gripper"]["open"])
+        if np.max(np.abs(be.read()[0] - q_start)) > 0.02:
+            raise RuntimeError("return pose not attained within 0.02 rad")
+    except BaseException as exc:
         be.hold()
-        be.close()
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "failure.json").write_text(json.dumps(dict(error=repr(exc),
+            q_start_motor=q_start.tolist(), motion_trace=be.arm.motion_trace,
+            controller=be.arm.info(), note="Failed attempt, not a ready-pose observation"), indent=1))
+        for name, camera in be.cams.cams.items():
+            frame, stamp, count = camera.latest()
+            if frame is not None:
+                cv2.imwrite(str(d / f"{name}_failure_raw.png"), frame)
+        print(f"Capture/return stopped: {exc}. Arm remains powered. Do not terminate this process.", flush=True)
+        # A failed return must never disable a raised arm automatically.
+        import time
+        while True:
+            time.sleep(0.1)
+    be.close()
     d = OUT / a.name
     d.mkdir(parents=True, exist_ok=True)
     for k in raw:

@@ -255,6 +255,7 @@ class BusTiming:
 class RealArm:
     def __init__(self, side, kp, kd):
         self.side = side
+        self.motion_trace = []
         self.robot = safety.connect(side)
         self.timing = BusTiming(self.robot)
         r = self.robot
@@ -300,10 +301,17 @@ class RealArm:
             s = s * s * (3 - 2 * s)
             tgt = q0.copy()
             tgt[:6] = (1 - s) * q0[:6] + s * q6_goal
-            self.safe.command(tgt)
+            sent = self.safe.command(tgt)
+            measured = np.asarray(self.robot.get_joint_pos(), float)
+            self.motion_trace.append(dict(host_monotonic=time.monotonic(), target=sent.tolist(),
+                                          measured=measured.tolist(), mode="move_to"))
             t_next += CONTROL_DT
             self.wait(t_next)
         time.sleep(1.0)   # settle
+        actual = np.asarray(self.robot.get_joint_pos(), float)[:6]
+        if np.max(np.abs(actual - q6_goal)) > 0.02:
+            self.hold()
+            raise safety.SafetyStop(f"move_to goal not attained within 0.02 rad; error_rad={(actual - q6_goal).tolist()}; holding")
 
     def wait(self, t_next):
         while True:
