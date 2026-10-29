@@ -9,6 +9,10 @@ there is no later adopted calibration to substitute.
 ## Implemented and checked
 
 - Both arms actuated in the optional bimanual CPU scene; equal pad-contact settings.
+- Arm-link and cross-arm collisions restored before compilation; synthetic positive and negative
+  contact probes pass. Authored capsule geometry remains approximate.
+- Explicit identification/native PD gain profiles prevent conflating temporary test gains with
+  native free-settle gains. See `docs/BIMANUAL_SLIDE_EVIDENCE_AUDIT.md`.
 - Free PC with reported mass and dimensions; original connector geometry retained.
 - Optional measured support: 480 mm wall-edge to stationary robot-base edge and 23 mm
   mounting rise. Base mesh bottom is the assumed mounting interface (-10 mm model z),
@@ -17,9 +21,12 @@ there is no later adopted calibration to substitute.
 - `overlays/`: all three recorded camera views, calibrated preprocessing, host-arrival-matched
   encoder poses. Annotation supplies approximate PC lid center; no reader was visible.
   Images are diagnostic comparisons, not a passed photometric or geometric fidelity gate.
-- `replay/`: left six-joint folded-rest baseline replays using actual sent targets, native
-  feedback and logged gains; outputs kept outside source bundle. Excited-joint RMSE is
-  3.2–5.5 mrad, peak error 6.4–11.6 mrad. No fit adopted; no contact or elevated-pose claim.
+- `replay/`: twelve bilateral folded-rest baselines, three left free-settle baselines,
+  and six left replays using logged computed driver feedforward. Folded-rest excited-joint
+  errors are 2.5–5.5 mrad. Elevated free-settle 001 joint-3 error is 26.2 mrad overall.
+  Logged feedforward improves left joint 3 (3.83 to 2.31 mrad), but worsens joints 2 and 4;
+  it is not adopted as a validated plant/controller model. Right captures lack this field.
+  All metrics are encoder comparisons, not independently measured tool accuracy.
 
 ## Reproduce
 
@@ -41,7 +48,8 @@ Rendering: after the required idle-GPU checks, explicitly select one free GPU an
 
 - Resolve visual geometry/material discrepancies using wrist views and independent frames.
 - Refine plate footprint; validate full arm/body collision coverage and support behavior.
-- Replay right-arm and elevated/failed acquisitions; separate driver feedforward from friction.
+- Fit and validate gravity/friction across the now-replayed bilateral and elevated captures;
+  include failed acquisitions and independent tool measurements where available.
 - Identify gripper mapping/contact uncertainty without interpreting normalized position as force.
 - Share measured profile and dynamic-port semantics with training environment, reset/rewards,
   camera timing and policy interface. CPU scene is not yet a complete training environment.

@@ -1,0 +1,30 @@
+{
+  "samples": 8969,
+  "joint3_rmse_rad": 1.94358557179653e-05,
+  "output": "results/usbc/bimanual_20261029/replay/right_j1_baseline"
+}
+{
+  "samples": 8980,
+  "joint3_rmse_rad": 0.00034242680724454275,
+  "output": "results/usbc/bimanual_20261029/replay/right_j2_baseline"
+}
+{
+  "samples": 8918,
+  "joint3_rmse_rad": 0.004370574643484036,
+  "output": "results/usbc/bimanual_20261029/replay/right_j3_baseline"
+}
+{
+  "samples": 8961,
+  "joint3_rmse_rad": 2.2740360822342683e-05,
+  "output": "results/usbc/bimanual_20261029/replay/right_j4_baseline"
+}
+{
+  "samples": 8967,
+  "joint3_rmse_rad": 1.301662722374165e-05,
+  "output": "results/usbc/bimanual_20261029/replay/right_j5_baseline"
+}
+{
+  "samples": 8964,
+  "joint3_rmse_rad": 8.925232587316084e-06,
+  "output": "results/usbc/bimanual_20261029/replay/right_j6_baseline"
+}

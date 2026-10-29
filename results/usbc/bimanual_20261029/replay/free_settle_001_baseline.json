@@ -1,0 +1,153 @@
+{
+  "side": "left",
+  "run": "/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/contact/free_settle_001",
+  "source": "steps",
+  "initial_state": "first steps observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "recorded native PD gains; executed commands already include candidate trim; no additional integral",
+  "joint3_frictionloss_nm": 0.01,
+  "experimental_stiction_nm": null,
+  "experimental_stiction_mode": null,
+  "experimental_state_steps": null,
+  "driver_feedforward_reconstruction": null,
+  "limitations": [
+    "contacts disabled",
+    "driver feedforward is reconstructed or omitted; no measured torque",
+    "stick/slip force uses inverse mass, not a full constrained contact solve",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth",
+    "phase boundaries use first CAN-send host time; native feedback is not synchronized exposure or torque"
+  ],
+  "native_feedback_samples": 46933,
+  "joint_rmse_rad": [
+    0.004548059998014691,
+    0.01561222252578937,
+    0.026203435532157666,
+    0.0046878274485941404,
+    0.012228749495367125,
+    0.011850811755766173
+  ],
+  "joint_peak_abs_error_rad": [
+    0.011343906749243238,
+    0.04863285401455664,
+    0.053031332204036385,
+    0.013969069913880403,
+    0.023671007407846875,
+    0.022212593965952987
+  ],
+  "model_timestep_s": 0.001,
+  "normalized_input_sha256": {
+    "run.json": "c5185218e97abbf5737de7d05bc29025d19c7af890ab1ef9da7afc4dbb471bb7",
+    "steps.csv": "2edaf57a5a093a74ec701a9768a7de02c3da26791631364e092517b81124a1c0",
+    "encoder_left.csv": "d54a60b8861869aff176578585ea764fb5619fe5b51be08cf204fce226f7eab9"
+  },
+  "input_sha256": {
+    "trial.json": "b30311f0107de9056af478c40395f843e77b84483c44496f7ac3e7731665f043",
+    "left_native_feedback.json": "8f37fd766f466d28788579501ecf676eb95274bfd4ef5a49b9e641e391ad2968"
+  },
+  "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "recorded_gains": {
+    "gains_before": [
+      [
+        80.0,
+        80.0,
+        80.0,
+        40.0,
+        10.0,
+        10.0
+      ],
+      [
+        5.0,
+        5.0,
+        5.0,
+        1.5,
+        1.5,
+        1.5
+      ]
+    ],
+    "kp": [
+      80.0,
+      80.0,
+      80.0,
+      40.0,
+      10.0,
+      10.0
+    ],
+    "kd": [
+      5.0,
+      5.0,
+      5.0,
+      1.5,
+      1.5,
+      1.5
+    ],
+    "gravity_comp_factor": [
+      1.0,
+      1.1,
+      1.1,
+      1.2,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "coulomb_friction": [
+      0.3,
+      0.3,
+      0.3,
+      0.06,
+      0.06,
+      0.06,
+      0.0
+    ]
+  },
+  "phase_joint_rmse_rad": {
+    "above_beyond": [
+      0.003688044706395878,
+      0.006114141457034849,
+      0.03464282508825758,
+      0.0032778219564058345,
+      0.012191968860116467,
+      0.008125121138988757
+    ],
+    "baseline_hold": [
+      0.004160973356711048,
+      0.006661577301921272,
+      0.02814247623827493,
+      0.002547185791966988,
+      0.01935649239266772,
+      0.008731265234007718
+    ],
+    "candidate_frozen_hold": [
+      0.0016527631255345832,
+      0.010752356812824493,
+      0.03331033968865356,
+      0.00038717120592476754,
+      0.009044165882904005,
+      0.010540523195064105
+    ],
+    "candidate_trim": [
+      0.002896399574712306,
+      0.01092184186806159,
+      0.034734408415908385,
+      0.0008907304323298446,
+      0.015341953442163275,
+      0.01113603113572033
+    ],
+    "retreat_high": [
+      0.0012135564478501302,
+      0.002219564975938833,
+      0.010126906213164468,
+      0.0008657142435629509,
+      0.0026648967150206546,
+      0.003824963183785493
+    ],
+    "return_rest": [
+      0.005626346373370376,
+      0.02236346542323419,
+      0.007089194515358799,
+      0.006307057907952081,
+      0.011288499290426763,
+      0.015070854518554964
+    ]
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "side": "left",
+  "run": "/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/contact/free_settle_002",
+  "source": "steps",
+  "initial_state": "first steps observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "recorded native PD gains; executed commands already include candidate trim; no additional integral",
+  "joint3_frictionloss_nm": 0.01,
+  "experimental_stiction_nm": null,
+  "experimental_stiction_mode": null,
+  "experimental_state_steps": null,
+  "driver_feedforward_reconstruction": null,
+  "limitations": [
+    "contacts disabled",
+    "driver feedforward is reconstructed or omitted; no measured torque",
+    "stick/slip force uses inverse mass, not a full constrained contact solve",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth",
+    "phase boundaries use first CAN-send host time; native feedback is not synchronized exposure or torque"
+  ],
+  "native_feedback_samples": 53766,
+  "joint_rmse_rad": [
+    0.004287975600685043,
+    0.017641481937135096,
+    0.023439096583978174,
+    0.004721528749407448,
+    0.012005204929609123,
+    0.01123824332665574
+  ],
+  "joint_peak_abs_error_rad": [
+    0.010886882232577527,
+    0.052005462844148864,
+    0.04932820339062016,
+    0.012907771158712777,
+    0.023863562460377408,
+    0.022684504333099487
+  ],
+  "model_timestep_s": 0.001,
+  "normalized_input_sha256": {
+    "run.json": "c5185218e97abbf5737de7d05bc29025d19c7af890ab1ef9da7afc4dbb471bb7",
+    "steps.csv": "629d346fb06da53bc197f9ebe0d207f2a73bae01dc07d850d3361b40a1bcb512",
+    "encoder_left.csv": "8b09cd42d5ea7510c3e052da60dee6d4f368238d98d5a97d0a444ba4cf2e74fe"
+  },
+  "input_sha256": {
+    "trial.json": "4da56dbda1713f485c6c2fe122792cfd566beb608c0810bca1c3963cbe2ebf4d",
+    "left_native_feedback.json": "b6015a6ced7ceec9c2f3bb30f89d1e00f485f4ec4fc4d4a2e1ee2483196332b8"
+  },
+  "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "recorded_gains": {
+    "gains_before": [
+      [
+        80.0,
+        80.0,
+        80.0,
+        40.0,
+        10.0,
+        10.0
+      ],
+      [
+        5.0,
+        5.0,
+        5.0,
+        1.5,
+        1.5,
+        1.5
+      ]
+    ],
+    "kp": [
+      80.0,
+      80.0,
+      80.0,
+      40.0,
+      10.0,
+      10.0
+    ],
+    "kd": [
+      5.0,
+      5.0,
+      5.0,
+      1.5,
+      1.5,
+      1.5
+    ],
+    "gravity_comp_factor": [
+      1.0,
+      1.1,
+      1.1,
+      1.2,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "coulomb_friction": [
+      0.3,
+      0.3,
+      0.3,
+      0.06,
+      0.06,
+      0.06,
+      0.0
+    ]
+  },
+  "phase_joint_rmse_rad": {
+    "above_beyond": [
+      0.003545354042850354,
+      0.005975917204408241,
+      0.03480222472309501,
+      0.0032548943492709775,
+      0.012510864498506908,
+      0.008243820399654237
+    ],
+    "baseline_hold": [
+      0.00465002589555606,
+      0.010127929155645846,
+      0.00769137781573809,
+      0.006012067201909398,
+      0.019365850122416296,
+      0.009166948548643108
+    ],
+    "candidate_frozen_hold": [
+      0.0015521332121660716,
+      0.020711834520076435,
+      0.004770944422539647,
+      0.005089463159226849,
+      0.00962636309731256,
+      0.010913246733581433
+    ],
+    "candidate_trim": [
+      0.0025822877696836527,
+      0.012456272482654029,
+      0.005828928288869579,
+      0.005217742999769627,
+      0.015537772726440226,
+      0.011362292829763561
+    ],
+    "descend_clear": [
+      0.002999814862772852,
+      0.010742905483149684,
+      0.00802058732333563,
+      0.0037322971767426247,
+      0.012316794660598889,
+      0.005879616852874011
+    ],
+    "retreat_high": [
+      0.0006817782097542037,
+      0.03278531335976904,
+      0.02939253792877354,
+      0.0017660333508013612,
+      0.0015966489055389702,
+      0.001679713601315104
+    ],
+    "return_rest": [
+      0.005619133251078146,
+      0.02304050873488445,
+      0.007192770272196071,
+      0.006082951650035713,
+      0.011194563328801529,
+      0.014949453109005249
+    ]
+  }
+}

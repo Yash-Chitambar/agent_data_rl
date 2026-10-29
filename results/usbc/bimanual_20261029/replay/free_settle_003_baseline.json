@@ -1,0 +1,161 @@
+{
+  "side": "left",
+  "run": "/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/contact/free_settle_003",
+  "source": "steps",
+  "initial_state": "first steps observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "recorded native PD gains; executed commands already include candidate trim; no additional integral",
+  "joint3_frictionloss_nm": 0.01,
+  "experimental_stiction_nm": null,
+  "experimental_stiction_mode": null,
+  "experimental_state_steps": null,
+  "driver_feedforward_reconstruction": null,
+  "limitations": [
+    "contacts disabled",
+    "driver feedforward is reconstructed or omitted; no measured torque",
+    "stick/slip force uses inverse mass, not a full constrained contact solve",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth",
+    "phase boundaries use first CAN-send host time; native feedback is not synchronized exposure or torque"
+  ],
+  "native_feedback_samples": 57985,
+  "joint_rmse_rad": [
+    0.004099502327523778,
+    0.018682827654208284,
+    0.022705244864560256,
+    0.004794450586211146,
+    0.01164178690072251,
+    0.01121117975500107
+  ],
+  "joint_peak_abs_error_rad": [
+    0.011049066207190372,
+    0.050398400842019075,
+    0.051389037379055535,
+    0.013346528484099562,
+    0.02295386846948022,
+    0.023922803339530452
+  ],
+  "model_timestep_s": 0.001,
+  "normalized_input_sha256": {
+    "run.json": "c5185218e97abbf5737de7d05bc29025d19c7af890ab1ef9da7afc4dbb471bb7",
+    "steps.csv": "cf254e55dbdec2af9d668e5ce6152a3e8072b142500886ae40bcd432bf5e6de3",
+    "encoder_left.csv": "655242bda64573f83110922b7296c5f9e0889435108a6119b0b43efadd8b2d57"
+  },
+  "input_sha256": {
+    "trial.json": "7b350aa8ce9d548856a988073e1048bd03d11ec3f55c8ecd6c2b3e88718d74cd",
+    "left_native_feedback.json": "ceb24bdf34da3bd664f8b63c00fd3d3ba53986ea94a43936c2d44f10f88a8d32"
+  },
+  "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "recorded_gains": {
+    "gains_before": [
+      [
+        80.0,
+        80.0,
+        80.0,
+        40.0,
+        10.0,
+        10.0
+      ],
+      [
+        5.0,
+        5.0,
+        5.0,
+        1.5,
+        1.5,
+        1.5
+      ]
+    ],
+    "kp": [
+      80.0,
+      80.0,
+      80.0,
+      40.0,
+      10.0,
+      10.0
+    ],
+    "kd": [
+      5.0,
+      5.0,
+      5.0,
+      1.5,
+      1.5,
+      1.5
+    ],
+    "gravity_comp_factor": [
+      1.0,
+      1.1,
+      1.1,
+      1.2,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "coulomb_friction": [
+      0.3,
+      0.3,
+      0.3,
+      0.06,
+      0.06,
+      0.06,
+      0.0
+    ]
+  },
+  "phase_joint_rmse_rad": {
+    "above_beyond": [
+      0.0034834032261975294,
+      0.005874972287014106,
+      0.03480752425820351,
+      0.003462134836903577,
+      0.012671864213529534,
+      0.00818844996902515
+    ],
+    "baseline_hold": [
+      0.004650031337351863,
+      0.010128078566751604,
+      0.008072536250154137,
+      0.00605170997136274,
+      0.019307344654830194,
+      0.009164243777650972
+    ],
+    "candidate_frozen_hold": [
+      0.0010701454453587327,
+      0.03164550142492284,
+      0.016214949187897152,
+      0.004801717420115414,
+      0.003064505778021126,
+      0.010804794775624597
+    ],
+    "candidate_trim": [
+      0.001645888238605816,
+      0.021652104222142456,
+      0.008082080724813291,
+      0.005062210917330969,
+      0.01216231615360499,
+      0.01112896910178997
+    ],
+    "descend_clear": [
+      0.002989366757413273,
+      0.010918352517766378,
+      0.007679655031291614,
+      0.0037284938475818717,
+      0.012198544579820909,
+      0.005922622788369569
+    ],
+    "retreat_high": [
+      0.0007012431562447246,
+      0.03250680246710507,
+      0.028837543609067505,
+      0.0016111719905800618,
+      0.0011736213318065476,
+      0.0016141850288308003
+    ],
+    "return_rest": [
+      0.0056308171962325924,
+      0.022999503458622863,
+      0.007042539187586992,
+      0.006107241521131387,
+      0.010850802989457571,
+      0.014967369165148329
+    ]
+  }
+}

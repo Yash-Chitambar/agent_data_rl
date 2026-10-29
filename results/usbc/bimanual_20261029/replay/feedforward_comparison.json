@@ -1,0 +1,89 @@
+{
+  "trials": [
+    {
+      "side": "left",
+      "joint": 1,
+      "baseline_rmse_mrad": 4.0316647597078425,
+      "logged_ff_rmse_mrad": 4.525366937924015,
+      "comparison_status": "available"
+    },
+    {
+      "side": "left",
+      "joint": 2,
+      "baseline_rmse_mrad": 4.70116387754815,
+      "logged_ff_rmse_mrad": 9.048332716208671,
+      "comparison_status": "available"
+    },
+    {
+      "side": "left",
+      "joint": 3,
+      "baseline_rmse_mrad": 3.831338621311823,
+      "logged_ff_rmse_mrad": 2.3084868940167396,
+      "comparison_status": "available"
+    },
+    {
+      "side": "left",
+      "joint": 4,
+      "baseline_rmse_mrad": 5.524746222151419,
+      "logged_ff_rmse_mrad": 10.583391435109474,
+      "comparison_status": "available"
+    },
+    {
+      "side": "left",
+      "joint": 5,
+      "baseline_rmse_mrad": 3.271492313513488,
+      "logged_ff_rmse_mrad": 3.298843516170111,
+      "comparison_status": "available"
+    },
+    {
+      "side": "left",
+      "joint": 6,
+      "baseline_rmse_mrad": 3.2043379917158257,
+      "logged_ff_rmse_mrad": 3.2285270666584394,
+      "comparison_status": "available"
+    },
+    {
+      "side": "right",
+      "joint": 1,
+      "baseline_rmse_mrad": 2.8185691015876473,
+      "logged_ff_rmse_mrad": null,
+      "comparison_status": "no logged-feedforward replay available"
+    },
+    {
+      "side": "right",
+      "joint": 2,
+      "baseline_rmse_mrad": 5.4009210038082465,
+      "logged_ff_rmse_mrad": null,
+      "comparison_status": "no logged-feedforward replay available"
+    },
+    {
+      "side": "right",
+      "joint": 3,
+      "baseline_rmse_mrad": 4.370574643484036,
+      "logged_ff_rmse_mrad": null,
+      "comparison_status": "no logged-feedforward replay available"
+    },
+    {
+      "side": "right",
+      "joint": 4,
+      "baseline_rmse_mrad": 5.388348422106133,
+      "logged_ff_rmse_mrad": null,
+      "comparison_status": "no logged-feedforward replay available"
+    },
+    {
+      "side": "right",
+      "joint": 5,
+      "baseline_rmse_mrad": 2.8767742549846984,
+      "logged_ff_rmse_mrad": null,
+      "comparison_status": "no logged-feedforward replay available"
+    },
+    {
+      "side": "right",
+      "joint": 6,
+      "baseline_rmse_mrad": 2.484030798958387,
+      "logged_ff_rmse_mrad": null,
+      "comparison_status": "no logged-feedforward replay available"
+    }
+  ],
+  "interpretation": "same recorded trajectories; no plant fit; logged feedforward execution timing uncertain; not held-out transfer validation"
+}

@@ -33,6 +33,7 @@ def main():
     p.add_argument("--timestep", type=float, default=0.001)
     p.add_argument("--driver-feedforward", action="store_true", help="approximate the logged driver model offline")
     p.add_argument("--recorded-state-feedforward", action="store_true", help="reconstruct feedforward from logged encoder states")
+    p.add_argument("--logged-feedforward", action="store_true", help="replay logged last-computed driver torque at observation times; not measured torque")
     p.add_argument("--out-dir", type=Path, help="write outside the immutable capture bundle")
     p.add_argument("--output-stem", default="cpu_baseline_replay", help="new output name within run directory")
     a = p.parse_args()
@@ -45,7 +46,7 @@ def main():
         raise SystemExit("stiction requires finite STATIC >= SLIDING >= 0 and no joint3-friction")
     if not np.isfinite(a.timestep) or not 0.00025 <= a.timestep <= 0.002:
         raise SystemExit("timestep must be between 0.00025 and 0.002 s")
-    if a.driver_feedforward and a.recorded_state_feedforward:
+    if sum((a.driver_feedforward, a.recorded_state_feedforward, a.logged_feedforward)) > 1:
         raise SystemExit("choose only one driver feedforward reconstruction")
     output = a.out_dir or a.run
     output.mkdir(parents=True, exist_ok=True)
@@ -67,8 +68,16 @@ def main():
         raise SystemExit("CAN send timestamps are not ordered")
     commands = np.asarray([json.loads(r["q_cmd"]) for r in rows]) + offsets
     obs_t = np.asarray([float(r["t_obs"]) - obs0 for r in rows])
-    if a.recorded_state_feedforward and not np.all(np.diff(obs_t) >= 0):
+    if (a.recorded_state_feedforward or a.logged_feedforward) and not np.all(np.diff(obs_t) >= 0):
         raise SystemExit("observation timestamps are not ordered")
+    logged_ff = None
+    if a.logged_feedforward:
+        try:
+            logged_ff = np.asarray([json.loads(r["computed_motor_feedforward_driver"])[:6] for r in rows], float)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SystemExit("missing logged driver feedforward; cannot substitute zero") from exc
+        if logged_ff.shape != (len(rows), 6) or not np.isfinite(logged_ff).all():
+            raise SystemExit("invalid logged driver feedforward")
     with (a.run / f"encoder_{a.side}.csv").open(newline="") as f:
         enc = list(csv.DictReader(f))
     native_t = np.asarray([float(r["host_arrival_s"]) - obs0 for r in enc])
@@ -121,6 +130,12 @@ def main():
         while k < len(send_t) and send_t[k] <= d.time:
             d.ctrl[arm_act] = commands[k]
             k += 1
+        if logged_ff is not None:
+            while obs_idx + 1 < len(obs_t) and obs_t[obs_idx + 1] <= d.time:
+                obs_idx += 1
+            d.qfrc_applied[arm_dofadr] = 0.0
+            mujoco.mj_forward(m, d)
+            d.qfrc_applied[arm_dofadr] = logged_ff[obs_idx] - d.qfrc_gravcomp[arm_dofadr]
         if driver_kdl is not None:
             # Replace scene-perfect gravity compensation with the driver's computed gravity and
             # velocity-sign feedforward. Simulated velocity is a proxy for the driver's sampled
@@ -143,7 +158,7 @@ def main():
                 gravity = driver_kdl.compute_inverse_dynamics(q_encoder, np.zeros(6), np.zeros(6))
                 driver_ff = gravity * gravity_factors + friction_factors * np.sign(q_velocity)
             d.qfrc_applied[arm_dofadr] = driver_ff - d.qfrc_gravcomp[arm_dofadr]
-        if driver_kdl is None:
+        if driver_kdl is None and logged_ff is None:
             d.qfrc_applied[dof3] = 0.0
         base_force3 = float(d.qfrc_applied[dof3])
         if a.stiction:
@@ -176,11 +191,12 @@ def main():
     summary = {"side": a.side, "run": str(a.run), "source": a.source, "initial_state": f"first {a.source} observation; encoder offsets applied once",
                "command_time": "first matching CAN send on host monotonic clock; zero-order held",
                "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
+               "logged_feedforward": "last-computed driver command held at observation timestamps; command execution timestamp unknown; not measured torque" if a.logged_feedforward else None,
                "joint3_frictionloss_nm": float(m.dof_frictionloss[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, prefix + "joint3")]]),
                "experimental_stiction_nm": a.stiction, "experimental_stiction_mode": a.stiction_mode if a.stiction else None,
                "experimental_state_steps": state_counts if a.stiction else None,
                "driver_feedforward_reconstruction": ("approximate KDL gravity and velocity sign from logged states; held between observations; not actual recorded command" if a.recorded_state_feedforward else "approximate KDL gravity with logged factors and simulated velocity sign; not actual recorded command" if a.driver_feedforward else None),
-               "limitations": ["contacts disabled", "driver feedforward is reconstructed or omitted; no measured torque",
+               "limitations": ["contacts disabled", "feedforward is a logged computed command, reconstruction, or omitted; no measured torque",
                                "stick/slip force uses inverse mass, not a full constrained contact solve",
                                "not a fitted or held-out validated model", "no external wrist ground truth"],
                "native_feedback_samples": len(native_t),

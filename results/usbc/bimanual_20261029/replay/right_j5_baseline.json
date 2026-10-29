@@ -1,0 +1,43 @@
+{
+  "side": "right",
+  "run": "/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/reference/right_arm_20261027/motion/right_rest_empty_j5_triangle_001",
+  "source": "steps",
+  "initial_state": "first steps observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
+  "joint3_frictionloss_nm": 0.01,
+  "experimental_stiction_nm": null,
+  "experimental_stiction_mode": null,
+  "experimental_state_steps": null,
+  "driver_feedforward_reconstruction": null,
+  "limitations": [
+    "contacts disabled",
+    "driver feedforward is reconstructed or omitted; no measured torque",
+    "stick/slip force uses inverse mass, not a full constrained contact solve",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth"
+  ],
+  "native_feedback_samples": 8967,
+  "input_sha256": {
+    "run.json": "b916c5a73650e80ef76b0bc632470149e1d17b65593806969c10f50c04cd2ca9",
+    "steps.csv": "92f7b7a96485a05d48409d9fff8e51dbfcdff3e548b4b0e7901075a0b2d00abf",
+    "encoder_right.csv": "98ada3fd1b05313b5e76a0c0d1e1968cbb17ad79aed8c5c0d7ba9cb4e58ec154"
+  },
+  "joint_rmse_rad": [
+    4.5474526683664806e-06,
+    0.0015257794851318666,
+    1.301662722374165e-05,
+    0.002110442532198085,
+    0.0028767742549846986,
+    0.0002901437181264683
+  ],
+  "joint_peak_abs_error_rad": [
+    2.84812364703675e-05,
+    0.0019073725028346707,
+    0.00010664911835251648,
+    0.0022888969351204796,
+    0.006046457540914135,
+    0.00040053297066394245
+  ],
+  "model_timestep_s": 0.001
+}

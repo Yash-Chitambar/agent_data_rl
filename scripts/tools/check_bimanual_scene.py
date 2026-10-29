@@ -22,7 +22,9 @@ for prefix in ('','left_'):
         a=m.actuator(prefix+f'joint{i}').id
         d.ctrl[a]=d.qpos[m.joint(prefix+f'joint{i}').qposadr][0]
         assert m.actuator_trnid[a,0]==m.joint(prefix+f'joint{i}').id
-        if i<4:assert m.actuator_biasprm[a,2]==-5
+        assert m.actuator_gainprm[a,0]==[80,80,80,30,30,30][i-1]
+        assert m.actuator_biasprm[a,1]==-[80,80,80,30,30,30][i-1]
+        assert m.actuator_biasprm[a,2]==-[5,5,5,2,2,2][i-1]
     pads=[g for g in range(m.ngeom) if m.geom(g).name.startswith((prefix+'left_pad_s',prefix+'right_pad_s'))]
     assert len(pads)==32
     assert all(m.geom_contype[g]!=0 for g in pads)
@@ -35,6 +37,13 @@ assert any(m.body(int(m.geom_bodyid[c.geom1])).name=='fixture' or
            m.body(int(m.geom_bodyid[c.geom2])).name=='fixture' for c in d.contact)
 legacy,_=S.build_scene(detailed=False)
 assert legacy.nu==8
+native,_=S.build_scene(detailed=False,bimanual=True,controller_profile='native_free_settle_20261028')
+for prefix in ('','left_'):
+    for i in range(1,7):
+        a=native.actuator(prefix+f'joint{i}').id
+        assert native.actuator_gainprm[a,0]==[80,80,80,40,10,10][i-1]
+        assert native.actuator_biasprm[a,1]==-[80,80,80,40,10,10][i-1]
+        assert native.actuator_biasprm[a,2]==-[5,5,5,1.5,1.5,1.5][i-1]
 from blind_insertion.scenes.measured_support import dimensions
 support=dimensions()
 measured,_=S.build_scene(detailed=False,support_mode='free',profile=profile,

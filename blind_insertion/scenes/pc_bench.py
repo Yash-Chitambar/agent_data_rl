@@ -156,9 +156,12 @@ def _free_pc_spec(spec, profile):
 
 
 def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
-                support_mode='fixed', profile=None, bimanual=False, table_top=0.0, measured_support=False):
+                support_mode='fixed', profile=None, bimanual=False, table_top=0.0, measured_support=False,
+                controller_profile=None):
     """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode."""
     from blind_insertion.assets import builder as B   # noqa: PLC0415
+    if controller_profile is not None and not bimanual:
+        raise ValueError('controller_profile requires the opt-in bimanual scene')
     if support_mode not in ('fixed', 'free'):
         raise ValueError(f'unsupported PC support mode: {support_mode}')
     if support_mode == 'free':
@@ -219,10 +222,8 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                 m.geom_solref[gid, 0] = cfg['pad_timeconst']
                 m.geom_solimp[gid, :3] = cfg['pad_solimp']
                 m.geom_friction[gid, 0] = 1.68
-        # Measured hardware derivative-gain cap, only in the new bimanual mode.
-        for prefix in ('', 'left_'):
-            for i in range(1, 4):
-                m.actuator_biasprm[m.actuator(prefix + f'joint{i}').id, 2] = -5.
+        from blind_insertion.scenes.controller_profiles import apply
+        apply(m, controller_profile or 'identification_20261027')
     for j, slot in enumerate(lay.peg_slots):      # plug metal, neck black, body light grey
         z = m.geom_aabb[slot].reshape(2, 3)[0, 2] + m.geom_pos[slot, 2]
         m.geom_rgba[slot] = ([0.75, 0.75, 0.78, 1] if z < B.USBC_PLUG_LEN else
