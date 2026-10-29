@@ -3,7 +3,10 @@ import time
 
 
 def supported_shutdown(backend, read_line=input):
-    backend.hold()
+    try:
+        backend.hold()
+    except Exception as exc:
+        print('Hold could not be verified; secure physical support:',repr(exc),flush=True)
     print('Holding powered. Secure the arm and any held object. Type SUPPORTED to disable torque.', flush=True)
     while True:
         try:

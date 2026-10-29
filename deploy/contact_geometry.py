@@ -63,4 +63,5 @@ class ContactGeometry:
         def distance(a,b):return float(mujoco.mj_geomDistance(self.m,self.d,a,b,1.,None))
         cross=min((distance(a,b) for a in self.arm_geoms['left'] for b in self.arm_geoms['right']),default=1.)
         pc={side:min((distance(g,self.pc) for g in ids),default=1.) for side,ids in self.arm_geoms.items()}
-        return {'minimum_interarm_distance_m':cross,'minimum_pc_distance_m':pc}
+        non_tip={side:min((distance(g,self.pc) for g in ids if g not in self.tip_geoms[side]),default=1.) for side,ids in self.arm_geoms.items()}
+        return {'minimum_interarm_distance_m':cross,'minimum_pc_distance_m':pc,'minimum_non_tip_pc_distance_m':non_tip}
