@@ -73,3 +73,19 @@ against CPU MuJoCo: max generalized-position discrepancy 0.000162 (mixed metres/
 This is a short-horizon numerical check, not real-robot accuracy. The runtime still
 needs task reward/termination, measured reset distributions, actor sensor timing and
 camera rendering integration before training acceptance.
+
+The runtime now optionally renders all three calibrated RGB policy views with
+`BimanualCfg(render_rgb=True)`. `proprioception()` returns twelve encoder-frame
+joint angles/velocities without privileged object poses; hardware-normalized
+finger feedback is deliberately not fabricated. `runtime_rgb/` contains actual
+Warp renders and checks for camera motion and independently owned frame tensors.
+Rendering remains instantaneous; exposure/frame-age simulation is still pending.
+
+The geometric insertion metric checks the entire sampled plug outline against
+the live aperture, tilt, and both ends of the seating-depth band. Tests reject
+lateral misses, front gaps and over-insertion and preserve results when the PC
+and reader translate together. This is not a measured electrical connection test.
+
+GPU review exposed coplanar collision/visual case surfaces causing lid speckling.
+Detailed free-PC collision boxes are now in the non-rendered collision group;
+contact geometry, masses and inertias are unchanged (construction checks pass).

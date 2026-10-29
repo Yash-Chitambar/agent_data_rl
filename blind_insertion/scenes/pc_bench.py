@@ -236,6 +236,12 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                 m.geom_rgba[slot, 3] = 0
     for j in range(len(lay.fixture_slots)):
         m.geom_rgba[lay.fixture_slots[j]] = ([.035,.038,.04,1] if support_mode == "free" else [0.64, 0.65, 0.66, 1])
+    if detailed and support_mode == 'free':
+        # Collision case and visual lid share measured outer surfaces. Do not ray
+        # trace both coplanar surfaces: this causes GPU speckling/z-fighting.
+        for gid in range(m.ngeom):
+            if m.geom(gid).name.startswith('fixbox_'):
+                m.geom_group[gid] = 3
     if physical:
         from blind_insertion.scenes.physical_rig import apply
         apply(m)

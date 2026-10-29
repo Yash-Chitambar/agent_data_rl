@@ -1,0 +1,23 @@
+{
+  "resolution": [
+    320,
+    320
+  ],
+  "cameras": [
+    "top",
+    "wrist_cam",
+    "left_wrist_cam"
+  ],
+  "rgb_only": true,
+  "checks": [
+    "nonempty RGB",
+    "camera follows moving arm",
+    "frame ownership",
+    "encoder offsets applied once",
+    "object poses excluded from proprioception"
+  ],
+  "limitations": [
+    "instantaneous frames; exposure latency not modeled",
+    "gripper encoder mapping not identified"
+  ]
+}

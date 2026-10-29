@@ -1,0 +1,18 @@
+{
+  "geometric_seated": [
+    true,
+    false,
+    false,
+    false,
+    true
+  ],
+  "socket_depth_m": 0.0065,
+  "checks": [
+    "aligned seated",
+    "lateral miss rejected",
+    "front gap rejected",
+    "over-insertion rejected",
+    "joint world translation invariant"
+  ],
+  "scope": "geometry only; not physical insertion or electrical connection"
+}
