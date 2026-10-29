@@ -90,7 +90,9 @@ def add_details(sp, variant, pc_profile=None):
         values=pc_profile['pc']['measurements']
         w,h,depth=[float(values[k]['value']) for k in ('width','body_height','depth')]
         feet=float(pc_profile['pc']['pad_height_derived']['value'])
-        x=w/2-.030;bottom=-.025+feet;top=bottom+h
+        from blind_insertion.scenes.pc_rear import layout
+        rear=layout(pc_profile)
+        x=w/2-rear['target_from_left'];bottom=-rear['port_height']+feet;top=bottom+h
         # Recessed main case leaves the connector panel and physical opening exposed.
         rounded(fix,'pc_body',(x,bottom+h/2,-(depth+.0045)/2),w,depth-.0045,h-.002,.007,SILVER)
         rounded(fix,'pc_lid',(x,top-.001,-depth/2),w,depth,.002,.008,SILVER)
@@ -120,7 +122,9 @@ def add_details(sp, variant, pc_profile=None):
     bw, bt, bl = np.array(half)*2
     rounded(peg,'reader_shell',(c[0],c[1]-.0003,c[2]-.0005),
             bw,bl-.001,bt-.0006,.004,BLACK)
-    rounded(peg,'reader_silver',(0,bt/2-.00025,c[2]-.001),bw-.0014,bl-.003,.0005,.004,(.70,.71,.70,1))
+    silver_w = float(pc_profile['reader']['measurements']['body_width']['value']) if pc_profile else bw-.0014
+    silver_l = float(pc_profile['reader']['measurements']['body_length']['value']) if pc_profile else bl-.003
+    rounded(peg,'reader_silver',(0,bt/2-.00025,c[2]-.001),silver_w,silver_l,.0005,.004,(.70,.71,.70,1))
     # SD opening at the paddle's distal end, green board and recessed black slit.
     end=c[2]+bl/2-.0005
     box(peg,'sd_rim',(0,0,end),(bw*.42,bt*.28,.0002),(.31,.32,.31,1))
@@ -132,7 +136,7 @@ def add_details(sp, variant, pc_profile=None):
         (variant.handle['width']*.43,.00012,variant.handle_height*.45),(.08,.085,.08,1))
 
     if pc_profile is not None:
-        top=-.025+float(pc_profile['pc']['pad_height_derived']['value'])+float(pc_profile['pc']['measurements']['body_height']['value'])
+        top=-rear['port_height']+float(pc_profile['pc']['pad_height_derived']['value'])+float(pc_profile['pc']['measurements']['body_height']['value'])
         for g in fix.geoms:
             if g.name.startswith(('detail_ryzen','detail_radeon')):
                 g.pos[1] += top-.0185

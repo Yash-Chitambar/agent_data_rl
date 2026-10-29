@@ -1,0 +1,9 @@
+{
+ "source": "user rear-panel photo, October 28 Pacific",
+ "image_size_px": [1700,1070],
+ "case_corners_px_tl_tr_br_bl": [[164,192],[1544,197],[1591,806],[129,807]],
+ "port_centers_px": {"usbc_1":[348,496],"usbc_2_target":[571,497],"usb_a":[770,554],"rj45":[991,549],"hdmi":[1291,499],"dp":[1298,684],"lock":[400,706]},
+ "status": "manual photo landmarks, not caliper-measured port centers",
+ "uncertainty": "perspective, rounded edges and pixel selection; no calibrated tolerance established",
+ "mapping": "homography from measured 102.5 mm by 41.2 mm case envelope; original image retained as mesh UV texture"
+}

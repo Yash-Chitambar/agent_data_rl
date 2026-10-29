@@ -39,7 +39,8 @@ def main():
   center=np.array(pose['pos'])+ray*((z-pose['pos'][2])/ray[2])
   if annotation['pc_yaw_deg']!=0:raise ValueError('nonzero annotation yaw needs rotated center-to-port transform')
   depth=float(profile['pc']['measurements']['depth']['value']);width=float(profile['pc']['measurements']['width']['value'])
-  port=center[:2]+[-depth/2,width/2-S.PORT_FROM_LEFT]
+  from blind_insertion.scenes.pc_rear import layout
+  port=center[:2]+[-depth/2,width/2-layout(profile)['target_from_left']]
   S.place_pc(m,d,port_xy=port)
   annotation['derived_port_xy_m']=port.tolist()
   if not annotation['reader_visible']:d.qpos[l.peg_qadr:l.peg_qadr+3]=[0,0,-10]

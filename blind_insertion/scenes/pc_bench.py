@@ -116,13 +116,17 @@ def _free_pc_spec(spec, profile):
     Uniform-box inertia and foot inset/friction are assumptions, not measurements. This is
     a CPU scene for physics evaluation; existing Warp environments still use fixed fixtures.
     """
+    from blind_insertion.scenes.pc_rear import layout
+    rear = layout(profile)
+    port_x, port_h = rear['target_from_left'], rear['port_height']
+    spec.add_numeric(name='pc_port_height', data=[port_h])
     vals = profile['pc']['measurements']
     w, h, depth = (float(vals[k]['value']) for k in ('width', 'body_height', 'depth'))
     mass = float(vals['mass']['value'])
     foot_h = float(profile['pc']['pad_height_derived']['value'])
     radius = float(vals['pad_diameter']['value']) / 2
     if (min(w, h, depth, mass, foot_h, radius) <= 0 or radius * 2 >= min(w, depth)
-            or int(vals['pad_count']['value']) != 4 or PORT_HEIGHT - foot_h <= PLATE / 2):
+            or int(vals['pad_count']['value']) != 4 or port_h - foot_h <= PLATE / 2):
         raise ValueError('invalid PC dimensions, mass or feet')
     fix = next(body for body in spec.bodies if body.name == 'fixture')
     fix.mocap = False
@@ -130,7 +134,7 @@ def _free_pc_spec(spec, profile):
     fix.explicitinertial = True
     fix.mass = mass
     # Box center in fixture coordinates: x across panel, y vertical, z into PC.
-    fix.ipos = [w / 2 - PORT_FROM_LEFT, -PORT_HEIGHT + foot_h + h / 2, -depth / 2]
+    fix.ipos = [w / 2 - port_x, -port_h + foot_h + h / 2, -depth / 2]
     fix.iquat = [1, 0, 0, 0]
     fix.inertia = [mass * (h*h + depth*depth) / 12,
                    mass * (w*w + depth*depth) / 12,
@@ -142,10 +146,10 @@ def _free_pc_spec(spec, profile):
     for geom in fix.geoms:
         if geom.name.startswith(('fix_', 'fixbox_')):
             geom.contype |= support_bit
-    for ix, x in enumerate((-PORT_FROM_LEFT + radius, w - PORT_FROM_LEFT - radius)):
+    for ix, x in enumerate((-port_x + radius, w - port_x - radius)):
         for iz, z in enumerate((-radius, -depth + radius)):
             fix.add_geom(name=f'pc_pad_{ix}_{iz}', type=mujoco.mjtGeom.mjGEOM_CYLINDER,
-                         pos=[x, -PORT_HEIGHT + foot_h / 2, z],
+                         pos=[x, -port_h + foot_h / 2, z],
                          quat=[math.sqrt(.5), math.sqrt(.5), 0, 0], size=[radius, foot_h / 2, 0],
                          rgba=[.1, .1, .1, 1], mass=0, contype=support_bit, conaffinity=1,
                          priority=2, friction=[.6, .01, .001], condim=4)
@@ -164,8 +168,12 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         pc = profile['pc']['measurements']
         feet_h = float(profile['pc']['pad_height_derived']['value'])
         size = (float(pc['width']['value']), float(pc['body_height']['value']), float(pc['depth']['value']))
-        boxes = pc_case_boxes(port_h=PORT_HEIGHT - feet_h, size=size)
-        variant = variant or B.reader_variant(body=tuple(float(r[k]['value']) for k in ('body_width','body_thickness','body_length')),
+        from blind_insertion.scenes.pc_rear import layout
+        rear = layout(profile)
+        boxes = pc_case_boxes(port_from_left=rear['target_from_left'], port_h=rear['port_height'] - feet_h, size=size)
+        # The new body_length measures the silver inset, not the full black housing.
+        body_length = B.READER_TOTAL_LENGTH - B.USBC_PLUG_LEN - float(r['neck_length']['value'])
+        variant = variant or B.reader_variant(body=(B.READER_BODY[0], B.READER_BODY[1], body_length),
                                                neck=tuple(float(r[k]['value']) for k in ('neck_width','neck_thickness','neck_length')),
                                                mass=float(r['mass']['value']))
     else:
@@ -181,6 +189,9 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
             decorate_rig(sp)
         if support_mode == 'free':
             _free_pc_spec(sp, profile)
+            if detailed:
+                from blind_insertion.scenes.pc_rear import add as add_rear_photo
+                add_rear_photo(sp, profile)
         if measured_support:
             from blind_insertion.scenes.measured_support import apply as apply_support
             apply_support(sp)
@@ -220,7 +231,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
             if z > B.USBC_PLUG_LEN + variant.handle_height:
                 m.geom_rgba[slot, 3] = 0
     for j in range(len(lay.fixture_slots)):
-        m.geom_rgba[lay.fixture_slots[j]] = [0.64, 0.65, 0.66, 1]
+        m.geom_rgba[lay.fixture_slots[j]] = ([.035,.038,.04,1] if support_mode == "free" else [0.64, 0.65, 0.66, 1])
     if physical:
         from blind_insertion.scenes.physical_rig import apply
         apply(m)
@@ -251,7 +262,9 @@ def place_pc(m, d, port_xy=PORT_XY, yaw_deg=0.0, table_top=None):
         torch.tensor(PORT_BASE_RPY_DEG) * math.pi / 180)
     if table_top is None:
         table_top = float(m.geom("table").pos[2] + m.geom("table").size[2])
-    position = [port_xy[0], port_xy[1], table_top + PORT_HEIGHT]
+    height_id = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_NUMERIC, 'pc_port_height')
+    port_height = float(m.numeric_data[m.numeric_adr[height_id]]) if height_id >= 0 else PORT_HEIGHT
+    position = [port_xy[0], port_xy[1], table_top + port_height]
     quat = K.mat_to_quat(R).numpy()
     body = m.body('fixture').id
     mid = int(m.body_mocapid[body])

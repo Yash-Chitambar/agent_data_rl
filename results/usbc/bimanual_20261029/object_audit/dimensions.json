@@ -1,0 +1,150 @@
+{
+  "pc": {
+    "mass": {
+      "value": 0.284,
+      "unit": "kg",
+      "uncertainty": null,
+      "uncertainty_reason": "not reported",
+      "source_trial": "pc_mass_01",
+      "method": "scale",
+      "notes": "Operator reported 284 g; scale resolution and repeat readings pending.",
+      "validation_status": "operator_reported"
+    },
+    "width": {
+      "value": 0.1025,
+      "unit": "m",
+      "uncertainty": null,
+      "uncertainty_reason": "not reported",
+      "source_trial": "pc_width_01",
+      "method": "calipers",
+      "notes": "operator reported 102.5 mm; orientation left-right when viewing port panel; repeat/resolution pending",
+      "validation_status": "operator_reported"
+    },
+    "depth": {
+      "value": 0.097,
+      "unit": "m",
+      "uncertainty": null,
+      "uncertainty_reason": "not reported",
+      "source_trial": "pc_depth_front_back_01",
+      "method": "calipers",
+      "notes": "operator reported length 97.00 mm; assumed front-back depth, confirm orientation; repeat/resolution pending",
+      "validation_status": "operator_reported"
+    },
+    "body_height": {
+      "value": 0.0412,
+      "unit": "m",
+      "uncertainty": null,
+      "uncertainty_reason": "not reported",
+      "source_trial": "pc_height_without_feet_01",
+      "method": "calipers",
+      "notes": "operator reported 41.2 mm; repeat/resolution pending",
+      "validation_status": "operator_reported"
+    },
+    "height_with_feet": {
+      "value": 0.0445,
+      "unit": "m",
+      "uncertainty": null,
+      "uncertainty_reason": "not reported",
+      "source_trial": "pc_height_with_feet_01",
+      "method": "calipers",
+      "notes": "operator reported 44.5 mm; repeat/resolution pending",
+      "validation_status": "operator_reported"
+    },
+    "pad_count": {
+      "value": 4.0,
+      "unit": "count",
+      "uncertainty": null,
+      "uncertainty_reason": "not reported",
+      "source_trial": "pc_feet_count_01",
+      "method": "visual",
+      "notes": "Operator reports four round underside pads; pad diameters, locations, material and individual heights pending.",
+      "validation_status": "operator_reported"
+    },
+    "pad_diameter": {
+      "value": 0.005,
+      "unit": "m",
+      "uncertainty": null,
+      "uncertainty_reason": "not reported",
+      "source_trial": "pc_pad_diameter_01",
+      "method": "calipers_reported",
+      "notes": "Operator answered 5 mm to pad-diameter request; exact repeatability/resolution pending. Four pads modeled at bottom corners by operator preference; insets not measured.",
+      "validation_status": "operator_reported"
+    }
+  },
+  "rear_panel": {
+    "width": 0.1025,
+    "height": 0.0412,
+    "target_from_left": 0.030401914275937986,
+    "port_height": 0.023511964932214066,
+    "centers": {
+      "usbc_1": [
+        0.014399981096970783,
+        0.020256729292250947
+      ],
+      "usbc_2_target": [
+        0.030401914275937986,
+        0.02021196493221407
+      ],
+      "usb_a": [
+        0.04471458507384188,
+        0.016418244200025682
+      ],
+      "rj45": [
+        0.0605889451790996,
+        0.01676776933841834
+      ],
+      "hdmi": [
+        0.08240196635753831,
+        0.02014943669485321
+      ],
+      "dp": [
+        0.08222692898736068,
+        0.007877390586500855
+      ],
+      "lock": [
+        0.018613687370013676,
+        0.0064446459066192984
+      ]
+    },
+    "image_to_metric": [
+      [
+        7.484263734572775e-05,
+        4.25933708471621e-06,
+        -0.013091985244964861
+      ],
+      [
+        -4.6634087495568025e-08,
+        -6.81790359185186e-05,
+        0.05502649778353144
+      ],
+      [
+        -7.484483460259869e-06,
+        9.848367020208324e-05,
+        1.0
+      ]
+    ]
+  },
+  "reader": {
+    "total_length_m": 0.09046,
+    "housing_length_m": 0.040409999999999995,
+    "outer_width_m": 0.03473,
+    "outer_thickness_m": 0.00883,
+    "silver_length_m": 0.0296,
+    "silver_width_m": 0.0346,
+    "neck_length_m": 0.0434,
+    "mass_kg": 0.017,
+    "plug_geometry_preserved_m": [
+      0.00825,
+      0.0024,
+      0.00665
+    ],
+    "exposed_plug_measured_m": 0.0058,
+    "plug_length_difference_m": 0.0008500000000000001,
+    "note": "Original head length retained as requested. Housing split derived to preserve total; 0.85 mm plug exposure difference remains unresolved, not silently treated as measured housing."
+  },
+  "limitations": [
+    "photo-derived port coordinates are not exact metrology",
+    "silver width/thickness are not outer black housing dimensions",
+    "original connector geometry retained; exposed length differs from measurement"
+  ]
+}
