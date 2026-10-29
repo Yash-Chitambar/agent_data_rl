@@ -1,0 +1,10 @@
+{
+  "result": "SafetyStop('PC tracking lost; operator assessment required')",
+  "contact_confirmed": false,
+  "slide_executed": false,
+  "controller_shutdown": "both controllers reported zero torque after operator supported confirmation",
+  "trial_sha256": "5a850a29fa6fafb49a2e81d7efb58850af956bc035ddfdb27f08cb89199809cf",
+  "camera_run": "contact_final_002",
+  "rows": 3475,
+  "disposition": "Contact retries ended at operator request to move on; preserve failure; do not export as successful contact data."
+}
