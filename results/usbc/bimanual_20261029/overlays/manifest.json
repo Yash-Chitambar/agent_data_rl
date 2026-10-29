@@ -15,7 +15,7 @@
     "not_for": "connector metrology or policy reset distribution",
     "derived_port_xy_m": [
       0.2142402188549658,
-      0.3311601888699045
+      0.3307582745939665
     ]
   },
   "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
