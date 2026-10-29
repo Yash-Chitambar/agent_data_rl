@@ -89,3 +89,20 @@ and reader translate together. This is not a measured electrical connection test
 GPU review exposed coplanar collision/visual case surfaces causing lid speckling.
 Detailed free-PC collision boxes are now in the non-rendered collision group;
 contact geometry, masses and inertias are unchanged (construction checks pass).
+
+## Episode semantics
+
+`BimanualTask` wraps the runtime with normalized bilateral joint-increment actions,
+continuous geometric-seating success, sparse reward, failure on falling objects or
+nonfinite state, timeout truncation and explicit selective resets. Terminal
+observations are returned before reset. Hold duration and action scale are design
+parameters, not new measurements. The two-world GPU check covers timeout versus
+termination, interrupted seating, selective reset and actor/critic separation.
+It uses synthetic seated states to test logic and is not a physically solved task.
+The fixed reference reset layout remains provisional.
+
+`replay_legacy_motion.py` imports the earlier native-feedback CSV format without
+changing raw captures. The right joint-2 step recording is now replayed using its
+own gains, encoder offsets and actual send times. Unlike the newer recordings,
+this CSV does not record velocity; initial velocity is assumed zero. Its metadata
+retains the right-arm gravity-compensation and Coulomb terms for fitting.

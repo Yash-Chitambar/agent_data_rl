@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "timeout distinct from termination",
+    "no auto-reset of terminal observation",
+    "reject advance after done",
+    "success requires continuous seating",
+    "broken seating resets hold",
+    "selective episode reset",
+    "privileged state separated"
+  ],
+  "scope": "synthetic episode-boundary validation; not a physically successful insertion rollout"
+}
