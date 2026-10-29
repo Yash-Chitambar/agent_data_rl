@@ -4,6 +4,23 @@
   "pc_mass_kg": 0.284,
   "actuators": 16,
   "status": "passed",
+  "measured_support": {
+    "wall_edge_x_m": 0.5150000019629416,
+    "mount_surface_z_m": -0.010000000798538005,
+    "table_top_z_m": -0.033000000798538,
+    "base_min_m": [
+      -0.035000001821158255,
+      -0.10000000516279209,
+      -0.010000000798538005
+    ],
+    "base_max_m": [
+      0.035000001962941625,
+      0.1000000051529505,
+      0.06309999980100572
+    ],
+    "reference_assumption": "stationary base mesh bottom is the mounting interface",
+    "plate_footprint_status": "estimated envelope of both base meshes, not surveyed"
+  },
   "not_validated": [
     "hardware dynamics",
     "plate footprint",

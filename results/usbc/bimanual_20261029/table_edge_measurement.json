@@ -5,10 +5,10 @@
   "source": "user measurement in conversation",
   "original_description": "48 cm from end of table to start of robot base",
   "uncertainty_m": null,
-  "table_edge": null,
-  "base_reference_edge": null,
-  "status": "measured_distance_pending_endpoint_identification",
-  "applied_to_scene": false,
+  "table_edge": "wall_side",
+  "base_reference_edge": "wall_facing_edge_of_robot_mounting_base",
+  "status": "endpoints_confirmed_by_user",
+  "applied_to_scene": "opt_in measured_support=True",
   "existing_physical_scene_table": {
     "center_xy_m": [
       0.05,
@@ -20,5 +20,6 @@
     ],
     "status": "photo_estimate_not_surveyed"
   },
-  "integration_rule": "Resolve endpoints before updating table footprint; retain calibrated arm and camera transforms."
+  "integration_rule": "Resolve endpoints before updating table footprint; retain calibrated arm and camera transforms.",
+  "mounting_surface_above_table_m": 0.023
 }

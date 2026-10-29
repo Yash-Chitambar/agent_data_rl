@@ -1,0 +1,128 @@
+{
+  "current_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "archived_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "semantic_match": true,
+  "captures": [
+    {
+      "capture": "cameras/bimanual_stationary_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/board_rgb_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/contact_approach_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/contact_final_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/contact_final_002/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/contact_interactive_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/contact_interactive_002/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/initial_rgb_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_elevated_j3_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_free_settle_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_free_settle_002/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_free_settle_003/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_pc_view_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_reader_002/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_rest_sweep_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_standoff_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_standoff_002/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/left_standoff_003/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/pc_contact_survey_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/pc_manual_motion_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/pc_stickers_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/pc_stickers_002/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/pc_stickers_003/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    },
+    {
+      "capture": "cameras/rear_brace_patch_001/capture.json",
+      "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+      "matches_archived_spec": true
+    }
+  ],
+  "newer_adopted_calibration": "awaiting_user_confirmation"
+}

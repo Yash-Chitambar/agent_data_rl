@@ -35,8 +35,21 @@ assert any(m.body(int(m.geom_bodyid[c.geom1])).name=='fixture' or
            m.body(int(m.geom_bodyid[c.geom2])).name=='fixture' for c in d.contact)
 legacy,_=S.build_scene(detailed=False)
 assert legacy.nu==8
+from blind_insertion.scenes.measured_support import dimensions
+support=dimensions()
+measured,_=S.build_scene(detailed=False,support_mode='free',profile=profile,
+                         bimanual=True,measured_support=True)
+table=measured.geom('table');plate=measured.geom('shared_mounting_plate')
+assert np.isclose(table.pos[0]+table.size[0]-support['base_max_m'][0],.480)
+assert np.isclose(plate.pos[2]+plate.size[2]-table.pos[2]-table.size[2],.023)
+assert plate.contype[0] and plate.conaffinity[0]
+assert np.allclose(measured.body_pos,m.body_pos)
+assert np.allclose(measured.body_quat,m.body_quat)
+assert np.allclose(measured.cam_pos,m.cam_pos)
+assert np.allclose(measured.cam_quat,m.cam_quat)
 report={'checks':'construction, table placement, bilateral actuation/pads, short settling, legacy default',
         'table_z_m':z,'pc_mass_kg':.284,'actuators':m.nu,'status':'passed',
+        'measured_support':support,
         'not_validated':['hardware dynamics','plate footprint','contact forces','GPU parity','image overlays']}
 out=Path('results/usbc/bimanual_20261029');out.mkdir(parents=True,exist_ok=True)
 (out/'scene_checks.json').write_text(json.dumps(report,indent=2)+'\n')

@@ -152,7 +152,7 @@ def _free_pc_spec(spec, profile):
 
 
 def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
-                support_mode='fixed', profile=None, bimanual=False, table_top=0.0):
+                support_mode='fixed', profile=None, bimanual=False, table_top=0.0, measured_support=False):
     """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode."""
     from blind_insertion.assets import builder as B   # noqa: PLC0415
     if support_mode not in ('fixed', 'free'):
@@ -183,6 +183,9 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
             decorate_rig(sp)
         if support_mode == 'free':
             _free_pc_spec(sp, profile)
+        if measured_support:
+            from blind_insertion.scenes.measured_support import apply as apply_support
+            apply_support(sp)
 
     m, lay = B.build("yam", [variant], pad_spheres=4, table_top=table_top, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")
@@ -226,12 +229,14 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
     return m, lay
 
 
-def place_reader(m, d, lay, xy=READER_XY, yaw_deg=0.0, table_top=0.0):
+def place_reader(m, d, lay, xy=READER_XY, yaw_deg=0.0, table_top=None):
     """Reader flat on the table, plug pointing +x (rotated by yaw), body on the table."""
     from blind_insertion.envs import kinematics as K   # noqa: PLC0415
     import torch                                        # noqa: PLC0415
     R = K.rpy_mat(torch.tensor([0.0, 0.0, math.radians(yaw_deg)])) @ K.rpy_mat(
         torch.tensor(PORT_BASE_RPY_DEG) * math.pi / 180)
+    if table_top is None:
+        table_top = float(m.geom("table").pos[2] + m.geom("table").size[2])
     v = lay.variants[0]
     bz = v.peg_boxes[0][0][2]                            # body centre along the part axis
     bt = v.peg_boxes[0][1][1]                            # body half thickness
@@ -241,11 +246,13 @@ def place_reader(m, d, lay, xy=READER_XY, yaw_deg=0.0, table_top=0.0):
     d.qpos[pa + 3:pa + 7] = K.mat_to_quat(R).numpy()
 
 
-def place_pc(m, d, port_xy=PORT_XY, yaw_deg=0.0, table_top=0.0):
+def place_pc(m, d, port_xy=PORT_XY, yaw_deg=0.0, table_top=None):
     from blind_insertion.envs import kinematics as K   # noqa: PLC0415
     import torch                                        # noqa: PLC0415
     R = K.rpy_mat(torch.tensor([0.0, 0.0, math.radians(yaw_deg)])) @ K.rpy_mat(
         torch.tensor(PORT_BASE_RPY_DEG) * math.pi / 180)
+    if table_top is None:
+        table_top = float(m.geom("table").pos[2] + m.geom("table").size[2])
     position = [port_xy[0], port_xy[1], table_top + PORT_HEIGHT]
     quat = K.mat_to_quat(R).numpy()
     body = m.body('fixture').id
