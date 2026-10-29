@@ -210,8 +210,8 @@ def capture_one(name: str, out: Path, deadline: dict, spec: dict, policy_res: in
 def run(a):
     if a.policy_save_every is None:
         a.policy_save_every = a.save_every
-    if not np.isfinite(a.seconds) or a.seconds <= 0 or a.seconds > 300 or a.policy_res <= 0 or a.save_every < 1 or a.policy_save_every < 1:
-        raise SystemExit("seconds must be in (0,300], policy-res positive, save-every >= 1")
+    if not np.isfinite(a.seconds) or a.seconds <= 0 or a.seconds > 900 or a.policy_res <= 0 or a.save_every < 1 or a.policy_save_every < 1:
+        raise SystemExit("seconds must be in (0,900], policy-res positive, save-every >= 1")
     if not a.name or "/" in a.name or a.name in (".", ".."):
         raise SystemExit("name must be one path component")
     session = Path(a.session).resolve()

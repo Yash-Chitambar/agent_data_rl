@@ -1,0 +1,55 @@
+{
+  "status": "offline color calibration candidate; not enabled for motion",
+  "roi_xywh": [
+    900,
+    540,
+    300,
+    190
+  ],
+  "reference": "/home/yashc/left_bimanual_session/cameras/pc_stickers_002/zed/raw_000150.png",
+  "fit_images": [
+    "002/raw_000150.png",
+    "003/raw_000150.png"
+  ],
+  "threshold": "HSV H15..45 S50..255 V100..255",
+  "limitations": [
+    "No measured movement ground truth",
+    "Adjacent stationary frames are temporal checks, not independent scenes",
+    "Camera projection uncertainty remains",
+    "Midpoint displacement is not case-center displacement under rotation"
+  ],
+  "runs": {
+    "002": {
+      "summary": {
+        "valid": 26,
+        "total": 26,
+        "median_midpoint_translation_m": [
+          3.691453749035678e-05,
+          4.984961933018894e-06
+        ],
+        "median_relative_yaw_deg": 0.03815879743780742,
+        "translation_component_range_m": [
+          0.00019509559432956403,
+          0.0001815703297129989
+        ],
+        "yaw_range_deg": 0.484610457589261
+      }
+    },
+    "003": {
+      "summary": {
+        "valid": 21,
+        "total": 21,
+        "median_midpoint_translation_m": [
+          0.0037216314529368855,
+          -0.052415535395156476
+        ],
+        "median_relative_yaw_deg": 5.41151918410792,
+        "translation_component_range_m": [
+          0.00021807065089690658,
+          0.00015574844701982116
+        ],
+        "yaw_range_deg": 0.3841116374303752
+      }
+    }
+  }
+}

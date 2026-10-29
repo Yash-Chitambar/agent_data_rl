@@ -1,0 +1,320 @@
+{
+  "schema": "left_free_space_comparison_v1",
+  "units": "SI; encoder radians; model-FK metres",
+  "limitations": [
+    "No external tool metrology",
+    "No measured force or output torque",
+    "Single trials, not held-out statistical acceptance",
+    "No contact or slide commanded",
+    "Candidate results do not authorize controller adoption"
+  ],
+  "runs": [
+    {
+      "name": "free_settle_001",
+      "source": "/home/yashc/left_bimanual_session/contact/free_settle_001/trial.json",
+      "sha256": "b30311f0107de9056af478c40395f843e77b84483c44496f7ac3e7731665f043",
+      "result": "completed",
+      "candidate": {
+        "ki": 0.3,
+        "limit_rad": 0.025,
+        "rate_rad_s": 0.003,
+        "deadband_rad": 0.002,
+        "status": "candidate only; not adopted",
+        "pose": "high free-space only",
+        "attainment_gate_passed": true
+      },
+      "phase_results": {
+        "baseline_hold": {
+          "final_model_fk_error_m": 0.00960092805325985,
+          "last_second_max_model_fk_error_m": 0.009601013734936714,
+          "last_second_max_joint_error_rad": 0.02814877607636257,
+          "bias_end_rad": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "candidate_trim": {
+          "final_model_fk_error_m": 0.0029178373515605927,
+          "last_second_max_model_fk_error_m": 0.0029179402627050877,
+          "last_second_max_joint_error_rad": 0.008312047610657292,
+          "bias_end_rad": [
+            -0.0031724829683831305,
+            0.00940810632731082,
+            0.025,
+            -0.0006145000282271752,
+            -0.011156820716357752,
+            -0.009779735851349268
+          ]
+        },
+        "candidate_frozen_hold": {
+          "final_model_fk_error_m": 0.0028372311498969793,
+          "last_second_max_model_fk_error_m": 0.0029368295799940825,
+          "last_second_max_joint_error_rad": 0.008312047610657292,
+          "bias_end_rad": [
+            -0.0031724829683831305,
+            0.00940810632731082,
+            0.025,
+            -0.0006145000282271752,
+            -0.011156820716357752,
+            -0.009779735851349268
+          ]
+        }
+      },
+      "controller": "native gain profile; no integral or explicit feedforward",
+      "camera_run": "left_free_settle_001",
+      "phases": {
+        "baseline_hold": {
+          "ticks": 150,
+          "model_fk_error_p50_m": 0.009601013734936714,
+          "model_fk_error_p95_m": 0.009601013734936714,
+          "final_joint_error_rad": [
+            0.004177384462201061,
+            -0.006681355112328369,
+            -0.02814877607636257,
+            0.0025444890026414813,
+            0.019449802391390825,
+            0.009002418196827122
+          ],
+          "can_send_rows": 150
+        },
+        "candidate_trim": {
+          "ticks": 600,
+          "model_fk_error_p50_m": 0.00509992241859436,
+          "model_fk_error_p95_m": 0.010025544092059135,
+          "final_joint_error_rad": [
+            -0.0015447487490636291,
+            -0.0013406974484846401,
+            -0.008312047610657292,
+            -0.0005073153766977923,
+            -0.002294303811405052,
+            0.0009914317010579765
+          ],
+          "can_send_rows": 600
+        },
+        "candidate_frozen_hold": {
+          "ticks": 100,
+          "model_fk_error_p50_m": 0.0028372311498969793,
+          "model_fk_error_p95_m": 0.0029180656070820986,
+          "final_joint_error_rad": [
+            -0.0015447487490636291,
+            -0.0013406974484846401,
+            -0.008312047610657292,
+            -0.00012583982928393578,
+            -0.002294303811405052,
+            0.00060995615364412
+          ],
+          "can_send_rows": 100
+        }
+      }
+    },
+    {
+      "name": "free_settle_002",
+      "source": "/home/yashc/left_bimanual_session/contact/free_settle_002/trial.json",
+      "sha256": "4da56dbda1713f485c6c2fe122792cfd566beb608c0810bca1c3963cbe2ebf4d",
+      "result": "completed",
+      "candidate": {
+        "ki": 0.3,
+        "limit_rad": 0.025,
+        "rate_rad_s": 0.003,
+        "deadband_rad": 0.002,
+        "status": "candidate only; not adopted",
+        "pose": "high free-space only",
+        "attainment_gate_passed": false
+      },
+      "phase_results": {
+        "baseline_hold": {
+          "final_model_fk_error_m": 0.005675885826349258,
+          "last_second_max_model_fk_error_m": 0.00574027793481946,
+          "last_second_max_joint_error_rad": 0.019621493570666337,
+          "bias_end_rad": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "candidate_trim": {
+          "final_model_fk_error_m": 0.0037374834064394236,
+          "last_second_max_model_fk_error_m": 0.003737532300874591,
+          "last_second_max_joint_error_rad": 0.008552005600065193,
+          "bias_end_rad": [
+            -0.0024506973265306913,
+            -0.012194304196394938,
+            -0.004315855744602744,
+            0.0032155979711360055,
+            -0.01157566684608718,
+            -0.00952407488795129
+          ]
+        },
+        "candidate_frozen_hold": {
+          "final_model_fk_error_m": 0.0037374834064394236,
+          "last_second_max_model_fk_error_m": 0.003737532300874591,
+          "last_second_max_joint_error_rad": 0.008552005600065193,
+          "bias_end_rad": [
+            -0.0024506973265306913,
+            -0.012194304196394938,
+            -0.004315855744602744,
+            0.0032155979711360055,
+            -0.01157566684608718,
+            -0.00952407488795129
+          ]
+        }
+      },
+      "controller": "native gain profile; no integral or explicit feedforward",
+      "camera_run": "left_free_settle_002",
+      "phases": {
+        "baseline_hold": {
+          "ticks": 150,
+          "model_fk_error_p50_m": 0.005682137329131365,
+          "model_fk_error_p95_m": 0.00574016897007823,
+          "final_joint_error_rad": [
+            0.004665486898270288,
+            -0.010140296223387857,
+            0.007705795839024088,
+            -0.006068888040626663,
+            0.019621493570666337,
+            0.009112740573451461
+          ],
+          "can_send_rows": 150
+        },
+        "candidate_trim": {
+          "ticks": 600,
+          "model_fk_error_p50_m": 0.0037374834064394236,
+          "model_fk_error_p95_m": 0.005946359387598931,
+          "final_joint_error_rad": [
+            -0.0006751707655734407,
+            0.008552005600065193,
+            0.0004577604380933131,
+            -0.0018726570190351621,
+            -0.0021226126321259864,
+            0.0014832296251032773
+          ],
+          "can_send_rows": 600
+        },
+        "candidate_frozen_hold": {
+          "ticks": 100,
+          "model_fk_error_p50_m": 0.0037340736016631126,
+          "model_fk_error_p95_m": 0.003737532300874591,
+          "final_joint_error_rad": [
+            -0.0006751707655734407,
+            0.008552005600065193,
+            0.0004577604380933131,
+            -0.0018726570190351621,
+            -0.0021226126321259864,
+            0.0014832296251032773
+          ],
+          "can_send_rows": 100
+        }
+      }
+    },
+    {
+      "name": "free_settle_003",
+      "source": "/home/yashc/left_bimanual_session/contact/free_settle_003/trial.json",
+      "sha256": "7b350aa8ce9d548856a988073e1048bd03d11ec3f55c8ecd6c2b3e88718d74cd",
+      "result": "completed",
+      "candidate": {
+        "ki": 0.3,
+        "limit_rad": 0.025,
+        "rate_rad_s": 0.003,
+        "deadband_rad": 0.002,
+        "trim_duration_s": 25.0,
+        "status": "candidate only; not adopted",
+        "pose": "high free-space only",
+        "attainment_gate_passed": false
+      },
+      "phase_results": {
+        "baseline_hold": {
+          "final_model_fk_error_m": 0.00582839734852314,
+          "last_second_max_model_fk_error_m": 0.005893742199987173,
+          "last_second_max_joint_error_rad": 0.019621493570666337,
+          "bias_end_rad": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "candidate_trim": {
+          "final_model_fk_error_m": 0.0047219074331223965,
+          "last_second_max_model_fk_error_m": 0.0047219074331223965,
+          "last_second_max_joint_error_rad": 0.0066446278629781474,
+          "bias_end_rad": [
+            -0.0018954166053072228,
+            -0.025,
+            0.012151575123045384,
+            0.0033102742530341893,
+            -0.004937839806788964,
+            -0.009668272644875301
+          ]
+        },
+        "candidate_frozen_hold": {
+          "final_model_fk_error_m": 0.0047219074331223965,
+          "last_second_max_model_fk_error_m": 0.0047219074331223965,
+          "last_second_max_joint_error_rad": 0.0066446278629781474,
+          "bias_end_rad": [
+            -0.0018954166053072228,
+            -0.025,
+            0.012151575123045384,
+            0.0033102742530341893,
+            -0.004937839806788964,
+            -0.009668272644875301
+          ]
+        }
+      },
+      "controller": "native gain profile; no integral or explicit feedforward",
+      "camera_run": "left_free_settle_003",
+      "phases": {
+        "baseline_hold": {
+          "ticks": 150,
+          "model_fk_error_p50_m": 0.005834815092384815,
+          "model_fk_error_p95_m": 0.005834923125803471,
+          "final_joint_error_rad": [
+            0.004665486898270288,
+            -0.010140296223387857,
+            0.008087271386441497,
+            -0.0060688880406231105,
+            0.019621493570662785,
+            0.009112740573451461
+          ],
+          "can_send_rows": 150
+        },
+        "candidate_trim": {
+          "ticks": 1250,
+          "model_fk_error_p50_m": 0.00469518918544054,
+          "model_fk_error_p95_m": 0.005893843248486519,
+          "final_joint_error_rad": [
+            -0.0006751707655734407,
+            0.0066446278629781474,
+            -0.004119946130915597,
+            -0.0014911814716142002,
+            -0.0017411370847085772,
+            0.0011017540776894208
+          ],
+          "can_send_rows": 1250
+        },
+        "candidate_frozen_hold": {
+          "ticks": 100,
+          "model_fk_error_p50_m": 0.004704305902123451,
+          "model_fk_error_p95_m": 0.0047219074331223965,
+          "final_joint_error_rad": [
+            -0.0006751707655734407,
+            0.0066446278629781474,
+            -0.004119946130915597,
+            -0.001491181471617753,
+            -0.00174113708471213,
+            0.0011017540776894208
+          ],
+          "can_send_rows": 100
+        }
+      }
+    }
+  ]
+}
