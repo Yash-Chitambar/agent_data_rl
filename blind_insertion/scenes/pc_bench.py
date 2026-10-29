@@ -195,6 +195,9 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         if measured_support:
             from blind_insertion.scenes.measured_support import apply as apply_support
             apply_support(sp)
+        if bimanual:
+            from blind_insertion.scenes.bimanual_collision import configure_spec
+            configure_spec(sp)
 
     m, lay = B.build("yam", [variant], pad_spheres=4, table_top=table_top, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")
@@ -235,6 +238,9 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
     if physical:
         from blind_insertion.scenes.physical_rig import apply
         apply(m)
+    if bimanual:
+        from blind_insertion.scenes.bimanual_collision import apply as apply_collisions
+        apply_collisions(m)
     return m, lay
 
 

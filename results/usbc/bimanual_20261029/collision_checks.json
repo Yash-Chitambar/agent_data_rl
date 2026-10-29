@@ -1,0 +1,74 @@
+{
+  "right": [
+    {
+      "geom_id": 8,
+      "body": "link_2"
+    },
+    {
+      "geom_id": 9,
+      "body": "link_2"
+    },
+    {
+      "geom_id": 10,
+      "body": "link_2"
+    },
+    {
+      "geom_id": 15,
+      "body": "link_3"
+    },
+    {
+      "geom_id": 16,
+      "body": "link_3"
+    },
+    {
+      "geom_id": 18,
+      "body": "link_4"
+    },
+    {
+      "geom_id": 20,
+      "body": "link_5"
+    },
+    {
+      "geom_id": 21,
+      "body": "link_6"
+    }
+  ],
+  "left": [
+    {
+      "geom_id": 150,
+      "body": "left_link_2"
+    },
+    {
+      "geom_id": 151,
+      "body": "left_link_2"
+    },
+    {
+      "geom_id": 152,
+      "body": "left_link_2"
+    },
+    {
+      "geom_id": 157,
+      "body": "left_link_3"
+    },
+    {
+      "geom_id": 158,
+      "body": "left_link_3"
+    },
+    {
+      "geom_id": 160,
+      "body": "left_link_4"
+    },
+    {
+      "geom_id": 162,
+      "body": "left_link_5"
+    },
+    {
+      "geom_id": 163,
+      "body": "left_link_6"
+    }
+  ],
+  "assumption": "upstream link capsules; same-arm self-collision disabled",
+  "pc_arm_contact_count": 1,
+  "cross_arm_contact_count": 77,
+  "status": "contact generation passed; proxies not validated against hardware"
+}
