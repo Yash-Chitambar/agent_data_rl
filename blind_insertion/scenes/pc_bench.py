@@ -73,7 +73,7 @@ def _look_xyaxes(pos, look_at, up=(0, 0, 1)):
     return [*x, *np.cross(z, x)]
 
 
-def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM, physical=True):
+def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM, physical=True, bimanual=False):
     """`builder.build(extra=...)` hook: the idle left arm (visual), the fixed top camera, the
     PC's other ports and colours. Physics of the task arm, port and reader are untouched."""
     from blind_insertion.assets.builder import MENAGERIE   # noqa: PLC0415
@@ -81,15 +81,20 @@ def add_scene(spec: mujoco.MjSpec, top_cam=TOP_CAM, physical=True):
     if physical:
         from blind_insertion.assets.flexpoint import install
         install(left)
-    for k in list(left.keys) + list(left.lights) + list(left.actuators):
-        left.delete(k)
-    for g in left.geoms:
-        g.contype = g.conaffinity = 0
-    for b in left.bodies:          # parked: no actuators, so float it against gravity and damp it
-        if b.name:
-            b.gravcomp = 1
-    for j in left.joints:
-        j.damping = [50.0, 0.0, 0.0]
+    if bimanual:
+        from blind_insertion.assets.builder import load_robot
+        left, _ = load_robot("yam", pad_spheres=4,
+                             gripper="flexpoint" if physical else "linear")
+    else:
+        for k in list(left.keys) + list(left.lights) + list(left.actuators):
+            left.delete(k)
+        for g in left.geoms:
+            g.contype = g.conaffinity = 0
+        for b in left.bodies:
+            if b.name:
+                b.gravcomp = 1
+        for j in left.joints:
+            j.damping = [50.0, 0.0, 0.0]
     frame = spec.worldbody.add_frame(pos=[0.0, LEFT_BASE_Y, 0.0])
     frame.attach_body(left.body("arm"), "left_", "")
     spec.worldbody.add_camera(name="top", pos=list(top_cam["pos"]),
@@ -119,7 +124,7 @@ def _free_pc_spec(spec, profile):
     if (min(w, h, depth, mass, foot_h, radius) <= 0 or radius * 2 >= min(w, depth)
             or int(vals['pad_count']['value']) != 4 or PORT_HEIGHT - foot_h <= PLATE / 2):
         raise ValueError('invalid PC dimensions, mass or feet')
-    fix = spec.body('fixture')
+    fix = next(body for body in spec.bodies if body.name == 'fixture')
     fix.mocap = False
     fix.add_freejoint(name='pc_free_joint')
     fix.explicitinertial = True
@@ -132,7 +137,7 @@ def _free_pc_spec(spec, profile):
                    mass * (w*w + h*h) / 12]
     # Fixture/table previously shared a non-colliding bit. Add a dedicated support bit.
     support_bit = 16
-    table = spec.geom('table')
+    table = next(geom for geom in spec.geoms if geom.name == 'table')
     table.conaffinity |= support_bit
     for geom in fix.geoms:
         if geom.name.startswith(('fix_', 'fixbox_')):
@@ -147,7 +152,7 @@ def _free_pc_spec(spec, profile):
 
 
 def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
-                support_mode='fixed', profile=None):
+                support_mode='fixed', profile=None, bimanual=False, table_top=0.0):
     """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode."""
     from blind_insertion.assets import builder as B   # noqa: PLC0415
     if support_mode not in ('fixed', 'free'):
@@ -169,7 +174,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         boxes = pc_case_boxes()
         variant = variant or B.reader_variant()
     def decorate(sp):
-        add_scene(sp, top_cam, physical=physical)
+        add_scene(sp, top_cam, physical=physical, bimanual=bimanual)
         if detailed:
             from blind_insertion.scenes.bench_details import add_details
             add_details(sp, variant)
@@ -179,7 +184,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         if support_mode == 'free':
             _free_pc_spec(sp, profile)
 
-    m, lay = B.build("yam", [variant], pad_spheres=4, table_top=0.0, fixture_boxes=boxes,
+    m, lay = B.build("yam", [variant], pad_spheres=4, table_top=table_top, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")
     B.apply_variant_cpu(m, lay, 0)
     cfg = json.loads(CONFIG.read_text())        # the insertion env's pad contact (PegEnv._apply_starts)
@@ -190,6 +195,19 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
     # gripper is speed limited: damping gives ~6 cm/s closing at 12 N (static grip force unchanged).
     for j in lay.robot.finger_joints:
         m.dof_damping[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, j)]] = FINGER_DAMPING
+    if bimanual:
+        for side in ('left', 'right'):
+            m.dof_damping[m.joint('left_' + side + '_finger').dofadr] = FINGER_DAMPING
+        for gid in range(m.ngeom):
+            if m.geom(gid).name.startswith(('left_pad_s', 'right_pad_s', 'left_left_pad_s', 'left_right_pad_s')):
+                m.geom_contype[gid], m.geom_conaffinity[gid] = B.GRIP_BITS
+                m.geom_solref[gid, 0] = cfg['pad_timeconst']
+                m.geom_solimp[gid, :3] = cfg['pad_solimp']
+                m.geom_friction[gid, 0] = 1.68
+        # Measured hardware derivative-gain cap, only in the new bimanual mode.
+        for prefix in ('', 'left_'):
+            for i in range(1, 4):
+                m.actuator_biasprm[m.actuator(prefix + f'joint{i}').id, 2] = -5.
     for j, slot in enumerate(lay.peg_slots):      # plug metal, neck black, body light grey
         z = m.geom_aabb[slot].reshape(2, 3)[0, 2] + m.geom_pos[slot, 2]
         m.geom_rgba[slot] = ([0.75, 0.75, 0.78, 1] if z < B.USBC_PLUG_LEN else
@@ -208,7 +226,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
     return m, lay
 
 
-def place_reader(m, d, lay, xy=READER_XY, yaw_deg=0.0):
+def place_reader(m, d, lay, xy=READER_XY, yaw_deg=0.0, table_top=0.0):
     """Reader flat on the table, plug pointing +x (rotated by yaw), body on the table."""
     from blind_insertion.envs import kinematics as K   # noqa: PLC0415
     import torch                                        # noqa: PLC0415
@@ -219,16 +237,16 @@ def place_reader(m, d, lay, xy=READER_XY, yaw_deg=0.0):
     bt = v.peg_boxes[0][1][1]                            # body half thickness
     c = R.numpy() @ np.array([0.0, 0.0, bz])
     pa = lay.peg_qadr
-    d.qpos[pa:pa + 3] = [xy[0] - c[0], xy[1] - c[1], bt + 1e-4]
+    d.qpos[pa:pa + 3] = [xy[0] - c[0], xy[1] - c[1], table_top + bt + 1e-4]
     d.qpos[pa + 3:pa + 7] = K.mat_to_quat(R).numpy()
 
 
-def place_pc(m, d, port_xy=PORT_XY, yaw_deg=0.0):
+def place_pc(m, d, port_xy=PORT_XY, yaw_deg=0.0, table_top=0.0):
     from blind_insertion.envs import kinematics as K   # noqa: PLC0415
     import torch                                        # noqa: PLC0415
     R = K.rpy_mat(torch.tensor([0.0, 0.0, math.radians(yaw_deg)])) @ K.rpy_mat(
         torch.tensor(PORT_BASE_RPY_DEG) * math.pi / 180)
-    position = [port_xy[0], port_xy[1], PORT_HEIGHT]
+    position = [port_xy[0], port_xy[1], table_top + PORT_HEIGHT]
     quat = K.mat_to_quat(R).numpy()
     body = m.body('fixture').id
     mid = int(m.body_mocapid[body])

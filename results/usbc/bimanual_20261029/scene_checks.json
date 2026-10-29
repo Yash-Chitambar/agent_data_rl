@@ -1,0 +1,14 @@
+{
+  "checks": "construction, table placement, bilateral actuation/pads, short settling, legacy default",
+  "table_z_m": -0.030163695454597475,
+  "pc_mass_kg": 0.284,
+  "actuators": 16,
+  "status": "passed",
+  "not_validated": [
+    "hardware dynamics",
+    "plate footprint",
+    "contact forces",
+    "GPU parity",
+    "image overlays"
+  ]
+}

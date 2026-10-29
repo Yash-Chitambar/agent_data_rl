@@ -1,0 +1,17 @@
+{
+  "source_root": "/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2",
+  "manifest_sha256": "44c17baa4cd6bd1662cb14c311a2c47ac503ec2c3c7bc99a4d42814abe14abfa",
+  "file_count": 7953,
+  "image_count": 7566,
+  "lab_commit": "17e0e9c",
+  "contact_code_commit": "78ba724",
+  "status": "integration_in_progress",
+  "remaining": [
+    "shared plate footprint and collision representation",
+    "measured detailed visual geometry",
+    "camera overlays using recorded poses",
+    "per-arm dynamics replay",
+    "training environment integration and GPU parity",
+    "task validation"
+  ]
+}
