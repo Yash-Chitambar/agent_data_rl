@@ -1,0 +1,56 @@
+{
+  "schema": "manual_pc_motion_observation_v1",
+  "capture": "/home/yashc/left_bimanual_session/cameras/pc_manual_motion_001",
+  "capture_sha256": "b0c6d8b9c63566a39c2b724be0443e419c8f865115cf60d45c149b461e260615",
+  "projection_calibration": "/home/yashc/agent_data_rl-bimanual-contact/blind_insertion/configs/real_cameras_duchamp3.json",
+  "projection_calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "recording_incomplete": true,
+  "capture_error": "overhead image writer backlog exceeded capacity",
+  "robot_motion": false,
+  "manual_actions_operator_report": "done; forward push, sideways slide, small rotation requested",
+  "reference_frame": "/home/yashc/left_bimanual_session/cameras/pc_manual_motion_001/zed/raw_000100.png",
+  "marker_roi_xywh": [
+    820,
+    490,
+    430,
+    310
+  ],
+  "overhead_frames": 613,
+  "overhead_host_time_span_s": 39.654353101,
+  "sampled_frames": 123,
+  "valid_marker_frames": 111,
+  "limitations": [
+    "No force measurement; cannot identify quantitative friction coefficient or stiffness",
+    "Human-applied motion, not robot action-labeled demonstration",
+    "Camera-relative marker midpoint displacement differs from case center under rotation",
+    "No interpolation or yaw continuity asserted through rejected detections",
+    "Incomplete capture; full requested 60 seconds not recorded",
+    "Host timing is not aligned hardware exposure timing"
+  ],
+  "maximum_marker_midpoint_displacement_m": 0.0880842661988018,
+  "last_valid_relative_yaw_deg": 20.347188780174818,
+  "last_valid_frame_id": 610,
+  "camera_timing": {
+    "zed": {
+      "logged_frames": 613,
+      "host_span_s": 39.654353101,
+      "average_arrival_hz": 15.433362345900093
+    },
+    "wrist_left": {
+      "logged_frames": 1188,
+      "host_span_s": 59.769369586,
+      "average_arrival_hz": 19.85967073472422
+    },
+    "wrist_right": {
+      "logged_frames": 1187,
+      "host_span_s": 59.733288772,
+      "average_arrival_hz": 19.854925526148794
+    }
+  },
+  "observed_actions_manual_image_review": [
+    "Frame 300: finger pushing the port-panel/front face",
+    "Frame 400: hand at side during lateral movement",
+    "Frame 500: hand rotating PC",
+    "Frames 600 and 610: hand absent; final resting placement visible"
+  ]
+}
