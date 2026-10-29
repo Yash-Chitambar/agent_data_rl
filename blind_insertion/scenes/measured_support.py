@@ -39,6 +39,16 @@ def apply(spec):
     front=table.pos[0]-table.size[0];back=dims['wall_edge_x_m']
     table.pos[0]=(front+back)/2;table.size[0]=(back-front)/2
     table.pos[2]=dims['table_top_z_m']-table.size[2]
+    # Procedural dressing was authored relative to a z=0 tabletop. Move world
+    # decorations with the measured surface; task objects and robot frames have
+    # independent measured placement and must not be translated here.
+    for geom in spec.worldbody.geoms:
+        if geom.name.startswith('detail_'):
+            if np.isfinite(geom.fromto).all():
+                geom.fromto[2] += dims['table_top_z_m']
+                geom.fromto[5] += dims['table_top_z_m']
+            else:
+                geom.pos[2] += dims['table_top_z_m']
     # Shared support spans both bases; exact outer footprint awaits survey/overlay.
     pose=load()['arms']['left_base_in_right_base'];q=np.array(pose['quat']);q/=np.linalg.norm(q)
     rot=np.zeros(9);mujoco.mju_quat2Mat(rot,q)

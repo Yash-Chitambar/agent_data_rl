@@ -22,7 +22,7 @@ def configure_spec(spec):
                 if not g.name:g.name = f'{body.name}_collision_{i}'
                 g.contype = own
                 g.conaffinity = 1 | 2 | other
-            if g.contype & 4 and local in ('left_finger','right_finger','link_6'):
+            if g.contype & (4 | 8) and local in ('left_finger','right_finger','link_6'):
                 g.contype |= own
                 g.conaffinity |= other
 
@@ -41,7 +41,7 @@ def apply(m):
             report[side].append({'geom_id': gid, 'body': body})
         # Both finger pads and the housing keep existing environment/object contacts.
         # Separate arm bits enable opposing-arm contacts without introducing own-link contacts.
-        if m.geom_contype[gid] & 4 and local in ('left_finger','right_finger','link_6'):
+        if m.geom_contype[gid] & (4 | 8) and local in ('left_finger','right_finger','link_6'):
             m.geom_contype[gid] |= own
             m.geom_conaffinity[gid] |= other
     # Keep compiled broad-phase masks consistent with final per-geom flags.

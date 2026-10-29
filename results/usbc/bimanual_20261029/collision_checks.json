@@ -35,40 +35,40 @@
   ],
   "left": [
     {
-      "geom_id": 150,
+      "geom_id": 154,
       "body": "left_link_2"
     },
     {
-      "geom_id": 151,
+      "geom_id": 155,
       "body": "left_link_2"
     },
     {
-      "geom_id": 152,
+      "geom_id": 156,
       "body": "left_link_2"
     },
     {
-      "geom_id": 157,
+      "geom_id": 161,
       "body": "left_link_3"
-    },
-    {
-      "geom_id": 158,
-      "body": "left_link_3"
-    },
-    {
-      "geom_id": 160,
-      "body": "left_link_4"
     },
     {
       "geom_id": 162,
+      "body": "left_link_3"
+    },
+    {
+      "geom_id": 164,
+      "body": "left_link_4"
+    },
+    {
+      "geom_id": 166,
       "body": "left_link_5"
     },
     {
-      "geom_id": 163,
+      "geom_id": 167,
       "body": "left_link_6"
     }
   ],
   "assumption": "upstream link capsules; same-arm self-collision disabled",
   "pc_arm_contact_count": 1,
-  "cross_arm_contact_count": 77,
+  "cross_arm_contact_count": 126,
   "status": "contact generation passed; proxies not validated against hardware"
 }

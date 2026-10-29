@@ -68,3 +68,27 @@ gravity/friction identification on held-out poses, gripper/contact uncertainty,
 visual registration discrepancies, and integration of the measured scene into the
 training reset/action/reward/camera pipeline with GPU parity checks. No new training
 or physical robot motion was launched during this audit.
+
+## Contact-branch integration follow-up
+
+The contact branch contains the right-arm evidence in `results/real/step_fit.json`,
+`data/real_yam/steps_joint2_meta.json`, and FINDINGS entries for October 25–27.
+Right joint-2 effective friction was fit at 1.0 N m (joint 3 at 1.5 N m);
+the driver separately used gravity factors 1.1 on joints 2/3 and 1.2 on joint 4.
+These are not interchangeable terms. The right-arm target-error feedforward law
+from commit b151281 is now available in `envs/friction_comp.py`, with validation
+and a guard against implicitly applying the right-arm prior to the left arm.
+It is not automatically enabled or declared a validated bimanual dynamics model.
+
+Reviewed contact-branch geometry fixes are integrated: rubber-pad visual sheets,
+contact planes derived from the upstream tip mesh, and low-vertex yellow-tip
+collision hulls. Sphere pads now choose their inward face with the gripper half
+open, and avoid stale MjSpec geom lookup. Opposing-arm collision masks include
+these new tip hulls. CAD-derived geometry is still not a measurement of pad
+compliance or squeeze force.
+
+World background dressing now follows the measured tabletop height; previously
+it remained at its old z=0 datum, leaving the power strip floating. The subpixel
+principal point after integer-centered cropping is retained, with an EGL marker
+projection check for all three cameras (`check_principal_point.py`). Updated
+views are in `overlays_pad_correction/`; no calibration transform was refitted.

@@ -14,6 +14,15 @@ def camera_pose(pose):
     out=np.zeros(4);mujoco.mju_mulQuat(out,q,np.array([0.,1,0,0]))
     return np.asarray(pose['pos'],float),out
 
+def _pp_offset(cx, cy):
+    """Preserve subpixel principal point after integer-centered cropping.
+
+    OpenCV has integer pixel centers; MuJoCo's sensor center is at a pixel edge.
+    Positive intrinsic offsets move MuJoCo's principal point toward negative pixels.
+    """
+    return [-(cx - round(cx) + .5), -(cy - round(cy) + .5)]
+
+
 def apply(m):
     s=load()
     left=m.body('left_arm').id
@@ -25,14 +34,14 @@ def apply(m):
         m.cam_pos[cam],m.cam_quat[cam]=camera_pose(w['pose_in_link6'])
         crop=w['policy_crop_px'];K=w['intrinsics']
         m.cam_sensorsize[cam]=[crop,crop];m.cam_resolution[cam]=[crop,crop]
-        m.cam_intrinsic[cam]=[K['fx'],K['fy'],0,0]
+        m.cam_intrinsic[cam]=[K['fx'],K['fy'],*_pp_offset(K['cx'],K['cy'])]
         m.cam_fovy[cam]=w['fovy_deg_for_crop']
     cam=m.camera('top').id;t=s['top'];K=t['intrinsics_rectified']['HD1080']
     m.cam_pos[cam],m.cam_quat[cam]=camera_pose(t['extrinsics_cam_in_right_base'])
     w,h=K['resolution'];cx,cy=round(K['cx']),round(K['cy'])
     crop=2*min(cx,w-cx,cy,h-cy)
     m.cam_sensorsize[cam]=[crop,crop];m.cam_resolution[cam]=[crop,crop]
-    m.cam_intrinsic[cam]=[K['fx'],K['fy'],0,0]
+    m.cam_intrinsic[cam]=[K['fx'],K['fy'],*_pp_offset(K['cx'],K['cy'])]
     m.cam_fovy[cam]=np.degrees(2*np.arctan(crop/2/K['fy']))
 
 def reference_pose(m,d,lay):

@@ -58,6 +58,9 @@ assert np.allclose(measured.cam_pos,m.cam_pos)
 assert np.allclose(measured.cam_quat,m.cam_quat)
 detailed,_=S.build_scene(detailed=True,support_mode='free',profile=profile,
                           bimanual=True,measured_support=True)
+# Decorative objects must stay attached to the measured table datum.
+assert np.isclose(detailed.geom('detail_power_strip').pos[2] - detailed.geom('detail_power_strip').size[2],
+                  support['table_top_z_m'] + .001)
 for i in range(measured.nbody):
     name=measured.body(i).name
     if not name:continue
