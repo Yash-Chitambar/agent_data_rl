@@ -47,6 +47,20 @@ assert np.allclose(measured.body_pos,m.body_pos)
 assert np.allclose(measured.body_quat,m.body_quat)
 assert np.allclose(measured.cam_pos,m.cam_pos)
 assert np.allclose(measured.cam_quat,m.cam_quat)
+detailed,_=S.build_scene(detailed=True,support_mode='free',profile=profile,
+                          bimanual=True,measured_support=True)
+for i in range(measured.nbody):
+    name=measured.body(i).name
+    if not name:continue
+    j=detailed.body(name).id
+    for field in ('body_mass','body_inertia','body_ipos'):
+        assert np.allclose(getattr(measured,field)[i],getattr(detailed,field)[j]),(name,field)
+for i in range(measured.ngeom):
+    if measured.geom_contype[i]==0 and measured.geom_conaffinity[i]==0:continue
+    name=measured.geom(i).name;j=detailed.geom(name).id
+    for field in ('geom_type','geom_size','geom_pos','geom_quat','geom_contype',
+                  'geom_conaffinity','geom_friction','geom_solref','geom_solimp'):
+        assert np.allclose(getattr(measured,field)[i],getattr(detailed,field)[j]),(name,field)
 report={'checks':'construction, table placement, bilateral actuation/pads, short settling, legacy default',
         'table_z_m':z,'pc_mass_kg':.284,'actuators':m.nu,'status':'passed',
         'measured_support':support,

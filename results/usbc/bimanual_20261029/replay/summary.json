@@ -1,0 +1,42 @@
+{
+  "status": "baseline_only_no_fit_adopted",
+  "scope": "left folded-rest single-joint trials; contacts disabled",
+  "trials": [
+    {
+      "excited_joint": 1,
+      "rmse_rad": 0.0040316647597078425,
+      "peak_abs_error_rad": 0.008426955643062294,
+      "report": "left_j1_baseline.json"
+    },
+    {
+      "excited_joint": 2,
+      "rmse_rad": 0.00470116387754815,
+      "peak_abs_error_rad": 0.010698352012065848,
+      "report": "left_j2_baseline.json"
+    },
+    {
+      "excited_joint": 3,
+      "rmse_rad": 0.003831338621311823,
+      "peak_abs_error_rad": 0.009686847371267635,
+      "report": "left_j3_baseline.json"
+    },
+    {
+      "excited_joint": 4,
+      "rmse_rad": 0.005524746222151419,
+      "peak_abs_error_rad": 0.011577427468082102,
+      "report": "left_j4_baseline.json"
+    },
+    {
+      "excited_joint": 5,
+      "rmse_rad": 0.0032714923135134877,
+      "peak_abs_error_rad": 0.0067250587920656205,
+      "report": "left_j5_baseline.json"
+    },
+    {
+      "excited_joint": 6,
+      "rmse_rad": 0.0032043379917158256,
+      "peak_abs_error_rad": 0.006435826646987228,
+      "report": "left_j6_baseline.json"
+    }
+  ]
+}

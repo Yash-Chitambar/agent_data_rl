@@ -1,0 +1,55 @@
+{
+  "scene_annotation": {
+    "trial": "bimanual_stationary_001",
+    "frame": "zed/raw_001220.png",
+    "coordinate_system": "640x640 calibrated top policy crop, excludes comparison title bar",
+    "pc_lid_center_px": [
+      342.0,
+      365.0
+    ],
+    "pixel_uncertainty": 4.0,
+    "pc_yaw_deg": 0.0,
+    "yaw_status": "approximate, not fitted",
+    "reader_visible": false,
+    "method": "manual visual landmark on measured-height lid plane; comparison initialization only",
+    "not_for": "connector metrology or policy reset distribution",
+    "derived_port_xy_m": [
+      0.2142402188549658,
+      0.3311601888699045
+    ]
+  },
+  "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "trial": "bimanual_stationary_001",
+  "views": {
+    "zed": {
+      "frame": "raw_001220.png",
+      "host_receive_ns": "1972731086044123",
+      "nearest_encoder_arrival_delta_ms": {
+        "right": 0.19132881425321102,
+        "left": 1.2618249747902155
+      }
+    },
+    "wrist_right": {
+      "frame": "raw_000890.png",
+      "host_receive_ns": "1972731194858372",
+      "nearest_encoder_arrival_delta_ms": {
+        "right": 1.5505049377679825,
+        "left": 1.108475960791111
+      }
+    },
+    "wrist_left": {
+      "frame": "raw_000890.png",
+      "host_receive_ns": "1972731184901147",
+      "nearest_encoder_arrival_delta_ms": {
+        "right": 0.8471678011119366,
+        "left": 0.6622378714382648
+      }
+    }
+  },
+  "limitations": [
+    "host arrival alignment, exposure timing unknown",
+    "PC placement approximate from annotation when supplied; reader omitted only if annotated absent",
+    "finger opening approximated; encoder mapping not identified",
+    "procedural background and pad geometry remain approximate"
+  ]
+}

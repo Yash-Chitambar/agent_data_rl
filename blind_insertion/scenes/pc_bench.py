@@ -142,9 +142,9 @@ def _free_pc_spec(spec, profile):
     for geom in fix.geoms:
         if geom.name.startswith(('fix_', 'fixbox_')):
             geom.contype |= support_bit
-    for x in (-PORT_FROM_LEFT + radius, w - PORT_FROM_LEFT - radius):
-        for z in (-radius, -depth + radius):
-            fix.add_geom(name=f'pc_pad_{len(fix.geoms)}', type=mujoco.mjtGeom.mjGEOM_CYLINDER,
+    for ix, x in enumerate((-PORT_FROM_LEFT + radius, w - PORT_FROM_LEFT - radius)):
+        for iz, z in enumerate((-radius, -depth + radius)):
+            fix.add_geom(name=f'pc_pad_{ix}_{iz}', type=mujoco.mjtGeom.mjGEOM_CYLINDER,
                          pos=[x, -PORT_HEIGHT + foot_h / 2, z],
                          quat=[math.sqrt(.5), math.sqrt(.5), 0, 0], size=[radius, foot_h / 2, 0],
                          rgba=[.1, .1, .1, 1], mass=0, contype=support_bit, conaffinity=1,
@@ -160,8 +160,6 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
     if support_mode == 'free':
         if profile is None or profile.get('schema') != 'usbc-rig-profile-v0':
             raise ValueError('free PC scene requires an explicit provisional measured profile')
-        if detailed:
-            raise ValueError('legacy decorative PC geometry is not compatible with the measured free scene; use detailed=False')
         r = profile['reader']['measurements']
         pc = profile['pc']['measurements']
         feet_h = float(profile['pc']['pad_height_derived']['value'])
@@ -177,7 +175,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         add_scene(sp, top_cam, physical=physical, bimanual=bimanual)
         if detailed:
             from blind_insertion.scenes.bench_details import add_details
-            add_details(sp, variant)
+            add_details(sp, variant, pc_profile=profile if support_mode == "free" else None)
         if physical:
             from blind_insertion.scenes.physical_rig import decorate as decorate_rig
             decorate_rig(sp)

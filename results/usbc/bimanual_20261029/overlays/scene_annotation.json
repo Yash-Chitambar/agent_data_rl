@@ -1,0 +1,12 @@
+{
+  "trial": "bimanual_stationary_001",
+  "frame": "zed/raw_001220.png",
+  "coordinate_system": "640x640 calibrated top policy crop, excludes comparison title bar",
+  "pc_lid_center_px": [342.0, 365.0],
+  "pixel_uncertainty": 4.0,
+  "pc_yaw_deg": 0.0,
+  "yaw_status": "approximate, not fitted",
+  "reader_visible": false,
+  "method": "manual visual landmark on measured-height lid plane; comparison initialization only",
+  "not_for": "connector metrology or policy reset distribution"
+}

@@ -23,7 +23,7 @@ from blind_insertion.scenes import pc_bench as S
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("run", type=Path)
-    p.add_argument("--side", choices=["right"], default="right")
+    p.add_argument("--side", choices=["right", "left"], default="right")
     p.add_argument("--joint", type=int, choices=range(1, 7), default=3)
     p.add_argument("--source", choices=["approach", "steps"], default="approach", help="command log to replay")
     p.add_argument("--joint3-friction", type=float, help="development-only MuJoCo frictionloss candidate")
@@ -33,6 +33,7 @@ def main():
     p.add_argument("--timestep", type=float, default=0.001)
     p.add_argument("--driver-feedforward", action="store_true", help="approximate the logged driver model offline")
     p.add_argument("--recorded-state-feedforward", action="store_true", help="reconstruct feedforward from logged encoder states")
+    p.add_argument("--out-dir", type=Path, help="write outside the immutable capture bundle")
     p.add_argument("--output-stem", default="cpu_baseline_replay", help="new output name within run directory")
     a = p.parse_args()
     if not a.output_stem or Path(a.output_stem).name != a.output_stem:
@@ -46,7 +47,9 @@ def main():
         raise SystemExit("timestep must be between 0.00025 and 0.002 s")
     if a.driver_feedforward and a.recorded_state_feedforward:
         raise SystemExit("choose only one driver feedforward reconstruction")
-    stem = a.run / a.output_stem
+    output = a.out_dir or a.run
+    output.mkdir(parents=True, exist_ok=True)
+    stem = output / a.output_stem
     if any(stem.with_suffix(ext).exists() for ext in ('.json', '.csv', '.png')):
         raise SystemExit(f"refusing to overwrite existing replay outputs: {stem}")
     meta = json.loads((a.run / "run.json").read_text())
@@ -75,14 +78,18 @@ def main():
     if not len(native_t):
         raise SystemExit("no native feedback overlaps the command interval")
 
-    m, lay = S.build_scene()
+    m, lay = S.build_scene(bimanual=a.side == "left")
+    prefix = "left_" if a.side == "left" else ""
+    arm_qadr = np.array([int(m.joint(prefix+f"joint{i}").qposadr[0]) for i in range(1,7)])
+    arm_dofadr = np.array([int(m.joint(prefix+f"joint{i}").dofadr[0]) for i in range(1,7)])
+    arm_act = np.array([m.actuator(prefix+f"joint{i}").id for i in range(1,7)])
     m.opt.timestep = a.timestep
-    joint3 = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, "joint3")
+    joint3 = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, prefix + "joint3")
     dof3 = int(m.jnt_dofadr[joint3])
     if a.stiction:
         m.dof_frictionloss[dof3] = 0.0
     if a.joint3_friction is not None:
-        joint3 = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, "joint3")
+        joint3 = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, prefix + "joint3")
         m.dof_frictionloss[m.jnt_dofadr[joint3]] = a.joint3_friction
     m.geom_contype[:] = 0
     m.geom_conaffinity[:] = 0
@@ -95,30 +102,30 @@ def main():
         driver_kdl = MuJoCoKDL(driver_xml)
         gravity_factors = np.asarray(gain["gravity_comp_factor"], float)[:6]
         friction_factors = np.asarray(gain["coulomb_friction"], float)[:6]
-    for idx, kp, kd in zip(lay.arm_act, gain["kp"], gain["kd"]):
+    for idx, kp, kd in zip(arm_act, gain["kp"], gain["kd"]):
         m.actuator_gainprm[idx, 0] = kp
         m.actuator_biasprm[idx, 1] = -kp
         m.actuator_biasprm[idx, 2] = -kd
     d = mujoco.MjData(m)
-    d.qpos[lay.arm_qadr] = np.asarray(json.loads(rows[0]["q"])) + offsets
-    d.qvel[[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f"joint{i}")] for i in range(1, 7)]] = json.loads(rows[0]["qd"])
-    d.ctrl[lay.arm_act] = d.qpos[lay.arm_qadr]
+    d.qpos[arm_qadr] = np.asarray(json.loads(rows[0]["q"])) + offsets
+    d.qvel[[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, prefix + f"joint{i}")] for i in range(1, 7)]] = json.loads(rows[0]["qd"])
+    d.ctrl[arm_act] = d.qpos[arm_qadr]
     mujoco.mj_forward(m, d)
     sticking = bool(a.stiction and abs(d.qvel[dof3]) < 0.002)
     unit = np.zeros((1, m.nv)); unit[0, dof3] = 1.0
     inv_column = np.empty_like(unit)
     state_counts = {"sticking": 0, "sliding": 0}
     obs_idx, recorded_ff = 0, None
-    sim_t, sim_q, k = [0.0], [d.qpos[lay.arm_qadr].copy() - offsets], 0
+    sim_t, sim_q, k = [0.0], [d.qpos[arm_qadr].copy() - offsets], 0
     while d.time < native_t[-1]:
         while k < len(send_t) and send_t[k] <= d.time:
-            d.ctrl[lay.arm_act] = commands[k]
+            d.ctrl[arm_act] = commands[k]
             k += 1
         if driver_kdl is not None:
             # Replace scene-perfect gravity compensation with the driver's computed gravity and
             # velocity-sign feedforward. Simulated velocity is a proxy for the driver's sampled
             # real encoder velocity; these commands are not measured output torque.
-            d.qfrc_applied[lay.arm_dofadr] = 0.0
+            d.qfrc_applied[arm_dofadr] = 0.0
             mujoco.mj_forward(m, d)
             if a.recorded_state_feedforward:
                 while obs_idx < len(obs_t) and obs_t[obs_idx] <= d.time:
@@ -131,11 +138,11 @@ def main():
                     raise RuntimeError("no recorded state available for feedforward")
                 driver_ff = recorded_ff
             else:
-                q_encoder = d.qpos[lay.arm_qadr] - offsets
-                q_velocity = d.qvel[lay.arm_dofadr]
+                q_encoder = d.qpos[arm_qadr] - offsets
+                q_velocity = d.qvel[arm_dofadr]
                 gravity = driver_kdl.compute_inverse_dynamics(q_encoder, np.zeros(6), np.zeros(6))
                 driver_ff = gravity * gravity_factors + friction_factors * np.sign(q_velocity)
-            d.qfrc_applied[lay.arm_dofadr] = driver_ff - d.qfrc_gravcomp[lay.arm_dofadr]
+            d.qfrc_applied[arm_dofadr] = driver_ff - d.qfrc_gravcomp[arm_dofadr]
         if driver_kdl is None:
             d.qfrc_applied[dof3] = 0.0
         base_force3 = float(d.qfrc_applied[dof3])
@@ -162,14 +169,14 @@ def main():
                 d.qfrc_applied[dof3] = base_force3 - sliding * direction
                 state_counts["sliding"] += 1
         mujoco.mj_step(m, d)
-        sim_t.append(float(d.time)); sim_q.append(d.qpos[lay.arm_qadr].copy() - offsets)
+        sim_t.append(float(d.time)); sim_q.append(d.qpos[arm_qadr].copy() - offsets)
     sim_t, sim_q = np.asarray(sim_t), np.asarray(sim_q)
     interp = np.column_stack([np.interp(native_t, sim_t, sim_q[:, j]) for j in range(6)])
     residual = interp - native_q
-    summary = {"run": str(a.run), "source": a.source, "initial_state": f"first {a.source} observation; encoder offsets applied once",
+    summary = {"side": a.side, "run": str(a.run), "source": a.source, "initial_state": f"first {a.source} observation; encoder offsets applied once",
                "command_time": "first matching CAN send on host monotonic clock; zero-order held",
                "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
-               "joint3_frictionloss_nm": float(m.dof_frictionloss[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, "joint3")]]),
+               "joint3_frictionloss_nm": float(m.dof_frictionloss[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, prefix + "joint3")]]),
                "experimental_stiction_nm": a.stiction, "experimental_stiction_mode": a.stiction_mode if a.stiction else None,
                "experimental_state_steps": state_counts if a.stiction else None,
                "driver_feedforward_reconstruction": ("approximate KDL gravity and velocity sign from logged states; held between observations; not actual recorded command" if a.recorded_state_feedforward else "approximate KDL gravity with logged factors and simulated velocity sign; not actual recorded command" if a.driver_feedforward else None),

@@ -11,7 +11,7 @@ SILVER = (.64, .65, .66, 1)
 BLACK = (.025, .028, .030, 1)
 
 
-def add_details(sp, variant):
+def add_details(sp, variant, pc_profile=None):
     def box(body, name, pos, half, color, **kw):
         return body.add_geom(name='detail_' + name, type=mujoco.mjtGeom.mjGEOM_BOX,
                              pos=pos, size=half, rgba=color, contype=0, conaffinity=0,
@@ -42,7 +42,7 @@ def add_details(sp, variant):
         light.diffuse = [.45,.45,.45]
     # The bench is plain dark laminate. No material: MuJoCo Warp renders a material's rgba and
     # ignores geom_rgba, which disables the per-world table colour randomization (PickEnv).
-    fix = sp.body('fixture')
+    fix = next(b for b in sp.bodies if b.name == 'fixture')
     # Case rim/lid and rubber plinth; the physical rear panel is left open at the target.
     for g in sp.geoms:
         if g.name.startswith('fixbox_'):
@@ -81,10 +81,20 @@ def add_details(sp, variant):
         box(fix,label+'_tongue',(offset,0,.00038),
             (USBC_TONGUE[0]/2,USBC_TONGUE[1]/2,.00004),(.08,.085,.09,1))
     sp.geom('fixbox_0').rgba = [0,0,0,0]
-    rounded(fix,'pc_body',(.0215,-.004,-.053),.103,.090,.038,.007,SILVER)
-    rounded(fix,'pc_lid',(.0215,.0175,-.049),.103,.098,.002,.008,SILVER)
-    rounded(fix,'pc_seam',(.0215,.0145,-.049),.102,.097,.001,.007,BLACK)
-    rounded(fix,'pc_foot',(.0215,-.024,-.049),.099,.094,.002,.007,BLACK)
+    if pc_profile is None:
+        rounded(fix,'pc_body',(.0215,-.004,-.053),.103,.090,.038,.007,SILVER)
+        rounded(fix,'pc_lid',(.0215,.0175,-.049),.103,.098,.002,.008,SILVER)
+        rounded(fix,'pc_seam',(.0215,.0145,-.049),.102,.097,.001,.007,BLACK)
+        rounded(fix,'pc_foot',(.0215,-.024,-.049),.099,.094,.002,.007,BLACK)
+    else:
+        values=pc_profile['pc']['measurements']
+        w,h,depth=[float(values[k]['value']) for k in ('width','body_height','depth')]
+        feet=float(pc_profile['pc']['pad_height_derived']['value'])
+        x=w/2-.030;bottom=-.025+feet;top=bottom+h
+        # Recessed main case leaves the connector panel and physical opening exposed.
+        rounded(fix,'pc_body',(x,bottom+h/2,-(depth+.0045)/2),w,depth-.0045,h-.002,.007,SILVER)
+        rounded(fix,'pc_lid',(x,top-.001,-depth/2),w,depth,.002,.008,SILVER)
+        rounded(fix,'pc_seam',(x,top-.003,-depth/2),w-.001,depth-.001,.001,.007,BLACK)
     for i in range(19):
         box(fix,f'vent{i}',(-.021+i*.0046,.012,-.0002),(.0013,.00065,.0005),BLACK)
     # Rear-panel metal rims, dark inserts and connector tongues.
@@ -105,7 +115,7 @@ def add_details(sp, variant):
         for i in range(3):
             box(fix,name+str(i),(x,.0189,-.010-i*.002),(.005-i*.001,.00005,.00025),(.75,.75,.72,1))
 
-    peg = sp.body('peg')
+    peg = next(b for b in sp.bodies if b.name == 'peg')
     c, half = variant.peg_boxes[0]
     bw, bt, bl = np.array(half)*2
     rounded(peg,'reader_shell',(c[0],c[1]-.0003,c[2]-.0005),
@@ -121,8 +131,14 @@ def add_details(sp, variant):
                           .00665+variant.handle_height/2),
         (variant.handle['width']*.43,.00012,variant.handle_height*.45),(.08,.085,.08,1))
 
+    if pc_profile is not None:
+        top=-.025+float(pc_profile['pc']['pad_height_derived']['value'])+float(pc_profile['pc']['measurements']['body_height']['value'])
+        for g in fix.geoms:
+            if g.name.startswith(('detail_ryzen','detail_radeon')):
+                g.pos[1] += top-.0185
+
     world=sp.worldbody
-    sp.geom('table').rgba = [.075,.08,.078,1]   # near black, as in the lab video
+    next(g for g in sp.geoms if g.name == 'table').rgba = [.075,.08,.078,1]   # near black, as in the lab video
     # Workbench backdrop: wall, outlet raceway, tool board, tools, power strip and monitors.
     # Lit lab room around the bench (lab photos): light grey walls, ceiling, grey floor (the bench
     # top is z = 0, the floor 0.75 m below), dark side benches, so no camera sees empty space.

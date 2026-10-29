@@ -67,7 +67,7 @@ def decorate(spec):
                 g.pos[2]+=.10
             if any(k in n for k in ('power_','power_slot','switch')):
                 g.pos[0]-=.14
-    table=spec.geom('table')
+    table=next(g for g in spec.geoms if g.name == 'table')
     table.pos[:2]=[.05,.31];table.size[:2]=[.45,.85]
 
     # Generic webcam housing at calibrated optical pose; housing dimensions are approximate.
