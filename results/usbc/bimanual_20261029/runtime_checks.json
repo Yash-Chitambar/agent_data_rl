@@ -1,0 +1,13 @@
+{
+  "worlds": 2,
+  "action_dimension": 14,
+  "checks": [
+    "both arms controlled",
+    "moving port observed",
+    "selective reset",
+    "finite stepping",
+    "right-only optional compensation",
+    "legacy action rejected"
+  ],
+  "scope": "physics runtime smoke; task reward, sensor and reset distribution integration unfinished"
+}

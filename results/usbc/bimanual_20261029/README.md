@@ -56,3 +56,20 @@ Rendering: after the required idle-GPU checks, explicitly select one free GPU an
 - GPU parity, numerical/contact checks and task rollout validation before policy training.
 
 Legacy defaults and older policy worktrees remain separate. No new training launched.
+
+## Measured bimanual GPU runtime
+
+`blind_insertion.envs.bimanual_runtime.BimanualRuntime` now builds the measured
+free-PC scene directly on MuJoCo Warp. Its 14D action is right six absolute model-frame
+joint targets + gripper, then left six targets + gripper. Optional target-error
+feedforward is side-specific and held for the control step; right priors cannot
+silently populate the left profile. This remains additional compensation atop the
+scene's ideal gravity baseline, not a validated driver/payload model.
+
+`check_bimanual_runtime.py` verifies bilateral actuation, moving-port coordinates,
+selective resets, finite stepping, right-only compensation and rejection of legacy
+7D actions. `check_bimanual_warp.py` compares 50 one-millisecond steps in two worlds
+against CPU MuJoCo: max generalized-position discrepancy 0.000162 (mixed metres/radians).
+This is a short-horizon numerical check, not real-robot accuracy. The runtime still
+needs task reward/termination, measured reset distributions, actor sensor timing and
+camera rendering integration before training acceptance.
