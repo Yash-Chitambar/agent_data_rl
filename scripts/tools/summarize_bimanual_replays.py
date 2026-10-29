@@ -35,7 +35,7 @@ for ax, side in zip(axes, ('left', 'right')):
     ax.set(title=f'{side.capitalize()} arm: folded-rest trials', xlabel='Excited joint', xticks=x)
     ax.grid(axis='y', alpha=.2)
 axes[0].set_ylabel('Excited-joint RMSE (mrad)')
-axes[1].legend()
+axes[0].legend(loc='upper left', fontsize=9)
 fig.suptitle('Controller input audit — unchanged plant physics, not a transfer accuracy claim')
 fig.tight_layout()
 fig.savefig(a.directory / 'feedforward_comparison.png', dpi=160)
