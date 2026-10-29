@@ -13,5 +13,10 @@
     "per-arm dynamics replay",
     "training environment integration and GPU parity",
     "task validation"
-  ]
+  ],
+  "checksum_verification": {
+    "command": "sha256sum --check --quiet usbc_session_sha256sums.txt",
+    "exit_code": 0,
+    "all_entries_passed": true
+  }
 }
