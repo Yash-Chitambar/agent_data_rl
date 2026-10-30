@@ -83,3 +83,29 @@ Reproduce the stationary comparison using audit_bimanual_pick.py with
 CPU-only diagnostic. For carry use `--identified-dynamics --settle-grasp
 --clearance-carry`. No hardware-derived stiffness is claimed.
 Full GPU grasp/carry parity, insertion and bracing remain required.
+
+## Nominal CPU insertion validation
+
+The corrected solver also completes a scripted insertion using privileged
+reader/port feedback. Reproduce with:
+
+```bash
+PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_pick.py --identified-dynamics --settle-grasp --clearance-carry --insert
+CUDA_VISIBLE_DEVICES=0 MUJOCO_GL=egl PYTHONPATH=. .venv/bin/python scripts/tools/render_bimanual_carry_audit.py --insertion
+```
+
+At the final hold: depth 5.7779 mm (target 5.8), lateral error 0.0161 mm,
+tilt 0.0281°. Geometric seating persisted for 1.4 s at 20 ms sampling,
+exceeding the task's 0.2 s criterion. The runtime's actual insertion_metrics
+function independently accepts the saved insert/seat_hold endpoints and rejects
+the preceding 6 mm-gap state. No reader attachment or PC fixation was used.
+PC displacement from preinsertion to final hold was about 18 micrometers;
+minimum sampled reader-contact distance was -0.287 micrometers.
+Contact penetration/force statistics are sampled at 20 ms, not continuous maxima.
+
+The left arm stayed at its reference pose: this demonstrates nominal insertion,
+not bimanual bracing, randomized robustness, GPU task parity, electrical engagement
+or hardware success. The older warning about *nominal CPU* insertion being
+unproven is superseded by this result; those broader validations remain open.
+Artifacts use the insert_settled_clearance_identified_feedback prefix in
+results/usbc/bimanual_20261029/reach.
