@@ -33,7 +33,8 @@ class BimanualCfg:
     friction_scale_range: tuple = (0.5, 1.3)
     gravity_scale_jitter: float = 0.04
     # Opt-in fingertip offset fitted to wrist silhouettes (scripts/tools/fit_gripper_tips.py):
-    # 'fitted' reads results/usbc/bimanual_20261029/gripper_tips/fit.json. Off by default: the
+    # 'fitted' reads results/usbc/bimanual_20261029/gripper_tips/fit.json; a path reads another
+    # fit.json (e.g. results/usbc/gripper_sweep/<name>/fit.json). Off by default: the
     # silhouettes cannot separate tip geometry from a hand-eye translation error (measure first).
     tip_offset: str | None = None
     # Legacy plant only (dynamics_profile=None): right joint-2 friction from the older replays.
@@ -84,13 +85,12 @@ class BimanualRuntime:
                 m.dof_solimp[dofs] = self.profile['friction_solimp']
         else:
             m.dof_frictionloss[int(m.joint("joint2").dofadr[0])] = c.right_joint2_friction_nm
-        if c.tip_offset == 'fitted':
-            fit = json.loads((Path(__file__).resolve().parents[2] / 'results/usbc/bimanual_20261029/gripper_tips/fit.json').read_text())
+        if c.tip_offset is not None:
+            path = 'results/usbc/bimanual_20261029/gripper_tips/fit.json' if c.tip_offset == 'fitted' else c.tip_offset
+            fit = json.loads((Path(__file__).resolve().parents[2] / path).read_text())
             for side, prefix in (('right', ''), ('left', 'left_')):
                 off = np.array(list(fit['arms'][side]['fitted_offset_mm'].values())) * 1e-3   # gripper-frame x, y, z
                 m.body_pos[[m.body(prefix + f + '_finger').id for f in ('left', 'right')]] += off
-        elif c.tip_offset is not None:
-            raise ValueError("tip_offset must be None or 'fitted'")
         d = mujoco.MjData(m)
         R.reference_pose(m,d,self.lay);S.place_pc(m,d);S.place_reader(m,d,self.lay)
         self.indices = {}

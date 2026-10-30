@@ -5,6 +5,11 @@ Two YAM arms on CAN, a webcam on each wrist, a ZED 2 above the table. Results an
 spec (intrinsics, mounts, ZED pose, joint offsets, base-to-base pose) is
 `blind_insertion/configs/real_cameras_duchamp3.json`.
 
+## Open physical TODO (2026-10-30)
+
+Start with [PHYSICAL_TODO_20261030.md](../../docs/PHYSICAL_TODO_20261030.md): gripper opening
+sweep (`capture_gripper_sweep.py`, jaws only), PC-table friction, backlash.
+
 ## Next bimanual measurement session
 
 See [BIMANUAL_MEASUREMENT_PLAN.md](../../docs/BIMANUAL_MEASUREMENT_PLAN.md) for the
@@ -27,6 +32,7 @@ extension, and the data handoff format. It supplements the historical gap table.
 | `setup_real.sh` | install the real-arm deps (i2rt, python-can, pyrealsense2, pyzed) into `.venv` | - |
 | `setup_can_autostart.sh` | one-time sudo: udev rule bringing the CAN adapters up at boot / plug-in | - |
 | `rig.py` | rig config: arm -> CAN interface by adapter serial, wrist camera devices, joint offsets | - |
+| `capture_gripper_sweep.py` | gripper opening sweep seen by each wrist camera, for the sim fingertip fit | jaws only |
 | `safety.py` | hold-mode connect, `SafeArm`, `close_robot` (no i2rt shutdown race) | - |
 | `estop.py` | software stop terminal (stop file `/tmp/yam_estop`) | - |
 | `rigctl.py` | rig console: stop, arms on/off (park at rest, then limp), camera viewer | yes (to rest) |

@@ -12,6 +12,10 @@ itself separate tip geometry from a hand-eye translation error: both move the ne
 tips while barely moving the far-field calibration board. Masks: HSV yellow in the lower
 part of the crop (assumption).
 Output: `results/usbc/bimanual_20261029/gripper_tips/fit.json` and overlays.
+
+`--sweep DIR` uses a rig capture from `scripts/real/capture_gripper_sweep.py` instead: per arm,
+the fully open and closed-empty frames fit the offset; the intermediate levels are held out,
+fitted for opening only, and give the encoder -> opening map (`gripper_map` in fit.json).
 """
 import argparse
 import itertools
@@ -114,16 +118,35 @@ def main():
     p.add_argument('--out', type=Path, default=Path('results/usbc/bimanual_20261029/gripper_tips'))
     p.add_argument('--span-mm', type=float, default=10.0)
     p.add_argument('--step-mm', type=float, default=0.5)
+    p.add_argument('--sweep', type=Path, help='rig capture from scripts/real/capture_gripper_sweep.py')
     a = p.parse_args()
+    if a.sweep and a.out == Path('results/usbc/bimanual_20261029/gripper_tips'):
+        a.out = Path('results/usbc/gripper_sweep') / a.sweep.name
     a.out.mkdir(parents=True, exist_ok=True)
     sc = Scene()
     views = []
-    for side, run, frame, state, role in VIEWS:
-        raw = cv2.imread(str(BUNDLE / 'cameras' / run / f'wrist_{side}' / frame))
-        real = real_policy_image(raw, sc.spec, RES, side)
-        views.append({'side': side, 'run': run, 'frame': frame, 'state': state, 'role': role, 'real': real,
-                      'mask': yellow_mask(real), 'q': joint_angles(run, side, frame)})
-    openings = {'open': np.arange(0.042, 0.0481, 0.001), 'closed': np.arange(-0.004, 0.0061, 0.001)}
+    if a.sweep:
+        meta = json.loads((a.sweep / 'sweep.json').read_text())
+        import hashlib
+        if meta['camera_spec_sha256'] != hashlib.sha256(R.SPEC.read_bytes()).hexdigest():
+            print('WARNING: sweep was captured with a different camera spec than this checkout uses', flush=True)
+        for row in meta['rows']:
+            g, first = row['target_gripper'], row['frame'].endswith('_0.png')
+            state = 'open' if g >= .999 else 'closed' if g <= .02 else 'any'
+            role = 'fit' if state != 'any' and first else 'held_out'
+            raw = cv2.imread(str(a.sweep / row['frame']))
+            real = real_policy_image(raw, sc.spec, RES, row['side'])
+            views.append({'side': row['side'], 'run': a.sweep.name, 'frame': row['frame'], 'state': state, 'role': role,
+                          'real': real, 'mask': yellow_mask(real), 'q': row['arm_q_encoder'],
+                          'encoder': .5 * (row['gripper_encoder_before'] + row['gripper_encoder_after'])})
+    else:
+        for side, run, frame, state, role in VIEWS:
+            raw = cv2.imread(str(BUNDLE / 'cameras' / run / f'wrist_{side}' / frame))
+            real = real_policy_image(raw, sc.spec, RES, side)
+            views.append({'side': side, 'run': run, 'frame': frame, 'state': state, 'role': role, 'real': real,
+                          'mask': yellow_mask(real), 'q': joint_angles(run, side, frame)})
+    openings = {'open': np.arange(0.042, 0.0481, 0.001), 'closed': np.arange(-0.004, 0.0061, 0.001),
+                'any': np.arange(-0.004, 0.0501, 0.001)}
 
     def score(offset, vs):
         out = []
@@ -144,7 +167,7 @@ def main():
 
     report = {'method': __doc__.strip(), 'axes_gripper_frame': list(AXES), 'arms': {}, 'views': []}
     offsets, results = {}, []
-    for side in ('left', 'right'):
+    for side in sorted({v['side'] for v in views}):
         fit_views = [v for v in views if v['side'] == side and v['role'] == 'fit']
         coarse = search(fit_views, np.zeros(3), a.span_mm * 1e-3, 2e-3)
         fine = search(fit_views, coarse[1], 2e-3, a.step_mm * 1e-3)
@@ -166,6 +189,18 @@ def main():
             ov[sim] = (.5 * ov[sim] + [127, 0, 127]).astype('uint8')
             cv2.imwrite(str(a.out / f"{v['side']}_{v['run']}_{v['frame'][:-4]}_{tag}.png"), cv2.cvtColor(ov, cv2.COLOR_RGB2BGR))
     sc.r.close()
+    for side in report['arms']:
+        pts = [(v['encoder'], b1[1]) for v, _, b1 in results if v['side'] == side and 'encoder' in v]
+        if len(pts) >= 3:
+            enc, op = np.array(pts).T
+            coef = np.polyfit(enc, op, 1)
+            order = np.argsort(enc)
+            report['arms'][side]['gripper_map'] = {
+                'opening_m_per_finger_vs_encoder': 'opening = slope * encoder + intercept',
+                'slope': float(coef[0]), 'intercept': float(coef[1]),
+                'rmse_mm': float(np.sqrt(np.mean((np.polyval(coef, enc) - op) ** 2)) * 1e3),
+                'monotonic': bool(np.all(np.diff(op[order]) >= -1e-3)),
+                'points': [[round(float(e), 4), round(float(o), 4)] for e, o in zip(enc[order], op[order])]}
     (a.out / 'fit.json').write_text(json.dumps(report, indent=1) + '\n')
     print(json.dumps(report['arms'], indent=1))
     for v in report['views']:
