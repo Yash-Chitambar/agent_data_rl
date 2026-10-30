@@ -178,3 +178,14 @@ The silhouettes cannot separate tip geometry from a hand-eye translation error (
 near-field tips, not the far-field board). So the offset is opt-in
 (`BimanualCfg(tip_offset='fitted')`). Measure camera-lens-to-tip distance with calipers
 on both arms to decide: geometry -> enable it; camera -> correct the hand-eye instead.
+
+## Runtime speed (2026-10-30)
+
+The runtime stepped `mjw.step` from a Python loop: kernel-launch bound (334 env-steps/s at
+2048 worlds, V100). Each substep is now replayed from a captured CUDA graph
+(`BimanualCfg.cuda_graph`); the camera cadence and the per-control-step gravity residual
+still run between substeps. Buffers shrank from 512 contacts / 3000 rows to 128 / 800 per
+world (`nconmax`, `njmax`; random-action peak 8 contacts, 90 rows; `buffer_usage()`).
+Throughput: 2048 worlds 28,486, 4096 38,616, 8192 44,256 env-steps/s (was 334; 8192 did
+not fit before). All runtime/task/RGB checks pass; the real-trial GPU replay is unchanged.
+Contact-rich insertion may need larger buffers: watch `buffer_usage()` in training.

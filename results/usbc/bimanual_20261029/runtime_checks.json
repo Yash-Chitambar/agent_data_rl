@@ -11,7 +11,7 @@
     "identified dynamics: per-world friction within range and resampled only on reset",
     "stiff friction impedance",
     "finite driver gravity residual (none on joint 1)",
-    "reference hold under identified dynamics: max joint drift 0.0068 rad in 0.1 s"
+    "reference hold under identified dynamics: max joint drift 0.0053 rad in 0.1 s"
   ],
   "scope": "physics runtime smoke; task reward, sensor and reset distribution integration unfinished"
 }

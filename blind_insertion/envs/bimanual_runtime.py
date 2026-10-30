@@ -46,6 +46,13 @@ class BimanualCfg:
     measured_camera_cadence: bool = True
     quantize_encoders: bool = True
     camera_resolution: int = 320
+    # Replay each physics substep from a captured CUDA graph: the Python loop of mjw.step
+    # calls is kernel-launch bound (512 worlds: 35 -> 2.3 ms per substep).
+    cuda_graph: bool = True
+    # Per-world contact / constraint-row buffers. Random-action rollouts peak at ~8 contacts
+    # and 90 rows per world; the margin is for contact-rich insertion. Check buffer_usage().
+    nconmax: int = 128
+    njmax: int = 800
 
 
 class BimanualRuntime:
@@ -102,7 +109,8 @@ class BimanualRuntime:
         wp.init()
         with wp.ScopedDevice(c.device):
             self.m = mjw.put_model(m, batch_sizes={'dof_frictionloss': c.nworld} if self.profile else None)
-            self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=512,njmax=3000)
+            self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=c.nconmax,njmax=c.njmax)
+        self._graph = None
         self.q = wp.to_torch(self.d.qpos)
         self.v = wp.to_torch(self.d.qvel)
         self.ctrl = wp.to_torch(self.d.ctrl)
@@ -174,10 +182,27 @@ class BimanualRuntime:
         # Explicit compensation is computed once and held, as in the recorded driver law.
         with wp.ScopedDevice(self.cfg.device):
             for _ in range(self.cfg.substeps):
-                mjw.step(self.m,self.d)
+                self._physics_substep()
                 self.sensor_time+=self.mjm.opt.timestep
                 if self.camera_sensor is not None:self.camera_sensor.advance(self.sensor_time)
         return self.state()
+
+    def buffer_usage(self):
+        """Fraction of the contact and constraint buffers in use (1.0 means overflow risk)."""
+        return {'contacts': int(self.d.nacon.numpy()[0])/self.d.naconmax,
+                'constraint_rows_max_world': int(wp.to_torch(self.d.nefc).max())/self.cfg.njmax}
+
+    def _physics_substep(self):
+        """One mjw.step; after the first call (kernel load) it is recorded once and replayed."""
+        if not self.cfg.cuda_graph:
+            mjw.step(self.m,self.d)
+        elif self._graph is None:
+            mjw.step(self.m,self.d)
+            with wp.ScopedCapture() as capture:     # records without executing
+                mjw.step(self.m,self.d)
+            self._graph = capture.graph
+        else:
+            wp.capture_launch(self._graph)
 
     def _sample_dynamics(self, ids):
         """Per-world Coulomb friction and gravity scales around the identified profile."""
