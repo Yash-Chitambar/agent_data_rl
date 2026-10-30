@@ -43,7 +43,7 @@ acts=[m.actuator(f'joint{i}').id for i in range(1,7)]
 grips=[m.actuator('grip_'+s).id for s in ('left','right')]
 mujoco.mj_forward(m,d);initial=d.qpos[l.peg_qadr:l.peg_qadr+3].copy()
 rows=[];phases={};states={};contact_trace=[];first_loss=None
-seating_trace=[]
+seating_trace=[];dynamic_states={}
 sequence=[('approach',2.,False),('grasp',2.,False),('close',1.5,True),('lift',2.,True),('preinsert',2.,True),('hold',1.,True)]
 if args.passive_hold:sequence[-2:]=[('preinsert',20.,True),('hold',1.,True)]
 if args.feedback_align:sequence.insert(-1,('align',args.align_seconds,True))
@@ -158,6 +158,7 @@ for name,duration,closed in sequence:
                 states['first_loss']=d.qpos.copy()
     last=feedback_target if feedback_phase or name=='settle_grasp' else target
     states[name]=d.qpos.copy()
+    dynamic_states[name+'_qvel']=d.qvel.copy();dynamic_states[name+'_ctrl']=d.ctrl.copy()
     contacts=[{'a':m.geom(c.geom1).name,'b':m.geom(c.geom2).name,'distance_m':float(c.dist)} for c in d.contact if any(m.geom(g).name.startswith(('left_pad_s','right_pad_s')) or m.geom(g).name in ('left_tip_hull','right_tip_hull') for g in (c.geom1,c.geom2))]
     mujoco.mj_forward(m,d)
     port=m.body('fixture').id
@@ -170,6 +171,7 @@ for name,duration,closed in sequence:
                   'reader_center_to_tcp_m':float(rows[-1][-2]),'max_joint_error_rad':float(rows[-1][-1])}
 out=Path('results/usbc/bimanual_20261029/reach')
 np.savez_compressed(out/(output_prefix+'nominal_pick_states.npz'),**states)
+np.savez_compressed(out/(output_prefix+'nominal_pick_dynamics.npz'),**dynamic_states)
 with (out/(output_prefix+'nominal_pick.csv')).open('w',newline='') as f:
     w=csv.writer(f);w.writerow(['time_s','phase','reader_x','reader_y','reader_z','center_to_tcp_m','max_joint_error_rad']);w.writerows(rows)
 lift=phases['lift'];held=lift['reader_tip_xyz_m'][2]>initial[2]+.04 and lift['reader_center_to_tcp_m']<.02

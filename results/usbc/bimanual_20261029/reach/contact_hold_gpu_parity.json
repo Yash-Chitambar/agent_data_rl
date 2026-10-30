@@ -1,0 +1,1510 @@
+{
+  "scope": "One second open-loop hold from saved aligned and seated states; not GPU pickup/insertion rollout",
+  "phases": [
+    "hold",
+    "seat_hold"
+  ],
+  "impratio": 100.0,
+  "randomization": false,
+  "final_cpu_metrics": {
+    "geometric_seated": [
+      false,
+      true
+    ],
+    "aperture_fit": [
+      true,
+      true
+    ],
+    "tip_depth_m": [
+      -0.005998639982457634,
+      0.005735197034695074
+    ],
+    "tilt_deg": [
+      0.015183904277585156,
+      0.054545981779735714
+    ],
+    "finite": [
+      true,
+      true
+    ]
+  },
+  "final_gpu_metrics": {
+    "geometric_seated": [
+      false,
+      true
+    ],
+    "aperture_fit": [
+      true,
+      true
+    ],
+    "tip_depth_m": [
+      -0.005996078252792358,
+      0.005796223413199186
+    ],
+    "tilt_deg": [
+      0.0,
+      0.03426402062177658
+    ],
+    "finite": [
+      true,
+      true
+    ]
+  },
+  "buffer_usage": {
+    "contacts": 0.109375,
+    "constraint_rows_max_world": 0.14
+  },
+  "trace": [
+    {
+      "time_s": 0.02,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005997210741043091,
+          0.005785887595266104
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        6.287789884318329e-07,
+        2.9729150893831324e-05
+      ]
+    },
+    {
+      "time_s": 0.04,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996614694595337,
+          0.0057900287210941315
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.07408786043095e-06,
+        2.5487635896492833e-05
+      ]
+    },
+    {
+      "time_s": 0.06,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005792202893644571
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.607008133341914e-06,
+        0.002983391644804212
+      ]
+    },
+    {
+      "time_s": 0.08,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005793513730168343
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.140397197258892e-06,
+        0.0037619871540797156
+      ]
+    },
+    {
+      "time_s": 0.1,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005794556345790625
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.6742530279122434e-06,
+        0.0032932563508322743
+      ]
+    },
+    {
+      "time_s": 0.12,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.0057951523922383785
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.208576690116871e-06,
+        0.0032006157684237313
+      ]
+    },
+    {
+      "time_s": 0.14,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005795747973024845
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.7433664576980163e-06,
+        0.003197906017138874
+      ]
+    },
+    {
+      "time_s": 0.16,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796344485133886
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.278623373821233e-06,
+        0.0033217460872111415
+      ]
+    },
+    {
+      "time_s": 0.18,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796940065920353
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.814345744286186e-06,
+        0.0033696048047580085
+      ]
+    },
+    {
+      "time_s": 0.2,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797267891466618
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        5.3505346111482055e-06,
+        0.003327860985363029
+      ]
+    },
+    {
+      "time_s": 0.22,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.00579723808914423
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        5.887188282205358e-06,
+        0.00334737097014709
+      ]
+    },
+    {
+      "time_s": 0.24,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.00579726742580533
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        6.4243077994019515e-06,
+        0.003275671900233812
+      ]
+    },
+    {
+      "time_s": 0.26,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797237623482943
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        6.961890932521975e-06,
+        0.0032651352029504643
+      ]
+    },
+    {
+      "time_s": 0.28,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797178018838167
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        7.5661504694846116e-06,
+        0.0032607366689368367
+      ]
+    },
+    {
+      "time_s": 0.3,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797178018838167
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        8.65108032188644e-06,
+        0.003288565756561279
+      ]
+    },
+    {
+      "time_s": 0.32,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797178018838167
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        9.735835506452517e-06,
+        0.003306448277709151
+      ]
+    },
+    {
+      "time_s": 0.34,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.0057971482165157795
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.0820416069146077e-05,
+        0.003317139462777008
+      ]
+    },
+    {
+      "time_s": 0.36,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797207821160555
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.1904822052155595e-05,
+        0.003226099795861581
+      ]
+    },
+    {
+      "time_s": 0.38,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797029007226229
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.2989053493450697e-05,
+        0.003252472240581339
+      ]
+    },
+    {
+      "time_s": 0.4,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797058809548616
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.407311042989079e-05,
+        0.0032677871037637973
+      ]
+    },
+    {
+      "time_s": 0.42,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796999204903841
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.5156992895892785e-05,
+        0.003284294343854466
+      ]
+    },
+    {
+      "time_s": 0.44,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005797058809548616
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.624070092454133e-05,
+        0.0032935515211005018
+      ]
+    },
+    {
+      "time_s": 0.46,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796969402581453
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.73242345475888e-05,
+        0.0033009483462088096
+      ]
+    },
+    {
+      "time_s": 0.48,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796939600259066
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.8407593797009625e-05,
+        0.0032706551043062415
+      ]
+    },
+    {
+      "time_s": 0.5,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796939600259066
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        1.949077871765681e-05,
+        0.0032604160781153912
+      ]
+    },
+    {
+      "time_s": 0.52,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796909797936678
+        ],
+        "tilt_deg": [
+          0.0,
+          0.02797645516693592
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.05737893406166e-05,
+        0.0032886316179710495
+      ]
+    },
+    {
+      "time_s": 0.54,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796939600259066
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.1656625681876207e-05,
+        0.0032921363621173927
+      ]
+    },
+    {
+      "time_s": 0.56,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796820390969515
+        ],
+        "tilt_deg": [
+          0.0,
+          0.0
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.2739287757866933e-05,
+        0.003298545198475278
+      ]
+    },
+    {
+      "time_s": 0.58,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796730984002352
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.382177559567822e-05,
+        0.0033020673319767435
+      ]
+    },
+    {
+      "time_s": 0.6,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.0057967305183410645
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.4904089230615156e-05,
+        0.0032776872026100135
+      ]
+    },
+    {
+      "time_s": 0.62,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796700716018677
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.598622871641254e-05,
+        0.00326936476682399
+      ]
+    },
+    {
+      "time_s": 0.64,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.00579679012298584
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.7068194051960148e-05,
+        0.0032638823413254636
+      ]
+    },
+    {
+      "time_s": 0.66,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796670913696289
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.814998528122281e-05,
+        0.0038425910427387078
+      ]
+    },
+    {
+      "time_s": 0.68,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796760320663452
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        2.92316024259609e-05,
+        0.003879973783809554
+      ]
+    },
+    {
+      "time_s": 0.7000000000000001,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796641111373901
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.0313045514596126e-05,
+        0.002273727514536805
+      ]
+    },
+    {
+      "time_s": 0.72,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796581506729126
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.139431458287767e-05,
+        0.002146173104710769
+      ]
+    },
+    {
+      "time_s": 0.74,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796670913696289
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.247540967321605e-05,
+        0.001685059523568233
+      ]
+    },
+    {
+      "time_s": 0.76,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796581506729126
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.355633079293874e-05,
+        0.0019257441286737453
+      ]
+    },
+    {
+      "time_s": 0.78,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796492099761963
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.463707795825499e-05,
+        0.0016750542540517888
+      ]
+    },
+    {
+      "time_s": 0.8,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796551704406738
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.5717651215128043e-05,
+        0.001606491740936744
+      ]
+    },
+    {
+      "time_s": 0.8200000000000001,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796551704406738
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.679805059042529e-05,
+        0.0016005842063351317
+      ]
+    },
+    {
+      "time_s": 0.84,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796492099761963
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.7878276125669075e-05,
+        0.0015979959850626058
+      ]
+    },
+    {
+      "time_s": 0.86,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796492099761963
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        3.8958327832849804e-05,
+        0.0015949212347770025
+      ]
+    },
+    {
+      "time_s": 0.88,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796491634100676
+        ],
+        "tilt_deg": [
+          0.0,
+          0.02797645516693592
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.0038205747494615e-05,
+        0.001585661908381164
+      ]
+    },
+    {
+      "time_s": 0.9,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796312820166349
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.1117909898913396e-05,
+        0.0015681003562957319
+      ]
+    },
+    {
+      "time_s": 0.92,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796342622488737
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.2197440308200385e-05,
+        0.0015301252958477285
+      ]
+    },
+    {
+      "time_s": 0.9400000000000001,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796461831778288
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.3276797006441825e-05,
+        0.001494496667014733
+      ]
+    },
+    {
+      "time_s": 0.96,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796312820166349
+        ],
+        "tilt_deg": [
+          0.0,
+          0.01978234015405178
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.435598001628627e-05,
+        0.001467797246019198
+      ]
+    },
+    {
+      "time_s": 0.98,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796283017843962
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.543498937015222e-05,
+        0.001447926472811778
+      ]
+    },
+    {
+      "time_s": 1.0,
+      "gpu_metrics": {
+        "geometric_seated": [
+          false,
+          true
+        ],
+        "aperture_fit": [
+          true,
+          true
+        ],
+        "tip_depth_m": [
+          -0.005996078252792358,
+          0.005796223413199186
+        ],
+        "tilt_deg": [
+          0.0,
+          0.03426402062177658
+        ],
+        "finite": [
+          true,
+          true
+        ]
+      },
+      "max_qpos_difference": [
+        4.651382510512114e-05,
+        0.0014387177972257081
+      ]
+    }
+  ],
+  "comparison_note": "5e-3 maximum raw qpos difference is a coarse numerical guard, not a physical alignment tolerance; use insertion metrics for seating"
+}

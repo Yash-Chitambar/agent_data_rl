@@ -109,3 +109,19 @@ or hardware success. The older warning about *nominal CPU* insertion being
 unproven is superseded by this result; those broader validations remain open.
 Artifacts use the insert_settled_clearance_identified_feedback prefix in
 results/usbc/bimanual_20261029/reach.
+
+## GPU seated-contact hold
+
+check_bimanual_contact_hold.py initializes the actual training runtime from saved
+CPU aligned/seated qpos, qvel and actuator controls, disables parameter
+randomization, and holds the same joint targets for one second. Both engines use
+identified bilateral gravity/friction; the GPU uses the runtime CUDA graph path.
+The seated GPU world satisfies geometric seating at all 50 control samples.
+Final GPU depth is 5.7962 mm, CPU depth 5.7352 mm; both satisfy seating.
+Peak raw qpos difference is 0.00388 (mixed coordinates); the 0.005 guard is only a
+coarse numerical-divergence guard, not an alignment tolerance. Buffer utilization
+is 10.94% contacts and 14% constraint rows. All states remain finite.
+
+This is a seeded contact hold, not an end-to-end GPU rollout or a randomized
+robustness evaluation. The next remaining integration check is GPU pickup and
+insertion with feedback throughout, followed by bimanual bracing/reset coverage.
