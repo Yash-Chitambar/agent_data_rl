@@ -1,0 +1,1145 @@
+{
+ "result": "completed",
+ "levels": [
+  1.0,
+  0.85,
+  0.7,
+  0.55,
+  0.4,
+  0.3,
+  0.2,
+  0.12,
+  0.06,
+  0.02,
+  1.0
+ ],
+ "frames_per_level": 3,
+ "settle_s": 1.5,
+ "camera_spec": "/home/yashc/agent_data_rl/blind_insertion/configs/real_cameras_duchamp3.json",
+ "camera_spec_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+ "note": "gripper encoder is the driver-normalized jaw reading (1 open); frames are raw wrist images",
+ "rows": [
+  {
+   "side": "right",
+   "level_index": 0,
+   "target_gripper": 1.0,
+   "frame": "right_00_0.png",
+   "gripper_encoder_before": 0.9997952218430034,
+   "gripper_encoder_after": 0.9997952218430034,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.0978484779125619,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134444191705269
+  },
+  {
+   "side": "right",
+   "level_index": 0,
+   "target_gripper": 1.0,
+   "frame": "right_00_1.png",
+   "gripper_encoder_before": 0.9997952218430027,
+   "gripper_encoder_after": 0.9997952218430034,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.0978484779125619,
+    0.028801403830014394,
+    -0.05283436331730762
+   ],
+   "host_monotonic_ns": 2134444345037101
+  },
+  {
+   "side": "right",
+   "level_index": 0,
+   "target_gripper": 1.0,
+   "frame": "right_00_2.png",
+   "gripper_encoder_before": 0.9997952218430027,
+   "gripper_encoder_after": 0.9997952218430027,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.0978484779125619,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134444513360589
+  },
+  {
+   "side": "right",
+   "level_index": 1,
+   "target_gripper": 0.85,
+   "frame": "right_01_0.png",
+   "gripper_encoder_before": 0.8643003412969276,
+   "gripper_encoder_after": 0.8642320819112621,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09746700236514805,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134446179062946
+  },
+  {
+   "side": "right",
+   "level_index": 1,
+   "target_gripper": 0.85,
+   "frame": "right_01_1.png",
+   "gripper_encoder_before": 0.8643003412969282,
+   "gripper_encoder_after": 0.8643003412969276,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09746700236514805,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134446344906054
+  },
+  {
+   "side": "right",
+   "level_index": 1,
+   "target_gripper": 0.85,
+   "frame": "right_01_2.png",
+   "gripper_encoder_before": 0.8643003412969276,
+   "gripper_encoder_after": 0.8643003412969276,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09746700236514805,
+    0.029182879377431803,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134446546955611
+  },
+  {
+   "side": "right",
+   "level_index": 2,
+   "target_gripper": 0.7,
+   "frame": "right_02_0.png",
+   "gripper_encoder_before": 0.7136518771331051,
+   "gripper_encoder_after": 0.7136518771331057,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09746700236514805,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134448209994208
+  },
+  {
+   "side": "right",
+   "level_index": 2,
+   "target_gripper": 0.7,
+   "frame": "right_02_1.png",
+   "gripper_encoder_before": 0.7136518771331057,
+   "gripper_encoder_after": 0.7136518771331057,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09746700236514805,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134448409762604
+  },
+  {
+   "side": "right",
+   "level_index": 2,
+   "target_gripper": 0.7,
+   "frame": "right_02_2.png",
+   "gripper_encoder_before": 0.7136518771331051,
+   "gripper_encoder_after": 0.7136518771331057,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09746700236514805,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134448610237978
+  },
+  {
+   "side": "right",
+   "level_index": 3,
+   "target_gripper": 0.55,
+   "frame": "right_03_0.png",
+   "gripper_encoder_before": 0.5630034129692826,
+   "gripper_encoder_after": 0.5613651877133099,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.029182879377431803,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134450277671109
+  },
+  {
+   "side": "right",
+   "level_index": 3,
+   "target_gripper": 0.55,
+   "frame": "right_03_1.png",
+   "gripper_encoder_before": 0.5611604095563133,
+   "gripper_encoder_after": 0.5611604095563133,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134450474653245
+  },
+  {
+   "side": "right",
+   "level_index": 3,
+   "target_gripper": 0.55,
+   "frame": "right_03_2.png",
+   "gripper_encoder_before": 0.5611604095563133,
+   "gripper_encoder_after": 0.5611604095563133,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134450627429199
+  },
+  {
+   "side": "right",
+   "level_index": 4,
+   "target_gripper": 0.4,
+   "frame": "right_04_0.png",
+   "gripper_encoder_before": 0.41453924914675755,
+   "gripper_encoder_after": 0.41453924914675755,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134452310254114
+  },
+  {
+   "side": "right",
+   "level_index": 4,
+   "target_gripper": 0.4,
+   "frame": "right_04_1.png",
+   "gripper_encoder_before": 0.41453924914675755,
+   "gripper_encoder_after": 0.41460750853242245,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134452490098102
+  },
+  {
+   "side": "right",
+   "level_index": 4,
+   "target_gripper": 0.4,
+   "frame": "right_04_2.png",
+   "gripper_encoder_before": 0.41453924914675755,
+   "gripper_encoder_after": 0.41453924914675755,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134452625749407
+  },
+  {
+   "side": "right",
+   "level_index": 5,
+   "target_gripper": 0.3,
+   "frame": "right_05_0.png",
+   "gripper_encoder_before": 0.31146757679180853,
+   "gripper_encoder_after": 0.3114675767918092,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134454305814153
+  },
+  {
+   "side": "right",
+   "level_index": 5,
+   "target_gripper": 0.3,
+   "frame": "right_05_1.png",
+   "gripper_encoder_before": 0.3114675767918092,
+   "gripper_encoder_after": 0.31146757679180853,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134454457050172
+  },
+  {
+   "side": "right",
+   "level_index": 5,
+   "target_gripper": 0.3,
+   "frame": "right_05_2.png",
+   "gripper_encoder_before": 0.3114675767918092,
+   "gripper_encoder_after": 0.31146757679180853,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134454623283408
+  },
+  {
+   "side": "right",
+   "level_index": 6,
+   "target_gripper": 0.2,
+   "frame": "right_06_0.png",
+   "gripper_encoder_before": 0.21310580204778165,
+   "gripper_encoder_after": 0.21310580204778165,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134456270122649
+  },
+  {
+   "side": "right",
+   "level_index": 6,
+   "target_gripper": 0.2,
+   "frame": "right_06_1.png",
+   "gripper_encoder_before": 0.213105802047781,
+   "gripper_encoder_after": 0.213105802047781,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134456421634657
+  },
+  {
+   "side": "right",
+   "level_index": 6,
+   "target_gripper": 0.2,
+   "frame": "right_06_2.png",
+   "gripper_encoder_before": 0.213105802047781,
+   "gripper_encoder_after": 0.213105802047781,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134456570234836
+  },
+  {
+   "side": "right",
+   "level_index": 7,
+   "target_gripper": 0.12,
+   "frame": "right_07_0.png",
+   "gripper_encoder_before": 0.13344709897610962,
+   "gripper_encoder_after": 0.13344709897610899,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134458221647924
+  },
+  {
+   "side": "right",
+   "level_index": 7,
+   "target_gripper": 0.12,
+   "frame": "right_07_1.png",
+   "gripper_encoder_before": 0.13344709897610962,
+   "gripper_encoder_after": 0.13351535836177514,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134458386206606
+  },
+  {
+   "side": "right",
+   "level_index": 7,
+   "target_gripper": 0.12,
+   "frame": "right_07_2.png",
+   "gripper_encoder_before": 0.13344709897610899,
+   "gripper_encoder_after": 0.1335153583617745,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134458523605375
+  },
+  {
+   "side": "right",
+   "level_index": 8,
+   "target_gripper": 0.06,
+   "frame": "right_08_0.png",
+   "gripper_encoder_before": 0.07726962457337884,
+   "gripper_encoder_after": 0.07726962457337884,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134460185562405
+  },
+  {
+   "side": "right",
+   "level_index": 8,
+   "target_gripper": 0.06,
+   "frame": "right_08_1.png",
+   "gripper_encoder_before": 0.07726962457337884,
+   "gripper_encoder_after": 0.07733788395904437,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134460334186764
+  },
+  {
+   "side": "right",
+   "level_index": 8,
+   "target_gripper": 0.06,
+   "frame": "right_08_2.png",
+   "gripper_encoder_before": 0.07733788395904437,
+   "gripper_encoder_after": 0.07733788395904437,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134460486119571
+  },
+  {
+   "side": "right",
+   "level_index": 9,
+   "target_gripper": 0.02,
+   "frame": "right_09_0.png",
+   "gripper_encoder_before": 0.058566552901023965,
+   "gripper_encoder_after": 0.058566552901023965,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09708552681772709,
+    0.029182879377431803,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134462150641483
+  },
+  {
+   "side": "right",
+   "level_index": 9,
+   "target_gripper": 0.02,
+   "frame": "right_09_1.png",
+   "gripper_encoder_before": 0.058566552901023965,
+   "gripper_encoder_after": 0.058566552901023965,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134462316900868
+  },
+  {
+   "side": "right",
+   "level_index": 9,
+   "target_gripper": 0.02,
+   "frame": "right_09_2.png",
+   "gripper_encoder_before": 0.058566552901023965,
+   "gripper_encoder_after": 0.058566552901023965,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134462487956517
+  },
+  {
+   "side": "right",
+   "level_index": 10,
+   "target_gripper": 1.0,
+   "frame": "right_10_0.png",
+   "gripper_encoder_before": 0.9865529010238901,
+   "gripper_encoder_after": 0.9865529010238901,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134464149867408
+  },
+  {
+   "side": "right",
+   "level_index": 10,
+   "target_gripper": 1.0,
+   "frame": "right_10_1.png",
+   "gripper_encoder_before": 0.9865529010238901,
+   "gripper_encoder_after": 0.9865529010238901,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134464316622462
+  },
+  {
+   "side": "right",
+   "level_index": 10,
+   "target_gripper": 1.0,
+   "frame": "right_10_2.png",
+   "gripper_encoder_before": 0.9865529010238901,
+   "gripper_encoder_after": 0.9865529010238901,
+   "arm_q_encoder": [
+    0.06771190966659013,
+    0.004386968795300206,
+    0.004768444342717615,
+    -0.09670405127031323,
+    0.028801403830014394,
+    -0.05321583886472858
+   ],
+   "host_monotonic_ns": 2134464518765519
+  },
+  {
+   "side": "left",
+   "level_index": 0,
+   "target_gripper": 1.0,
+   "frame": "left_00_0.png",
+   "gripper_encoder_before": 0.9831671263880049,
+   "gripper_encoder_after": 0.9831671263880049,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06656748302433435,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134468303203454
+  },
+  {
+   "side": "left",
+   "level_index": 0,
+   "target_gripper": 1.0,
+   "frame": "left_00_1.png",
+   "gripper_encoder_before": 0.9831671263880049,
+   "gripper_encoder_after": 0.9831671263880049,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06656748302433435,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134468455227171
+  },
+  {
+   "side": "left",
+   "level_index": 0,
+   "target_gripper": 1.0,
+   "frame": "left_00_2.png",
+   "gripper_encoder_before": 0.9831671263880049,
+   "gripper_encoder_after": 0.9831671263880049,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06656748302433435,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134468623574190
+  },
+  {
+   "side": "left",
+   "level_index": 1,
+   "target_gripper": 0.85,
+   "frame": "left_01_0.png",
+   "gripper_encoder_before": 0.868448970931466,
+   "gripper_encoder_after": 0.868448970931466,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06580453192949953,
+    0.08411535820553873,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134470287023095
+  },
+  {
+   "side": "left",
+   "level_index": 1,
+   "target_gripper": 0.85,
+   "frame": "left_01_1.png",
+   "gripper_encoder_before": 0.868448970931466,
+   "gripper_encoder_after": 0.868448970931466,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06580453192949953,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134470434580107
+  },
+  {
+   "side": "left",
+   "level_index": 1,
+   "target_gripper": 0.85,
+   "frame": "left_01_2.png",
+   "gripper_encoder_before": 0.868448970931466,
+   "gripper_encoder_after": 0.868448970931466,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06580453192949953,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134470620445413
+  },
+  {
+   "side": "left",
+   "level_index": 2,
+   "target_gripper": 0.7,
+   "frame": "left_02_0.png",
+   "gripper_encoder_before": 0.7166702029846524,
+   "gripper_encoder_after": 0.7166702029846524,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06542305638208568,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134472268393974
+  },
+  {
+   "side": "left",
+   "level_index": 2,
+   "target_gripper": 0.7,
+   "frame": "left_02_1.png",
+   "gripper_encoder_before": 0.7165994766249382,
+   "gripper_encoder_after": 0.7165994766249382,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06542305638208568,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134472450569713
+  },
+  {
+   "side": "left",
+   "level_index": 2,
+   "target_gripper": 0.7,
+   "frame": "left_02_2.png",
+   "gripper_encoder_before": 0.7165994766249382,
+   "gripper_encoder_after": 0.7165994766249382,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06542305638208568,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134472651451375
+  },
+  {
+   "side": "left",
+   "level_index": 3,
+   "target_gripper": 0.55,
+   "frame": "left_03_0.png",
+   "gripper_encoder_before": 0.5663059622321238,
+   "gripper_encoder_after": 0.5663059622321238,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06504158083466471,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134474319383394
+  },
+  {
+   "side": "left",
+   "level_index": 3,
+   "target_gripper": 0.55,
+   "frame": "left_03_1.png",
+   "gripper_encoder_before": 0.5663059622321238,
+   "gripper_encoder_after": 0.5663059622321238,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06504158083466471,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134474520051807
+  },
+  {
+   "side": "left",
+   "level_index": 3,
+   "target_gripper": 0.55,
+   "frame": "left_03_2.png",
+   "gripper_encoder_before": 0.5663059622321238,
+   "gripper_encoder_after": 0.5663059622321238,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06504158083466471,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134474699477316
+  },
+  {
+   "side": "left",
+   "level_index": 4,
+   "target_gripper": 0.4,
+   "frame": "left_04_0.png",
+   "gripper_encoder_before": 0.4206096612207368,
+   "gripper_encoder_after": 0.4206096612207368,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06466010528725086,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134476384795763
+  },
+  {
+   "side": "left",
+   "level_index": 4,
+   "target_gripper": 0.4,
+   "frame": "left_04_1.png",
+   "gripper_encoder_before": 0.4205389348610225,
+   "gripper_encoder_after": 0.4206096612207368,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06466010528725086,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134476566800252
+  },
+  {
+   "side": "left",
+   "level_index": 4,
+   "target_gripper": 0.4,
+   "frame": "left_04_2.png",
+   "gripper_encoder_before": 0.4206096612207368,
+   "gripper_encoder_after": 0.4205389348610225,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06466010528725086,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134476731707973
+  },
+  {
+   "side": "left",
+   "level_index": 5,
+   "target_gripper": 0.3,
+   "frame": "left_05_0.png",
+   "gripper_encoder_before": 0.31876370323219483,
+   "gripper_encoder_after": 0.31876370323219483,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.0642786297398299,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134478415507035
+  },
+  {
+   "side": "left",
+   "level_index": 5,
+   "target_gripper": 0.3,
+   "frame": "left_05_1.png",
+   "gripper_encoder_before": 0.31876370323219483,
+   "gripper_encoder_after": 0.31876370323219483,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.0642786297398299,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134478579854328
+  },
+  {
+   "side": "left",
+   "level_index": 5,
+   "target_gripper": 0.3,
+   "frame": "left_05_2.png",
+   "gripper_encoder_before": 0.31876370323219483,
+   "gripper_encoder_after": 0.31876370323219483,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.0642786297398299,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134478732372193
+  },
+  {
+   "side": "left",
+   "level_index": 6,
+   "target_gripper": 0.2,
+   "frame": "left_06_0.png",
+   "gripper_encoder_before": 0.21684701888393793,
+   "gripper_encoder_after": 0.21684701888393793,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.0642786297398299,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134480395477669
+  },
+  {
+   "side": "left",
+   "level_index": 6,
+   "target_gripper": 0.2,
+   "frame": "left_06_1.png",
+   "gripper_encoder_before": 0.21684701888393793,
+   "gripper_encoder_after": 0.21684701888393793,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.0642786297398299,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134480530508707
+  },
+  {
+   "side": "left",
+   "level_index": 6,
+   "target_gripper": 0.2,
+   "frame": "left_06_2.png",
+   "gripper_encoder_before": 0.21684701888393793,
+   "gripper_encoder_after": 0.21684701888393793,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134480695638347
+  },
+  {
+   "side": "left",
+   "level_index": 7,
+   "target_gripper": 0.12,
+   "frame": "left_07_0.png",
+   "gripper_encoder_before": 0.136077516090247,
+   "gripper_encoder_after": 0.136077516090247,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134482343132329
+  },
+  {
+   "side": "left",
+   "level_index": 7,
+   "target_gripper": 0.12,
+   "frame": "left_07_1.png",
+   "gripper_encoder_before": 0.136077516090247,
+   "gripper_encoder_after": 0.136077516090247,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134482495113396
+  },
+  {
+   "side": "left",
+   "level_index": 7,
+   "target_gripper": 0.12,
+   "frame": "left_07_2.png",
+   "gripper_encoder_before": 0.136077516090247,
+   "gripper_encoder_after": 0.136077516090247,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134482644165783
+  },
+  {
+   "side": "left",
+   "level_index": 8,
+   "target_gripper": 0.06,
+   "frame": "left_08_0.png",
+   "gripper_encoder_before": 0.07730391116769192,
+   "gripper_encoder_after": 0.07730391116769192,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134484294899994
+  },
+  {
+   "side": "left",
+   "level_index": 8,
+   "target_gripper": 0.06,
+   "frame": "left_08_1.png",
+   "gripper_encoder_before": 0.07730391116769192,
+   "gripper_encoder_after": 0.07730391116769192,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134484459728695
+  },
+  {
+   "side": "left",
+   "level_index": 8,
+   "target_gripper": 0.06,
+   "frame": "left_08_2.png",
+   "gripper_encoder_before": 0.07730391116769192,
+   "gripper_encoder_after": 0.07730391116769192,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134484595764958
+  },
+  {
+   "side": "left",
+   "level_index": 9,
+   "target_gripper": 0.02,
+   "frame": "left_09_0.png",
+   "gripper_encoder_before": 0.038475139684560296,
+   "gripper_encoder_after": 0.038475139684560296,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134486258836685
+  },
+  {
+   "side": "left",
+   "level_index": 9,
+   "target_gripper": 0.02,
+   "frame": "left_09_1.png",
+   "gripper_encoder_before": 0.038475139684560296,
+   "gripper_encoder_after": 0.038475139684560296,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134486407514284
+  },
+  {
+   "side": "left",
+   "level_index": 9,
+   "target_gripper": 0.02,
+   "frame": "left_09_2.png",
+   "gripper_encoder_before": 0.03854586604427456,
+   "gripper_encoder_after": 0.038475139684560296,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10166323338673955
+   ],
+   "host_monotonic_ns": 2134486559916959
+  },
+  {
+   "side": "left",
+   "level_index": 10,
+   "target_gripper": 1.0,
+   "frame": "left_10_0.png",
+   "gripper_encoder_before": 0.9833085791074334,
+   "gripper_encoder_after": 0.9833085791074334,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06351567864499508,
+    0.08373388265812132,
+    0.10204470893415696
+   ],
+   "host_monotonic_ns": 2134488224377681
+  },
+  {
+   "side": "left",
+   "level_index": 10,
+   "target_gripper": 1.0,
+   "frame": "left_10_1.png",
+   "gripper_encoder_before": 0.9833085791074334,
+   "gripper_encoder_after": 0.9833085791074334,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06389715419241604,
+    0.08373388265812132,
+    0.10204470893415696
+   ],
+   "host_monotonic_ns": 2134488359068719
+  },
+  {
+   "side": "left",
+   "level_index": 10,
+   "target_gripper": 1.0,
+   "frame": "left_10_2.png",
+   "gripper_encoder_before": 0.9833085791074334,
+   "gripper_encoder_after": 0.9833085791074334,
+   "arm_q_encoder": [
+    0.05893797207598972,
+    0.002861066605630569,
+    0.005149919890135024,
+    -0.06351567864499508,
+    0.08373388265812132,
+    0.10204470893415696
+   ],
+   "host_monotonic_ns": 2134488559070804
+  }
+ ]
+}
