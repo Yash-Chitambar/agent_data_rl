@@ -1,0 +1,190 @@
+{
+ "views": [
+  "bimanual_stationary_001/zed/raw_000890.png",
+  "bimanual_stationary_001/wrist_right/raw_000890.png",
+  "bimanual_stationary_001/wrist_left/raw_000890.png",
+  "left_free_settle_001/zed/raw_000720.png",
+  "left_free_settle_001/zed/raw_002160.png",
+  "left_free_settle_001/wrist_right/raw_000840.png",
+  "left_free_settle_001/wrist_right/raw_002760.png",
+  "left_free_settle_001/wrist_left/raw_000840.png",
+  "left_free_settle_001/wrist_left/raw_002760.png",
+  "left_free_settle_002/zed/raw_000840.png",
+  "left_free_settle_002/zed/raw_002520.png",
+  "left_free_settle_002/wrist_right/raw_000960.png",
+  "left_free_settle_002/wrist_right/raw_003000.png",
+  "left_free_settle_002/wrist_left/raw_000960.png",
+  "left_free_settle_002/wrist_left/raw_003000.png",
+  "left_free_settle_003/zed/raw_000840.png",
+  "left_free_settle_003/zed/raw_002520.png",
+  "left_free_settle_003/wrist_right/raw_000960.png",
+  "left_free_settle_003/wrist_right/raw_003120.png",
+  "left_free_settle_003/wrist_left/raw_000960.png",
+  "left_free_settle_003/wrist_left/raw_003120.png"
+ ],
+ "tau_px": 10.0,
+ "res": 320,
+ "groups": {
+  "raceway": [
+   {
+    "round": 0,
+    "edge_px_before": 4.93,
+    "edge_px_after": 1.23
+   },
+   {
+    "round": 1,
+    "edge_px_before": 1.22,
+    "edge_px_after": 1.21
+   }
+  ],
+  "plugs": [
+   {
+    "round": 0,
+    "edge_px_before": 5.35,
+    "edge_px_after": 2.62
+   },
+   {
+    "round": 1,
+    "edge_px_before": 1.59,
+    "edge_px_after": 1.24
+   }
+  ],
+  "strip": [
+   {
+    "round": 0,
+    "edge_px_before": 4.47,
+    "edge_px_after": 0.89
+   },
+   {
+    "round": 1,
+    "edge_px_before": 0.92,
+    "edge_px_after": 0.92
+   }
+  ],
+  "device": [
+   {
+    "round": 0,
+    "edge_px_before": 6.99,
+    "edge_px_after": 2.85
+   },
+   {
+    "round": 1,
+    "edge_px_before": 3.1,
+    "edge_px_after": 1.58
+   }
+  ],
+  "cables": [
+   {
+    "round": 0,
+    "edge_px_before": 1.56,
+    "edge_px_after": 0.74
+   },
+   {
+    "round": 1,
+    "edge_px_before": 1.49,
+    "edge_px_after": 0.66
+   }
+  ],
+  "ryobi": [
+   {
+    "round": 0,
+    "edge_px_before": 1.83,
+    "edge_px_after": 0.59
+   },
+   {
+    "round": 1,
+    "edge_px_before": 0.66,
+    "edge_px_after": 0.57
+   }
+  ]
+ },
+ "params": {
+  "_note": "Fitted by scripts/tools/fit_backdrop.py; right arm base frame, metres/radians.",
+  "wall_x": 0.5803,
+  "raceway_front_x": 0.5444,
+  "raceway_top_z": -0.0122,
+  "plug_y": [
+   0.588,
+   0.0173,
+   -0.5151
+  ],
+  "plug_z": -0.0161,
+  "plug_spacing": 0.0322,
+  "plug_radius": 0.0085,
+  "plug_length": 0.0318,
+  "strip_x": 0.4937,
+  "strip_y": -0.2139,
+  "strip_yaw": 0.0361,
+  "strip_size": [
+   0.3135,
+   0.0292,
+   0.023
+  ],
+  "cable_start": [
+   0.5967,
+   0.1912
+  ],
+  "cable_lift": [
+   0.0568,
+   0.0093
+  ],
+  "cable_end": [
+   [
+    0.4239,
+    -0.4147
+   ]
+  ],
+  "device_x": 0.5484,
+  "device_y": -0.225,
+  "device_z": 0.1176,
+  "device_tilt": 0.2679,
+  "device_length": 0.1795,
+  "ryobi_y": 0.5863,
+  "ryobi_z": 0.4691,
+  "ryobi_size": [
+   0.0889,
+   0.1122
+  ],
+  "colors": {
+   "wall": [
+    0.99,
+    0.995,
+    0.995,
+    1
+   ],
+   "raceway": [
+    0.516,
+    0.522,
+    0.52,
+    1
+   ],
+   "plate": [
+    0.85,
+    0.85,
+    0.85,
+    1
+   ],
+   "black": [
+    0.135,
+    0.129,
+    0.136,
+    1
+   ],
+   "switch": [
+    0.55,
+    0.08,
+    0.05,
+    1
+   ],
+   "ryobi": [
+    0.837,
+    0.945,
+    0.355,
+    1
+   ]
+  },
+  "emission": {
+   "wall": 0.026
+  }
+ }
+}

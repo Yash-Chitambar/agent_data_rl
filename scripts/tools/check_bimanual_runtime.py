@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 from blind_insertion.envs.bimanual_runtime import BimanualCfg,BimanualRuntime
 
-e=BimanualRuntime(BimanualCfg(substeps=2,right_fric_comp={'scale':.5,'ramp':.02},dynamics_profile=None))
+e=BimanualRuntime(BimanualCfg(substeps=2,right_fric_comp={'scale':.5,'ramp':.02},dynamics_profile=None,task_layout=None))
 assert e.mjm.dof_frictionloss[e.indices['right'][1][1]]==1.0
 assert e.mjm.dof_frictionloss[e.indices['left'][1][1]]==.01
 a=torch.zeros((2,14),device=e.device)
@@ -45,6 +45,14 @@ assert ((mu>=lo)&(mu<=hi)).all() and (mu.std(0)>0).all() and (mu==mu[:,:1]).all(
 before=d.frictionloss.clone();mu_before=mu.clone();d.reset(torch.tensor([2],device=d.device))
 assert torch.equal(mu_before[[0,1,3]],d.geom_friction[[0,1,3]][:,d.pc_feet,0]) and not torch.equal(mu_before[2],d.geom_friction[2,d.pc_feet,0])
 assert torch.equal(before[[0,1,3]],d.frictionloss[[0,1,3]]) and not torch.equal(before[2],d.frictionloss[2])
+# Task layout: PC port pose and reader pose sampled per world inside the searched region.
+lay=d.layout;(px,py),(dx,dy,_)=lay['port_xy'],d.cfg.pc_pose_range
+pc=d.q[:,d.pc_qadr:d.pc_qadr+3];rd=d.q[:,d.lay.peg_qadr:d.lay.peg_qadr+3];slack=d._reader0[:2].norm()+1e-4
+assert ((pc[:,0]-px).abs()<=dx+1e-5).all() and ((pc[:,1]-py).abs()<=dy+1e-5).all() and pc[:,0].std()>0
+assert ((rd[:,0]>=lay['reader']['x_range_m'][0]-slack)&(rd[:,0]<=lay['reader']['x_range_m'][1]+slack)).all()
+assert ((rd[:,1]>=lay['reader']['y_range_m'][0]-slack)&(rd[:,1]<=lay['reader']['y_range_m'][1]+slack)).all() and rd[:,1].std()>0
+pc_before=d.q[:,d.pc_qadr:d.pc_qadr+7].clone();d.reset(torch.tensor([1],device=d.device))
+assert torch.equal(pc_before[[0,2,3]],d.q[[0,2,3],d.pc_qadr:d.pc_qadr+7]) and not torch.equal(pc_before[1],d.q[1,d.pc_qadr:d.pc_qadr+7])
 hold=torch.zeros((4,14),device=d.device)
 for side,offset in [('right',0),('left',7)]:hold[:,offset:offset+6]=d.q[:,d.indices[side][0]];hold[:,offset+6]=1
 q0=d.q.clone()
@@ -52,5 +60,5 @@ for _ in range(50):d.step(hold)
 drift=max((d.q[:,d.indices[s][0]]-q0[:,d.indices[s][0]]).abs().max().item() for s in ('right','left'))
 assert torch.isfinite(d.q).all() and drift<.05
 r={'worlds':2,'action_dimension':14,'checks':['both arms controlled','moving port observed','selective reset','finite stepping','right-only optional compensation','legacy action rejected',
-   'identified dynamics: per-world friction within range and resampled only on reset','stiff friction impedance','PC-feet friction per world in range, resampled only on reset','finite driver gravity residual (none on joint 1)',f'reference hold under identified dynamics: max joint drift {drift:.4f} rad in 0.1 s'],'scope':'physics runtime smoke; task reward, sensor and reset distribution integration unfinished'}
+   'identified dynamics: per-world friction within range and resampled only on reset','stiff friction impedance','PC-feet friction per world in range, resampled only on reset','PC port pose and reader pose per world inside the searched layout, resampled only on reset','finite driver gravity residual (none on joint 1)',f'reference hold under identified dynamics: max joint drift {drift:.4f} rad in 0.1 s'],'scope':'physics runtime smoke; task reward, sensor and reset distribution integration unfinished'}
 Path('results/usbc/bimanual_20261029/runtime_checks.json').write_text(json.dumps(r,indent=2)+'\n');print(r)

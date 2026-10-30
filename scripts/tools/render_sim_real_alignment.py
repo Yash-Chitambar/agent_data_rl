@@ -2,14 +2,14 @@
 
 For one recorded stationary frame (ZED top + both wrists, `bimanual_stationary_001`), renders
 the sim at the recorded joint angles twice:
-  OLD: the scene as before (nominal wrist camera, jaws at a fixed 47.5 mm);
-  NEW: the training runtime's alignment (wrist camera shifted by the caliper-held sweep fit,
+  OLD: the scene as before (procedural backdrop, nominal wrist camera, jaws at a fixed 47.5 mm);
+  NEW: the fitted backdrop (`scenes/backdrop.py`) and the training runtime's alignment (wrist camera shifted by the caliper-held sweep fit,
        BimanualCfg.tip_offset_target='camera'; jaw opening from the recorded gripper encoder
        through the fitted encoder -> opening map).
 Each panel blends sim over real and draws outlines: sim PC (orange), sim fingertips (magenta),
 real yellow fingertips (green, wrist views). The PC sits at the manual top-image landmark
-(`overlays/scene_annotation.json`); the cyan outline is the runtime's nominal PC pose (the
-centre of the reset distribution). Tip IoU against the real yellow mask is printed per wrist.
+(`overlays/scene_annotation.json`); the cyan outline is the training runtime's nominal PC pose
+(`BimanualCfg.task_layout`, the centre of the reset distribution). Tip IoU against the real yellow mask is printed per wrist.
 
     PYTHONPATH=. MUJOCO_GL=egl .venv/bin/python scripts/tools/render_sim_real_alignment.py
 """
@@ -26,6 +26,7 @@ import mujoco
 import numpy as np
 
 from blind_insertion.assets.real_camera import real_policy_image
+from blind_insertion.envs.bimanual_runtime import BimanualCfg
 from blind_insertion.scenes import pc_bench as S, physical_rig as R
 from fit_gripper_tips import BUNDLE, yellow_mask
 
@@ -101,13 +102,22 @@ def main():
 
     scenes = {}
     for tag in ('old', 'new'):
-        m, lay = S.build_scene(detailed=True, bimanual=True, support_mode='free', profile=profile, measured_support=True)
+        from blind_insertion.scenes import backdrop
+        apply_backdrop = backdrop.apply
+        if tag == 'old':                                   # procedural backdrop as before
+            backdrop.apply = lambda *args, **kw: None
+        try:
+            m, lay = S.build_scene(detailed=True, bimanual=True, support_mode='free', profile=profile, measured_support=True)
+        finally:
+            backdrop.apply = apply_backdrop
         if tag == 'new':
             shift_cameras(m, fit)
         d = mujoco.MjData(m); S.place_reader(m, d, lay)
         d.qpos[lay.peg_qadr:lay.peg_qadr + 3] = [0, 0, -10]          # reader absent in this capture
         scenes[tag] = (m, d, mujoco.Renderer(m, RES, RES))
-    report = {'trial': TRIAL, 'pc_port_xy_annotated_m': port.tolist(), 'pc_port_xy_runtime_nominal_m': list(S.PORT_XY), 'views': {}}
+    layout = json.loads(Path(BimanualCfg.task_layout).read_text())['nominal']
+    report = {'trial': TRIAL, 'pc_port_xy_annotated_m': port.tolist(), 'pc_port_xy_runtime_nominal_m': layout['port_xy_m'],
+              'pc_yaw_runtime_nominal_deg': layout['yaw_deg'], 'views': {}}
     rows_out = []
     try:
         for name, camera, side in VIEWS:
@@ -127,7 +137,7 @@ def main():
                     opening = .0475 if tag == 'old' else float(np.clip(gm['slope'] * q[6] + gm['intercept'], 0, .0475))
                     for f in ('left', 'right'):
                         d.qpos[m.joint(prefix + f + '_finger').qposadr] = opening
-                S.place_pc(m, d); mujoco.mj_forward(m, d)
+                S.place_pc(m, d, port_xy=layout['port_xy_m'], yaw_deg=layout['yaw_deg']); mujoco.mj_forward(m, d)
                 pc_nominal, _ = masks(m, d, r, camera)
                 S.place_pc(m, d, port_xy=port); mujoco.mj_forward(m, d)
                 pc, tips = masks(m, d, r, camera)
@@ -135,7 +145,7 @@ def main():
                 img = cv2.addWeighted(real, .5, sim, .5, 0)
                 outline(img, pc_nominal, COL['pc_nominal'], 1); outline(img, pc, COL['pc'])
                 outline(img, tips, COL['tips'])
-                lines = [tag.upper() + (' (nominal wrist cam, jaws 47.5 mm)' if tag == 'old' else ' (fitted wrist cam, encoder jaw map)')]
+                lines = [tag.upper() + (' (procedural backdrop, nominal cam)' if tag == 'old' else ' (fitted backdrop + cam + jaw map)')]
                 if side is not None:
                     roi = np.zeros_like(tips); roi[RES * 150 // 320:] = True       # fit_gripper_tips ROI
                     sim_t, real_t = tips & roi, real_tips & roi

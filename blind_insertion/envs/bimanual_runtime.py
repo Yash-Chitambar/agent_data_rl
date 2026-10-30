@@ -44,6 +44,12 @@ class BimanualCfg:
     # opposite offset ('camera': images match, grasp physics unchanged). 'tips' moves the fingers.
     tip_offset: str | None = 'results/usbc/gripper_sweep/sweep_20261030/fit.json'
     tip_offset_target: str = 'camera'
+    # Task layout from the reachability search (scripts/tools/explore_pc_placement.py): nominal PC
+    # port pose and the SD reader's pick region. Each reset samples, per world, the PC port at the
+    # nominal +/- pc_pose_range (x m, y m, yaw deg) and the reader uniformly in the region (x, y,
+    # yaw). The search guarantees both arms reach over the whole PC box. None: legacy fixed poses.
+    task_layout: str | None = 'results/usbc/bimanual_20261029/placement/report.json'
+    pc_pose_range: tuple = (.03, .03, 10.)
     # Legacy plant only (dynamics_profile=None): right joint-2 friction from the older replays.
     right_joint2_friction_nm: float = 1.0
     right_fric_comp: dict | None = None
@@ -107,7 +113,24 @@ class BimanualRuntime:
                     rot = np.zeros(9); mujoco.mju_quat2Mat(rot, g.quat)
                     m.cam_pos[cam.id] -= rot.reshape(3, 3) @ off
         d = mujoco.MjData(m)
-        R.reference_pose(m,d,self.lay);S.place_pc(m,d);S.place_reader(m,d,self.lay)
+        self.layout = None
+        if c.task_layout is not None:
+            rep = json.loads((Path(__file__).resolve().parents[2] / c.task_layout).read_text())
+            self.layout = {'port_xy': rep['nominal']['port_xy_m'], 'yaw': rep['nominal']['yaw_deg'],
+                           'reader': rep['reader_region']}
+        R.reference_pose(m,d,self.lay)
+        if self.layout:
+            rd = self.layout['reader']
+            S.place_pc(m,d,port_xy=self.layout['port_xy'],yaw_deg=self.layout['yaw'])
+            S.place_reader(m,d,self.lay,xy=rd['centre_xy_m'],yaw_deg=0.)
+        else:
+            S.place_pc(m,d);S.place_reader(m,d,self.lay)
+        # Poses at yaw 0 about their reference points, for per-world yaw/translation on reset.
+        d0 = mujoco.MjData(m)
+        S.place_pc(m,d0,port_xy=(0.,0.),yaw_deg=0.);S.place_reader(m,d0,self.lay,xy=(0.,0.),yaw_deg=0.)
+        fa0,pa0 = int(m.joint('pc_free_joint').qposadr[0]),self.lay.peg_qadr
+        self._pc0 = torch.tensor(d0.qpos[fa0:fa0+7],device=self.device,dtype=torch.float32)
+        self._reader0 = torch.tensor(d0.qpos[pa0:pa0+7],device=self.device,dtype=torch.float32)
         self.indices = {}
         for side, prefix in (('right',''),('left','left_')):
             q = [int(m.joint(prefix+f'joint{i}').qposadr[0]) for i in range(1,7)]
@@ -185,6 +208,7 @@ class BimanualRuntime:
             wp.to_torch(getattr(self.d,name))[ids] = 0
         if self.profile: self._sample_dynamics(ids)
         if self.cfg.pc_friction_range: self._sample_pc_friction(ids)
+        if self.layout: self._sample_layout(ids)
         with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
         if self.camera_sensor is not None:self.camera_sensor.reset(ids,self.sensor_time)
         return self.state()
@@ -230,6 +254,26 @@ class BimanualRuntime:
             self._graph = capture.graph
         else:
             wp.capture_launch(self._graph)
+
+    def _sample_layout(self, ids):
+        """Per-world PC port pose (nominal +/- pc_pose_range) and reader pose (uniform in the region)."""
+        n,dev = len(ids),self.device
+        u = lambda lo,hi: torch.rand(n,device=dev)*(hi-lo)+lo
+        dx,dy,dyaw = self.cfg.pc_pose_range
+        (px,py),yaw = self.layout['port_xy'],self.layout['yaw']
+        rd = self.layout['reader']
+        for qadr,ref,(x,y,t) in ((self.pc_qadr,self._pc0,(u(px-dx,px+dx),u(py-dy,py+dy),u(yaw-dyaw,yaw+dyaw))),
+                                 (self.lay.peg_qadr,self._reader0,(u(*rd['x_range_m']),u(*rd['y_range_m']),u(*rd['yaw_range_deg'])))):
+            a = torch.deg2rad(t)
+            c,s_ = torch.cos(a),torch.sin(a)
+            p0 = ref[:3]
+            pos = torch.stack([x+c*p0[0]-s_*p0[1], y+s_*p0[0]+c*p0[1], p0[2].expand(n)],-1)
+            qz = torch.stack([torch.cos(a/2),torch.zeros_like(a),torch.zeros_like(a),torch.sin(a/2)],-1)
+            w1,x1,y1,z1 = qz.unbind(-1); w2,x2,y2,z2 = ref[3:]
+            quat = torch.stack([w1*w2-x1*x2-y1*y2-z1*z2, w1*x2+x1*w2+y1*z2-z1*y2,
+                                w1*y2-x1*z2+y1*w2+z1*x2, w1*z2+x1*y2-y1*x2+z1*w2],-1)
+            self.q[ids,qadr:qadr+3] = pos
+            self.q[ids,qadr+3:qadr+7] = quat
 
     def _sample_pc_friction(self, ids):
         lo,hi = self.cfg.pc_friction_range

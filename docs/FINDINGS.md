@@ -104,6 +104,15 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-30 (mason) — PC placement search, reader region, fitted backdrop
+
+Reachability search (25,688 PC poses): the legacy runtime PC pose is infeasible for the bimanual
+task (left arm cannot hold the PC). New nominal: port (0.22, 0.36) m,
+yaw 0, chosen for the best worst-case score over the +/-3 cm / +/-10 deg reset box. The reader is
+now sampled over a 34 x 34 cm region, yaw +/-60 deg. Both are wired into `BimanualCfg.task_layout`.
+The procedural backdrop is replaced by a backdrop fitted to 21 real frames (object edges within
+0.6-1.6 px at 320 px). Details: `results/usbc/bimanual_20261029/README.md`.
+
 ### 2026-10-30 (mason) — Gripper sweep fit, backlash <= 2 arcmin
 
 Gripper sweep (both arms, 11 jaw levels) + calipers (lens-to-tip 105.25 mm, both arms): the

@@ -1,0 +1,89 @@
+{
+ "_note": "Fitted by scripts/tools/fit_backdrop.py; right arm base frame, metres/radians.",
+ "wall_x": 0.5803,
+ "raceway_front_x": 0.5444,
+ "raceway_top_z": -0.0122,
+ "plug_y": [
+  0.588,
+  0.0173,
+  -0.5151
+ ],
+ "plug_z": -0.0161,
+ "plug_spacing": 0.0322,
+ "plug_radius": 0.0085,
+ "plug_length": 0.0318,
+ "strip_x": 0.4937,
+ "strip_y": -0.2139,
+ "strip_yaw": 0.0361,
+ "strip_size": [
+  0.3135,
+  0.0292,
+  0.023
+ ],
+ "cable_start": [
+  0.5967,
+  0.1912
+ ],
+ "cable_lift": [
+  0.0568,
+  0.0093
+ ],
+ "cable_end": [
+  [
+   0.4239,
+   -0.4147
+  ]
+ ],
+ "device_x": 0.5484,
+ "device_y": -0.225,
+ "device_z": 0.1176,
+ "device_tilt": 0.2679,
+ "device_length": 0.1795,
+ "ryobi_y": 0.5863,
+ "ryobi_z": 0.4691,
+ "ryobi_size": [
+  0.0889,
+  0.1122
+ ],
+ "colors": {
+  "wall": [
+   0.99,
+   0.995,
+   0.995,
+   1
+  ],
+  "raceway": [
+   0.516,
+   0.522,
+   0.52,
+   1
+  ],
+  "plate": [
+   0.578,
+   0.585,
+   0.582,
+   1
+  ],
+  "black": [
+   0.135,
+   0.129,
+   0.136,
+   1
+  ],
+  "switch": [
+   0.55,
+   0.08,
+   0.05,
+   1
+  ],
+  "ryobi": [
+   0.837,
+   0.945,
+   0.355,
+   1
+  ]
+ },
+ "emission": {
+  "wall": 0.026
+ }
+}

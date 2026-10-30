@@ -215,6 +215,50 @@ rests after a closed-loop stair gives a static band at or below the identified C
 0.49 vs 0.82 N m, left j3 0.56 vs 1.44), so the identified friction is not too weak. The real
 stick-slip (static > kinetic, 6-12 mrad slips on j2, j3, j5) is still not modelled.
 
+## Task layout: PC placement and reader region (2026-10-30)
+
+`scripts/tools/explore_pc_placement.py` searches PC port poses (x 15-40 cm, y -15-60 cm, yaw
++/-30 deg; 25,688 poses, 1 cm / 5 deg) on the CPU model. A pose is feasible when the right arm
+reaches the second USB-C port (`usbc_2_target`) along the whole insertion line (60, 30, 6, 0 mm
+out), also with +/-8 deg in-hand tilt, and the left arm can hold the PC (closed fingers 3 mm off
+the rear face at mid height, or 3 mm above the top, rear half). It must also keep >= 0.05 rad
+joint margin and have no arm-arm, arm-table or arm-PC contact (5 mm margin). Score:
+min(right, left) smallest Jacobian singular value x joint-margin factor. The nominal maximises
+the **worst** score over the per-episode randomization box (+/-3 cm, +/-10 deg).
+
+- 21% of poses are feasible. Most failures: no left hold (left arm reach), then the right arm's
+  60 mm approach point.
+- **Nominal: port (0.22, 0.36) m, yaw 0 deg** (PC centre
+  (0.269, 0.339) m, right arm base frame); left hold: press.
+  Robust score 0.0334. Rotating the PC 20 deg toward the left arm scores
+  0.0372 (+11%) at the same position; yaw 0 is kept because it is easy to set by hand.
+- The legacy runtime pose (`PORT_XY` = 0.321, 0.237) is **infeasible** (the left arm cannot
+  hold the PC). The real 2026-10-28 session placement (0.214, 0.331) is feasible but sits 1 cm
+  from the edge of the feasible region, so its +/-3 cm box is not.
+- Reader (SD/USB-C adapter) pick region: x 0.12-0.46 m,
+  y -0.17-0.17 m, yaw +/-60 deg: largest rectangle where a
+  top-down pick (80 mm approach) works for every yaw, >= 6 cm clear of the whole PC box, on the right arm's side.
+- `BimanualCfg.task_layout` reads `placement/report.json`. Each reset samples, per world, the PC
+  port at the nominal +/- `pc_pose_range` (3 cm, 3 cm, 10 deg) and the reader uniformly in its
+  region. On 256 worlds both settle within 0.2 mm in 1 s of hold. `task_layout=None` gives the legacy fixed poses.
+- Not checked: paths between poses, the pick-to-insert carry, and the new grasp (in-hand pose
+  only through the +/-8 deg tilt). Physical setup: put the port at the nominal, port panel facing the arm bases.
+
+## Fitted backdrop (2026-10-30)
+
+`blind_insertion/scenes/backdrop.py` replaces the procedural workbench dressing (pegboard, tools,
+monitors, generic raceway/power strip) with the objects the real cameras see: wall, silver
+raceway, three plug pairs, power strip + cables, the black clip-on device and the Ryobi bit case.
+Parameters (`configs/backdrop_duchamp3.json`) were fitted by `scripts/tools/fit_backdrop.py` on 21
+real frames (ZED + both wrists; `bimanual_stationary_001`, `free_settle_001-003`) at the logged joint
+angles. Each object's sim outline is fitted to Canny edges of the real frame (robots and tips
+masked), then its colour to the real median colour. Mean edge distance at 320 px, initial guess ->
+fit: raceway 4.9 -> 1.2, plugs 5.4 -> 1.2, power strip 4.5 -> 0.9, device 7.0 -> 1.6, cables 1.6 -> 0.7,
+Ryobi 1.8 -> 0.6 px (`backdrop_fit/report.json`, `before.jpg`/`after.jpg`). Before/after overlays:
+`alignment_20261030/` (OLD = procedural backdrop). Used by every `measured_support` detailed scene.
+Limits: cables differ between sessions (fitted as an average); wall texture, the sign and the
+far-left cable are not modelled; lighting is matched only through per-object colour.
+
 ## Runtime speed (2026-10-30)
 
 The runtime stepped `mjw.step` from a Python loop: kernel-launch bound (334 env-steps/s at

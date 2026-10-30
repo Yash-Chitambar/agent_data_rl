@@ -5,9 +5,10 @@
   0.3307582745939665
  ],
  "pc_port_xy_runtime_nominal_m": [
-  0.32137,
-  0.236917
+  0.22,
+  0.36
  ],
+ "pc_yaw_runtime_nominal_deg": 0.0,
  "views": {
   "zed": {},
   "wrist_right": {
@@ -15,7 +16,7 @@
     "tip_iou": 0.458
    },
    "new": {
-    "tip_iou": 0.782
+    "tip_iou": 0.783
    }
   },
   "wrist_left": {

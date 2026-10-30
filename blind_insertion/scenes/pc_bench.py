@@ -198,7 +198,10 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                 add_rear_photo(sp, profile)
         if measured_support:
             from blind_insertion.scenes.measured_support import apply as apply_support
-            apply_support(sp)
+            dims = apply_support(sp)
+            if detailed and physical:
+                from blind_insertion.scenes import backdrop
+                backdrop.apply(sp, dims['table_top_z_m'])
         if bimanual:
             from blind_insertion.scenes.bimanual_collision import configure_spec
             configure_spec(sp)
