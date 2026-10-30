@@ -72,3 +72,33 @@ PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_pick.py --feedback-al
 Next work must address carry clearance/tracking and retained contact under the
 identified dynamics before proceeding to insertion or bimanual bracing. The
 older ideal-gravity pick/alignment results do not validate the new runtime default.
+
+## Carry failure diagnosis and correction
+
+A high-clearance carry alone still drops the reader. The contact trace locates
+first loss at 9.521 s: finger forces remain approximately 12 N per side while
+contacts progressively run off the body edge, then all reader contacts disappear.
+There is no table/PC reader contact at that event. The achieved grasp TCP is
+about 0.95 mm above the reader centre, whereas the geometric proposal requires
+it approximately 3.225 mm below. Tracking error creates a shallow grasp.
+
+`--settle-grasp` adds three seconds of bounded joint-error integration before
+closing and retains the compensated command during closing. It uses the desired
+joint pose and simulated joint feedback. Pad friction, grip force, reader
+geometry and dynamics are unchanged. `--clearance-carry` adds a 40 mm elevated
+carry, elevated settling and a six-second feedback descent before alignment.
+
+With both enabled under nominal identified dynamics, the reader stays held
+through all carry/descent phases and no first-loss event is detected.
+Final hold: lateral error 0.479 mm, gap 6.025 mm, tilt 0.372 degrees.
+This does not establish successful insertion. It is one CPU rollout without
+randomization. Privileged object-feedback stages are diagnostics, not a
+hardware-ready visual policy.
+
+```bash
+PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_pick.py --identified-dynamics --clearance-carry --settle-grasp
+MUJOCO_GL=egl PYTHONPATH=. .venv/bin/python scripts/tools/render_bimanual_carry_audit.py
+```
+
+`identified_carry_comparison.png` shows the failed shallow grasp, retained high
+carry after joint settling, and the final held pre-insertion pose.
