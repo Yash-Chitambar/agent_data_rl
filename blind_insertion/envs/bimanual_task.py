@@ -1,6 +1,8 @@
 """Episode interface for bimanual USB-C insertion (physics validation in progress).
 
 Actions are normalized right-arm six joint increments and gripper, then left.
+Targets accumulate within a bounded encoder-relative window by default, matching
+the existing real-rig accumulated-action convention; zero action holds the target.
 Rewards/hold duration are task design choices, not measurements of hardware.
 Resets currently use the runtime's fixed reference layout, not a measured pose distribution.
 """
@@ -16,6 +18,8 @@ class BimanualTaskCfg:
     episode_s: float = 30.
     success_hold_s: float = .2
     action_scale_rad: float = .04
+    action_mode: str = "accumulate"
+    target_cap_rad: float = .1
     seat_tolerance_m: float = .00025
     tilt_limit_deg: float = 2.
 
@@ -26,6 +30,10 @@ class BimanualTask:
         c=self.cfg
         if any(not math.isfinite(x) or x<=0 for x in (c.episode_s,c.success_hold_s,c.action_scale_rad)):
             raise ValueError('episode duration, success hold and action scale must be positive finite values')
+        if c.action_mode not in ("relative", "accumulate"):
+            raise ValueError("action_mode must be relative or accumulate")
+        if not math.isfinite(c.target_cap_rad) or c.target_cap_rad <= 0:
+            raise ValueError("target_cap_rad must be positive and finite")
         self.runtime=BimanualRuntime(c.physics)
         self.device=self.runtime.device
         self.dt=self.runtime.mjm.opt.timestep*c.physics.substeps
@@ -36,10 +44,27 @@ class BimanualTask:
         self.seated_steps=torch.zeros_like(self.steps)
         self.done=torch.zeros(n,device=self.device,dtype=torch.bool)
         self.previous_action=torch.zeros((n,14),device=self.device)
+        self.joint_target=self._measured_model_angles().clone()
+
+    def _measured_model_angles(self):
+        return self.runtime.proprioception()["encoder_rad"].reshape(-1,2,6)+self.runtime.encoder_offsets
+
+    def _update_joint_targets(self, action, measured):
+        increments=torch.stack((action[:,:6],action[:,7:13]),dim=1)*self.cfg.action_scale_rad
+        proposed=(self.joint_target if self.cfg.action_mode=="accumulate" else measured)+increments
+        if self.cfg.action_mode=="accumulate":
+            cap=self.cfg.target_cap_rad
+            proposed=torch.maximum(torch.minimum(proposed,measured+cap),measured-cap)
+        for index,side in enumerate(("right","left")):
+            limits=self.runtime.indices[side][4]
+            proposed[:,index]=proposed[:,index].clamp(limits[:,0],limits[:,1])
+        self.joint_target.copy_(proposed)
+        return proposed
 
     def observation(self):
         obs=self.runtime.proprioception()
         obs['previous_action']=self.previous_action.clone()
+        obs['target_error_rad']=(self.joint_target-self._measured_model_angles()).flatten(1)
         if self.cfg.physics.render_rgb:
             if self.runtime.camera_sensor is None:obs['rgb']=self.runtime.render()
             else:
@@ -49,6 +74,7 @@ class BimanualTask:
     def reset(self, ids=None):
         if ids is None:ids=torch.arange(self.cfg.physics.nworld,device=self.device)
         self.runtime.reset(ids)
+        self.joint_target[ids]=self._measured_model_angles()[ids]
         self.steps[ids]=0;self.seated_steps[ids]=0;self.done[ids]=False;self.previous_action[ids]=0
         return self.observation()
 
@@ -60,10 +86,9 @@ class BimanualTask:
             raise ValueError('normalized action must be finite with shape (nworld,14)')
         a=a.clamp(-1,1)
         targets=a.clone()
-        measured=self.runtime.proprioception()["encoder_rad"].reshape(-1,2,6)+self.runtime.encoder_offsets
-        for side,offset in (('right',0),('left',7)):
-            q=self.runtime.indices[side][0]
-            targets[:,offset:offset+6]=measured[:,0 if side=="right" else 1]+self.cfg.action_scale_rad*a[:,offset:offset+6]
+        joint_targets=self._update_joint_targets(a,self._measured_model_angles())
+        targets[:,:6]=joint_targets[:,0]
+        targets[:,7:13]=joint_targets[:,1]
         self.runtime.step(targets)
         self.previous_action.copy_(a)
         reward,terminated,truncated,info=self._transition()

@@ -1,0 +1,19 @@
+{
+  "scope": "synthetic single-joint stress test, not calibrated elbow dynamics",
+  "limitation": "regularized MuJoCo friction creeps below the nominal threshold; not a stick-slip model",
+  "load_friction_nm": 4.0,
+  "kp": 80.0,
+  "relative_torque_ceiling_nm": 3.2,
+  "accumulated_target_cap_rad": 0.1,
+  "final_position_rad": {
+    "relative": 0.032811846651661085,
+    "accumulate": 0.20195265925662953
+  },
+  "checks": [
+    "movement under load above relative torque ceiling",
+    "bounded target error",
+    "arm independence",
+    "joint-limit clipping",
+    "reversal releases retained target"
+  ]
+}

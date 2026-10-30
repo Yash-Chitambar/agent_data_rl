@@ -6,7 +6,9 @@
     "success requires continuous seating",
     "broken seating resets hold",
     "selective episode reset",
-    "privileged state separated"
+    "privileged state separated",
+    "target error observed",
+    "selective target reset"
   ],
   "scope": "synthetic episode-boundary validation; not a physically successful insertion rollout"
 }
