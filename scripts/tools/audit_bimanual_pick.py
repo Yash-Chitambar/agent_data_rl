@@ -4,9 +4,9 @@ from pathlib import Path
 import mujoco,numpy as np
 from blind_insertion.scenes import pc_bench as S,physical_rig as R
 parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--legacy-grasp',action='store_true');args=parser.parse_args()
-prefix='legacy_' if args.legacy_grasp else ''
+output_prefix='legacy_' if args.legacy_grasp else ''
 profile=json.loads(Path('data/real_yam/usbc_lab_20261027/rig_profile_provisional_v0.json').read_text())
-points=json.loads((Path('results/usbc/bimanual_20261029/reach')/(prefix+'nominal_waypoints.json')).read_text())['waypoints']
+points=json.loads((Path('results/usbc/bimanual_20261029/reach')/(output_prefix+'nominal_waypoints.json')).read_text())['waypoints']
 m,l=S.build_scene(detailed=False,bimanual=True,support_mode='free',profile=profile,measured_support=True,controller_profile='native_free_settle_20261028')
 m.dof_frictionloss[m.joint('joint2').dofadr]=1.
 d=mujoco.MjData(m);R.reference_pose(m,d,l);S.place_pc(m,d);S.place_reader(m,d,l)
@@ -41,11 +41,11 @@ for name,duration,closed in sequence:
     phases[name]={'finger_q_m':[float(d.qpos[m.joint(s+'_finger').qposadr][0]) for s in ('left','right')],'gripper_contacts':contacts,'reader_tip_xyz_m':d.qpos[l.peg_qadr:l.peg_qadr+3].tolist(),
                   'reader_center_to_tcp_m':float(rows[-1][-2]),'max_joint_error_rad':float(rows[-1][-1])}
 out=Path('results/usbc/bimanual_20261029/reach')
-np.savez_compressed(out/(prefix+'nominal_pick_states.npz'),**states)
-with (out/(prefix+'nominal_pick.csv')).open('w',newline='') as f:
+np.savez_compressed(out/(output_prefix+'nominal_pick_states.npz'),**states)
+with (out/(output_prefix+'nominal_pick.csv')).open('w',newline='') as f:
     w=csv.writer(f);w.writerow(['time_s','phase','reader_x','reader_y','reader_z','center_to_tcp_m','max_joint_error_rad']);w.writerows(rows)
 lift=phases['lift'];held=lift['reader_tip_xyz_m'][2]>initial[2]+.04 and lift['reader_center_to_tcp_m']<.02
 report={'scope':'CPU scripted pick in nominal simulator; no hardware validation or bimanual bracing',
         'reader_attached_artificially':False,'lifted_and_near_tcp':bool(held),'phases':phases,
         'limitations':['scripted joint interpolation is not collision-aware planning','default approximate pad friction and squeeze','ideal gravity except right joint2 friction','single fixed reset']}
-(out/(prefix+'nominal_pick.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
+(out/(output_prefix+'nominal_pick.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
