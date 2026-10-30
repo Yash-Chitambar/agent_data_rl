@@ -1,0 +1,24 @@
+{
+ "side": "left",
+ "result": "completed",
+ "joints": {
+  "3": {
+   "joint": 3,
+   "stairs": 50,
+   "link_per_motor_slope": 0.9752,
+   "backlash_arcmin": 0.09,
+   "backlash_mrad": 0.026,
+   "fit_residual_arcmin": 0.82,
+   "frame_noise_arcmin": 0.63
+  },
+  "5": {
+   "joint": 5,
+   "stairs": 50,
+   "link_per_motor_slope": 0.9923,
+   "backlash_arcmin": 0.56,
+   "backlash_mrad": 0.162,
+   "fit_residual_arcmin": 1.21,
+   "frame_noise_arcmin": 0.63
+  }
+ }
+}

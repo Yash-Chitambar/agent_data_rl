@@ -45,6 +45,60 @@ def stair(step, levels, cycles):
     return seq + [0.0]
 
 
+def servo_stair(mover, q_base, j, off, e_ref, state, tol=8e-4, cap=0.08, ramp=0.03, brake=0.5,
+                timeout=8.0, dt=0.02, hard=0.015, excursion=0.009, window=10, move_thresh=1.0e-3):
+    """Drive joint j (1-based) so its ENCODER reaches e_ref + off, whatever the static friction.
+    Command = open-loop stair (q_base + off) + a push `I` that ramps while the encoder is stuck
+    and unwinds fast once it moves toward the target (so it does not run past it). `I` carries
+    over between stairs in `state` (it is the friction offset the joint needs to hold). The push
+    is capped at `cap` rad beyond the stair; every command still goes through SafeArm.command.
+    Motion is judged over `window` cycles (0.2 s): one encoder count is 0.38 mrad, so a per-cycle
+    difference is noise. Returns (arrived, final encoder)."""
+    import collections
+    import estop
+    import safety
+    k = j - 1
+    target = e_ref + off
+    I = state['I']
+    enc = mover.arm.read()[k]
+    hist = collections.deque([enc] * window, maxlen=window)
+    t_end = time.monotonic() + timeout
+    good = 0
+    while time.monotonic() < t_end:
+        if estop.stopped():
+            mover.hold()
+            raise safety.SafetyStop('software stop')
+        q_meas = mover.arm.read()
+        enc = q_meas[k]
+        if abs(enc - e_ref) > excursion + hard:
+            mover.hold()
+            raise safety.SafetyStop(f'joint {j} encoder {1e3 * (enc - e_ref):+.1f} mrad from its start: beyond '
+                                    f'the {1e3 * (excursion + hard):.0f} mrad bound; holding')
+        err, disp = target - enc, enc - hist[0]
+        hist.append(enc)
+        if abs(err) <= tol and abs(disp) < move_thresh:
+            good += 1
+            if good >= 3:
+                state['I'] = I
+                return True, enc
+        else:
+            good = 0
+        if disp * np.sign(err) > move_thresh:          # moving the right way: take the push off
+            I -= np.sign(I) * min(abs(I), brake * dt)
+            if abs(err) < 2.5e-3:
+                I *= 0.5
+        elif abs(err) > tol:
+            I += np.sign(err) * ramp * dt
+        I = float(np.clip(I, -cap, cap))
+        tgt = q_meas.copy()
+        tgt[:6] = q_base
+        tgt[k] = q_base[k] + off + I
+        mover.arm.command(tgt)
+        time.sleep(dt)
+    state['I'] = I
+    return False, enc
+
+
 def cmd_run(a):
     import calib
     import estop
@@ -79,31 +133,55 @@ def cmd_run(a):
                 continue
             if mover.path_ok(mover.arm.read()[:6], q, check=mover.path_check):
                 continue
-            print(f'candidate {k}: looking at ({x:.2f}, {y:+.2f})', flush=True)
-            mover.move_to(q)
+            print(f'candidate {k}: looking at ({x:.2f}, {y:+.2f}) q={np.round(q, 3).tolist()}', flush=True)
+            try:
+                mover.move_to(q)
+            except safety.SafetyStop as e:
+                if not str(e).startswith('goal unsafe'):   # path / tracking / operator stops still abort
+                    raise
+                print(f'  rejected before moving ({e}); next candidate', flush=True)
+                continue
             if calib.detect(cv2.cvtColor(wcam.grab(), cv2.COLOR_BGR2GRAY)) is not None:
-                q_view = mover.joints()[:6]
+                # stairs are commanded from the accepted target, not the measured pose: the wrist sags
+                # under its command, which put tip_left on the 90 mm planning limit (2026-10-30)
+                q_view = np.asarray(q, float).copy()
+                record['q_view_measured'] = mover.joints()[:6].tolist()
                 break
         if q_view is None:
             raise SystemExit('board not seen from any safe candidate pose; check --hint')
         record['q_view'] = q_view.tolist()
         excursion = a.step * a.levels
         for j in a.joints:
-            rows = []
+            rows, state, stuck = [], {'I': 0.0}, 0
+            e_ref = float(mover.joints()[j - 1])
             for off in stair(a.step, a.levels, a.cycles):
                 if estop.stopped():
                     raise safety.SafetyStop('software stop')
-                q = q_view.copy(); q[j - 1] += off
-                mover.move_to(q, max_vel=0.05)
+                if a.open_loop:
+                    q = q_view.copy(); q[j - 1] += off
+                    mover.move_to(q, max_vel=0.05)
+                    arrived, enc0 = True, None
+                else:
+                    arrived, enc0 = servo_stair(mover, q_view, j, off, e_ref, state, excursion=excursion)
+                    # stick-slip joints jump past or short of a stair: only a joint whose encoder has
+                    # stopped moving (and missed the stair) counts as stuck
+                    moved = rows and abs(enc0 - rows[-1]['q_encoder'][j - 1]) > 1e-3
+                    stuck = 0 if (arrived or moved) else stuck + 1
                 time.sleep(a.settle)
                 enc, rot, reproj = observe(mover)
-                rows.append({'offset_cmd_rad': off, 'q_encoder': enc, 'board_rotvec_in_cam': rot, 'reproj_px': reproj})
+                rows.append({'offset_cmd_rad': off, 'q_encoder': enc, 'board_rotvec_in_cam': rot,
+                             'reproj_px': reproj, 'arrived': bool(arrived), 'push_rad': state['I']})
                 if not rot:
                     print(f'  joint {j}: board lost at offset {off:+.4f}; skipping the rest of this joint', flush=True)
                     break
+                if stuck >= 3:
+                    print(f'  joint {j}: 3 stairs in a row missed with the encoder not moving; skipping the rest', flush=True)
+                    break
             record['joints'][str(j)] = rows
             mover.move_to(q_view, max_vel=0.05)
-            print(f'joint {j}: {len(rows)} stairs (+/-{excursion * 1e3:.0f} mrad)', flush=True)
+            miss = sum(not r['arrived'] for r in rows)
+            print(f'joint {j}: {len(rows)} stairs (+/-{excursion * 1e3:.0f} mrad), {miss} not reached, '
+                  f'max push {1e3 * max(abs(r["push_rad"]) for r in rows):.0f} mrad', flush=True)
             (out / 'backlash.json').write_text(json.dumps(record, indent=1) + '\n')
         record['result'] = 'completed'
 
@@ -193,6 +271,7 @@ def main():
     r.add_argument('--frames', type=int, default=5)
     r.add_argument('--hint', type=float, nargs=2, help='board centre x y (m) in this arm base frame')
     r.add_argument('--max-tries', type=int, default=12)
+    r.add_argument('--open-loop', action='store_true', help='old behaviour: command q_view + offset, no push')
     an = sub.add_parser('analyze')
     an.add_argument('dir')
     a = ap.parse_args()

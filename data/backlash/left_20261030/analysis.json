@@ -1,0 +1,51 @@
+{
+ "side": "left",
+ "result": "completed",
+ "joints": {
+  "1": {
+   "joint": 1,
+   "stairs": 26,
+   "link_per_motor_slope": 1.0085,
+   "backlash_arcmin": 0.51,
+   "backlash_mrad": 0.148,
+   "fit_residual_arcmin": 0.59,
+   "frame_noise_arcmin": 0.72
+  },
+  "2": {
+   "joint": 2,
+   "stairs": 26,
+   "link_per_motor_slope": 1.0023,
+   "backlash_arcmin": 0.57,
+   "backlash_mrad": 0.164,
+   "fit_residual_arcmin": 2.2,
+   "frame_noise_arcmin": 0.59
+  },
+  "3": {
+   "joint": 3,
+   "stairs": 6,
+   "link_per_motor_slope": 0.995,
+   "backlash_arcmin": 1.47,
+   "backlash_mrad": 0.428,
+   "fit_residual_arcmin": 0.26,
+   "frame_noise_arcmin": 0.6
+  },
+  "4": {
+   "joint": 4,
+   "stairs": 26,
+   "link_per_motor_slope": 0.9954,
+   "backlash_arcmin": 0.04,
+   "backlash_mrad": 0.011,
+   "fit_residual_arcmin": 0.67,
+   "frame_noise_arcmin": 0.69
+  },
+  "6": {
+   "joint": 6,
+   "stairs": 26,
+   "link_per_motor_slope": 0.9819,
+   "backlash_arcmin": 0.69,
+   "backlash_mrad": 0.201,
+   "fit_residual_arcmin": 1.36,
+   "frame_noise_arcmin": 0.78
+  }
+ }
+}
