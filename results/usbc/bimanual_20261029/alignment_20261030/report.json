@@ -1,0 +1,30 @@
+{
+ "trial": "bimanual_stationary_001",
+ "pc_port_xy_annotated_m": [
+  0.2142402188549658,
+  0.3307582745939665
+ ],
+ "pc_port_xy_runtime_nominal_m": [
+  0.32137,
+  0.236917
+ ],
+ "views": {
+  "zed": {},
+  "wrist_right": {
+   "old": {
+    "tip_iou": 0.458
+   },
+   "new": {
+    "tip_iou": 0.782
+   }
+  },
+  "wrist_left": {
+   "old": {
+    "tip_iou": 0.651
+   },
+   "new": {
+    "tip_iou": 0.84
+   }
+  }
+ }
+}
