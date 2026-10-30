@@ -32,6 +32,7 @@ def main():
                    help="experimental stateful joint-3 torque limits in N m")
     p.add_argument("--stiction-mode", choices=["local", "coupled"], default="local")
     p.add_argument("--timestep", type=float, default=0.001)
+    p.add_argument("--driver-xml", type=Path, help="explicit offline inverse-dynamics XML; requires a reconstruction mode")
     p.add_argument("--driver-feedforward", action="store_true", help="approximate the logged driver model offline")
     p.add_argument("--recorded-state-feedforward", action="store_true", help="reconstruct feedforward from logged encoder states")
     p.add_argument("--logged-feedforward", action="store_true", help="replay logged last-computed driver torque at observation times; not measured torque")
@@ -52,6 +53,8 @@ def main():
         raise SystemExit("timestep must be between 0.00025 and 0.002 s")
     if sum((a.driver_feedforward, a.recorded_state_feedforward, a.logged_feedforward)) > 1:
         raise SystemExit("choose only one driver feedforward reconstruction")
+    if a.driver_xml and not (a.driver_feedforward or a.recorded_state_feedforward):
+        raise SystemExit("driver-xml requires a feedforward reconstruction mode")
     output = a.out_dir or a.run
     output.mkdir(parents=True, exist_ok=True)
     stem = output / a.output_stem
@@ -111,10 +114,26 @@ def main():
     gain = info["gains"]
     driver_kdl = None
     if a.driver_feedforward or a.recorded_state_feedforward:
-        from i2rt.robots.utils import ArmType, GripperType, combine_arm_and_gripper_xml
-        from i2rt.utils.mujoco_utils import MuJoCoKDL
-        driver_xml = combine_arm_and_gripper_xml(ArmType.YAM, GripperType.LINEAR_4310, ee_mass=0.5)
-        driver_kdl = MuJoCoKDL(driver_xml)
+        if a.driver_xml:
+            driver_xml = a.driver_xml
+            class OfflineKDL:
+                def __init__(self, path):
+                    self.model=mujoco.MjModel.from_xml_path(str(path))
+                    self.model.geom_contype[:]=0;self.model.geom_conaffinity[:]=0
+                    self.model.jnt_limited[:]=0;self.model.opt.gravity[:]=[0,0,-9.81]
+                    self.data=mujoco.MjData(self.model)
+                    if self.model.nq < 6 or self.model.nv < 6:
+                        raise ValueError("driver model needs six arm joints")
+                def compute_inverse_dynamics(self,q,qd,qdd):
+                    self.data.qpos[:6]=q;self.data.qvel[:6]=qd;self.data.qacc[:6]=qdd
+                    mujoco.mj_inverse(self.model,self.data)
+                    return self.data.qfrc_inverse[:6].copy()
+            driver_kdl=OfflineKDL(driver_xml)
+        else:
+            from i2rt.robots.utils import ArmType, GripperType, combine_arm_and_gripper_xml
+            from i2rt.utils.mujoco_utils import MuJoCoKDL
+            driver_xml = combine_arm_and_gripper_xml(ArmType.YAM, GripperType.LINEAR_4310, ee_mass=0.5)
+            driver_kdl = MuJoCoKDL(driver_xml)
         gravity_factors = np.asarray(gain["gravity_comp_factor"], float)[:6]
         friction_factors = np.asarray(gain["coulomb_friction"], float)[:6]
     for idx, kp, kd in zip(arm_act, gain["kp"], gain["kd"]):
@@ -196,7 +215,8 @@ def main():
     residual = interp - native_q
     summary = {"side": a.side, "run": str(a.run), "source": a.source, "initial_state": f"first {a.source} observation; encoder offsets applied once",
                "command_time": "first matching CAN send on host monotonic clock; zero-order held",
-               "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
+               "controller": "logged kp/kd; " + ("reconstructed driver feedforward replaces ideal gravity" if driver_kdl is not None else "logged computed feedforward replaces ideal gravity" if a.logged_feedforward else "ideal scene gravity compensation"),
+               "driver_xml_sha256": hashlib.sha256(Path(driver_xml).read_bytes()).hexdigest() if driver_kdl is not None else None,
                "logged_feedforward": "last-computed driver command held at observation timestamps; command execution timestamp unknown; not measured torque" if a.logged_feedforward else None,
                "arm_frictionloss_nm": m.dof_frictionloss[arm_dofadr].tolist(),
                "joint3_frictionloss_nm": float(m.dof_frictionloss[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, prefix + "joint3")]]),
@@ -220,9 +240,9 @@ def main():
     j = a.joint - 1
     fig, ax = plt.subplots(figsize=(9, 4))
     ax.plot(native_t, native_q[:, j], label='Real encoder')
-    ax.plot(native_t, interp[:, j], label='MuJoCo baseline')
+    ax.plot(native_t, interp[:, j], label='MuJoCo replay')
     ax.step(send_t, commands[:, j]-offsets[j], where='post', label='Executed target', alpha=.7)
-    ax.set(xlabel='Seconds from first observation', ylabel='Joint position (rad)', title=f'Joint {a.joint}: real vs CPU baseline')
+    ax.set(xlabel='Seconds from first observation', ylabel='Joint position (rad)', title=f'Joint {a.joint}: real vs CPU replay')
     ax.grid(alpha=.25); ax.legend(); fig.tight_layout(); fig.savefig(stem.with_suffix('.png'), dpi=160); plt.close(fig)
     print(json.dumps({'samples':len(native_t),'joint3_rmse_rad':summary['joint_rmse_rad'][2], 'output':str(stem)}, indent=2))
 

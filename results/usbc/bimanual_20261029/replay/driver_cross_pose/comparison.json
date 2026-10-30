@@ -1,0 +1,100 @@
+{
+  "scope": "offline encoder replay, contacts disabled; no external wrist accuracy",
+  "decision": "do not adopt combined driver/friction candidate as default; cross-pose regressions remain",
+  "trials": {
+    "Right pickup": {
+      "baseline": {
+        "source_report": "results/usbc/bimanual_20261029/replay/driver_cross_pose/right_pickup_baseline.json",
+        "joint_rmse_mrad": [
+          2.02075185631137,
+          4.058416894843359,
+          26.623146738214324,
+          6.083202665689468,
+          2.80582120491217,
+          2.4882263900716515
+        ]
+      },
+      "driver": {
+        "source_report": "results/usbc/bimanual_20261029/replay/driver_cross_pose/right_pickup_recorded.json",
+        "joint_rmse_mrad": [
+          4.382111971744612,
+          10.800302390216748,
+          29.06392622207958,
+          7.254113694470334,
+          2.478609723614068,
+          4.085851676077901
+        ]
+      },
+      "driver + friction": {
+        "source_report": "results/usbc/bimanual_20261029/replay/driver_cross_pose/right_pickup_recorded_friction.json",
+        "joint_rmse_mrad": [
+          4.382252299434646,
+          2.700191333091466,
+          12.880575913386355,
+          5.829348008386321,
+          2.142150198135308,
+          2.571880771969635
+        ]
+      }
+    },
+    "Right folded rest J2": {
+      "baseline": {
+        "source_report": "results/usbc/bimanual_20261029/replay/right_j2_baseline.json",
+        "joint_rmse_mrad": [
+          0.1793786164282824,
+          5.4009210038082465,
+          0.3424268072445428,
+          2.2852565493513115,
+          0.013356888851111613,
+          0.051894780847213925
+        ]
+      },
+      "driver": {
+        "source_report": "results/usbc/bimanual_20261029/replay/driver_cross_pose/right_rest_j2_recorded.json",
+        "joint_rmse_mrad": [
+          0.9730140469945159,
+          7.465038393799633,
+          4.210253286449312,
+          8.938113727971244,
+          1.234924994039994,
+          1.0356500085964795
+        ]
+      },
+      "driver + friction": {
+        "source_report": "results/usbc/bimanual_20261029/replay/driver_cross_pose/right_rest_j2_recorded_friction.json",
+        "joint_rmse_mrad": [
+          0.9736072722495691,
+          5.668710064415579,
+          4.069688160158905,
+          8.932260041397736,
+          1.2004715219173867,
+          1.1389489946044438
+        ]
+      }
+    },
+    "Left elevated": {
+      "baseline": {
+        "source_report": "results/usbc/bimanual_20261029/replay/free_settle_001_baseline.json",
+        "joint_rmse_mrad": [
+          4.548059998014691,
+          15.61222252578937,
+          26.203435532157666,
+          4.68782744859414,
+          12.228749495367124,
+          11.850811755766173
+        ]
+      },
+      "driver": {
+        "source_report": "results/usbc/bimanual_20261029/replay/driver_cross_pose/free_settle_001_driver_reconstruction.json",
+        "joint_rmse_mrad": [
+          6.0341635452624285,
+          19.506577023313184,
+          27.122489363777703,
+          4.149278797747975,
+          11.782947043135966,
+          14.006349163784389
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "side": "right",
+  "run": "/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/reference/right_arm_20261027/motion/right_pickup_mid_empty_hold_001",
+  "source": "approach",
+  "initial_state": "first approach observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "logged kp/kd; ideal scene gravity compensation",
+  "driver_xml_sha256": null,
+  "logged_feedforward": null,
+  "arm_frictionloss_nm": [
+    0.01,
+    0.01,
+    0.01,
+    0.01,
+    0.01,
+    0.01
+  ],
+  "joint3_frictionloss_nm": 0.01,
+  "experimental_stiction_nm": null,
+  "experimental_stiction_mode": null,
+  "experimental_state_steps": null,
+  "driver_feedforward_reconstruction": null,
+  "limitations": [
+    "contacts disabled",
+    "feedforward is a logged computed command, reconstruction, or omitted; no measured torque",
+    "stick/slip force uses inverse mass, not a full constrained contact solve",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth"
+  ],
+  "native_feedback_samples": 2319,
+  "input_sha256": {
+    "run.json": "47fbfccb573e23382f22d46fbbcab1ba068d8ecee14f53e1dba250ea9f6f0f81",
+    "approach.csv": "1127c0488fb171d35b8a6d09fe674d63ac118d3a512c252e7b682726a1980614",
+    "encoder_right.csv": "227d7435d54d00a9fa418ff8431d4e35ea6535657ba151193cbd50b7ee4f8155"
+  },
+  "joint_rmse_rad": [
+    0.00202075185631137,
+    0.004058416894843359,
+    0.026623146738214323,
+    0.006083202665689468,
+    0.0028058212049121697,
+    0.0024882263900716513
+  ],
+  "joint_peak_abs_error_rad": [
+    0.006177620957062185,
+    0.006683747708402632,
+    0.03329653513555403,
+    0.019462719328102424,
+    0.004961333495713783,
+    0.005273530276278499
+  ],
+  "model_timestep_s": 0.001
+}

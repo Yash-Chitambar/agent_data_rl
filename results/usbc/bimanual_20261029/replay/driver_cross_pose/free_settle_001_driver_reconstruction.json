@@ -1,0 +1,163 @@
+{
+  "side": "left",
+  "run": "/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/contact/free_settle_001",
+  "source": "steps",
+  "initial_state": "first steps observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "logged kp/kd; reconstructed driver feedforward replaces ideal gravity",
+  "driver_xml_sha256": "91a6d58ae4f92f6edeae9a21084f0227b5c134561c788b811926c272ec91e431",
+  "logged_feedforward": null,
+  "arm_frictionloss_nm": [
+    0.01,
+    0.01,
+    0.01,
+    0.01,
+    0.01,
+    0.01
+  ],
+  "joint3_frictionloss_nm": 0.01,
+  "experimental_stiction_nm": null,
+  "experimental_stiction_mode": null,
+  "experimental_state_steps": null,
+  "driver_feedforward_reconstruction": "approximate KDL gravity and velocity sign from logged states; held between observations; not actual recorded command",
+  "limitations": [
+    "contacts disabled",
+    "feedforward is a logged computed command, reconstruction, or omitted; no measured torque",
+    "stick/slip force uses inverse mass, not a full constrained contact solve",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth",
+    "phase boundaries use first CAN-send host time; native feedback is not synchronized exposure or torque"
+  ],
+  "native_feedback_samples": 46933,
+  "joint_rmse_rad": [
+    0.0060341635452624285,
+    0.019506577023313185,
+    0.027122489363777702,
+    0.004149278797747975,
+    0.011782947043135965,
+    0.014006349163784388
+  ],
+  "joint_peak_abs_error_rad": [
+    0.011551146599287219,
+    0.06272227076195902,
+    0.0498942757741217,
+    0.019375460495069927,
+    0.022093697206797658,
+    0.021959937252209898
+  ],
+  "model_timestep_s": 0.001,
+  "normalized_input_sha256": {
+    "run.json": "c5185218e97abbf5737de7d05bc29025d19c7af890ab1ef9da7afc4dbb471bb7",
+    "steps.csv": "2edaf57a5a093a74ec701a9768a7de02c3da26791631364e092517b81124a1c0",
+    "encoder_left.csv": "d54a60b8861869aff176578585ea764fb5619fe5b51be08cf204fce226f7eab9"
+  },
+  "input_sha256": {
+    "trial.json": "b30311f0107de9056af478c40395f843e77b84483c44496f7ac3e7731665f043",
+    "left_native_feedback.json": "8f37fd766f466d28788579501ecf676eb95274bfd4ef5a49b9e641e391ad2968"
+  },
+  "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "recorded_gains": {
+    "gains_before": [
+      [
+        80.0,
+        80.0,
+        80.0,
+        40.0,
+        10.0,
+        10.0
+      ],
+      [
+        5.0,
+        5.0,
+        5.0,
+        1.5,
+        1.5,
+        1.5
+      ]
+    ],
+    "kp": [
+      80.0,
+      80.0,
+      80.0,
+      40.0,
+      10.0,
+      10.0
+    ],
+    "kd": [
+      5.0,
+      5.0,
+      5.0,
+      1.5,
+      1.5,
+      1.5
+    ],
+    "gravity_comp_factor": [
+      1.0,
+      1.1,
+      1.1,
+      1.2,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "coulomb_friction": [
+      0.3,
+      0.3,
+      0.3,
+      0.06,
+      0.06,
+      0.06,
+      0.0
+    ]
+  },
+  "phase_joint_rmse_rad": {
+    "above_beyond": [
+      0.006428416145406059,
+      0.011651821213743386,
+      0.03572797907459101,
+      0.00482851322135973,
+      0.010582166261639556,
+      0.013461425533008038
+    ],
+    "baseline_hold": [
+      0.00607831891975055,
+      0.0012206246269303497,
+      0.02738636308164653,
+      0.005040577234892712,
+      0.01051954922274815,
+      0.010706144948820093
+    ],
+    "candidate_frozen_hold": [
+      0.004433895477927316,
+      0.004049863182674425,
+      0.032676173992667715,
+      0.0030492827261703456,
+      0.0012091895922276196,
+      0.01353458119046314
+    ],
+    "candidate_trim": [
+      0.005169166156237083,
+      0.004507523102661157,
+      0.033968873648632394,
+      0.0034289323467950462,
+      0.007807956052503058,
+      0.013748642979965127
+    ],
+    "retreat_high": [
+      0.0024215528077187855,
+      0.006964697571167214,
+      0.00983555286813704,
+      0.002307961478916375,
+      0.009072882204509096,
+      0.005916214387970731
+    ],
+    "return_rest": [
+      0.005883195670051683,
+      0.027261071656675587,
+      0.010041125708874886,
+      0.0034954942887728616,
+      0.013766778921448078,
+      0.014876835810623577
+    ]
+  }
+}

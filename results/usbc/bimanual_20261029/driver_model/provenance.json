@@ -1,0 +1,18 @@
+{
+  "source_commit": "4c43932cdb8e74dcb576419a81a76b47b90f2705",
+  "source_remote": "https://github.com/i2rt-robotics/i2rt",
+  "construction": "YAM + LINEAR_4310; gripper inertial mass override 0.5 kg",
+  "mujoco_version": "3.12.0",
+  "nq": 8,
+  "nv": 8,
+  "source_utils_sha256": "fa8a609cd564188e309f46a188e3963217d00604bb53244548ca742d0634a29d",
+  "export_sha256": "91a6d58ae4f92f6edeae9a21084f0227b5c134561c788b811926c272ec91e431",
+  "max_static_inverse_difference_nm": 0.0,
+  "verification_poses": 100,
+  "limitations": [
+    "deployed source revision not recorded in captures",
+    "0.5 kg is driver configuration, not measured payload",
+    "geometry removed after compilation; inverse dynamics preserved",
+    "candidate only; no hardware controller imported or commanded"
+  ]
+}

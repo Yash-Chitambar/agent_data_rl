@@ -1,0 +1,53 @@
+{
+  "side": "right",
+  "run": "/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/reference/right_arm_20261027/motion/right_pickup_mid_empty_hold_001",
+  "source": "approach",
+  "initial_state": "first approach observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "logged kp/kd; reconstructed driver feedforward replaces ideal gravity",
+  "driver_xml_sha256": "91a6d58ae4f92f6edeae9a21084f0227b5c134561c788b811926c272ec91e431",
+  "logged_feedforward": null,
+  "arm_frictionloss_nm": [
+    0.01,
+    0.01,
+    0.01,
+    0.01,
+    0.01,
+    0.01
+  ],
+  "joint3_frictionloss_nm": 0.01,
+  "experimental_stiction_nm": null,
+  "experimental_stiction_mode": null,
+  "experimental_state_steps": null,
+  "driver_feedforward_reconstruction": "approximate KDL gravity and velocity sign from logged states; held between observations; not actual recorded command",
+  "limitations": [
+    "contacts disabled",
+    "feedforward is a logged computed command, reconstruction, or omitted; no measured torque",
+    "stick/slip force uses inverse mass, not a full constrained contact solve",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth"
+  ],
+  "native_feedback_samples": 2319,
+  "input_sha256": {
+    "run.json": "47fbfccb573e23382f22d46fbbcab1ba068d8ecee14f53e1dba250ea9f6f0f81",
+    "approach.csv": "1127c0488fb171d35b8a6d09fe674d63ac118d3a512c252e7b682726a1980614",
+    "encoder_right.csv": "227d7435d54d00a9fa418ff8431d4e35ea6535657ba151193cbd50b7ee4f8155"
+  },
+  "joint_rmse_rad": [
+    0.004382111971744612,
+    0.010800302390216747,
+    0.02906392622207958,
+    0.007254113694470334,
+    0.0024786097236140676,
+    0.004085851676077901
+  ],
+  "joint_peak_abs_error_rad": [
+    0.007351210904653627,
+    0.01616464910770174,
+    0.03682255862934283,
+    0.026431120486434312,
+    0.005193414862583011,
+    0.006102427603600219
+  ],
+  "model_timestep_s": 0.001
+}

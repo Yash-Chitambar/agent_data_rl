@@ -56,9 +56,9 @@ has joint-3 RMSE about 26 mrad overall and 28 mrad during baseline hold, conside
 larger than folded-rest identification. Logged feedforward reduces left joint-3 rest
 error from 3.83 to 2.31 mrad, but increases joint 2 from 4.70 to 9.05 and joint 4
 from 5.52 to 10.58 mrad. This mixed result rules out claiming a general dynamics
-correction. All six older right rest captures lack computed feedforward. The optional
-KDL reconstruction also requires an unavailable `i2rt` import in this environment;
-no replacement driver was installed or adopted. See phase-level JSON reports under
+correction. All six older right rest captures lack computed feedforward. The original KDL import requires unavailable CAN dependencies. An explicit offline
+XML export now supports reconstruction without loading hardware drivers; see the
+cross-pose candidate assessment below. No replacement hardware driver was installed. See phase-level JSON reports under
 `results/usbc/bimanual_20261029/replay/`.
 
 ## Release status
@@ -92,3 +92,46 @@ it remained at its old z=0 datum, leaving the power strip floating. The subpixel
 principal point after integer-centered cropping is retained, with an EGL marker
 projection check for all three cameras (`check_principal_point.py`). Updated
 views are in `overlays_pad_correction/`; no calibration transform was refitted.
+
+
+## Offline driver reconstruction and cross-pose assessment
+
+The archived clean i2rt source at commit
+`4c43932cdb8e74dcb576419a81a76b47b90f2705` can now be exported with
+`scripts/tools/export_driver_gravity_model.py`. The exporter loads only XML
+construction definitions, removes rendering geometry after compiling explicit
+inertias, and verifies static inverse dynamics against the original compiled
+model at 100 poses. Maximum torque difference was zero. The export, provenance,
+and upstream MIT license are under `results/usbc/bimanual_20261029/driver_model/`.
+This verifies export fidelity, not the deployed revision or physical link masses.
+
+The recorded configuration uses linear_4310 with a 0.5 kg gripper mass override,
+gravity factors [1,1.1,1.1,1.2,1,1], and velocity-sign compensation
+[0.3,0.3,0.3,0.06,0.06,0.06] N·m. These are driver settings, not measured
+plant friction. Across 7,800 left folded-rest samples, the difference between
+captured computed feedforward and reconstructed gravity has the configured
+friction magnitude with worst per-run/per-joint RMSE 0.000410 N·m.
+Its sign does not reliably match the separately observed velocity near rest:
+the fields are asynchronous and velocity is quantized. This is not measured
+motor-torque accuracy, nor evidence for a fixed feedforward delay.
+
+Replay now accepts `--driver-xml` with either reconstruction mode.
+`--recorded-state-feedforward` uses recorded encoder states and holds the
+reconstruction between observations. It replaces ideal scene gravity
+compensation; it does not add it a second time. That replay is an offline
+diagnostic, not a deployable policy observation.
+
+The driver-only candidate regresses important joints across poses. Adding the
+right friction prior [0.01,1,1.5,0.2,0.2,0.1] N·m improves right pickup joint-3
+RMSE from 26.62 to 12.88 mrad and joint-2 from 4.06 to 2.70 mrad. However,
+folded-rest joint-4 error rises from 2.29 to 8.93 mrad and joint-2 from 5.40
+to 5.67 mrad. Left elevated joint-3 also remains about 27 mrad with driver-only
+reconstruction. These comparisons do not support adopting the combined model
+as the default. The previously adopted right joint-2-only friction correction
+remains separate.
+
+See `replay/driver_cross_pose/comparison.png` and JSON/CSV reports for all
+six joints. Further work must distinguish physical link/payload dynamics,
+stateful friction, and asynchronous driver feedback using held-out poses.
+Do not hide these errors by assuming perfect compensation or tuning camera
+transforms to absorb dynamic sag.

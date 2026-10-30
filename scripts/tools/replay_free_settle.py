@@ -20,6 +20,7 @@ def main():
     p.add_argument('run', type=Path)
     p.add_argument('--out-dir', type=Path, required=True)
     p.add_argument('--recorded-state-feedforward', action='store_true')
+    p.add_argument('--driver-xml',type=Path)
     a = p.parse_args()
     root = Path(__file__).resolve().parents[2]
     trial = json.loads((a.run / 'trial.json').read_text())
@@ -54,6 +55,8 @@ def main():
                '--output-stem', stem]
         if a.recorded_state_feedforward:
             cmd.append('--recorded-state-feedforward')
+        if a.driver_xml:
+            cmd.extend(['--driver-xml',str(a.driver_xml.resolve())])
         subprocess.run(cmd, check=True, cwd=root)
     report_path = a.out_dir / (stem + '.json')
     report = json.loads(report_path.read_text())
