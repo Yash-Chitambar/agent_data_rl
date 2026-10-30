@@ -32,6 +32,10 @@ class BimanualCfg:
     # jitter covers the by-day scale differences (<= 0.07).
     friction_scale_range: tuple = (0.5, 1.3)
     gravity_scale_jitter: float = 0.04
+    # PC-feet/table sliding friction, per world, resampled on reset. Unmeasured: the range spans
+    # hard plastic to rubber feet on a smooth top. The feet have contact priority, so this value
+    # alone sets the pair. None keeps the scene's fixed 0.6.
+    pc_friction_range: tuple | None = (0.3, 0.9)
     # Opt-in fingertip offset fitted to wrist silhouettes (scripts/tools/fit_gripper_tips.py):
     # 'fitted' reads results/usbc/bimanual_20261029/gripper_tips/fit.json; a path reads another
     # fit.json (e.g. results/usbc/gripper_sweep/<name>/fit.json). Off by default: the
@@ -108,7 +112,9 @@ class BimanualRuntime:
         self.pc_qadr = int(m.joint('pc_free_joint').qposadr[0])
         wp.init()
         with wp.ScopedDevice(c.device):
-            self.m = mjw.put_model(m, batch_sizes={'dof_frictionloss': c.nworld} if self.profile else None)
+            batched = ({'dof_frictionloss': c.nworld} if self.profile else {}) | \
+                      ({'geom_friction': c.nworld} if c.pc_friction_range else {})
+            self.m = mjw.put_model(m, batch_sizes=batched or None)
             self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=c.nconmax,njmax=c.njmax)
         self._graph = None
         self.q = wp.to_torch(self.d.qpos)
@@ -122,6 +128,15 @@ class BimanualRuntime:
         self.encoder_offsets = torch.tensor(
             [calibration['arms'][side]['joint_offsets_rad'] for side in ('right','left')],
             device=self.device,dtype=self.q.dtype)
+        if c.pc_friction_range:
+            lo, hi = c.pc_friction_range
+            if not 0 < lo <= hi:
+                raise ValueError('pc_friction_range must satisfy 0 < lo <= hi')
+            self.pc_feet = torch.tensor([g for g in range(m.ngeom) if m.geom(g).name.startswith('pc_pad_')],device=self.device)
+            if not len(self.pc_feet):
+                raise ValueError('scene has no pc_pad_ feet geoms to randomize')
+            self.geom_friction = wp.to_torch(self.m.geom_friction)
+            self._sample_pc_friction(torch.arange(c.nworld,device=self.device))
         if self.profile:
             arms = [self.profile['arms'][side] for side in ('right','left')]
             f = lambda key: torch.tensor([arm[key] for arm in arms],device=self.device,dtype=self.q.dtype)
@@ -158,6 +173,7 @@ class BimanualRuntime:
         for name in ('qacc_warmstart','qacc','time'):
             wp.to_torch(getattr(self.d,name))[ids] = 0
         if self.profile: self._sample_dynamics(ids)
+        if self.cfg.pc_friction_range: self._sample_pc_friction(ids)
         with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
         if self.camera_sensor is not None:self.camera_sensor.reset(ids,self.sensor_time)
         return self.state()
@@ -203,6 +219,11 @@ class BimanualRuntime:
             self._graph = capture.graph
         else:
             wp.capture_launch(self._graph)
+
+    def _sample_pc_friction(self, ids):
+        lo,hi = self.cfg.pc_friction_range
+        mu = torch.rand(len(ids),1,device=self.device)*(hi-lo)+lo
+        self.geom_friction[ids[:,None],self.pc_feet,0] = mu.expand(-1,len(self.pc_feet))
 
     def _sample_dynamics(self, ids):
         """Per-world Coulomb friction and gravity scales around the identified profile."""

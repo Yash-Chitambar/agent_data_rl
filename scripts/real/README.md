@@ -8,7 +8,7 @@ spec (intrinsics, mounts, ZED pose, joint offsets, base-to-base pose) is
 ## Open physical TODO (2026-10-30)
 
 Start with [PHYSICAL_TODO_20261030.md](../../docs/PHYSICAL_TODO_20261030.md): gripper opening
-sweep (`capture_gripper_sweep.py`, jaws only), PC-table friction, backlash.
+sweep (`capture_gripper_sweep.py`, jaws only) and joint backlash (`measure_backlash.py`).
 
 ## Next bimanual measurement session
 
@@ -33,6 +33,7 @@ extension, and the data handoff format. It supplements the historical gap table.
 | `setup_can_autostart.sh` | one-time sudo: udev rule bringing the CAN adapters up at boot / plug-in | - |
 | `rig.py` | rig config: arm -> CAN interface by adapter serial, wrist camera devices, joint offsets | - |
 | `capture_gripper_sweep.py` | gripper opening sweep seen by each wrist camera, for the sim fingertip fit | jaws only |
+| `measure_backlash.py` | joint backlash: encoder vs wrist camera on a fixed board, small stairs per joint | small steps |
 | `safety.py` | hold-mode connect, `SafeArm`, `close_robot` (no i2rt shutdown race) | - |
 | `estop.py` | software stop terminal (stop file `/tmp/yam_estop`) | - |
 | `rigctl.py` | rig console: stop, arms on/off (park at rest, then limp), camera viewer | yes (to rest) |
