@@ -36,11 +36,13 @@ class BimanualCfg:
     # hard plastic to rubber feet on a smooth top. The feet have contact priority, so this value
     # alone sets the pair. None keeps the scene's fixed 0.6.
     pc_friction_range: tuple | None = (0.3, 0.9)
-    # Opt-in fingertip offset fitted to wrist silhouettes (scripts/tools/fit_gripper_tips.py):
-    # 'fitted' reads results/usbc/bimanual_20261029/gripper_tips/fit.json; a path reads another
-    # fit.json (e.g. results/usbc/gripper_sweep/<name>/fit.json). Off by default: the
-    # silhouettes cannot separate tip geometry from a hand-eye translation error (measure first).
-    tip_offset: str | None = None
+    # Fingertip/wrist-camera alignment fitted to wrist silhouettes (scripts/tools/fit_gripper_tips.py
+    # --sweep): a fit.json path, 'fitted' for the older bundle-only fit, or None. The silhouettes
+    # cannot separate tip geometry from a hand-eye translation error, and the two arms disagree
+    # by ~5 mm (identical hardware), so by default the fit moves the wrist CAMERA by the opposite
+    # offset ('camera': images match, grasp physics unchanged). 'tips' moves the finger bodies.
+    tip_offset: str | None = 'results/usbc/gripper_sweep/sweep_20261030/fit.json'
+    tip_offset_target: str = 'camera'
     # Legacy plant only (dynamics_profile=None): right joint-2 friction from the older replays.
     right_joint2_friction_nm: float = 1.0
     right_fric_comp: dict | None = None
@@ -92,9 +94,17 @@ class BimanualRuntime:
         if c.tip_offset is not None:
             path = 'results/usbc/bimanual_20261029/gripper_tips/fit.json' if c.tip_offset == 'fitted' else c.tip_offset
             fit = json.loads((Path(__file__).resolve().parents[2] / path).read_text())
+            if c.tip_offset_target not in ('camera', 'tips'):
+                raise ValueError("tip_offset_target must be 'camera' or 'tips'")
             for side, prefix in (('right', ''), ('left', 'left_')):
                 off = np.array(list(fit['arms'][side]['fitted_offset_mm'].values())) * 1e-3   # gripper-frame x, y, z
-                m.body_pos[[m.body(prefix + f + '_finger').id for f in ('left', 'right')]] += off
+                if c.tip_offset_target == 'tips':
+                    m.body_pos[[m.body(prefix + f + '_finger').id for f in ('left', 'right')]] += off
+                else:   # same image of the tips: shift the camera by -off, expressed in its parent (link_6)
+                    g, cam = m.body(prefix + 'gripper'), m.camera(prefix + 'wrist_cam')
+                    assert g.jntnum[0] == 0 and g.parentid[0] == cam.bodyid[0]
+                    rot = np.zeros(9); mujoco.mju_quat2Mat(rot, g.quat)
+                    m.cam_pos[cam.id] -= rot.reshape(3, 3) @ off
         d = mujoco.MjData(m)
         R.reference_pose(m,d,self.lay);S.place_pc(m,d);S.place_reader(m,d,self.lay)
         self.indices = {}

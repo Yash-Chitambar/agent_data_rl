@@ -175,9 +175,41 @@ left IoU 0.69/0.58 -> 0.91/0.77, right 0.47/0.48 -> 0.77/0.77. Offsets (thicknes
 camera, lateral, along finger): left -1.5/-0.5/-3.5 mm, right -2.5/-0.5/-1.5 mm.
 The closed-empty frame fits opening 2 mm, so the opening map is not the problem.
 The silhouettes cannot separate tip geometry from a hand-eye translation error (both move
-near-field tips, not the far-field board). So the offset is opt-in
-(`BimanualCfg(tip_offset='fitted')`). Measure camera-lens-to-tip distance with calipers
+near-field tips, not the far-field board). So the offset was opt-in
+(`BimanualCfg(tip_offset='fitted')`); superseded by the sweep below. Measure camera-lens-to-tip distance with calipers
 on both arms to decide: geometry -> enable it; camera -> correct the hand-eye instead.
+
+### Gripper sweep and camera-side alignment (2026-10-30, later)
+
+Rig sweep `data/gripper_sweep/sweep_20261030` (branch `data/gripper-sweep-20261030`; 11 jaw
+levels x 3 frames per arm, arms at folded rest). Fit on the open and closed first frames, all
+other frames held out (`results/usbc/gripper_sweep/sweep_20261030/`):
+
+| | offset (x thick, y lat, z finger) mm | held-out IoU before -> after | other-run views (other poses) |
+|---|---|---|---|
+| left | -2.0 / -0.5 / -3.5 (bundle fit: -1.5 / -0.5 / -3.5) | 0.69 -> 0.89 | 0.84-0.88 |
+| right | -7.0 / -0.5 / +2.0 (bundle fit: -2.5 / -0.5 / -1.5) | 0.60 -> 0.83 | 0.78-0.82 (bundle fit 0.77-0.80) |
+
+Encoder -> opening per finger is linear and monotonic: left 0.0477 m x enc (rmse 0.25 mm),
+right 0.0432 m x enc (rmse 0.26 mm). Commanded 0.02 stalls at encoder 0.04 (left) / 0.06
+(right): the tips touch. The two arms carry identical tips but their offsets differ by ~5 mm,
+so the difference is most likely the right wrist hand-eye. The runtime therefore applies the
+fit to the **wrist camera** by default (`BimanualCfg.tip_offset_target='camera'`: camera moves
+by the opposite offset in `link_6`; tips in the image identical to moving the fingers, checked to
+0.01 mm; grasp physics unchanged). Far-field cost: <= 4 px at 0.3 m in the 320 px crop (right).
+`tip_offset_target='tips'` moves the finger bodies instead. Calipers (lens-to-tip, both arms)
+would still settle which one is right; the right open-jaw fit (43 mm vs 47 mm left) is
+entangled with the same depth ambiguity.
+
+## Joint backlash and stiction (2026-10-30)
+
+Measured on both arms (`data/backlash/README.md`): 0.04-2.3 arcmin, mostly under the 0.45-0.8
+arcmin camera noise. At most 0.7 mrad, against stick-slip jumps of up to 10-14 mrad and +/-1.5 deg
+encoder-offset randomization, so the bimanual runtime does **not** model backlash (the
+`add_backlash` hinges would add 12 dofs for a sub-noise effect). The PD error at which a joint
+rests after a closed-loop stair gives a static band at or below the identified Coulomb (right j3
+0.49 vs 0.82 N m, left j3 0.56 vs 1.44), so the identified friction is not too weak. The real
+stick-slip (static > kinetic, 6-12 mrad slips on j2, j3, j5) is still not modelled.
 
 ## Runtime speed (2026-10-30)
 

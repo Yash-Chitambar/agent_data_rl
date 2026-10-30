@@ -104,6 +104,15 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-30 (mason) — Gripper sweep fit, backlash <= 2 arcmin
+
+Gripper sweep (both arms, 11 jaw levels): fingertip fit held-out IoU left 0.69 -> 0.89, right
+0.60 -> 0.83; encoder -> opening linear (0.25 mm RMSE). The arms disagree by ~5 mm, so the fit
+now moves the wrist camera by default (images match, grasp physics unchanged). Backlash on
+both arms is <= ~2 arcmin, mostly under camera noise: not modelled. Real joints stick-slip
+(6-12 mrad jumps on j2/j3/j5); the identified Coulomb friction is at or above the measured
+static band, but static > kinetic is not modelled. Details: `results/usbc/bimanual_20261029/README.md`.
+
 ### 2026-10-30 (mason) — Identified real-arm dynamics: tool error 8.5 -> 4.4 mm held-out; fingertip offsets
 
 The bimanual runtime cancelled gravity exactly; the real driver uses its own gravity model.

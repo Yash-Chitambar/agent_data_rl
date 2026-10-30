@@ -4,7 +4,11 @@ What the sim still needs from the real YAM rig (duchamp3), in priority order. It
 **sim side** need no rig time. Background: `results/usbc/bimanual_20261029/README.md`
 (identified arm dynamics, fingertip fit, runtime speed).
 
-## 1. Gripper opening sweep (today, ~5 min, jaws only)
+## 1. Gripper opening sweep (today, ~5 min, jaws only) — DONE 2026-10-30
+
+**Result:** held-out IoU left 0.89, right 0.83; maps monotonic, 0.25 mm RMSE. Arms disagree by
+~5 mm, so the runtime applies the fit to the wrist camera (default). See
+`results/usbc/bimanual_20261029/README.md` (Gripper sweep). Optional: calipers, lens-to-tip, both arms.
 
 **Why.** The sim fingertips sit 1.5-3.5 mm off the real ones in the wrist images
 (`results/usbc/bimanual_20261029/gripper_tips/`). No FlexPoint CAD is available, so we fit the
@@ -50,7 +54,10 @@ Not measurable with the tools at hand. The runtime samples the PC-feet friction 
 every reset, mu U(0.3, 0.9) (`BimanualCfg.pc_friction_range`): hard plastic to rubber feet on a
 smooth top. The feet have contact priority, so this value alone sets the PC-table pair.
 
-## 3. Joint backlash (~25 min per arm, small arm motions)
+## 3. Joint backlash (~25 min per arm, small arm motions) — DONE 2026-10-30
+
+**Result:** <= ~2 arcmin, mostly below camera noise (`data/backlash/README.md`). Not modelled
+in the bimanual runtime (sub-noise next to stick-slip and encoder-offset noise).
 
 **Why.** Phase C showed backlash of 1-5 arcmin decides sim-to-real success; it is not measured
 on these arms. The encoders sit on the motor side and cannot see it.
@@ -80,7 +87,7 @@ These exist in the single-arm env (`EnvCfg`) and must be ported to the bimanual 
 
 - [ ] Action latency: measured ~8 ms (0.4 control step); randomize 0-1 step.
 - [ ] Encoder-offset noise: +/-1.5 deg on joints 2-5 (`EnvCfg.enc_offset_deg`).
-- [ ] Backlash model (`builder.add_backlash`), range from item 3 (1-5 arcmin until measured).
+- [x] Backlash: measured <= ~2 arcmin; not modelled (below other noise; item 3).
 - [x] PC-table friction randomization, mu 0.3-0.9 (item 2).
 - [ ] Rigid insertion contact with randomized plug-port friction and pad friction/stiffness.
 
