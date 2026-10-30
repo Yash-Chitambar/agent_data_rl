@@ -3,15 +3,20 @@ import argparse,csv,json,hashlib
 from pathlib import Path
 import mujoco,numpy as np
 from blind_insertion.scenes import pc_bench as S,physical_rig as R
-parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--legacy-grasp',action='store_true');parser.add_argument('--inhand-align',action='store_true');parser.add_argument('--feedback-align',action='store_true');parser.add_argument('--settle-grasp',action='store_true');parser.add_argument('--clearance-carry',action='store_true');parser.add_argument('--identified-dynamics',action='store_true');parser.add_argument('--alignment-gain',type=float,default=.08);parser.add_argument('--align-seconds',type=float,default=6.);args=parser.parse_args()
+parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--diagnostic-impratio',type=float,default=None);parser.add_argument('--diagnostic-noslip',action='store_true');parser.add_argument('--passive-hold',action='store_true');parser.add_argument('--legacy-grasp',action='store_true');parser.add_argument('--inhand-align',action='store_true');parser.add_argument('--feedback-align',action='store_true');parser.add_argument('--settle-grasp',action='store_true');parser.add_argument('--clearance-carry',action='store_true');parser.add_argument('--identified-dynamics',action='store_true');parser.add_argument('--alignment-gain',type=float,default=.08);parser.add_argument('--align-seconds',type=float,default=6.);args=parser.parse_args()
 if not 0<args.alignment_gain<=1 or not 0<args.align_seconds<=30:raise ValueError('invalid alignment controller parameters')
+if args.passive_hold and (args.feedback_align or args.inhand_align or args.clearance_carry):raise ValueError('passive hold cannot use alignment control')
 args.feedback_align=args.feedback_align or args.clearance_carry
 args.inhand_align=args.inhand_align or args.feedback_align
 waypoint_prefix='legacy_' if args.legacy_grasp else ''
-output_prefix=('settled_' if args.settle_grasp else '')+('clearance_' if args.clearance_carry else '')+('identified_' if args.identified_dynamics else '')+('feedback_' if args.feedback_align else 'inhand_' if args.inhand_align else '')+waypoint_prefix
+output_prefix=(f'impratio{args.diagnostic_impratio:g}_' if args.diagnostic_impratio is not None else '')+('noslip_' if args.diagnostic_noslip else '')+('passive_' if args.passive_hold else '')+('settled_' if args.settle_grasp else '')+('clearance_' if args.clearance_carry else '')+('identified_' if args.identified_dynamics else '')+('feedback_' if args.feedback_align else 'inhand_' if args.inhand_align else '')+waypoint_prefix
 profile=json.loads(Path('data/real_yam/usbc_lab_20261027/rig_profile_provisional_v0.json').read_text())
 points=json.loads((Path('results/usbc/bimanual_20261029/reach')/(waypoint_prefix+'nominal_waypoints.json')).read_text())['waypoints']
 m,l=S.build_scene(detailed=False,bimanual=True,support_mode='free',profile=profile,measured_support=True,controller_profile='native_free_settle_20261028')
+if args.diagnostic_impratio is not None:
+    if not 1<=args.diagnostic_impratio<=1000:raise ValueError('impratio outside diagnostic range')
+    m.opt.impratio=args.diagnostic_impratio
+if args.diagnostic_noslip:m.opt.noslip_iterations=20
 m.dof_frictionloss[m.joint('joint2').dofadr]=1.
 dyn=None
 if args.identified_dynamics:
@@ -38,6 +43,7 @@ grips=[m.actuator('grip_'+s).id for s in ('left','right')]
 mujoco.mj_forward(m,d);initial=d.qpos[l.peg_qadr:l.peg_qadr+3].copy()
 rows=[];phases={};states={};contact_trace=[];first_loss=None
 sequence=[('approach',2.,False),('grasp',2.,False),('close',1.5,True),('lift',2.,True),('preinsert',2.,True),('hold',1.,True)]
+if args.passive_hold:sequence[-2:]=[('preinsert',20.,True),('hold',1.,True)]
 if args.feedback_align:sequence.insert(-1,('align',args.align_seconds,True))
 if args.clearance_carry:
     index=next(i for i,x in enumerate(sequence) if x[0]=='preinsert')
@@ -71,6 +77,7 @@ for name,duration,closed in sequence:
     elif args.inhand_align and name in ('hold','align','settle_high','preinsert'):
         target=last.copy()
     if args.settle_grasp and name=='close':target=last.copy()
+    if args.passive_hold and name in ('preinsert','hold'):target=last.copy()
     feedback_target=last.copy()
     descent_start=d.qpos[l.peg_qadr:l.peg_qadr+3].copy()
     feedback_phase=args.feedback_align and (name in ('align','hold') or (args.clearance_carry and name in ('settle_high','preinsert')))
@@ -146,6 +153,6 @@ with (out/(output_prefix+'nominal_pick.csv')).open('w',newline='') as f:
     w=csv.writer(f);w.writerow(['time_s','phase','reader_x','reader_y','reader_z','center_to_tcp_m','max_joint_error_rad']);w.writerows(rows)
 lift=phases['lift'];held=lift['reader_tip_xyz_m'][2]>initial[2]+.04 and lift['reader_center_to_tcp_m']<.02
 report={'scope':'CPU scripted pick in nominal simulator; no hardware validation or bimanual bracing',
-        'reader_attached_artificially':False,'first_grasp_loss':first_loss,'clearance_carry':args.clearance_carry,'settle_grasp':args.settle_grasp,'retained_after_carry':all(phases[n]['reader_center_to_tcp_m']<.02 for n in ('preinsert','hold')),'dynamics_profile_sha256':hashlib.sha256(dyn_path.read_bytes()).hexdigest() if dyn else None,'privileged_inhand_alignment':args.inhand_align,'privileged_feedback_alignment':args.feedback_align,'alignment_gain':args.alignment_gain,'align_seconds':args.align_seconds,'lifted_and_near_tcp':bool(held),'phases':phases,
+        'diagnostic_impratio':float(m.opt.impratio),'diagnostic_noslip_iterations':int(m.opt.noslip_iterations),'passive_hold_after_lift':args.passive_hold,'reader_attached_artificially':False,'first_grasp_loss':first_loss,'clearance_carry':args.clearance_carry,'settle_grasp':args.settle_grasp,'retained_after_carry':all(phases[n]['reader_center_to_tcp_m']<.02 for n in ('preinsert','hold')),'dynamics_profile_sha256':hashlib.sha256(dyn_path.read_bytes()).hexdigest() if dyn else None,'privileged_inhand_alignment':args.inhand_align,'privileged_feedback_alignment':args.feedback_align,'alignment_gain':args.alignment_gain,'align_seconds':args.align_seconds,'lifted_and_near_tcp':bool(held),'phases':phases,
         'limitations':['scripted joint interpolation is not collision-aware planning','default approximate pad friction and squeeze','nominal identified residual model without randomization' if dyn else 'ideal gravity except right joint2 friction','single fixed reset']}
 (out/(output_prefix+'nominal_pick.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))

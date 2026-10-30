@@ -1,0 +1,36 @@
+{
+  "source": "results/usbc/bimanual_20261029/reach/noslip_passive_settled_identified_nominal_pick_states.npz",
+  "scope": "Phase endpoint relative-pose audit; not continuous slip detection or hardware validation",
+  "threshold_provenance": "Engineering diagnostic thresholds, not measured physical tolerances",
+  "stable_at_saved_carry_endpoints": true,
+  "phases": {
+    "approach": {
+      "center_shift_from_close_mm": 79.66892759618344,
+      "rotation_from_close_deg": 3.365350760207758
+    },
+    "grasp": {
+      "center_shift_from_close_mm": 5.676555476131721,
+      "rotation_from_close_deg": 0.9070483427475305
+    },
+    "settle_grasp": {
+      "center_shift_from_close_mm": 0.07757411851343267,
+      "rotation_from_close_deg": 0.012048786147809404
+    },
+    "close": {
+      "center_shift_from_close_mm": 0.0,
+      "rotation_from_close_deg": 0.0
+    },
+    "lift": {
+      "center_shift_from_close_mm": 0.00864843437240911,
+      "rotation_from_close_deg": 0.015885545606743337
+    },
+    "preinsert": {
+      "center_shift_from_close_mm": 0.06532128522874013,
+      "rotation_from_close_deg": 0.20822842084285256
+    },
+    "hold": {
+      "center_shift_from_close_mm": 0.06829638459197364,
+      "rotation_from_close_deg": 0.218090312828277
+    }
+  }
+}

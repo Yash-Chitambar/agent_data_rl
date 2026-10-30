@@ -205,6 +205,11 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
 
     m, lay = B.build("yam", [variant], pad_spheres=4, table_top=table_top, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")
+    if bimanual and measured_support:
+        # Separate tangential impedance from normal softness: the default ratio
+        # produced ~30 deg of numerical grasp creep in a stationary 20 s hold.
+        # This solver setting preserves friction coefficients and squeeze force.
+        m.opt.impratio = 100.
     lay.seating_depth = np.minimum(lay.depth, variant.peg_length - variant.handle_embed)
     B.apply_variant_cpu(m, lay, 0)
     cfg = json.loads(CONFIG.read_text())        # the insertion env's pad contact (PegEnv._apply_starts)

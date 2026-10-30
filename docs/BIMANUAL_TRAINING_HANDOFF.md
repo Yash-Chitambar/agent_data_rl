@@ -17,7 +17,7 @@ not a validated sim-to-real insertion model. Existing older training is unchange
 See BIMANUAL_POLICY_INTERFACE.md for the policy contract and existing checks.
 Do not reuse a checkpoint expecting the old observation/action interface.
 
-## Final grasp audit
+## Original grasp audit (superseded by solver correction below)
 
 Run from the repository root:
 
@@ -60,3 +60,26 @@ a long PPO run. Reset diversity and background realism remain incomplete.
 Use reach/identified_carry_comparison.png under results/usbc/bimanual_20261029
 for the latest diagnostic renders. They are simulator renders, not proof of
 physical alignment or real-world success.
+
+## Contact-creep correction
+
+The measured bimanual scene now uses MuJoCo `impratio=100`. This increases
+tangential constraint impedance relative to normal contact impedance; it does
+not change Coulomb coefficients, pad geometry or motor squeeze. The setting is
+supported by the installed Warp model importer. Other scenes are unchanged.
+
+Controlled CPU comparisons with the same identified arm dynamics:
+- Stationary 20-second hold plus one second: default impedance produced 30.336°
+  relative rotation; CPU noslip diagnostic produced 0.218°; impratio=100 produced
+  0.295°. This isolates numerical contact creep from alignment feedback.
+- Full nominal carry with impratio=100: 0.104 mm center shift and 0.281° relative
+  rotation from closure, no grasp loss.
+- Final privileged-feedback preinsertion: 0.0187 mm lateral error, 0.00788° tilt,
+  5.9978 mm gap. This is alignment at a gap, not insertion success.
+
+Reproduce the stationary comparison using audit_bimanual_pick.py with
+`--identified-dynamics --settle-grasp --passive-hold`, adding
+`--diagnostic-impratio 1` for the old solver or `--diagnostic-noslip` for the
+CPU-only diagnostic. For carry use `--identified-dynamics --settle-grasp
+--clearance-carry`. No hardware-derived stiffness is claimed.
+Full GPU grasp/carry parity, insertion and bracing remain required.
