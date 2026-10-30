@@ -132,7 +132,7 @@ def add_details(sp, variant, pc_profile=None):
     box(peg,'sd_board',(0,-bt*.12,end+.00036),(bw*.37,.00045,.00006),(.03,.22,.14,1))
     # Neck remains the physical mesh; add longitudinal rubber seam.
     box(peg,'neck_seam',(0,variant.handle['height']/2-.00012,
-                          .00665+variant.handle_height/2),
+                          variant.peg_length-variant.handle_embed+variant.handle_height/2),
         (variant.handle['width']*.43,.00012,variant.handle_height*.45),(.08,.085,.08,1))
 
     if pc_profile is not None:

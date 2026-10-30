@@ -17,7 +17,7 @@ t.reset();e=t.runtime;f,p=e.pc_qadr,e.lay.peg_qadr
 # Plant two exact seated states for state-machine checks, without pretending a policy inserted them.
 e.q[:,p:p+7]=e.q[:,f:f+7]
 from blind_insertion.envs import kinematics as K
-rot=K.quat_to_mat(e.q[:,f+3:f+7]);local=torch.tensor([0.,0.,-float(e.lay.depth[0])],device=t.device)
+rot=K.quat_to_mat(e.q[:,f+3:f+7]);local=torch.tensor([0.,0.,-float(e.lay.seating_depth[0])],device=t.device)
 e.q[:,p:p+3]+=(rot@local)
 r,term,trunc,info=t._transition();assert not term.any() and not r.any()
 # Break seating in world 1: hold must restart there.

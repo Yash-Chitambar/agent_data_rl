@@ -175,10 +175,11 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         rear = layout(profile)
         boxes = pc_case_boxes(port_from_left=rear['target_from_left'], port_h=rear['port_height'] - feet_h, size=size)
         # The new body_length measures the silver inset, not the full black housing.
-        body_length = B.READER_TOTAL_LENGTH - B.USBC_PLUG_LEN - float(r['neck_length']['value'])
+        exposure = float(r['plug_protrusion']['value'])
+        body_length = B.READER_TOTAL_LENGTH - exposure - float(r['neck_length']['value'])
         variant = variant or B.reader_variant(body=(B.READER_BODY[0], B.READER_BODY[1], body_length),
                                                neck=tuple(float(r[k]['value']) for k in ('neck_width','neck_thickness','neck_length')),
-                                               mass=float(r['mass']['value']))
+                                               mass=float(r['mass']['value']), exposed_length=exposure)
     else:
         boxes = pc_case_boxes()
         variant = variant or B.reader_variant()
@@ -204,6 +205,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
 
     m, lay = B.build("yam", [variant], pad_spheres=4, table_top=table_top, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")
+    lay.seating_depth = np.minimum(lay.depth, variant.peg_length - variant.handle_embed)
     B.apply_variant_cpu(m, lay, 0)
     cfg = json.loads(CONFIG.read_text())        # the insertion env's pad contact (PegEnv._apply_starts)
     m.geom_solref[lay.pad_geoms, 0] = cfg["pad_timeconst"]
@@ -227,12 +229,12 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
     for j, slot in enumerate(lay.peg_slots):      # plug metal, neck black, body light grey
         z = m.geom_aabb[slot].reshape(2, 3)[0, 2] + m.geom_pos[slot, 2]
         m.geom_rgba[slot] = ([0.75, 0.75, 0.78, 1] if z < B.USBC_PLUG_LEN else
-                             [0.08, 0.08, 0.09, 1] if z < B.USBC_PLUG_LEN + variant.handle_height else [0.82, 0.83, 0.85, 1])
+                             [0.08, 0.08, 0.09, 1] if z < B.USBC_PLUG_LEN - variant.handle_embed + variant.handle_height else [0.82, 0.83, 0.85, 1])
     if detailed:
         # Keep the original convex collision body, render its rounded visual shell.
         for slot in lay.peg_slots:
             z = m.geom_aabb[slot].reshape(2, 3)[0, 2] + m.geom_pos[slot, 2]
-            if z > B.USBC_PLUG_LEN + variant.handle_height:
+            if z > B.USBC_PLUG_LEN - variant.handle_embed + variant.handle_height:
                 m.geom_rgba[slot, 3] = 0
     for j in range(len(lay.fixture_slots)):
         m.geom_rgba[lay.fixture_slots[j]] = ([.035,.038,.04,1] if support_mode == "free" else [0.64, 0.65, 0.66, 1])

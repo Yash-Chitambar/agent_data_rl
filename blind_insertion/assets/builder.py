@@ -58,6 +58,7 @@ class Variant:
     hole_spec: dict | None = None  # explicit mjfit hole spec overrides the stadium
     handle: dict | None = None     # mjfit handle outline (e.g. the flash-drive body)
     handle_height: float = 0.0
+    handle_embed: float = 0.0  # overmold overlap with unchanged metal plug, m
     grasp_z: float | None = None   # pad centre height above the peg bottom (default 0.75 L)
     grip_half: float | None = None # half width across the pads (default: peg width at x=0)
     chamfer: float = 0.0           # 45 deg lead-in on the hole's top edge (m), plan §11.1 / E4
@@ -239,7 +240,7 @@ READER_NECK = (0.01287, 0.0045, READER_TOTAL_LENGTH - USBC_PLUG_LEN - READER_BOD
 
 
 def reader_variant(rec=USBC_REC, plug=USBC_PLUG, housing=0.030, body=READER_BODY,
-                   neck=READER_NECK, mass=0.027, chamfer=0.0) -> Variant:
+                   neck=READER_NECK, mass=0.027, chamfer=0.0, exposed_length=None) -> Variant:
     """SanDisk USB-C SD reader (task H) at USB-C spec dimensions (`usbc_spec_variant`).
 
     The plug, then a neck (width, thickness, length) and the wide paddle body (width,
@@ -248,7 +249,11 @@ def reader_variant(rec=USBC_REC, plug=USBC_PLUG, housing=0.030, body=READER_BODY
     """
     v = usbc_spec_variant(rec=rec, plug=plug, housing=housing, neck=neck, mass=mass, chamfer=chamfer)
     bw, bt, bl = body
-    z0 = USBC_PLUG_LEN + neck[2]
+    exposure = USBC_PLUG_LEN if exposed_length is None else float(exposed_length)
+    if not np.isfinite(exposure) or not 0 < exposure <= USBC_PLUG_LEN:
+        raise ValueError("exposed_length must be positive and no longer than the metal plug")
+    v.handle_embed = USBC_PLUG_LEN - exposure
+    z0 = exposure + neck[2]
     v.kind = "reader"
     v.peg_boxes = [((0.0, 0.0, z0 + bl / 2), (bw / 2, bt / 2, bl / 2))]
     v.grasp_z = z0 + bl / 2          # pads at the body's centre
@@ -345,6 +350,10 @@ def extract_pieces(v: Variant) -> Pieces:
             if pc[:, 2].max() <= v.peg_length + 1e-9:
                 pc[:, 0] += np.sign(pc[:, 0]) * v.plug_widen
         peg_poly = peg_poly + np.c_[np.sign(peg_poly[:, 0]) * v.plug_widen, np.zeros(len(peg_poly))]
+    if v.handle_embed:
+        for pc in peg:
+            if pc[:, 2].min() >= v.peg_length - 1e-9 and pc[:, 2].max() > v.peg_length + 1e-9:
+                pc[:, 2] -= v.handle_embed
     for c, h in v.peg_boxes:      # e.g. the SD reader's wide body above its neck
         peg.append(np.array(c) + np.array(list(itertools.product(*[(-x, x) for x in h]))))
     return Pieces(fixture, peg, hole_poly, peg_poly, isl)
@@ -700,6 +709,7 @@ class Layout:
     grasp_z: np.ndarray              # pad centre height above the peg bottom
     edge_points: np.ndarray          # (K, 64, 2) points on the peg bottom edge (peg xy)
     fix_corners: np.ndarray          # (K, 8, 3) fixture bounding-box corners (fixture frame)
+    seating_depth: np.ndarray | None = None  # otherwise cavity depth
 
 
 def _half_width_at_x0(poly: np.ndarray) -> float:

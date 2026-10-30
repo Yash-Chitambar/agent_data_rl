@@ -1,0 +1,9 @@
+{
+  "metal_meshes_bitwise_unchanged": true,
+  "exposed_mm": 5.8,
+  "embedded_mm": 0.8500000000000001,
+  "neck_mm": 43.4,
+  "outer_housing_mm": 41.26,
+  "total_mm": 90.46,
+  "scope": "geometry verification; no force or electrical seating validation"
+}

@@ -15,10 +15,15 @@ aperture, leaving its physical cavity accessible. Other ports remain visual-only
 The new reader caliper body length (29.6 mm) is the SILVER inset, confirmed by the user.
 The black outer housing must also exist. Current measured scene preserves the earlier
 90.46 mm total and 34.73 x 8.83 mm outer body envelope; it uses the new 43.4 x 12.96 x 7 mm
-neck and 17 g mass. The derived housing axial length is 40.41 mm under the retained 6.65 mm
-plug convention. New exposed metal measurement is 5.8 mm: the 0.85 mm discrepancy is
-explicitly unresolved pending an embedded-metal/overmold model. It is not a measured
-housing dimension. Silver inset is 34.6 x 29.6 mm; its axial placement remains estimated.
+neck and 17 g mass. The derived outer housing axial length is 41.26 mm.
+The unchanged 6.65 mm metal plug is embedded 0.85 mm into the overmold, leaving
+the measured 5.8 mm exposed. The neck and housing placements, grasp centre, and
+neck seam follow this embedding. The measured bimanual seating criterion is
+limited by the overmold at 5.8 mm; the cavity remains 6.5 mm deep. This is a
+geometric stop, not validation of insertion forces or electrical connection.
+Silver inset is 34.6 x 29.6 mm; its axial placement remains estimated.
+The 41.26 mm outer housing length is derived from the total, not independently measured.
+
 
 Legacy fixed-scene defaults are kept separate; these measurements currently drive the
 new free-PC scene, not every older training configuration.
