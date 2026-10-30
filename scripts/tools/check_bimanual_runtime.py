@@ -5,6 +5,8 @@ import torch
 from blind_insertion.envs.bimanual_runtime import BimanualCfg,BimanualRuntime
 
 e=BimanualRuntime(BimanualCfg(substeps=2,right_fric_comp={'scale':.5,'ramp':.02}))
+assert e.mjm.dof_frictionloss[e.indices['right'][1][1]]==1.0
+assert e.mjm.dof_frictionloss[e.indices['left'][1][1]]==.01
 a=torch.zeros((2,14),device=e.device)
 for side,offset in [('right',0),('left',7)]:
  q,v,act,grip,limits=e.indices[side];a[:,offset:offset+6]=e.q[:,q];a[:,offset+6]=1

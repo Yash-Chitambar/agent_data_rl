@@ -1,0 +1,47 @@
+{
+  "results": [
+    {
+      "dataset": "older",
+      "friction_nm": 0.01,
+      "joint2_rmse_mrad": 10.166240726485292
+    },
+    {
+      "dataset": "older",
+      "friction_nm": 0.5,
+      "joint2_rmse_mrad": 8.099865272492126
+    },
+    {
+      "dataset": "older",
+      "friction_nm": 1.0,
+      "joint2_rmse_mrad": 6.607974882306132
+    },
+    {
+      "dataset": "older",
+      "friction_nm": 1.5,
+      "joint2_rmse_mrad": 8.739070342558652
+    },
+    {
+      "dataset": "rest",
+      "friction_nm": 0.01,
+      "joint2_rmse_mrad": 5.4009210038082465
+    },
+    {
+      "dataset": "rest",
+      "friction_nm": 0.5,
+      "joint2_rmse_mrad": 4.1109869382488675
+    },
+    {
+      "dataset": "rest",
+      "friction_nm": 1.0,
+      "joint2_rmse_mrad": 3.837502465439808
+    },
+    {
+      "dataset": "rest",
+      "friction_nm": 1.5,
+      "joint2_rmse_mrad": 3.837502465439808
+    }
+  ],
+  "adopted_right_joint2_friction_nm": 1.0,
+  "scope": "two recorded right-arm configurations; no left-arm or full-trajectory validation",
+  "remaining": "driver gravity, payload, other joints and sensor timing still approximate"
+}

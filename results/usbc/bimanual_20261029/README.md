@@ -106,3 +106,29 @@ changing raw captures. The right joint-2 step recording is now replayed using it
 own gains, encoder offsets and actual send times. Unlike the newer recordings,
 this CSV does not record velocity; initial velocity is assumed zero. Its metadata
 retains the right-arm gravity-compensation and Coulomb terms for fitting.
+
+## Right joint-2 and sensor corrections
+
+The runtime now uses 1.0 N m frictionloss for **right joint 2 only**. It matches the
+existing measured prior and improves both the older step test (10.17 to 6.61 mrad
+RMSE) and newer folded-rest test (5.40 to 3.84 mrad). The 0.5/1.0/1.5 sweep and
+source hashes are in `replay/friction_cross_pose/`. Left-arm parameters and driver
+gravity compensation were not inferred from this result; they remain unresolved.
+
+`camera_timing.json` measures delivered cadence from all post-startup frames:
+about 19.95 FPS for both wrists and 27.28 FPS overhead, despite 30 FPS settings.
+The reusable profile retains inter-camera timing, preprocessing delays and stalls.
+With RGB enabled, the runtime replays this schedule at physics substeps, holds
+published frames and exposes their age; reset generations prevent stale frames
+from leaking into a new episode. Initial/reset images assume stationary pre-roll.
+Host receive times are capture proxies, **not measured exposure times**. The
+schedule repeats and is not yet randomized independently across worlds.
+
+Actor joint positions now use native DM 16-bit quantization over +/-12.5 rad;
+relative actions use those measured angles rather than ideal simulator angles.
+Velocity noise/latency and gripper normalized-feedback mapping remain unmodeled.
+
+`gripper_silhouette/` records a stationary opening sweep with fixed calibration.
+Best color-mask overlap is only 0.47 right / 0.66 left. The fit is insufficient to
+adopt a new gripper mapping or move camera transforms. These masks are diagnostic,
+not independent metrology or a passed alignment gate.

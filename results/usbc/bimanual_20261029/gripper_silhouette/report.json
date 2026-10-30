@@ -1,0 +1,88 @@
+{
+  "calibration_sha256": "2881dc099a3fc01b191c0dfad96c86436124da36cbe05680945ae8fabe8f4b4c",
+  "views": {
+    "right": {
+      "frame": "raw_000890.png",
+      "gripper_encoder": 0.9997953754859826,
+      "scores": [
+        {
+          "opening_m": 0.025,
+          "iou": 0.039819081033098024
+        },
+        {
+          "opening_m": 0.03,
+          "iou": 0.0602810650887574
+        },
+        {
+          "opening_m": 0.035,
+          "iou": 0.08932895657321208
+        },
+        {
+          "opening_m": 0.04,
+          "iou": 0.1631869282871308
+        },
+        {
+          "opening_m": 0.043,
+          "iou": 0.25802721693498176
+        },
+        {
+          "opening_m": 0.045,
+          "iou": 0.3693989071038251
+        },
+        {
+          "opening_m": 0.0475,
+          "iou": 0.4590683572216097
+        },
+        {
+          "opening_m": 0.048,
+          "iou": 0.4664651698330455
+        }
+      ],
+      "best_opening_m": 0.048,
+      "best_iou": 0.4664651698330455,
+      "overlay": "green real HSV mask; magenta simulated yellow-tip mesh"
+    },
+    "left": {
+      "frame": "raw_000890.png",
+      "gripper_encoder": 0.9992359519344308,
+      "scores": [
+        {
+          "opening_m": 0.025,
+          "iou": 0.17724867724867724
+        },
+        {
+          "opening_m": 0.03,
+          "iou": 0.2714560482403701
+        },
+        {
+          "opening_m": 0.035,
+          "iou": 0.3661005974629897
+        },
+        {
+          "opening_m": 0.04,
+          "iou": 0.4937798376136878
+        },
+        {
+          "opening_m": 0.043,
+          "iou": 0.6066486400508987
+        },
+        {
+          "opening_m": 0.045,
+          "iou": 0.6596631434218441
+        },
+        {
+          "opening_m": 0.0475,
+          "iou": 0.651517219416769
+        },
+        {
+          "opening_m": 0.048,
+          "iou": 0.6474078844473067
+        }
+      ],
+      "best_opening_m": 0.045,
+      "best_iou": 0.6596631434218441,
+      "overlay": "green real HSV mask; magenta simulated yellow-tip mesh"
+    }
+  },
+  "scope": "stationary opening diagnostic only; no calibration or encoder mapping adopted"
+}

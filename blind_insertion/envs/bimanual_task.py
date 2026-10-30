@@ -40,7 +40,10 @@ class BimanualTask:
     def observation(self):
         obs=self.runtime.proprioception()
         obs['previous_action']=self.previous_action.clone()
-        if self.cfg.physics.render_rgb:obs['rgb']=self.runtime.render()
+        if self.cfg.physics.render_rgb:
+            if self.runtime.camera_sensor is None:obs['rgb']=self.runtime.render()
+            else:
+                obs['rgb'],obs['camera_age_s']=self.runtime.camera_sensor.observation(self.runtime.sensor_time)
         return obs
 
     def reset(self, ids=None):
@@ -57,9 +60,10 @@ class BimanualTask:
             raise ValueError('normalized action must be finite with shape (nworld,14)')
         a=a.clamp(-1,1)
         targets=a.clone()
+        measured=self.runtime.proprioception()["encoder_rad"].reshape(-1,2,6)+self.runtime.encoder_offsets
         for side,offset in (('right',0),('left',7)):
             q=self.runtime.indices[side][0]
-            targets[:,offset:offset+6]=self.runtime.q[:,q]+self.cfg.action_scale_rad*a[:,offset:offset+6]
+            targets[:,offset:offset+6]=measured[:,0 if side=="right" else 1]+self.cfg.action_scale_rad*a[:,offset:offset+6]
         self.runtime.step(targets)
         self.previous_action.copy_(a)
         reward,terminated,truncated,info=self._transition()

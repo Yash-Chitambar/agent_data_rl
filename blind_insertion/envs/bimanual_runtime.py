@@ -22,11 +22,16 @@ class BimanualCfg:
     device: str = 'cuda:0'
     substeps: int = 20
     controller_profile: str = 'native_free_settle_20261028'
+    # Right joint-2 plant friction, supported by old step and newer rest replays.
+    # Distinct from driver feedforward; no right-arm prior is copied to the left.
+    right_joint2_friction_nm: float = 1.0
     right_fric_comp: dict | None = None
     left_fric_comp: dict | None = None
     grip_open: float = 4.
     grip_close: float = -12.
     render_rgb: bool = False
+    measured_camera_cadence: bool = True
+    quantize_encoders: bool = True
     camera_resolution: int = 320
 
 
@@ -38,12 +43,15 @@ class BimanualRuntime:
             raise ValueError('camera_resolution must be between 16 and 2048')
         if c.nworld < 1 or c.substeps < 1:
             raise ValueError('nworld and substeps must be positive')
+        if not np.isfinite(c.right_joint2_friction_nm) or c.right_joint2_friction_nm < 0:
+            raise ValueError('right_joint2_friction_nm must be finite and nonnegative')
         self.device = torch.device(c.device)
         self.comp = {side: FC.parse(getattr(c, side+'_fric_comp'), side=side) for side in ('right','left')}
         profile_path = Path(__file__).resolve().parents[2] / 'data/real_yam/usbc_lab_20261027/rig_profile_provisional_v0.json'
         self.mjm, self.lay = S.build_scene(detailed=True, bimanual=True, measured_support=True,
             support_mode='free', profile=json.loads(profile_path.read_text()), controller_profile=c.controller_profile)
         m = self.mjm
+        m.dof_frictionloss[int(m.joint("joint2").dofadr[0])] = c.right_joint2_friction_nm
         d = mujoco.MjData(m)
         R.reference_pose(m,d,self.lay);S.place_pc(m,d);S.place_reader(m,d,self.lay)
         self.indices = {}
@@ -67,6 +75,8 @@ class BimanualRuntime:
         self.v = wp.to_torch(self.d.qvel)
         self.ctrl = wp.to_torch(self.d.ctrl)
         self.force = wp.to_torch(self.d.qfrc_applied)
+        self.sensor_time = 0.0
+        self.camera_sensor = None
         self.camera_names = ('top','wrist_cam','left_wrist_cam')
         calibration = R.load()
         self.encoder_offsets = torch.tensor(
@@ -82,6 +92,10 @@ class BimanualRuntime:
                 self.rc = mjw.create_render_context(m,nworld=c.nworld,cam_res=[(res,res)]*len(ids),
                     render_rgb=True,render_depth=False,use_textures=True,use_shadows=False,cam_active=active)
                 self.rgb_buffer = wp.zeros((c.nworld,res,res),dtype=wp.vec3)
+            if c.measured_camera_cadence:
+                from blind_insertion.envs.camera_cadence import CameraCadence
+                self.camera_sensor=CameraCadence(self.render,c.nworld,self.device)
+                self.camera_sensor.reset(torch.arange(c.nworld,device=self.device),self.sensor_time)
 
 
     def reset(self, ids=None):
@@ -94,6 +108,7 @@ class BimanualRuntime:
         for name in ('qacc_warmstart','qacc','time'):
             wp.to_torch(getattr(self.d,name))[ids] = 0
         with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
+        if self.camera_sensor is not None:self.camera_sensor.reset(ids,self.sensor_time)
         return self.state()
 
     def step(self, action):
@@ -112,7 +127,10 @@ class BimanualRuntime:
                 self.force[:,v] = FC.feedforward(target-self.q[:,q],tau,ramp)
         # Explicit compensation is computed once and held, as in the recorded driver law.
         with wp.ScopedDevice(self.cfg.device):
-            for _ in range(self.cfg.substeps): mjw.step(self.m,self.d)
+            for _ in range(self.cfg.substeps):
+                mjw.step(self.m,self.d)
+                self.sensor_time+=self.mjm.opt.timestep
+                if self.camera_sensor is not None:self.camera_sensor.advance(self.sensor_time)
         return self.state()
 
     def state(self):
@@ -135,7 +153,11 @@ class BimanualRuntime:
         """
         q = torch.stack([self.q[:,self.indices[side][0]] for side in ('right','left')],dim=1)
         v = torch.stack([self.v[:,self.indices[side][1]] for side in ('right','left')],dim=1)
-        return {'encoder_rad':(q-self.encoder_offsets).flatten(1),'encoder_velocity_rad_s':v.flatten(1)}
+        enc=q-self.encoder_offsets
+        if self.cfg.quantize_encoders:
+            # DM native position telemetry: unsigned 16-bit encoding over +/-12.5 rad.
+            enc=((enc+12.5)*(65535./25.)).round().clamp(0,65535)*(25./65535.)-12.5
+        return {'encoder_rad':enc.flatten(1),'encoder_velocity_rad_s':v.flatten(1)}
 
     def render(self):
         """Instantaneous calibrated RGB frames; exposure/frame-age modeling remains separate."""

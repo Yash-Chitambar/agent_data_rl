@@ -1,0 +1,11 @@
+{
+  "checks": [
+    "hold before publication",
+    "newest ready frame wins",
+    "late old frame discarded",
+    "capture age retained",
+    "reset generation isolation",
+    "returned frames owned"
+  ],
+  "scope": "scheduler semantics; exposure latency is unknown"
+}

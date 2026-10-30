@@ -1,4 +1,15 @@
 {
+  "camera_age_s": {
+    "top": [
+      0.030000030994415283
+    ],
+    "wrist_cam": [
+      0.03700000047683716
+    ],
+    "left_wrist_cam": [
+      0.04700005054473877
+    ]
+  },
   "resolution": [
     320,
     320
@@ -17,7 +28,7 @@
     "object poses excluded from proprioception"
   ],
   "limitations": [
-    "instantaneous frames; exposure latency not modeled",
+    "recorded host cadence; exposure latency unknown",
     "gripper encoder mapping not identified"
   ]
 }

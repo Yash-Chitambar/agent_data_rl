@@ -1,0 +1,82 @@
+{
+  "trial": "bimanual_stationary_001",
+  "clock": "host monotonic",
+  "startup_exclusion_frames": 5,
+  "cameras": {
+    "zed": {
+      "configured_fps": 30,
+      "delivered_fps": 27.284004421432666,
+      "arrival_interval_s": {
+        "count": 1223,
+        "mean": 0.03665151143336058,
+        "median": 0.033503643,
+        "p05": 0.031227286,
+        "p95": 0.0374875211,
+        "max": 0.170736372
+      },
+      "preprocessing_delay_s": {
+        "count": 1224,
+        "mean": 0.007058679928104574,
+        "median": 0.0065881870000000006,
+        "p05": 0.00624140515,
+        "p95": 0.008766752649999996,
+        "max": 0.012002978
+      },
+      "exact_repeats": 0,
+      "policy_consumed_timestamps": 0,
+      "source_sha256": "0ccd68d30b67ac3c3df85a331fd03c02130ea0829fbecb33592301476f32ed78"
+    },
+    "wrist_left": {
+      "configured_fps": 30.0,
+      "delivered_fps": 19.953386673634828,
+      "arrival_interval_s": {
+        "count": 888,
+        "mean": 0.05011680555067568,
+        "median": 0.063233663,
+        "p05": 0.03556429885,
+        "p95": 0.06446616349999999,
+        "max": 0.068101961
+      },
+      "preprocessing_delay_s": {
+        "count": 889,
+        "mean": 0.010319212958380203,
+        "median": 0.010012525,
+        "p05": 0.0092088934,
+        "p95": 0.012331464399999999,
+        "max": 0.0171929
+      },
+      "exact_repeats": 0,
+      "policy_consumed_timestamps": 0,
+      "source_sha256": "312aa59496d6150e0285109aab99d3dd630e116878e0bc3776943ad68f54dc61"
+    },
+    "wrist_right": {
+      "configured_fps": 30.0,
+      "delivered_fps": 19.95360933683633,
+      "arrival_interval_s": {
+        "count": 888,
+        "mean": 0.05011624629504505,
+        "median": 0.0629615395,
+        "p05": 0.03547536335,
+        "p95": 0.064551201,
+        "max": 0.069565657
+      },
+      "preprocessing_delay_s": {
+        "count": 889,
+        "mean": 0.011188942209223847,
+        "median": 0.010562513,
+        "p05": 0.0095791626,
+        "p95": 0.012801796999999998,
+        "max": 0.356439121
+      },
+      "exact_repeats": 0,
+      "policy_consumed_timestamps": 0,
+      "source_sha256": "5154020a5a82509507fb36fc8ded6a54d14eeedb21614878e608512bb524b387"
+    }
+  },
+  "limitations": [
+    "host arrival is not exposure time",
+    "camera clocks are not synchronized to host",
+    "runtime capture load may differ from policy deployment",
+    "no measured policy-consumption timestamps in these captures"
+  ]
+}

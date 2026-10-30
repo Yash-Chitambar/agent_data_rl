@@ -26,6 +26,7 @@ def main():
     p.add_argument("--side", choices=["right", "left"], default="right")
     p.add_argument("--joint", type=int, choices=range(1, 7), default=3)
     p.add_argument("--source", choices=["approach", "steps"], default="approach", help="command log to replay")
+    p.add_argument("--arm-friction", nargs=6, type=float, help="candidate frictionloss for all six arm joints (N m)")
     p.add_argument("--joint3-friction", type=float, help="development-only MuJoCo frictionloss candidate")
     p.add_argument("--stiction", nargs=2, type=float, metavar=("STATIC", "SLIDING"),
                    help="experimental stateful joint-3 torque limits in N m")
@@ -39,6 +40,9 @@ def main():
     a = p.parse_args()
     if not a.output_stem or Path(a.output_stem).name != a.output_stem:
         raise SystemExit("output-stem must be a single path component")
+    if a.arm_friction is not None and (a.joint3_friction is not None or a.stiction or
+            not np.isfinite(a.arm_friction).all() or min(a.arm_friction)<0):
+        raise SystemExit('arm-friction must be finite, nonnegative and exclusive of other friction candidates')
     if a.joint3_friction is not None and (not np.isfinite(a.joint3_friction) or a.joint3_friction < 0):
         raise SystemExit("joint3-friction must be finite and nonnegative")
     if a.stiction and (a.joint3_friction is not None or not np.isfinite(a.stiction).all() or
@@ -92,6 +96,8 @@ def main():
     arm_qadr = np.array([int(m.joint(prefix+f"joint{i}").qposadr[0]) for i in range(1,7)])
     arm_dofadr = np.array([int(m.joint(prefix+f"joint{i}").dofadr[0]) for i in range(1,7)])
     arm_act = np.array([m.actuator(prefix+f"joint{i}").id for i in range(1,7)])
+    if a.arm_friction is not None:
+        m.dof_frictionloss[arm_dofadr] = a.arm_friction
     m.opt.timestep = a.timestep
     joint3 = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, prefix + "joint3")
     dof3 = int(m.jnt_dofadr[joint3])
@@ -192,6 +198,7 @@ def main():
                "command_time": "first matching CAN send on host monotonic clock; zero-order held",
                "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
                "logged_feedforward": "last-computed driver command held at observation timestamps; command execution timestamp unknown; not measured torque" if a.logged_feedforward else None,
+               "arm_frictionloss_nm": m.dof_frictionloss[arm_dofadr].tolist(),
                "joint3_frictionloss_nm": float(m.dof_frictionloss[m.jnt_dofadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, prefix + "joint3")]]),
                "experimental_stiction_nm": a.stiction, "experimental_stiction_mode": a.stiction_mode if a.stiction else None,
                "experimental_state_steps": state_counts if a.stiction else None,

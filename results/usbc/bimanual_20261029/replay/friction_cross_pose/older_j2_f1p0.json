@@ -1,0 +1,119 @@
+{
+  "side": "right",
+  "run": "/home/yashchitambar/peg_test_bimanual/data/real_yam/steps_joint2.csv",
+  "source": "steps",
+  "initial_state": "first steps observation; encoder offsets applied once",
+  "command_time": "first matching CAN send on host monotonic clock; zero-order held",
+  "controller": "logged kp/kd; current MuJoCo scene gravity compensation; optional joint-3 friction candidate",
+  "logged_feedforward": null,
+  "arm_frictionloss_nm": [
+    0.01,
+    1.0,
+    0.01,
+    0.01,
+    0.01,
+    0.01
+  ],
+  "joint3_frictionloss_nm": 0.01,
+  "experimental_stiction_nm": null,
+  "experimental_stiction_mode": null,
+  "experimental_state_steps": null,
+  "driver_feedforward_reconstruction": null,
+  "limitations": [
+    "contacts disabled",
+    "feedforward is a logged computed command, reconstruction, or omitted; no measured torque",
+    "stick/slip force uses inverse mass, not a full constrained contact solve",
+    "not a fitted or held-out validated model",
+    "no external wrist ground truth",
+    "legacy CSV lacks velocity: initial simulated velocity assumed zero; no driver feedforward reconstructed"
+  ],
+  "native_feedback_samples": 7433,
+  "joint_rmse_rad": [
+    0.00012810928863533967,
+    0.006607974882306132,
+    0.0010050162404316564,
+    0.0030768003318574523,
+    0.00037873311173446166,
+    0.0003599753506388988
+  ],
+  "joint_peak_abs_error_rad": [
+    0.00038193979804096516,
+    0.01406290907000951,
+    0.003220338982004023,
+    0.00458762783348754,
+    0.0007672328547813183,
+    0.00038394011125235405
+  ],
+  "model_timestep_s": 0.001,
+  "normalized_input_sha256": {
+    "run.json": "a650ffda3b1a34657094117820d8636c5fd5b362a31f004e4648d4cecff95ce1",
+    "steps.csv": "3dd0a6e01858a7f5c828158970246f93e5cbc92f67af185cb581a169a9040858",
+    "encoder_right.csv": "0c97ba249f87767adc2d4e079fe89794f238239ecbd84ae7993c5f88a50b2345"
+  },
+  "input_sha256": {
+    "data/real_yam/steps_joint2.csv": "de9f45431ddc7e0b90078675a4600d3650405bbdabf84b1aaf8477b827c8730a",
+    "data/real_yam/steps_joint2_meta.json": "74c7455f9d3312d48d44a051d28adc3476c8521dc2246d95917b5f210c5bf1d3"
+  },
+  "recorded_gains": {
+    "gains_before": [
+      [
+        80.0,
+        80.0,
+        80.0,
+        40.0,
+        10.0,
+        10.0
+      ],
+      [
+        5.0,
+        5.0,
+        5.0,
+        1.5,
+        1.5,
+        1.5
+      ]
+    ],
+    "kp": [
+      80.0,
+      80.0,
+      80.0,
+      30.0,
+      30.0,
+      30.0
+    ],
+    "kd": [
+      5.0,
+      5.0,
+      5.0,
+      2.0,
+      2.0,
+      2.0
+    ],
+    "gravity_comp_factor": [
+      1.0,
+      1.1,
+      1.1,
+      1.2,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "coulomb_friction": [
+      0.3,
+      0.3,
+      0.3,
+      0.06,
+      0.06,
+      0.06,
+      0.0
+    ]
+  },
+  "recorded_offsets_rad": [
+    0.0,
+    0.01267,
+    0.00026,
+    0.02318,
+    -0.01946,
+    0.0
+  ]
+}
