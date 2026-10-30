@@ -333,3 +333,22 @@ if __name__ == "__main__":
     if a.write_config:
         CONFIG.write_text(json.dumps(task_config(), indent=1) + "\n")
         print("wrote", CONFIG)
+
+
+def reader_grasp_offset(m, d, lay):
+    """Reader-frame TCP offset placing the lowest pad row at body mid-thickness.
+
+    Uses the installed right gripper's contact spheres and current forward
+    kinematics. This is a geometric grasp proposal, not calibrated compliance.
+    The existing single-arm expert retains its explicit legacy offset.
+    """
+    site_R = d.site_xmat[lay.tcp_site].reshape(3, 3)
+    site_p = d.site_xpos[lay.tcp_site]
+    ids = [i for i in range(m.ngeom)
+           if m.geom(i).name.startswith(("left_pad_s", "right_pad_s"))]
+    if not ids:
+        raise ValueError("reader grasp requires right-gripper contact spheres")
+    local = (d.geom_xpos[ids] - site_p) @ site_R
+    reader_relative = local @ np.asarray(R_TOP_TCP).T
+    lowest_pad_center = float(reader_relative[:, 1].min())
+    return np.array([0., -lowest_pad_center, float(lay.grasp_z[0])])

@@ -1,0 +1,863 @@
+{
+  "scope": "CPU scripted pick in nominal simulator; no hardware validation or bimanual bracing",
+  "reader_attached_artificially": false,
+  "lifted_and_near_tcp": true,
+  "phases": {
+    "approach": {
+      "finger_q_m": [
+        0.04857451018407668,
+        0.048579502323529464
+      ],
+      "gripper_contacts": [
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549263338980673e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549263338980673e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549263338980673e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549263338980673e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549263338980673e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589913582005344e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589913582005344e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589913582005344e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589913582005344e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589913582005344e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452727872354267e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452727872354267e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452727872354267e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452727872354267e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452727872354267e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859039445699343e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859039445699343e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859039445699343e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859039445699343e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859039445699343e-06
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.2737691073502433,
+        0.22090799677324593,
+        -0.028616181013685765
+      ],
+      "reader_center_to_tcp_m": 0.08122621900541771,
+      "max_joint_error_rad": 0.05312562967477887
+    },
+    "grasp": {
+      "finger_q_m": [
+        0.04857580266497376,
+        0.04857877076260315
+      ],
+      "gripper_contacts": [
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549264116503265e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549264116503265e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549264116503265e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549264116503265e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.549264116503265e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899112704247524e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899112704247524e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899112704247524e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899112704247524e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899112704247524e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452752204196227e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452752204196227e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452752204196227e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452752204196227e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452752204196227e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859032900100946e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859032900100946e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859032900100946e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859032900100946e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859032900100946e-06
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.27376996665642506,
+        0.22090799653224547,
+        -0.028616181013685845
+      ],
+      "reader_center_to_tcp_m": 0.0017121251706042387,
+      "max_joint_error_rad": 0.012594027921357442
+    },
+    "close": {
+      "finger_q_m": [
+        0.01896460548297899,
+        0.01896800874647525
+      ],
+      "gripper_contacts": [
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492648094152636e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492648094152636e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492648094152636e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492648094152636e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492648094152636e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899076850968006e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899076850968006e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899076850968006e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899076850968006e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.5899076850968006e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452789179956714e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452789179956714e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452789179956714e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452789179956714e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452789179956714e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859027111680946e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859027111680946e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859027111680946e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859027111680946e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859027111680946e-06
+        },
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6703013692848387e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.670212394115289e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6701234189435924e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.6700344437740643e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.6738882606079694e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.6739765926104457e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.67406492461637e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.6741532566188463e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.2742378503109772,
+        0.22198158853573138,
+        -0.02868988680792003
+      ],
+      "reader_center_to_tcp_m": 0.0012517755245706904,
+      "max_joint_error_rad": 0.005252484339135499
+    },
+    "lift": {
+      "finger_q_m": [
+        0.018967165079739796,
+        0.018965087414666827
+      ],
+      "gripper_contacts": [
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492597454802296e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492597454802296e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492597454802296e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492597454802296e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492597454802296e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589899956313289e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589899956313289e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589899956313289e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589899956313289e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589899956313289e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452866340960554e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452866340960554e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452866340960554e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452866340960554e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452866340960554e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.585907762780775e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.585907762780775e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.585907762780775e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.585907762780775e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.585907762780775e-06
+        },
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6717058801283824e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.6733510910035337e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6749963018813522e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.6766415127592357e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.6724658885353284e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.6708204055967723e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.669174922661035e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.667529439722544e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.272427842667982,
+        0.2203162183064771,
+        0.041535747545853076
+      ],
+      "reader_center_to_tcp_m": 0.00126886542493406,
+      "max_joint_error_rad": 0.01307930034480731
+    },
+    "preinsert": {
+      "finger_q_m": [
+        0.018965875799114594,
+        0.018966311178446577
+      ],
+      "gripper_contacts": [
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492609156630555e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492609156630555e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492609156630555e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492609156630555e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492609156630555e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589891579514827e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589891579514827e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589891579514827e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589891579514827e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589891579514827e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.545295143691335e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.545295143691335e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.545295143691335e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.545295143691335e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.545295143691335e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859067294087226e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859067294087226e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859067294087226e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859067294087226e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859067294087226e-06
+        },
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6720237656514302e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.6713835720320678e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6707433784126837e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.6701031847933213e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.672228071486267e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.672868150080084e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.6735082286767197e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.674148307270515e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.3147918938535054,
+        0.23731400649845577,
+        -0.01416937433968981
+      ],
+      "reader_center_to_tcp_m": 0.0012813499331573823,
+      "max_joint_error_rad": 0.012530769195996605
+    },
+    "hold": {
+      "finger_q_m": [
+        0.018966025360676472,
+        0.018966154415781585
+      ],
+      "gripper_contacts": [
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492623189170783e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492623189170783e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492623189170783e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492623189170783e-06
+        },
+        {
+          "a": "pc_pad_0_0",
+          "b": "table",
+          "distance_m": -3.5492623189170783e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589890556574646e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589890556574646e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589890556574646e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589890556574646e-06
+        },
+        {
+          "a": "pc_pad_0_1",
+          "b": "table",
+          "distance_m": -3.589890556574646e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452961887054077e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452961887054077e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452961887054077e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452961887054077e-06
+        },
+        {
+          "a": "pc_pad_1_0",
+          "b": "table",
+          "distance_m": -3.5452961887054077e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859053494218902e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859053494218902e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859053494218902e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859053494218902e-06
+        },
+        {
+          "a": "pc_pad_1_1",
+          "b": "table",
+          "distance_m": -3.5859053494218902e-06
+        },
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6714750714788458e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.6716802476991087e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6718854239249227e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.6720906001506716e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.672683862410042e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.672478611397697e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.6722733603852652e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.67206810937292e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.3142941335322859,
+        0.237169534661899,
+        -0.018262810434709734
+      ],
+      "reader_center_to_tcp_m": 0.0012930980991882307,
+      "max_joint_error_rad": 0.005012194889076005
+    }
+  },
+  "limitations": [
+    "scripted joint interpolation is not collision-aware planning",
+    "default approximate pad friction and squeeze",
+    "ideal gravity except right joint2 friction",
+    "single fixed reset"
+  ]
+}
