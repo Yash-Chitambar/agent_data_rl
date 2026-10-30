@@ -6,9 +6,9 @@ What the sim still needs from the real YAM rig (duchamp3), in priority order. It
 
 ## 1. Gripper opening sweep (today, ~5 min, jaws only) — DONE 2026-10-30
 
-**Result:** held-out IoU left 0.89, right 0.83; maps monotonic, 0.25 mm RMSE. Arms disagree by
-~5 mm, so the runtime applies the fit to the wrist camera (default). See
-`results/usbc/bimanual_20261029/README.md` (Gripper sweep). Optional: calipers, lens-to-tip, both arms.
+**Result:** calipers 105.25 mm lens-to-tip on both arms; fit held to it: held-out IoU left 0.89,
+right 0.81; maps monotonic, <= 0.4 mm RMSE; arms agree to ~2 mm. Applied to the wrist camera
+(default). See `results/usbc/bimanual_20261029/README.md` (Gripper sweep).
 
 **Why.** The sim fingertips sit 1.5-3.5 mm off the real ones in the wrist images
 (`results/usbc/bimanual_20261029/gripper_tips/`). No FlexPoint CAD is available, so we fit the

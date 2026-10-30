@@ -16,6 +16,12 @@ Output: `results/usbc/bimanual_20261029/gripper_tips/fit.json` and overlays.
 `--sweep DIR` uses a rig capture from `scripts/real/capture_gripper_sweep.py` instead: per arm,
 the fully open and closed-empty frames fit the offset; the intermediate levels are held out,
 fitted for opening only, and give the encoder -> opening map (`gripper_map` in fit.json).
+
+Calipers (2026-10-30, jaws open): tip to wrist-lens centre 105.25 mm on BOTH arms. The nominal
+model gives the same distance on both arms to ~1.5 mm, near that value, while the unconstrained sweep fit
+moved the right tips ~6 mm toward the lens (silhouette depth trades against size and opening).
+`--lens-tol-mm` (default 1) therefore keeps the offset's component along the lens -> tips
+direction within that tolerance: the fit only moves the tips across the view.
 """
 import argparse
 import itertools
@@ -65,6 +71,20 @@ class Scene:
         for side, pre in (('right', ''), ('left', 'left_')):
             bodies = [self.m.body(pre + f + '_finger').id for f in ('left', 'right')]
             self.base[side] = (bodies, self.m.body_pos[bodies].copy())
+
+    def lens_dir(self, side):
+        """Unit vector, gripper frame, from the wrist lens to the open tips' centroid (rigid)."""
+        pre = 'left_' if side == 'left' else ''
+        for f in ('left', 'right'):
+            j = self.m.joint(pre + f + '_finger'); self.d.qpos[j.qposadr] = j.range[1]
+        mujoco.mj_forward(self.m, self.d)
+        V = []
+        for g in self.tip_geoms(side):
+            mid = self.m.geom_dataid[g]; a, n = self.m.mesh_vertadr[mid], self.m.mesh_vertnum[mid]
+            V.append(self.d.geom_xpos[g] + self.m.mesh_vert[a:a + n] @ self.d.geom_xmat[g].reshape(3, 3).T)
+        v = np.vstack(V).mean(0) - self.d.cam_xpos[self.m.camera(pre + 'wrist_cam').id]
+        v = self.d.xmat[self.m.body(pre + 'gripper').id].reshape(3, 3).T @ v
+        return v / np.linalg.norm(v)
 
     def set_arm(self, side, q_enc):
         pre = 'left_' if side == 'left' else ''
@@ -119,6 +139,8 @@ def main():
     p.add_argument('--span-mm', type=float, default=10.0)
     p.add_argument('--step-mm', type=float, default=0.5)
     p.add_argument('--sweep', type=Path, help='rig capture from scripts/real/capture_gripper_sweep.py')
+    p.add_argument('--lens-tol-mm', type=float, default=1.0,
+                   help='max offset along the lens -> tips direction (calipers); negative disables')
     a = p.parse_args()
     if a.sweep and a.out == Path('results/usbc/bimanual_20261029/gripper_tips'):
         a.out = Path('results/usbc/gripper_sweep') / a.sweep.name
@@ -155,11 +177,13 @@ def main():
             out.append(max((iou(sc.render_tips(v['side'], o, offset), v['mask']), o) for o in openings[v['state']]))
         return out
 
-    def search(vs, center, half, step):
+    def search(vs, center, half, step, u):
         best = None
         ax = np.arange(-half, half + 1e-9, step)
         for d in itertools.product(ax, ax, ax):
             offset = center + np.array(d)
+            if a.lens_tol_mm >= 0 and abs(u @ offset) > a.lens_tol_mm * 1e-3 + 1e-9:
+                continue
             mean = float(np.mean([x[0] for x in score(offset, vs)]))
             if best is None or mean > best[0]:
                 best = (mean, offset)
@@ -169,12 +193,16 @@ def main():
     offsets, results = {}, []
     for side in sorted({v['side'] for v in views}):
         fit_views = [v for v in views if v['side'] == side and v['role'] == 'fit']
-        coarse = search(fit_views, np.zeros(3), a.span_mm * 1e-3, 2e-3)
-        fine = search(fit_views, coarse[1], 2e-3, a.step_mm * 1e-3)
+        u = sc.lens_dir(side)
+        coarse = search(fit_views, np.zeros(3), a.span_mm * 1e-3, 2e-3, u)
+        fine = search(fit_views, coarse[1], 2e-3, a.step_mm * 1e-3, u)
         offsets[side] = fine[1]
         on_edge = bool(np.any(np.abs(fine[1]) >= a.span_mm * 1e-3 - 1e-9))
         report['arms'][side] = {'fitted_offset_mm': dict(zip(AXES, (fine[1] * 1e3).round(2).tolist())),
-                                'fit_mean_iou': round(fine[0], 3), 'offset_on_search_edge': on_edge}
+                                'fit_mean_iou': round(fine[0], 3), 'offset_on_search_edge': on_edge,
+                                'lens_dir_gripper_frame': u.round(4).tolist(),
+                                'offset_along_lens_mm': round(float(u @ fine[1]) * 1e3, 2),
+                                'lens_tol_mm': a.lens_tol_mm}
     for v in views:
         results.append((v, score(np.zeros(3), [v])[0], score(offsets[v['side']], [v])[0]))
     for v, b0, b1 in results:

@@ -38,9 +38,10 @@ class BimanualCfg:
     pc_friction_range: tuple | None = (0.3, 0.9)
     # Fingertip/wrist-camera alignment fitted to wrist silhouettes (scripts/tools/fit_gripper_tips.py
     # --sweep): a fit.json path, 'fitted' for the older bundle-only fit, or None. The silhouettes
-    # cannot separate tip geometry from a hand-eye translation error, and the two arms disagree
-    # by ~5 mm (identical hardware), so by default the fit moves the wrist CAMERA by the opposite
-    # offset ('camera': images match, grasp physics unchanged). 'tips' moves the finger bodies.
+    # cannot separate tip geometry from a hand-eye translation error. The sweep fit is held to the
+    # calipered lens-to-tip distance (105.25 mm, both arms); the remaining offsets (<= 4 mm, mostly
+    # along the fingers) could be either, so by default the fit moves the wrist CAMERA by the
+    # opposite offset ('camera': images match, grasp physics unchanged). 'tips' moves the fingers.
     tip_offset: str | None = 'results/usbc/gripper_sweep/sweep_20261030/fit.json'
     tip_offset_target: str = 'camera'
     # Legacy plant only (dynamics_profile=None): right joint-2 friction from the older replays.

@@ -1,5 +1,5 @@
 {
- "method": "Fit the FlexPoint tip offset and per-state opening to recorded wrist silhouettes.\n\nThe yellow tips are rigid relative to the wrist camera apart from the opening, so their\nsilhouette in the calibrated policy crop constrains the tip geometry in the gripper frame.\nPer arm, a rigid offset of both finger bodies in the gripper frame (x: finger thickness,\ntoward the wrist camera; y: lateral/opening; z: along the fingers, -z is the approach) and\nthe opening per frame are fitted by IoU. Left fit frames: `left_reader_002` open and closed\nempty (tips touching: absolute opening zero). Right: open frames only (no recorded closed\nframe), so its offset trades off against the opening and is weaker. Held-out frames come\nfrom other runs (other arm poses, backgrounds, lighting). The fitted offset cannot by\nitself separate tip geometry from a hand-eye translation error: both move the near-field\ntips while barely moving the far-field calibration board. Masks: HSV yellow in the lower\npart of the crop (assumption).\nOutput: `results/usbc/bimanual_20261029/gripper_tips/fit.json` and overlays.\n\n`--sweep DIR` uses a rig capture from `scripts/real/capture_gripper_sweep.py` instead: per arm,\nthe fully open and closed-empty frames fit the offset; the intermediate levels are held out,\nfitted for opening only, and give the encoder -> opening map (`gripper_map` in fit.json).",
+ "method": "Fit the FlexPoint tip offset and per-state opening to recorded wrist silhouettes.\n\nThe yellow tips are rigid relative to the wrist camera apart from the opening, so their\nsilhouette in the calibrated policy crop constrains the tip geometry in the gripper frame.\nPer arm, a rigid offset of both finger bodies in the gripper frame (x: finger thickness,\ntoward the wrist camera; y: lateral/opening; z: along the fingers, -z is the approach) and\nthe opening per frame are fitted by IoU. Left fit frames: `left_reader_002` open and closed\nempty (tips touching: absolute opening zero). Right: open frames only (no recorded closed\nframe), so its offset trades off against the opening and is weaker. Held-out frames come\nfrom other runs (other arm poses, backgrounds, lighting). The fitted offset cannot by\nitself separate tip geometry from a hand-eye translation error: both move the near-field\ntips while barely moving the far-field calibration board. Masks: HSV yellow in the lower\npart of the crop (assumption).\nOutput: `results/usbc/bimanual_20261029/gripper_tips/fit.json` and overlays.\n\n`--sweep DIR` uses a rig capture from `scripts/real/capture_gripper_sweep.py` instead: per arm,\nthe fully open and closed-empty frames fit the offset; the intermediate levels are held out,\nfitted for opening only, and give the encoder -> opening map (`gripper_map` in fit.json).\n\nCalipers (2026-10-30, jaws open): tip to wrist-lens centre 105.25 mm on BOTH arms. The nominal\nmodel gives the same distance on both arms to ~1.5 mm, near that value, while the unconstrained sweep fit\nmoved the right tips ~6 mm toward the lens (silhouette depth trades against size and opening).\n`--lens-tol-mm` (default 1) therefore keeps the offset's component along the lens -> tips\ndirection within that tolerance: the fit only moves the tips across the view.",
  "axes_gripper_frame": [
   "x_thickness_toward_camera",
   "y_lateral_opening",
@@ -8,17 +8,24 @@
  "arms": {
   "left": {
    "fitted_offset_mm": {
-    "x_thickness_toward_camera": -2.0,
+    "x_thickness_toward_camera": -1.0,
     "y_lateral_opening": -0.5,
-    "z_along_fingers": -3.5
+    "z_along_fingers": -4.0
    },
    "fit_mean_iou": 0.867,
    "offset_on_search_edge": false,
+   "lens_dir_gripper_frame": [
+    0.9687,
+    0.054,
+    -0.2425
+   ],
+   "offset_along_lens_mm": -0.03,
+   "lens_tol_mm": 1.0,
    "gripper_map": {
     "opening_m_per_finger_vs_encoder": "opening = slope * encoder + intercept",
-    "slope": 0.047694364462455355,
-    "intercept": -9.239226238847972e-05,
-    "rmse_mm": 0.24571493521299087,
+    "slope": 0.0481589682881969,
+    "intercept": 0.00022811298535447007,
+    "rmse_mm": 0.39649317905165954,
     "monotonic": true,
     "points": [
      [
@@ -47,39 +54,39 @@
      ],
      [
       0.1361,
-      0.006
+      0.007
      ],
      [
       0.1361,
-      0.006
+      0.007
      ],
      [
       0.1361,
-      0.006
+      0.007
      ],
      [
       0.2168,
-      0.01
+      0.011
      ],
      [
       0.2168,
-      0.01
+      0.011
      ],
      [
       0.2168,
-      0.01
+      0.011
      ],
      [
       0.3188,
-      0.015
+      0.016
      ],
      [
       0.3188,
-      0.015
+      0.016
      ],
      [
       0.3188,
-      0.015
+      0.016
      ],
      [
       0.4206,
@@ -119,69 +126,76 @@
      ],
      [
       0.8684,
-      0.041
+      0.042
      ],
      [
       0.8684,
-      0.041
+      0.042
      ],
      [
       0.8684,
-      0.041
+      0.042
      ],
      [
       0.9832,
-      0.047
+      0.048
      ],
      [
       0.9832,
-      0.047
+      0.048
      ],
      [
       0.9832,
-      0.047
+      0.048
      ],
      [
       0.9833,
-      0.047
+      0.048
      ],
      [
       0.9833,
-      0.047
+      0.048
      ],
      [
       0.9833,
-      0.047
+      0.048
      ]
     ]
    }
   },
   "right": {
    "fitted_offset_mm": {
-    "x_thickness_toward_camera": -7.0,
-    "y_lateral_opening": -0.5,
-    "z_along_fingers": 2.0
+    "x_thickness_toward_camera": -1.5,
+    "y_lateral_opening": 0.0,
+    "z_along_fingers": -2.0
    },
-   "fit_mean_iou": 0.82,
+   "fit_mean_iou": 0.793,
    "offset_on_search_edge": false,
+   "lens_dir_gripper_frame": [
+    0.9646,
+    0.0664,
+    -0.2552
+   ],
+   "offset_along_lens_mm": -0.94,
+   "lens_tol_mm": 1.0,
    "gripper_map": {
     "opening_m_per_finger_vs_encoder": "opening = slope * encoder + intercept",
-    "slope": 0.043212174787398624,
-    "intercept": -0.0004095229356605998,
-    "rmse_mm": 0.2589161171817903,
+    "slope": 0.046868111933358894,
+    "intercept": -0.0002733138808824347,
+    "rmse_mm": 0.2818669383860186,
     "monotonic": true,
     "points": [
      [
       0.0586,
-      0.002
+      0.003
      ],
      [
       0.0586,
-      0.002
+      0.003
      ],
      [
       0.0586,
-      0.002
+      0.003
      ],
      [
       0.0773,
@@ -197,111 +211,111 @@
      ],
      [
       0.1334,
-      0.005
+      0.006
      ],
      [
       0.1335,
-      0.005
+      0.006
      ],
      [
       0.1335,
-      0.005
+      0.006
      ],
      [
       0.2131,
-      0.009
+      0.01
      ],
      [
       0.2131,
-      0.009
+      0.01
      ],
      [
       0.2131,
-      0.009
+      0.01
      ],
      [
       0.3115,
-      0.013
+      0.014
      ],
      [
       0.3115,
-      0.013
+      0.014
      ],
      [
       0.3115,
-      0.013
+      0.014
      ],
      [
       0.4145,
-      0.018
+      0.019
      ],
      [
       0.4145,
-      0.018
+      0.019
      ],
      [
       0.4146,
-      0.018
+      0.019
      ],
      [
       0.5612,
-      0.024
+      0.026
      ],
      [
       0.5612,
-      0.024
+      0.026
      ],
      [
       0.5622,
-      0.024
+      0.026
      ],
      [
       0.7137,
-      0.03
+      0.033
      ],
      [
       0.7137,
-      0.03
+      0.033
      ],
      [
       0.7137,
-      0.03
+      0.033
      ],
      [
       0.8643,
-      0.037
+      0.04
      ],
      [
       0.8643,
-      0.037
+      0.04
      ],
      [
       0.8643,
-      0.037
+      0.04
      ],
      [
       0.9866,
-      0.042
+      0.046
      ],
      [
       0.9866,
-      0.042
+      0.046
      ],
      [
       0.9866,
-      0.042
+      0.046
      ],
      [
       0.9998,
-      0.043
+      0.047
      ],
      [
       0.9998,
-      0.043
+      0.047
      ],
      [
       0.9998,
-      0.043
+      0.047
      ]
     ]
    }
@@ -316,8 +330,8 @@
    "role": "fit",
    "iou_current": 0.475,
    "opening_current_m": 0.048,
-   "iou_fitted_offset": 0.825,
-   "opening_fitted_m": 0.043
+   "iou_fitted_offset": 0.782,
+   "opening_fitted_m": 0.047
   },
   {
    "side": "right",
@@ -327,8 +341,8 @@
    "role": "held_out",
    "iou_current": 0.479,
    "opening_current_m": 0.048,
-   "iou_fitted_offset": 0.832,
-   "opening_fitted_m": 0.043
+   "iou_fitted_offset": 0.777,
+   "opening_fitted_m": 0.047
   },
   {
    "side": "right",
@@ -338,8 +352,8 @@
    "role": "held_out",
    "iou_current": 0.48,
    "opening_current_m": 0.048,
-   "iou_fitted_offset": 0.83,
-   "opening_fitted_m": 0.043
+   "iou_fitted_offset": 0.778,
+   "opening_fitted_m": 0.047
   },
   {
    "side": "right",
@@ -349,8 +363,8 @@
    "role": "held_out",
    "iou_current": 0.591,
    "opening_current_m": 0.042,
-   "iou_fitted_offset": 0.837,
-   "opening_fitted_m": 0.037
+   "iou_fitted_offset": 0.807,
+   "opening_fitted_m": 0.04
   },
   {
    "side": "right",
@@ -360,8 +374,8 @@
    "role": "held_out",
    "iou_current": 0.591,
    "opening_current_m": 0.041,
-   "iou_fitted_offset": 0.836,
-   "opening_fitted_m": 0.037
+   "iou_fitted_offset": 0.807,
+   "opening_fitted_m": 0.04
   },
   {
    "side": "right",
@@ -371,8 +385,8 @@
    "role": "held_out",
    "iou_current": 0.591,
    "opening_current_m": 0.042,
-   "iou_fitted_offset": 0.836,
-   "opening_fitted_m": 0.037
+   "iou_fitted_offset": 0.807,
+   "opening_fitted_m": 0.04
   },
   {
    "side": "right",
@@ -382,8 +396,8 @@
    "role": "held_out",
    "iou_current": 0.634,
    "opening_current_m": 0.034,
-   "iou_fitted_offset": 0.833,
-   "opening_fitted_m": 0.03
+   "iou_fitted_offset": 0.817,
+   "opening_fitted_m": 0.033
   },
   {
    "side": "right",
@@ -393,8 +407,8 @@
    "role": "held_out",
    "iou_current": 0.634,
    "opening_current_m": 0.034,
-   "iou_fitted_offset": 0.834,
-   "opening_fitted_m": 0.03
+   "iou_fitted_offset": 0.818,
+   "opening_fitted_m": 0.033
   },
   {
    "side": "right",
@@ -404,8 +418,8 @@
    "role": "held_out",
    "iou_current": 0.634,
    "opening_current_m": 0.034,
-   "iou_fitted_offset": 0.833,
-   "opening_fitted_m": 0.03
+   "iou_fitted_offset": 0.817,
+   "opening_fitted_m": 0.033
   },
   {
    "side": "right",
@@ -415,8 +429,8 @@
    "role": "held_out",
    "iou_current": 0.632,
    "opening_current_m": 0.027,
-   "iou_fitted_offset": 0.853,
-   "opening_fitted_m": 0.024
+   "iou_fitted_offset": 0.829,
+   "opening_fitted_m": 0.026
   },
   {
    "side": "right",
@@ -426,8 +440,8 @@
    "role": "held_out",
    "iou_current": 0.633,
    "opening_current_m": 0.027,
-   "iou_fitted_offset": 0.853,
-   "opening_fitted_m": 0.024
+   "iou_fitted_offset": 0.83,
+   "opening_fitted_m": 0.026
   },
   {
    "side": "right",
@@ -437,8 +451,8 @@
    "role": "held_out",
    "iou_current": 0.631,
    "opening_current_m": 0.027,
-   "iou_fitted_offset": 0.852,
-   "opening_fitted_m": 0.024
+   "iou_fitted_offset": 0.829,
+   "opening_fitted_m": 0.026
   },
   {
    "side": "right",
@@ -448,8 +462,8 @@
    "role": "held_out",
    "iou_current": 0.595,
    "opening_current_m": 0.02,
-   "iou_fitted_offset": 0.832,
-   "opening_fitted_m": 0.018
+   "iou_fitted_offset": 0.822,
+   "opening_fitted_m": 0.019
   },
   {
    "side": "right",
@@ -459,8 +473,8 @@
    "role": "held_out",
    "iou_current": 0.595,
    "opening_current_m": 0.02,
-   "iou_fitted_offset": 0.832,
-   "opening_fitted_m": 0.018
+   "iou_fitted_offset": 0.822,
+   "opening_fitted_m": 0.019
   },
   {
    "side": "right",
@@ -470,8 +484,8 @@
    "role": "held_out",
    "iou_current": 0.595,
    "opening_current_m": 0.02,
-   "iou_fitted_offset": 0.832,
-   "opening_fitted_m": 0.018
+   "iou_fitted_offset": 0.821,
+   "opening_fitted_m": 0.019
   },
   {
    "side": "right",
@@ -481,8 +495,8 @@
    "role": "held_out",
    "iou_current": 0.592,
    "opening_current_m": 0.016,
-   "iou_fitted_offset": 0.836,
-   "opening_fitted_m": 0.013
+   "iou_fitted_offset": 0.816,
+   "opening_fitted_m": 0.014
   },
   {
    "side": "right",
@@ -492,8 +506,8 @@
    "role": "held_out",
    "iou_current": 0.591,
    "opening_current_m": 0.017,
-   "iou_fitted_offset": 0.835,
-   "opening_fitted_m": 0.013
+   "iou_fitted_offset": 0.815,
+   "opening_fitted_m": 0.014
   },
   {
    "side": "right",
@@ -503,8 +517,8 @@
    "role": "held_out",
    "iou_current": 0.592,
    "opening_current_m": 0.016,
-   "iou_fitted_offset": 0.837,
-   "opening_fitted_m": 0.013
+   "iou_fitted_offset": 0.816,
+   "opening_fitted_m": 0.014
   },
   {
    "side": "right",
@@ -514,8 +528,8 @@
    "role": "held_out",
    "iou_current": 0.598,
    "opening_current_m": 0.012,
-   "iou_fitted_offset": 0.835,
-   "opening_fitted_m": 0.009
+   "iou_fitted_offset": 0.823,
+   "opening_fitted_m": 0.01
   },
   {
    "side": "right",
@@ -525,8 +539,8 @@
    "role": "held_out",
    "iou_current": 0.599,
    "opening_current_m": 0.012,
-   "iou_fitted_offset": 0.836,
-   "opening_fitted_m": 0.009
+   "iou_fitted_offset": 0.824,
+   "opening_fitted_m": 0.01
   },
   {
    "side": "right",
@@ -536,8 +550,8 @@
    "role": "held_out",
    "iou_current": 0.598,
    "opening_current_m": 0.012,
-   "iou_fitted_offset": 0.834,
-   "opening_fitted_m": 0.009
+   "iou_fitted_offset": 0.823,
+   "opening_fitted_m": 0.01
   },
   {
    "side": "right",
@@ -547,8 +561,8 @@
    "role": "held_out",
    "iou_current": 0.603,
    "opening_current_m": 0.008,
-   "iou_fitted_offset": 0.836,
-   "opening_fitted_m": 0.005
+   "iou_fitted_offset": 0.822,
+   "opening_fitted_m": 0.006
   },
   {
    "side": "right",
@@ -558,8 +572,8 @@
    "role": "held_out",
    "iou_current": 0.601,
    "opening_current_m": 0.008,
-   "iou_fitted_offset": 0.835,
-   "opening_fitted_m": 0.005
+   "iou_fitted_offset": 0.821,
+   "opening_fitted_m": 0.006
   },
   {
    "side": "right",
@@ -569,8 +583,8 @@
    "role": "held_out",
    "iou_current": 0.6,
    "opening_current_m": 0.008,
-   "iou_fitted_offset": 0.833,
-   "opening_fitted_m": 0.005
+   "iou_fitted_offset": 0.818,
+   "opening_fitted_m": 0.006
   },
   {
    "side": "right",
@@ -580,7 +594,7 @@
    "role": "held_out",
    "iou_current": 0.601,
    "opening_current_m": 0.006,
-   "iou_fitted_offset": 0.833,
+   "iou_fitted_offset": 0.817,
    "opening_fitted_m": 0.003
   },
   {
@@ -591,7 +605,7 @@
    "role": "held_out",
    "iou_current": 0.6,
    "opening_current_m": 0.006,
-   "iou_fitted_offset": 0.83,
+   "iou_fitted_offset": 0.815,
    "opening_fitted_m": 0.003
   },
   {
@@ -602,7 +616,7 @@
    "role": "held_out",
    "iou_current": 0.6,
    "opening_current_m": 0.006,
-   "iou_fitted_offset": 0.83,
+   "iou_fitted_offset": 0.815,
    "opening_fitted_m": 0.003
   },
   {
@@ -614,7 +628,7 @@
    "iou_current": 0.604,
    "opening_current_m": 0.005,
    "iou_fitted_offset": 0.819,
-   "opening_fitted_m": 0.002
+   "opening_fitted_m": 0.003
   },
   {
    "side": "right",
@@ -624,8 +638,8 @@
    "role": "held_out",
    "iou_current": 0.601,
    "opening_current_m": 0.005,
-   "iou_fitted_offset": 0.817,
-   "opening_fitted_m": 0.002
+   "iou_fitted_offset": 0.816,
+   "opening_fitted_m": 0.003
   },
   {
    "side": "right",
@@ -635,8 +649,8 @@
    "role": "held_out",
    "iou_current": 0.605,
    "opening_current_m": 0.005,
-   "iou_fitted_offset": 0.822,
-   "opening_fitted_m": 0.002
+   "iou_fitted_offset": 0.821,
+   "opening_fitted_m": 0.003
   },
   {
    "side": "right",
@@ -646,8 +660,8 @@
    "role": "fit",
    "iou_current": 0.48,
    "opening_current_m": 0.047,
-   "iou_fitted_offset": 0.815,
-   "opening_fitted_m": 0.042
+   "iou_fitted_offset": 0.778,
+   "opening_fitted_m": 0.046
   },
   {
    "side": "right",
@@ -657,8 +671,8 @@
    "role": "held_out",
    "iou_current": 0.481,
    "opening_current_m": 0.047,
-   "iou_fitted_offset": 0.819,
-   "opening_fitted_m": 0.042
+   "iou_fitted_offset": 0.781,
+   "opening_fitted_m": 0.046
   },
   {
    "side": "right",
@@ -668,8 +682,8 @@
    "role": "held_out",
    "iou_current": 0.483,
    "opening_current_m": 0.047,
-   "iou_fitted_offset": 0.818,
-   "opening_fitted_m": 0.042
+   "iou_fitted_offset": 0.778,
+   "opening_fitted_m": 0.046
   },
   {
    "side": "left",
@@ -679,8 +693,8 @@
    "role": "fit",
    "iou_current": 0.669,
    "opening_current_m": 0.045,
-   "iou_fitted_offset": 0.85,
-   "opening_fitted_m": 0.047
+   "iou_fitted_offset": 0.852,
+   "opening_fitted_m": 0.048
   },
   {
    "side": "left",
@@ -690,8 +704,8 @@
    "role": "held_out",
    "iou_current": 0.668,
    "opening_current_m": 0.045,
-   "iou_fitted_offset": 0.85,
-   "opening_fitted_m": 0.047
+   "iou_fitted_offset": 0.852,
+   "opening_fitted_m": 0.048
   },
   {
    "side": "left",
@@ -701,8 +715,8 @@
    "role": "held_out",
    "iou_current": 0.668,
    "opening_current_m": 0.045,
-   "iou_fitted_offset": 0.85,
-   "opening_fitted_m": 0.047
+   "iou_fitted_offset": 0.852,
+   "opening_fitted_m": 0.048
   },
   {
    "side": "left",
@@ -712,8 +726,8 @@
    "role": "held_out",
    "iou_current": 0.701,
    "opening_current_m": 0.041,
-   "iou_fitted_offset": 0.873,
-   "opening_fitted_m": 0.041
+   "iou_fitted_offset": 0.877,
+   "opening_fitted_m": 0.042
   },
   {
    "side": "left",
@@ -723,8 +737,8 @@
    "role": "held_out",
    "iou_current": 0.701,
    "opening_current_m": 0.041,
-   "iou_fitted_offset": 0.873,
-   "opening_fitted_m": 0.041
+   "iou_fitted_offset": 0.876,
+   "opening_fitted_m": 0.042
   },
   {
    "side": "left",
@@ -734,8 +748,8 @@
    "role": "held_out",
    "iou_current": 0.701,
    "opening_current_m": 0.041,
-   "iou_fitted_offset": 0.874,
-   "opening_fitted_m": 0.041
+   "iou_fitted_offset": 0.877,
+   "opening_fitted_m": 0.042
   },
   {
    "side": "left",
@@ -745,7 +759,7 @@
    "role": "held_out",
    "iou_current": 0.725,
    "opening_current_m": 0.035,
-   "iou_fitted_offset": 0.893,
+   "iou_fitted_offset": 0.892,
    "opening_fitted_m": 0.034
   },
   {
@@ -756,7 +770,7 @@
    "role": "held_out",
    "iou_current": 0.726,
    "opening_current_m": 0.035,
-   "iou_fitted_offset": 0.893,
+   "iou_fitted_offset": 0.891,
    "opening_fitted_m": 0.034
   },
   {
@@ -767,7 +781,7 @@
    "role": "held_out",
    "iou_current": 0.726,
    "opening_current_m": 0.035,
-   "iou_fitted_offset": 0.893,
+   "iou_fitted_offset": 0.892,
    "opening_fitted_m": 0.034
   },
   {
@@ -778,7 +792,7 @@
    "role": "held_out",
    "iou_current": 0.715,
    "opening_current_m": 0.028,
-   "iou_fitted_offset": 0.88,
+   "iou_fitted_offset": 0.884,
    "opening_fitted_m": 0.027
   },
   {
@@ -789,7 +803,7 @@
    "role": "held_out",
    "iou_current": 0.714,
    "opening_current_m": 0.028,
-   "iou_fitted_offset": 0.88,
+   "iou_fitted_offset": 0.885,
    "opening_fitted_m": 0.027
   },
   {
@@ -800,7 +814,7 @@
    "role": "held_out",
    "iou_current": 0.714,
    "opening_current_m": 0.028,
-   "iou_fitted_offset": 0.879,
+   "iou_fitted_offset": 0.884,
    "opening_fitted_m": 0.027
   },
   {
@@ -811,7 +825,7 @@
    "role": "held_out",
    "iou_current": 0.697,
    "opening_current_m": 0.021,
-   "iou_fitted_offset": 0.896,
+   "iou_fitted_offset": 0.892,
    "opening_fitted_m": 0.02
   },
   {
@@ -822,7 +836,7 @@
    "role": "held_out",
    "iou_current": 0.696,
    "opening_current_m": 0.021,
-   "iou_fitted_offset": 0.895,
+   "iou_fitted_offset": 0.89,
    "opening_fitted_m": 0.02
   },
   {
@@ -833,7 +847,7 @@
    "role": "held_out",
    "iou_current": 0.696,
    "opening_current_m": 0.021,
-   "iou_fitted_offset": 0.895,
+   "iou_fitted_offset": 0.89,
    "opening_fitted_m": 0.02
   },
   {
@@ -844,8 +858,8 @@
    "role": "held_out",
    "iou_current": 0.701,
    "opening_current_m": 0.016,
-   "iou_fitted_offset": 0.909,
-   "opening_fitted_m": 0.015
+   "iou_fitted_offset": 0.896,
+   "opening_fitted_m": 0.016
   },
   {
    "side": "left",
@@ -855,8 +869,8 @@
    "role": "held_out",
    "iou_current": 0.701,
    "opening_current_m": 0.016,
-   "iou_fitted_offset": 0.911,
-   "opening_fitted_m": 0.015
+   "iou_fitted_offset": 0.897,
+   "opening_fitted_m": 0.016
   },
   {
    "side": "left",
@@ -866,8 +880,8 @@
    "role": "held_out",
    "iou_current": 0.699,
    "opening_current_m": 0.016,
-   "iou_fitted_offset": 0.909,
-   "opening_fitted_m": 0.015
+   "iou_fitted_offset": 0.896,
+   "opening_fitted_m": 0.016
   },
   {
    "side": "left",
@@ -878,7 +892,7 @@
    "iou_current": 0.697,
    "opening_current_m": 0.011,
    "iou_fitted_offset": 0.904,
-   "opening_fitted_m": 0.01
+   "opening_fitted_m": 0.011
   },
   {
    "side": "left",
@@ -888,8 +902,8 @@
    "role": "held_out",
    "iou_current": 0.699,
    "opening_current_m": 0.011,
-   "iou_fitted_offset": 0.905,
-   "opening_fitted_m": 0.01
+   "iou_fitted_offset": 0.906,
+   "opening_fitted_m": 0.011
   },
   {
    "side": "left",
@@ -900,7 +914,7 @@
    "iou_current": 0.698,
    "opening_current_m": 0.011,
    "iou_fitted_offset": 0.905,
-   "opening_fitted_m": 0.01
+   "opening_fitted_m": 0.011
   },
   {
    "side": "left",
@@ -910,8 +924,8 @@
    "role": "held_out",
    "iou_current": 0.692,
    "opening_current_m": 0.008,
-   "iou_fitted_offset": 0.896,
-   "opening_fitted_m": 0.006
+   "iou_fitted_offset": 0.904,
+   "opening_fitted_m": 0.007
   },
   {
    "side": "left",
@@ -921,8 +935,8 @@
    "role": "held_out",
    "iou_current": 0.689,
    "opening_current_m": 0.008,
-   "iou_fitted_offset": 0.893,
-   "opening_fitted_m": 0.006
+   "iou_fitted_offset": 0.901,
+   "opening_fitted_m": 0.007
   },
   {
    "side": "left",
@@ -932,8 +946,8 @@
    "role": "held_out",
    "iou_current": 0.693,
    "opening_current_m": 0.008,
-   "iou_fitted_offset": 0.898,
-   "opening_fitted_m": 0.006
+   "iou_fitted_offset": 0.905,
+   "opening_fitted_m": 0.007
   },
   {
    "side": "left",
@@ -943,7 +957,7 @@
    "role": "held_out",
    "iou_current": 0.677,
    "opening_current_m": 0.005,
-   "iou_fitted_offset": 0.89,
+   "iou_fitted_offset": 0.896,
    "opening_fitted_m": 0.004
   },
   {
@@ -954,7 +968,7 @@
    "role": "held_out",
    "iou_current": 0.68,
    "opening_current_m": 0.005,
-   "iou_fitted_offset": 0.893,
+   "iou_fitted_offset": 0.899,
    "opening_fitted_m": 0.004
   },
   {
@@ -965,7 +979,7 @@
    "role": "held_out",
    "iou_current": 0.68,
    "opening_current_m": 0.005,
-   "iou_fitted_offset": 0.893,
+   "iou_fitted_offset": 0.898,
    "opening_fitted_m": 0.004
   },
   {
@@ -976,7 +990,7 @@
    "role": "fit",
    "iou_current": 0.677,
    "opening_current_m": 0.003,
-   "iou_fitted_offset": 0.896,
+   "iou_fitted_offset": 0.897,
    "opening_fitted_m": 0.002
   },
   {
@@ -987,7 +1001,7 @@
    "role": "held_out",
    "iou_current": 0.676,
    "opening_current_m": 0.003,
-   "iou_fitted_offset": 0.896,
+   "iou_fitted_offset": 0.897,
    "opening_fitted_m": 0.002
   },
   {
@@ -998,7 +1012,7 @@
    "role": "held_out",
    "iou_current": 0.677,
    "opening_current_m": 0.003,
-   "iou_fitted_offset": 0.896,
+   "iou_fitted_offset": 0.897,
    "opening_fitted_m": 0.002
   },
   {
@@ -1009,8 +1023,8 @@
    "role": "fit",
    "iou_current": 0.666,
    "opening_current_m": 0.045,
-   "iou_fitted_offset": 0.856,
-   "opening_fitted_m": 0.047
+   "iou_fitted_offset": 0.852,
+   "opening_fitted_m": 0.048
   },
   {
    "side": "left",
@@ -1020,8 +1034,8 @@
    "role": "held_out",
    "iou_current": 0.666,
    "opening_current_m": 0.045,
-   "iou_fitted_offset": 0.855,
-   "opening_fitted_m": 0.047
+   "iou_fitted_offset": 0.851,
+   "opening_fitted_m": 0.048
   },
   {
    "side": "left",
@@ -1031,8 +1045,8 @@
    "role": "held_out",
    "iou_current": 0.667,
    "opening_current_m": 0.045,
-   "iou_fitted_offset": 0.855,
-   "opening_fitted_m": 0.047
+   "iou_fitted_offset": 0.851,
+   "opening_fitted_m": 0.048
   }
  ]
 }
