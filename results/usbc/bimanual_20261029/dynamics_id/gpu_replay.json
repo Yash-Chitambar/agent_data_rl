@@ -1,0 +1,185 @@
+{
+ "scope": "GPU runtime replay of recorded free-space commands; randomization off; encoder comparison (not independent tool metrology)",
+ "trials": [
+  {
+   "side": "left",
+   "trial": "left_elevated_j3_001",
+   "day": "oct28",
+   "controller_profile": "identification_20261027",
+   "legacy_ideal_gravcomp": {
+    "joint_rmse_mrad": [
+     2.07,
+     3.44,
+     32.23,
+     6.05,
+     2.76,
+     1.66
+    ],
+    "tool_error_mm_mean": 14.84,
+    "tool_error_mm_p95": 21.52
+   },
+   "identified": {
+    "joint_rmse_mrad": [
+     5.2,
+     6.22,
+     5.47,
+     6.69,
+     3.42,
+     4.04
+    ],
+    "tool_error_mm_mean": 3.58,
+    "tool_error_mm_p95": 7.78
+   }
+  },
+  {
+   "side": "left",
+   "trial": "left_break_joint3_0.08",
+   "day": "oct25_26",
+   "controller_profile": "identification_20261027",
+   "legacy_ideal_gravcomp": {
+    "joint_rmse_mrad": [
+     0.03,
+     6.92,
+     15.52,
+     5.75,
+     0.39,
+     0.38
+    ],
+    "tool_error_mm_mean": 7.92,
+    "tool_error_mm_p95": 18.26
+   },
+   "identified": {
+    "joint_rmse_mrad": [
+     0.04,
+     1.84,
+     3.77,
+     2.41,
+     0.36,
+     0.19
+    ],
+    "tool_error_mm_mean": 1.64,
+    "tool_error_mm_p95": 3.79
+   }
+  },
+  {
+   "side": "left",
+   "trial": "left_steps_joint3",
+   "day": "oct25_26",
+   "controller_profile": "identification_20261027",
+   "legacy_ideal_gravcomp": {
+    "joint_rmse_mrad": [
+     0.0,
+     1.75,
+     26.72,
+     4.18,
+     0.28,
+     0.25
+    ],
+    "tool_error_mm_mean": 9.74,
+    "tool_error_mm_p95": 21.7
+   },
+   "identified": {
+    "joint_rmse_mrad": [
+     0.03,
+     1.55,
+     6.18,
+     1.88,
+     0.24,
+     0.23
+    ],
+    "tool_error_mm_mean": 2.68,
+    "tool_error_mm_p95": 4.2
+   }
+  },
+  {
+   "side": "right",
+   "trial": "right_pickup_mid_empty_hold_001",
+   "day": "oct28",
+   "controller_profile": "identification_20261027",
+   "legacy_ideal_gravcomp": {
+    "joint_rmse_mrad": [
+     1.61,
+     17.76,
+     24.21,
+     8.18,
+     2.78,
+     1.79
+    ],
+    "tool_error_mm_mean": 15.61,
+    "tool_error_mm_p95": 20.38
+   },
+   "identified": {
+    "joint_rmse_mrad": [
+     1.54,
+     3.0,
+     5.56,
+     6.89,
+     1.74,
+     1.27
+    ],
+    "tool_error_mm_mean": 3.87,
+    "tool_error_mm_p95": 5.86
+   }
+  },
+  {
+   "side": "right",
+   "trial": "steps_joint3",
+   "day": "oct25_26",
+   "controller_profile": "identification_20261027",
+   "legacy_ideal_gravcomp": {
+    "joint_rmse_mrad": [
+     0.18,
+     0.32,
+     21.16,
+     3.58,
+     0.38,
+     0.35
+    ],
+    "tool_error_mm_mean": 8.09,
+    "tool_error_mm_p95": 16.71
+   },
+   "identified": {
+    "joint_rmse_mrad": [
+     0.18,
+     4.05,
+     10.06,
+     1.55,
+     0.28,
+     0.39
+    ],
+    "tool_error_mm_mean": 4.41,
+    "tool_error_mm_p95": 5.41
+   }
+  },
+  {
+   "side": "right",
+   "trial": "right_break_joint3_0.08",
+   "day": "oct25_26",
+   "controller_profile": "identification_20261027",
+   "legacy_ideal_gravcomp": {
+    "joint_rmse_mrad": [
+     1.59,
+     2.51,
+     12.63,
+     5.21,
+     0.41,
+     0.33
+    ],
+    "tool_error_mm_mean": 4.89,
+    "tool_error_mm_p95": 12.49
+   },
+   "identified": {
+    "joint_rmse_mrad": [
+     1.59,
+     7.02,
+     4.0,
+     1.09,
+     0.34,
+     0.36
+    ],
+    "tool_error_mm_mean": 2.68,
+    "tool_error_mm_p95": 4.07
+   }
+  }
+ ]
+}

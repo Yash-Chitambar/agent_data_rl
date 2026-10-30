@@ -132,3 +132,49 @@ Velocity noise/latency and gripper normalized-feedback mapping remain unmodeled.
 Best color-mask overlap is only 0.47 right / 0.66 left. The fit is insufficient to
 adopt a new gripper mapping or move camera transforms. These masks are diagnostic,
 not independent metrology or a passed alignment gate.
+
+## Identified arm dynamics (2026-10-30)
+
+The runtime default is now the identified real-arm plant
+(`BimanualCfg.dynamics_profile`, `dynamics_id/profile.json`). The earlier ideal plant
+cancelled gravity exactly. The real i2rt driver adds its own gravity model
+(factors 1/1.1/1.1/1.2/1/1, 0.5 kg gripper), which is wrong for these arms.
+
+- Model per arm: plant gravity = `gravity_scale * g_scene`, driver feedforward
+  `f_g * g_driver(q_enc)` (`arm_residual.DriverGravity`, matches MuJoCo to 3e-6 N m),
+  joint frictionloss = effective Coulomb with a stiff impedance (solref 0.004,
+  solimp 0.995/0.9995). Default MuJoCo frictionloss creeps a held joint by
+  residual/kp in ~5 s; the stiff impedance leaves ~0.1 mrad/s.
+- Fit (`scripts/tools/identify_arm_dynamics.py`): static torque balance on 46 free-space
+  trials from Oct 25-26 (`data/real_yam`) and Oct 28 (bundle). Friction direction = last
+  commanded move (the joints stick-slip). j2/j3 samples on the folded-rest stops excluded.
+  Free 20- or 5-parameter inertial fits generalised worse across days than per-joint scales.
+- Result: elbow (j3) gravity +11% right / +17% left; left j2 +12%; j4-j6 within 1-8%.
+  Coulomb: left 0.31/1.02/1.44/0.11/0.10/0.12, right 0.03/0.55/0.82/0.05/0.04/0.05 N m.
+  Left j2 friction was 0.40 on Oct 25-26 and 1.03 on Oct 28: the runtime samples
+  friction x U(0.5, 1.3) and gravity scale +/-0.04 per world and joint on every reset.
+- Closed-loop CPU replay of recorded commands (`replay_identified_dynamics.py`), mean
+  grasp-site error vs real encoders, parameters fitted on the other day only:
+  left elevated 8.47 -> 4.41 mm; right elevated 4.02 -> 3.99 mm (2.24 mm with all data;
+  the right Oct 28 data has only two elevated trials). Folded rest gets worse
+  (0.7 -> 3.0 mm): those poses sit on the joint stops, outside the task workspace.
+- GPU runtime replay (`check_bimanual_dynamics_replay.py`, all-data parameters):
+  six trials, legacy 4.9-15.6 mm -> identified 1.6-4.4 mm (`dynamics_id/gpu_replay.json`).
+- Not modelled: stick-slip sawtooth (~10 mrad on j3; MuJoCo has one friction value),
+  payload/contact loads, joint-stop position (sim stop is at model 0, real at encoder 0).
+- Cost: none measured. But the bimanual runtime runs ~335 env-steps/s at 2048 worlds on a
+  V100 in both versions (6.1 s per control step); this blocks PPO-scale training.
+
+## Fingertip alignment (2026-10-30)
+
+`scripts/tools/fit_gripper_tips.py` fits a rigid offset of both FlexPoint finger bodies
+(gripper frame) and the opening per frame to the yellow-tip silhouettes in the calibrated
+wrist crop. Left uses open and closed-empty frames (tips touching: absolute zero), right
+open frames only. Held-out frames from `left_free_settle_001`:
+left IoU 0.69/0.58 -> 0.91/0.77, right 0.47/0.48 -> 0.77/0.77. Offsets (thickness toward
+camera, lateral, along finger): left -1.5/-0.5/-3.5 mm, right -2.5/-0.5/-1.5 mm.
+The closed-empty frame fits opening 2 mm, so the opening map is not the problem.
+The silhouettes cannot separate tip geometry from a hand-eye translation error (both move
+near-field tips, not the far-field board). So the offset is opt-in
+(`BimanualCfg(tip_offset='fitted')`). Measure camera-lens-to-tip distance with calipers
+on both arms to decide: geometry -> enable it; camera -> correct the hand-eye instead.

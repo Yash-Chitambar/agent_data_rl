@@ -12,7 +12,7 @@ import mujoco_warp as mjw
 import numpy as np
 import torch
 import warp as wp
-from blind_insertion.envs import friction_comp as FC, kinematics as K
+from blind_insertion.envs import arm_residual as AR, friction_comp as FC, kinematics as K
 from blind_insertion.scenes import pc_bench as S, physical_rig as R
 
 
@@ -22,8 +22,21 @@ class BimanualCfg:
     device: str = 'cuda:0'
     substeps: int = 20
     controller_profile: str = 'native_free_settle_20261028'
-    # Right joint-2 plant friction, supported by old step and newer rest replays.
-    # Distinct from driver feedforward; no right-arm prior is copied to the left.
+    # Identified real-arm dynamics (scripts/tools/identify_arm_dynamics.py, per arm): the
+    # driver's own gravity feedforward replaces perfect gravity cancellation, the plant
+    # gravity is the scene's scaled per joint, and joint friction is the measured Coulomb
+    # with a stiff (non-creeping) impedance. None restores the legacy ideal-gravcomp plant.
+    dynamics_profile: str | None = 'results/usbc/bimanual_20261029/dynamics_id/profile.json'
+    # Per-world, per-joint randomization around the profile, resampled on reset. The Coulomb
+    # range covers the day-to-day spread of the fits (e.g. left j2 0.40-1.03 N m); the gravity
+    # jitter covers the by-day scale differences (<= 0.07).
+    friction_scale_range: tuple = (0.5, 1.3)
+    gravity_scale_jitter: float = 0.04
+    # Opt-in fingertip offset fitted to wrist silhouettes (scripts/tools/fit_gripper_tips.py):
+    # 'fitted' reads results/usbc/bimanual_20261029/gripper_tips/fit.json. Off by default: the
+    # silhouettes cannot separate tip geometry from a hand-eye translation error (measure first).
+    tip_offset: str | None = None
+    # Legacy plant only (dynamics_profile=None): right joint-2 friction from the older replays.
     right_joint2_friction_nm: float = 1.0
     right_fric_comp: dict | None = None
     left_fric_comp: dict | None = None
@@ -51,7 +64,26 @@ class BimanualRuntime:
         self.mjm, self.lay = S.build_scene(detailed=True, bimanual=True, measured_support=True,
             support_mode='free', profile=json.loads(profile_path.read_text()), controller_profile=c.controller_profile)
         m = self.mjm
-        m.dof_frictionloss[int(m.joint("joint2").dofadr[0])] = c.right_joint2_friction_nm
+        self.profile = None
+        if c.dynamics_profile:
+            lo, hi = c.friction_scale_range
+            if not 0 <= lo <= hi or not np.isfinite(hi) or not 0 <= c.gravity_scale_jitter < .5:
+                raise ValueError('friction_scale_range must be 0 <= lo <= hi and gravity_scale_jitter in [0, 0.5)')
+            self.profile = json.loads((Path(__file__).resolve().parents[2] / c.dynamics_profile).read_text())
+            for side, prefix in (('right', ''), ('left', 'left_')):
+                dofs = [int(m.joint(prefix + f'joint{i}').dofadr[0]) for i in range(1, 7)]
+                m.dof_frictionloss[dofs] = self.profile['arms'][side]['coulomb_nm']
+                m.dof_solref[dofs] = self.profile['friction_solref']
+                m.dof_solimp[dofs] = self.profile['friction_solimp']
+        else:
+            m.dof_frictionloss[int(m.joint("joint2").dofadr[0])] = c.right_joint2_friction_nm
+        if c.tip_offset == 'fitted':
+            fit = json.loads((Path(__file__).resolve().parents[2] / 'results/usbc/bimanual_20261029/gripper_tips/fit.json').read_text())
+            for side, prefix in (('right', ''), ('left', 'left_')):
+                off = np.array(list(fit['arms'][side]['fitted_offset_mm'].values())) * 1e-3   # gripper-frame x, y, z
+                m.body_pos[[m.body(prefix + f + '_finger').id for f in ('left', 'right')]] += off
+        elif c.tip_offset is not None:
+            raise ValueError("tip_offset must be None or 'fitted'")
         d = mujoco.MjData(m)
         R.reference_pose(m,d,self.lay);S.place_pc(m,d);S.place_reader(m,d,self.lay)
         self.indices = {}
@@ -69,7 +101,7 @@ class BimanualRuntime:
         self.pc_qadr = int(m.joint('pc_free_joint').qposadr[0])
         wp.init()
         with wp.ScopedDevice(c.device):
-            self.m = mjw.put_model(m)
+            self.m = mjw.put_model(m, batch_sizes={'dof_frictionloss': c.nworld} if self.profile else None)
             self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=512,njmax=3000)
         self.q = wp.to_torch(self.d.qpos)
         self.v = wp.to_torch(self.d.qvel)
@@ -82,6 +114,16 @@ class BimanualRuntime:
         self.encoder_offsets = torch.tensor(
             [calibration['arms'][side]['joint_offsets_rad'] for side in ('right','left')],
             device=self.device,dtype=self.q.dtype)
+        if self.profile:
+            arms = [self.profile['arms'][side] for side in ('right','left')]
+            f = lambda key: torch.tensor([arm[key] for arm in arms],device=self.device,dtype=self.q.dtype)
+            self.coulomb, self.gravity_scale_base = f('coulomb_nm'), f('gravity_scale')
+            self.driver_factor = f('driver_gravity_comp_factor')
+            self.frictionloss = wp.to_torch(self.m.dof_frictionloss)
+            self.gravcomp = wp.to_torch(self.d.qfrc_gravcomp)
+            self.gravity_scale = self.gravity_scale_base.expand(c.nworld,2,6).clone()
+            self.driver_gravity = AR.DriverGravity(self.device)
+            self._sample_dynamics(torch.arange(c.nworld,device=self.device))
         if c.render_rgb:
             ids = [m.camera(name).id for name in self.camera_names]
             active = [i in ids for i in range(m.ncam)]
@@ -107,6 +149,7 @@ class BimanualRuntime:
         self.force[ids] = 0
         for name in ('qacc_warmstart','qacc','time'):
             wp.to_torch(getattr(self.d,name))[ids] = 0
+        if self.profile: self._sample_dynamics(ids)
         with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
         if self.camera_sensor is not None:self.camera_sensor.reset(ids,self.sensor_time)
         return self.state()
@@ -125,6 +168,9 @@ class BimanualRuntime:
             if self.comp[side] is not None:
                 tau,ramp = self.comp[side]
                 self.force[:,v] = FC.feedforward(target-self.q[:,q],tau,ramp)
+        if self.profile:
+            for k,side in enumerate(('right','left')):
+                self.force[:,self.indices[side][1]] += self.gravity_residual(k)
         # Explicit compensation is computed once and held, as in the recorded driver law.
         with wp.ScopedDevice(self.cfg.device):
             for _ in range(self.cfg.substeps):
@@ -132,6 +178,25 @@ class BimanualRuntime:
                 self.sensor_time+=self.mjm.opt.timestep
                 if self.camera_sensor is not None:self.camera_sensor.advance(self.sensor_time)
         return self.state()
+
+    def _sample_dynamics(self, ids):
+        """Per-world Coulomb friction and gravity scales around the identified profile."""
+        lo,hi = self.cfg.friction_scale_range
+        n = len(ids)
+        for k,side in enumerate(('right','left')):
+            u = torch.rand(n,6,device=self.device)*(hi-lo)+lo
+            self.frictionloss[ids[:,None],torch.tensor(self.indices[side][1],device=self.device)] = self.coulomb[k]*u
+        jitter = (torch.rand(n,2,6,device=self.device)*2-1)*self.cfg.gravity_scale_jitter
+        jitter[...,0] = 0                                       # joint 1 carries no gravity
+        self.gravity_scale[ids] = self.gravity_scale_base+jitter
+
+    def gravity_residual(self, k):
+        """Driver gravity feedforward at the encoder angles minus the scaled plant gravity that
+        the scene's gravcomp cancels; held for the control step like the driver's update."""
+        side = ('right','left')[k]
+        q,v = self.indices[side][0],self.indices[side][1]
+        q_enc = self.q[:,q]-self.encoder_offsets[k]
+        return self.driver_factor[k]*self.driver_gravity(q_enc)-self.gravity_scale[:,k]*self.gravcomp[:,v]
 
     def state(self):
         """Privileged state; actor camera/encoder observations need their own sensor pipeline."""

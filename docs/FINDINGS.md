@@ -104,6 +104,19 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-30 (mason) — Identified real-arm dynamics: tool error 8.5 -> 4.4 mm held-out; fingertip offsets
+
+The bimanual runtime cancelled gravity exactly; the real driver uses its own gravity model.
+Static torque-balance fit on 46 free-space trials (two days), per arm: elbow gravity
++11/+17% (right/left), Coulomb up to 1.44 N m (left j3), day-to-day friction spread up to
+2.5x. MuJoCo frictionloss creeps under sub-threshold load; a stiff impedance fixes it.
+Held-out (other day) closed-loop replay: left elevated 8.47 -> 4.41 mm, right 4.02 ->
+3.99 mm. GPU runtime replay 4.9-15.6 -> 1.6-4.4 mm. Now the runtime default, with
+per-world friction/gravity randomization. Fingertip silhouette fit: few-mm offsets per
+arm (IoU 0.5-0.7 -> 0.77-0.91 held-out), opt-in until a caliper check separates tip
+geometry from hand-eye error. Runtime speed (~335 env-steps/s) is the next blocker.
+Details: `results/usbc/bimanual_20261029/README.md`.
+
 ### 2026-10-26 (22:30 UTC, duchamp3) — ZED pose refit from 3 board positions; held-out check passes
 
 Follow-up to the entry below. `scripts/real/fit_zed.py`: one PnP over 168 corners from three board

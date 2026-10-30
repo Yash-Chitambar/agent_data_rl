@@ -1,0 +1,118 @@
+{
+ "method": "Fit the FlexPoint tip offset and per-state opening to recorded wrist silhouettes.\n\nThe yellow tips are rigid relative to the wrist camera apart from the opening, so their\nsilhouette in the calibrated policy crop constrains the tip geometry in the gripper frame.\nPer arm, a rigid offset of both finger bodies in the gripper frame (x: finger thickness,\ntoward the wrist camera; y: lateral/opening; z: along the fingers, -z is the approach) and\nthe opening per frame are fitted by IoU. Left fit frames: `left_reader_002` open and closed\nempty (tips touching: absolute opening zero). Right: open frames only (no recorded closed\nframe), so its offset trades off against the opening and is weaker. Held-out frames come\nfrom other runs (other arm poses, backgrounds, lighting). The fitted offset cannot by\nitself separate tip geometry from a hand-eye translation error: both move the near-field\ntips while barely moving the far-field calibration board. Masks: HSV yellow in the lower\npart of the crop (assumption).\nOutput: `results/usbc/bimanual_20261029/gripper_tips/fit.json` and overlays.",
+ "axes_gripper_frame": [
+  "x_thickness_toward_camera",
+  "y_lateral_opening",
+  "z_along_fingers"
+ ],
+ "arms": {
+  "left": {
+   "fitted_offset_mm": {
+    "x_thickness_toward_camera": -1.5,
+    "y_lateral_opening": -0.5,
+    "z_along_fingers": -3.5
+   },
+   "fit_mean_iou": 0.878,
+   "offset_on_search_edge": false
+  },
+  "right": {
+   "fitted_offset_mm": {
+    "x_thickness_toward_camera": -2.5,
+    "y_lateral_opening": -0.5,
+    "z_along_fingers": -1.5
+   },
+   "fit_mean_iou": 0.788,
+   "offset_on_search_edge": false
+  }
+ },
+ "views": [
+  {
+   "side": "left",
+   "run": "left_reader_002",
+   "frame": "raw_000510.png",
+   "state": "open",
+   "role": "fit",
+   "iou_current": 0.667,
+   "opening_current_m": 0.045,
+   "iou_fitted_offset": 0.857,
+   "opening_fitted_m": 0.047
+  },
+  {
+   "side": "left",
+   "run": "left_reader_002",
+   "frame": "raw_000270.png",
+   "state": "closed",
+   "role": "fit",
+   "iou_current": 0.676,
+   "opening_current_m": 0.003,
+   "iou_fitted_offset": 0.898,
+   "opening_fitted_m": 0.002
+  },
+  {
+   "side": "left",
+   "run": "left_free_settle_001",
+   "frame": "raw_000600.png",
+   "state": "closed",
+   "role": "held_out",
+   "iou_current": 0.69,
+   "opening_current_m": 0.003,
+   "iou_fitted_offset": 0.91,
+   "opening_fitted_m": 0.002
+  },
+  {
+   "side": "left",
+   "run": "left_free_settle_001",
+   "frame": "raw_001800.png",
+   "state": "closed",
+   "role": "held_out",
+   "iou_current": 0.581,
+   "opening_current_m": 0.003,
+   "iou_fitted_offset": 0.774,
+   "opening_fitted_m": 0.002
+  },
+  {
+   "side": "right",
+   "run": "bimanual_stationary_001",
+   "frame": "raw_000890.png",
+   "state": "open",
+   "role": "fit",
+   "iou_current": 0.469,
+   "opening_current_m": 0.048,
+   "iou_fitted_offset": 0.775,
+   "opening_fitted_m": 0.046
+  },
+  {
+   "side": "right",
+   "run": "left_reader_002",
+   "frame": "raw_000510.png",
+   "state": "open",
+   "role": "fit",
+   "iou_current": 0.562,
+   "opening_current_m": 0.045,
+   "iou_fitted_offset": 0.802,
+   "opening_fitted_m": 0.042
+  },
+  {
+   "side": "right",
+   "run": "left_free_settle_001",
+   "frame": "raw_000600.png",
+   "state": "open",
+   "role": "held_out",
+   "iou_current": 0.471,
+   "opening_current_m": 0.048,
+   "iou_fitted_offset": 0.772,
+   "opening_fitted_m": 0.046
+  },
+  {
+   "side": "right",
+   "run": "left_free_settle_001",
+   "frame": "raw_001800.png",
+   "state": "open",
+   "role": "held_out",
+   "iou_current": 0.475,
+   "opening_current_m": 0.048,
+   "iou_fitted_offset": 0.774,
+   "opening_fitted_m": 0.046
+  }
+ ]
+}
