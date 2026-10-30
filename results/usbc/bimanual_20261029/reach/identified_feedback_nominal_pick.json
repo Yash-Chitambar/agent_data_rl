@@ -1,0 +1,241 @@
+{
+  "scope": "CPU scripted pick in nominal simulator; no hardware validation or bimanual bracing",
+  "reader_attached_artificially": false,
+  "dynamics_profile_sha256": "edf1f7d36527cad26ab60c6fc88bde6efd3273028b7bd2942a59d330aaabf5f8",
+  "privileged_inhand_alignment": true,
+  "privileged_feedback_alignment": true,
+  "alignment_gain": 0.08,
+  "align_seconds": 6.0,
+  "lifted_and_near_tcp": true,
+  "phases": {
+    "approach": {
+      "tip_in_port_m": [
+        0.016009014083753603,
+        -0.019124619539746805,
+        0.04760097975790815
+      ],
+      "tilt_deg": 0.01606646370010452,
+      "finger_q_m": [
+        0.04857458082333644,
+        0.04857942946848217
+      ],
+      "gripper_contacts": [],
+      "reader_tip_xyz_m": [
+        0.2737691073502433,
+        0.22090799677324593,
+        -0.028616181013685765
+      ],
+      "reader_center_to_tcp_m": 0.07700112372581684,
+      "max_joint_error_rad": 0.048640385819054055
+    },
+    "grasp": {
+      "tip_in_port_m": [
+        0.016009017596181046,
+        -0.019124619536024748,
+        0.047600120457461384
+      ],
+      "tilt_deg": 0.016066465696367938,
+      "finger_q_m": [
+        0.04857580144031817,
+        0.04857877231983709
+      ],
+      "gripper_contacts": [],
+      "reader_tip_xyz_m": [
+        0.27376996665642506,
+        0.22090799653224547,
+        -0.028616181013685845
+      ],
+      "reader_center_to_tcp_m": 0.0038485116135514416,
+      "max_joint_error_rad": 0.010789755333817208
+    },
+    "close": {
+      "tip_in_port_m": [
+        0.01403385495983568,
+        -0.01914423603032344,
+        0.04740507440629027
+      ],
+      "tilt_deg": 0.2737345609299416,
+      "finger_q_m": [
+        0.01896709005314543,
+        0.018966780066320212
+      ],
+      "gripper_contacts": [
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6705251793759368e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.6715030388940785e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6724808984121768e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.673458757933094e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.6738674568723255e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.6728883348028573e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.6719092127334325e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.670930090663921e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.2739650128959991,
+        0.22288316162767932,
+        -0.02863579768088253
+      ],
+      "reader_center_to_tcp_m": 0.0022061261988844303,
+      "max_joint_error_rad": 0.009998540961220659
+    },
+    "lift": {
+      "tip_in_port_m": [
+        0.019713082036379663,
+        0.04917201872073494,
+        0.05292827267303104
+      ],
+      "tilt_deg": 2.3527670899659676,
+      "finger_q_m": [
+        0.018967257229366805,
+        0.01896506669213659
+      ],
+      "gripper_contacts": [
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6712218433328416e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.673235082928968e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.675248322522362e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.67726156211851e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.6729347548206436e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.67092113976936e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.668907524723584e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.666893909672322e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.2684418443840235,
+        0.2172039414886555,
+        0.03968045976027788
+      ],
+      "reader_center_to_tcp_m": 0.002241582136123448,
+      "max_joint_error_rad": 0.01563263456495667
+    },
+    "preinsert": {
+      "tip_in_port_m": [
+        0.0004791112562699473,
+        -0.021015082500459723,
+        0.011864356623612763
+      ],
+      "tilt_deg": 5.595775251616531,
+      "finger_q_m": [
+        0.01581094107113106,
+        0.015813766811332827
+      ],
+      "gripper_contacts": [],
+      "reader_tip_xyz_m": [
+        0.3095057324204143,
+        0.2364379063465115,
+        -0.030506660522558397
+      ],
+      "reader_center_to_tcp_m": 0.007941762625154175,
+      "max_joint_error_rad": 0.015059714358987009
+    },
+    "align": {
+      "tip_in_port_m": [
+        0.001745710514454958,
+        -0.019124603288201876,
+        0.012420391760759415
+      ],
+      "tilt_deg": 2.1088366037507678,
+      "finger_q_m": [
+        -0.00622619597038714,
+        -0.0062304969234050255
+      ],
+      "gripper_contacts": [],
+      "reader_tip_xyz_m": [
+        0.30894970018490836,
+        0.23517131432560784,
+        -0.02861618101368585
+      ],
+      "reader_center_to_tcp_m": 0.14642147055521343,
+      "max_joint_error_rad": 0.033527780265521806
+    },
+    "hold": {
+      "tip_in_port_m": [
+        0.002065375770111929,
+        -0.019103554690406768,
+        0.012710157858774884
+      ],
+      "tilt_deg": 2.025828382615453,
+      "finger_q_m": [
+        -0.006236332174011165,
+        -0.006291915774745742
+      ],
+      "gripper_contacts": [],
+      "reader_tip_xyz_m": [
+        0.3089501295425868,
+        0.235171298395219,
+        -0.028616181013685765
+      ],
+      "reader_center_to_tcp_m": 0.15187779521968228,
+      "max_joint_error_rad": 0.04475178630457588
+    }
+  },
+  "limitations": [
+    "scripted joint interpolation is not collision-aware planning",
+    "default approximate pad friction and squeeze",
+    "nominal identified residual model without randomization",
+    "single fixed reset"
+  ],
+  "retained_after_carry": false
+}

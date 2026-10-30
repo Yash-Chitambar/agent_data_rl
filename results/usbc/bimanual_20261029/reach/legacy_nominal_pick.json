@@ -93,5 +93,6 @@
     "default approximate pad friction and squeeze",
     "ideal gravity except right joint2 friction",
     "single fixed reset"
-  ]
+  ],
+  "retained_after_carry": false
 }

@@ -1,9 +1,16 @@
 {
   "scope": "CPU scripted pick in nominal simulator; no hardware validation or bimanual bracing",
   "reader_attached_artificially": false,
+  "privileged_inhand_alignment": false,
   "lifted_and_near_tcp": true,
   "phases": {
     "approach": {
+      "tip_in_port_m": [
+        0.016009014083753603,
+        -0.019124619539746805,
+        0.04760097975790815
+      ],
+      "tilt_deg": 0.01606646370010452,
       "finger_q_m": [
         0.04857451018407668,
         0.048579502323529464
@@ -18,6 +25,12 @@
       "max_joint_error_rad": 0.05312562967477887
     },
     "grasp": {
+      "tip_in_port_m": [
+        0.016009017596181046,
+        -0.019124619536024748,
+        0.047600120457461384
+      ],
+      "tilt_deg": 0.016066465696367938,
       "finger_q_m": [
         0.04857580266497376,
         0.04857877076260315
@@ -32,6 +45,12 @@
       "max_joint_error_rad": 0.012594027921357442
     },
     "close": {
+      "tip_in_port_m": [
+        0.014935428023278921,
+        -0.019198325073380273,
+        0.04713223688062147
+      ],
+      "tilt_deg": 0.02307242480847417,
       "finger_q_m": [
         0.01896460548297899,
         0.01896800874647525
@@ -87,6 +106,12 @@
       "max_joint_error_rad": 0.005252484339135499
     },
     "lift": {
+      "tip_in_port_m": [
+        0.01660080477691243,
+        0.05102730840751941,
+        0.0489422756184078
+      ],
+      "tilt_deg": 3.2365943387503022,
       "finger_q_m": [
         0.018967165079739796,
         0.018965087414666827
@@ -142,6 +167,12 @@
       "max_joint_error_rad": 0.01307930034480731
     },
     "preinsert": {
+      "tip_in_port_m": [
+        -0.00039698908766705346,
+        -0.004677793931380944,
+        0.006578202597070252
+      ],
+      "tilt_deg": 4.993878489038028,
       "finger_q_m": [
         0.018965875799114594,
         0.018966311178446577
@@ -197,6 +228,12 @@
       "max_joint_error_rad": 0.012530769195996605
     },
     "hold": {
+      "tip_in_port_m": [
+        -0.00025251625177250046,
+        -0.008771230252098533,
+        0.007075961473324001
+      ],
+      "tilt_deg": 6.549713727413561,
       "finger_q_m": [
         0.018966025360676472,
         0.018966154415781585
@@ -257,5 +294,6 @@
     "default approximate pad friction and squeeze",
     "ideal gravity except right joint2 friction",
     "single fixed reset"
-  ]
+  ],
+  "retained_after_carry": true
 }

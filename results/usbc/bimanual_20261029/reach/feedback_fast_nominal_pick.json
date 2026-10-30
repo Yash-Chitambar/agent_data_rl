@@ -1,0 +1,363 @@
+{
+  "scope": "CPU scripted pick in nominal simulator; no hardware validation or bimanual bracing",
+  "reader_attached_artificially": false,
+  "privileged_inhand_alignment": true,
+  "privileged_feedback_alignment": true,
+  "lifted_and_near_tcp": true,
+  "phases": {
+    "approach": {
+      "tip_in_port_m": [
+        0.016009014083753603,
+        -0.019124619539746805,
+        0.04760097975790815
+      ],
+      "tilt_deg": 0.01606646370010452,
+      "finger_q_m": [
+        0.04857451018407668,
+        0.048579502323529464
+      ],
+      "gripper_contacts": [],
+      "reader_tip_xyz_m": [
+        0.2737691073502433,
+        0.22090799677324593,
+        -0.028616181013685765
+      ],
+      "reader_center_to_tcp_m": 0.08122621900541771,
+      "max_joint_error_rad": 0.05312562967477887
+    },
+    "grasp": {
+      "tip_in_port_m": [
+        0.016009017596181046,
+        -0.019124619536024748,
+        0.047600120457461384
+      ],
+      "tilt_deg": 0.016066465696367938,
+      "finger_q_m": [
+        0.04857580266497376,
+        0.04857877076260315
+      ],
+      "gripper_contacts": [],
+      "reader_tip_xyz_m": [
+        0.27376996665642506,
+        0.22090799653224547,
+        -0.028616181013685845
+      ],
+      "reader_center_to_tcp_m": 0.0017121251706042387,
+      "max_joint_error_rad": 0.012594027921357442
+    },
+    "close": {
+      "tip_in_port_m": [
+        0.014935428023278921,
+        -0.019198325073380273,
+        0.04713223688062147
+      ],
+      "tilt_deg": 0.02307242480847417,
+      "finger_q_m": [
+        0.01896460548297899,
+        0.01896800874647525
+      ],
+      "gripper_contacts": [
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6703013692848387e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.670212394115289e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6701234189435924e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.6700344437740643e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.6738882606079694e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.6739765926104457e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.67406492461637e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.6741532566188463e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.2742378503109772,
+        0.22198158853573138,
+        -0.02868988680792003
+      ],
+      "reader_center_to_tcp_m": 0.0012517755245706904,
+      "max_joint_error_rad": 0.005252484339135499
+    },
+    "lift": {
+      "tip_in_port_m": [
+        0.01660080477691243,
+        0.05102730840751941,
+        0.0489422756184078
+      ],
+      "tilt_deg": 3.2365943387503022,
+      "finger_q_m": [
+        0.018967165079739796,
+        0.018965087414666827
+      ],
+      "gripper_contacts": [
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6717058801283824e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.6733510910035337e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6749963018813522e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.6766415127592357e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.6724658885353284e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.6708204055967723e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.669174922661035e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.667529439722544e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.272427842667982,
+        0.2203162183064771,
+        0.041535747545853076
+      ],
+      "reader_center_to_tcp_m": 0.00126886542493406,
+      "max_joint_error_rad": 0.01307930034480731
+    },
+    "preinsert": {
+      "tip_in_port_m": [
+        -0.0008276413652723213,
+        0.0007351511790760724,
+        0.005923801037879042
+      ],
+      "tilt_deg": 2.3699470039220483,
+      "finger_q_m": [
+        0.018965775165139063,
+        0.01896641219480657
+      ],
+      "gripper_contacts": [
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6716917986798752e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.671174808302826e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6706578179312842e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.6701408275542566e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.672530998315938e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.6730478732947364e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.673564748273535e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.6740816232495796e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.3154462978899017,
+        0.23774465889204896,
+        -0.008756429537944668
+      ],
+      "reader_center_to_tcp_m": 0.0012819593821402039,
+      "max_joint_error_rad": 0.012387728528464592
+    },
+    "align": {
+      "tip_in_port_m": [
+        -0.0006267885196939952,
+        -0.001269513776344727,
+        0.008988099644033886
+      ],
+      "tilt_deg": 0.5262326437316653,
+      "finger_q_m": [
+        0.018975626316997334,
+        0.018956553215903015
+      ],
+      "gripper_contacts": [
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.6684958679817515e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.6693849619227562e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.6702740558636742e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.6711631498046572e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.675164006206497e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.6742748833676012e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.6733857605259082e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.6724966376842586e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.3123819995990138,
+        0.2375438098244436,
+        -0.01076109312486762
+      ],
+      "reader_center_to_tcp_m": 0.0013408360273220725,
+      "max_joint_error_rad": 0.01774852943791405
+    },
+    "hold": {
+      "tip_in_port_m": [
+        -0.0016282663437907892,
+        0.0012224158715972945,
+        0.005753178948028405
+      ],
+      "tilt_deg": 0.26001346744467796,
+      "finger_q_m": [
+        0.018962966212273766,
+        0.01896921009681137
+      ],
+      "gripper_contacts": [
+        {
+          "a": "left_pad_s03",
+          "b": "peg_34",
+          "distance_m": -2.676671249676548e-05
+        },
+        {
+          "a": "left_pad_s13",
+          "b": "peg_34",
+          "distance_m": -2.6767095004460702e-05
+        },
+        {
+          "a": "left_pad_s23",
+          "b": "peg_34",
+          "distance_m": -2.676747751221187e-05
+        },
+        {
+          "a": "left_pad_s33",
+          "b": "peg_34",
+          "distance_m": -2.676786001990731e-05
+        },
+        {
+          "a": "right_pad_s00",
+          "b": "peg_34",
+          "distance_m": -2.667294165595367e-05
+        },
+        {
+          "a": "right_pad_s10",
+          "b": "peg_34",
+          "distance_m": -2.6672558943800686e-05
+        },
+        {
+          "a": "right_pad_s20",
+          "b": "peg_34",
+          "distance_m": -2.6672176231620163e-05
+        },
+        {
+          "a": "right_pad_s30",
+          "b": "peg_34",
+          "distance_m": -2.6671793519466745e-05
+        }
+      ],
+      "reader_tip_xyz_m": [
+        0.3156169220566401,
+        0.23854528812334083,
+        -0.008269164956718315
+      ],
+      "reader_center_to_tcp_m": 0.0013704302327180954,
+      "max_joint_error_rad": 0.012903380995850977
+    }
+  },
+  "limitations": [
+    "scripted joint interpolation is not collision-aware planning",
+    "default approximate pad friction and squeeze",
+    "ideal gravity except right joint2 friction",
+    "single fixed reset"
+  ],
+  "retained_after_carry": true,
+  "alignment_gain": 0.4,
+  "align_seconds": 3.0
+}

@@ -37,3 +37,38 @@ MUJOCO_GL=egl PYTHONPATH=. .venv/bin/python scripts/tools/render_bimanual_pick_a
 The original single-arm expert's explicit grasp offset is unchanged for
 checkpoint compatibility. New bimanual scripted trajectories should use the
 geometry-derived proposal, then validate it under the relevant contact model.
+
+
+## Alignment follow-up and the new identified dynamics
+
+The audit now supports `--inhand-align`, which derives the pre-insertion TCP
+target from the observed rigid transform of the held reader instead of assuming
+the nominal grasp transform. Under the earlier ideal-gravity plant this reduces
+the final hold's lateral error from 8.78 to 3.39 mm, and tilt from 6.55 to 3.87°.
+
+`--feedback-align` additionally uses privileged reader/PC poses to correct joint
+targets at 50 Hz. Commands change by at most 0.004 rad/update and stay within
+0.1 rad of measured model angles and the joint limits. This is a diagnostic
+expert, not a deployable camera policy. With gain 0.08 and six seconds of alignment,
+the earlier plant holds approximately 0.387 mm lateral error, 6.015 mm gap and
+0.337° tilt. The higher-gain 0.4 / three-second attempt oscillates more; its
+outputs are retained as `feedback_fast_*`.
+
+The shared branch subsequently added identified dynamics in commit 8b71aa4.
+`--identified-dynamics` applies its nominal per-arm friction/impedance and
+driver-gravity residual, held for 20 ms, with randomization disabled.
+The profile hash is recorded. **This run lifts but loses the reader during carry.**
+It has zero gripper contacts at the end of pre-insertion and its reader-to-TCP
+distance reaches 146 mm during alignment. Consequently its apparent final
+port error is not an alignment-controller accuracy result.
+`retained_after_carry` now distinguishes this failure from a successful lift.
+
+Reproduce this unresolved test with:
+
+```bash
+PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_pick.py --feedback-align --identified-dynamics
+```
+
+Next work must address carry clearance/tracking and retained contact under the
+identified dynamics before proceeding to insertion or bimanual bracing. The
+older ideal-gravity pick/alignment results do not validate the new runtime default.
