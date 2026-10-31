@@ -213,6 +213,15 @@ class HoldCfg:
     yaws_deg: tuple = tuple(range(-90, 91, 15))
     tilt_deg: float = 0.          # tool tilt about the PC-frame x axis (toward the panel), press only
     ik_iters: int = 120
+    # Guarded engage (deployable: encoders only): descend from the stand-off along the push direction
+    # at guard_speed until the encoder-estimated contact force along it exceeds guard_force_n (bias
+    # taken at the stand-off), then latch the measured pose and apply dq = Kp^-1 J^T F from there.
+    # This removes the absolute-position error (encoder offsets) from the holding force.
+    guarded: bool = True
+    guard_speed_m_s: float = .01
+    guard_depth_m: float = .025   # search this far past the planned contact
+    guard_force_n: float = 3.
+    ramp_s: float = .4
 
 
 class LeftHold:
@@ -292,7 +301,13 @@ class LeftHold:
         if c.mode == 'press':
             stand = stand + torch.tensor([0., 0., 1.], device=dev) * .0   # straight above
         qs, pes, _ = ch.ik(stand, Rsel, q, iters=60)
-        self.plan = {'q_contact': q, 'q_force': q + dq, 'q_stand': qs, 'ok': ok & (pes < 2e-3),
+        qd, _, _ = ch.ik(site_sel + normal * c.guard_depth_m, Rsel, q, iters=60)
+        self.latched = torch.zeros(n, dtype=torch.bool, device=dev)
+        self.t_latch = torch.full((n,), float('inf'), device=dev)
+        self.q_latch = q.clone()
+        self.bias = None
+        self.last_cmd = None
+        self.plan = {'q_contact': q, 'q_force': q + dq, 'q_stand': qs, 'q_deep': qd, 'ok': ok & (pes < 2e-3),
                      'point': point, 'normal': normal, 'force_cmd': F, 'dq_force': dq,
                      'yaw_deg': torch.rad2deg(yaws[best])}
         return self.plan
@@ -335,24 +350,65 @@ class LeftHold:
     def nominal_seed(self):
         return torch.tensor([-0.6857, 2.0911, 1.5729, -1.0604, 0.001, -0.0084], device=self.dev)
 
+    def force_estimate(self, q_cmd):
+        """Encoder-based estimate of the hand force on the PC (B,3): PD torque mapped through J^+T."""
+        h, p = self.h, self.plan
+        qb = h.believed('left')
+        J, _, _ = h.jac_point('left', qb, p['point'])
+        tau = h.kp[1] * (q_cmd - qb)
+        return (torch.linalg.pinv(J.transpose(1, 2)) @ tau[..., None])[..., 0]
+
     def target(self, t, q_home):
-        """Joint target (believed frame) at time t since the hold started."""
+        """Joint target (believed frame) at time t since the hold started (call once per control step,
+        in order: the guarded engage latches per world)."""
         c, p = self.cfg, self.plan
         def blend(x):
             x = min(max(x, 0.), 1.); return x * x * (3 - 2 * x)
         if c.mode == 'none':
             return q_home
         if t < c.move_s:
-            return q_home + (p['q_stand'] - q_home) * blend(t / c.move_s)
-        t -= c.move_s
-        if t < c.engage_s:
-            return p['q_stand'] + (p['q_force'] - p['q_stand']) * blend(t / c.engage_s)
-        return p['q_force']
+            cmd = q_home + (p['q_stand'] - q_home) * blend(t / c.move_s)
+        elif not c.guarded:
+            u = t - c.move_s
+            cmd = p['q_stand'] + (p['q_force'] - p['q_stand']) * blend(u / c.engage_s) if u < c.engage_s else p['q_force']
+        elif t - c.move_s < .3:                    # dwell at the stand-off, then take the force bias
+            cmd = p['q_stand']
+        else:
+            u = t - c.move_s - .3
+            if self.bias is None:
+                self.bias = self.force_estimate(self.last_cmd)
+            L = c.standoff_m + c.guard_depth_m
+            frac = min(1., u * c.guard_speed_m_s / L)
+            descend = p['q_stand'] + (p['q_deep'] - p['q_stand']) * frac
+            f = self.force_estimate(self.last_cmd) - self.bias
+            fn = (f * p['normal']).sum(1)
+            new = ((fn > c.guard_force_n) | (frac >= 1.)) & ~self.latched   # end of travel: latch anyway
+            if new.any():
+                self.q_latch[new] = self.h.believed('left')[new]
+                self.t_latch[new] = t
+                self.latched |= new
+            r = ((t - self.t_latch) / c.ramp_s).clamp(0, 1)[:, None]
+            r = r * r * (3 - 2 * r)
+            held = self.q_latch + p['dq_force'] * r
+            cmd = torch.where(self.latched[:, None], held, descend)
+        self.last_cmd = cmd
+        return cmd
+
+    def hold_target(self):
+        """Final hold command (after the engage)."""
+        if self.cfg.mode == 'none':
+            return None
+        if not self.cfg.guarded:
+            return self.plan['q_force']
+        return torch.where(self.latched[:, None], self.q_latch + self.plan['dq_force'], self.last_cmd)
 
     @property
     def duration(self):
         c = self.cfg
-        return 0. if c.mode == 'none' else c.move_s + c.engage_s + c.settle_s
+        if c.mode == 'none':
+            return 0.
+        engage = (c.standoff_m + c.guard_depth_m) / c.guard_speed_m_s + c.ramp_s + .3 if c.guarded else c.engage_s
+        return c.move_s + engage + c.settle_s
 
 
 @dataclass

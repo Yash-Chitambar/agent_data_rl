@@ -53,7 +53,7 @@ def run(a, rt=None, seed=0):
     h.reset()
     hc = HoldCfg(mode=a.mode, force_n=a.force, preload_n=a.preload, across_m=a.across, along_m=a.along,
                  brace_height_m=a.brace_height, down_n=a.down, tilt_deg=a.tilt, engage_s=a.engage_s,
-                 settle_s=a.settle_s)
+                 settle_s=a.settle_s, guarded=not a.open_loop)
     hold = LeftHold(h, hc)
     ic = InsertCfg(overdrive_m=a.overdrive)
     ins = RightInserter(h, ic)
@@ -75,7 +75,7 @@ def run(a, rt=None, seed=0):
     engage_dp = (p_eng - p_reset).norm(dim=1)
     engage_ang = K.rot_log(R_eng @ R_reset.transpose(1, 2)).norm(dim=1)
     ins.place()
-    q_hold = hold.target(1e9, q_home_l)
+    q_hold = hold.hold_target() if a.mode != 'none' else q_home_l
     for k in range(int(.3 / DT)):
         h.step(ins.target, -1., q_hold, -1. if a.mode != 'none' else 1.)
     p0, R0 = h.pc_pose()
@@ -117,8 +117,8 @@ def run(a, rt=None, seed=0):
     feet_mu = rt.geom_friction[:, rt.pc_feet[0], 0] if rt.cfg.pc_friction_range else torch.full((n,), .6, device=dev)
     w = {'dp_mm': dp_max * 1e3, 'ang_deg': torch.rad2deg(ang_max), 'engage_dp_mm': engage_dp * 1e3,
          'engage_ang_deg': torch.rad2deg(engage_ang), 'push_n': push, 'left_force_n': fmean.norm(dim=1),
-         'left_force_down_n': -fmean[:, 2], 'feet_mu': feet_mu, 'passed': passed, 'arm_arm': flags['arm_arm'],
-         'left_other': flags['left_other'], 'nonfinite': flags['nonfinite'], 'plan_ok': ok, 'seated': seated}
+         'left_force_down_n': -fmean[:, 2], 'left_force_xy_n': fmean[:, :2].norm(dim=1), 'feet_mu': feet_mu, 'passed': passed, 'arm_arm': flags['arm_arm'],
+         'left_other': flags['left_other'], 'latched': hold.latched if a.mode != 'none' and hc.guarded else torch.ones(n, dtype=torch.bool, device=dev), 'nonfinite': flags['nonfinite'], 'plan_ok': ok, 'seated': seated}
     return {k: v.detach().cpu().numpy() for k, v in w.items()}, hc, ic
 
 
@@ -128,7 +128,7 @@ def summarize(w, a, hc, ic, seconds):
     out = {'n': n, 'pass_rate': k / n, 'wilson95_lower': wilson_lower(k, n), 'gate_met': bool(n >= 1000 and k / n >= .995),
            'tolerance': {'translation_mm': a.tol_mm, 'rotation_deg': a.tol_deg},
            'arm_arm_contact_worlds': int(w['arm_arm'].sum()), 'left_touches_other_worlds': int(w['left_other'].sum()),
-           'nonfinite_worlds': int(w['nonfinite'].sum()), 'plan_failed_worlds': int((~w['plan_ok']).sum()),
+           'nonfinite_worlds': int(w['nonfinite'].sum()), 'unlatched_worlds': int((~w['latched']).sum()), 'plan_failed_worlds': int((~w['plan_ok']).sum()),
            'pc_translation_mm': {f'p{p}': q(w['dp_mm'], p) for p in (50, 90, 99, 99.5, 100)},
            'pc_rotation_deg': {f'p{p}': q(w['ang_deg'], p) for p in (50, 90, 99, 99.5, 100)},
            'engage_translation_mm': {f'p{p}': q(w['engage_dp_mm'], p) for p in (50, 99, 100)},
@@ -163,6 +163,7 @@ def parser():
     ap.add_argument('--tilt', type=float, default=0.)
     ap.add_argument('--engage-s', type=float, default=.6)
     ap.add_argument('--settle-s', type=float, default=.5)
+    ap.add_argument('--open-loop', action='store_true', help='no guarded engage: absolute IK target + force offset')
     ap.add_argument('--load', default='push', choices=('push', 'insert'))
     ap.add_argument('--push', type=float, nargs=2, default=(0., 10.))
     ap.add_argument('--push-hold-s', type=float, default=1.5)
