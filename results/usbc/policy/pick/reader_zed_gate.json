@@ -1,0 +1,125 @@
+{
+ "ckpt": "runs/perception/reader_zed_r320.pt",
+ "ood_thresh": 19.416518917221065,
+ "ood_scale": 1.25,
+ "n_fit": 16384,
+ "heldout_dr": {
+  "n": 4096,
+  "accepted_frac": 1.0,
+  "maha_p50_p999": [
+   7.551901593393533,
+   15.533215133776853
+  ],
+  "xy_err_accepted_p99_max_mm": [
+   4.149767875671387,
+   32.858646392822266
+  ],
+  "xy_err_rejected_mm": [],
+  "n_err_gt_5mm": 24,
+  "n_err_gt_5mm_rejected": 0
+ },
+ "no_reader_renders": {
+  "n": 1024,
+  "rejected_frac": 0.0107421875,
+  "maha_p1": 12.869344639336825
+ },
+ "real_zed_no_reader_on_strip": {
+  "bimanual_stationary_001": {
+   "maha": 14.637712674303383,
+   "accepted": true
+  },
+  "board_rgb_001": {
+   "maha": 17.30040863771788,
+   "accepted": true
+  },
+  "contact_approach_001": {
+   "maha": 14.579139584573994,
+   "accepted": true
+  },
+  "contact_final_001": {
+   "maha": 15.142496540271136,
+   "accepted": true
+  },
+  "contact_final_002": {
+   "maha": 15.312437876244719,
+   "accepted": true
+  },
+  "contact_interactive_001": {
+   "maha": 14.350391657094239,
+   "accepted": true
+  },
+  "contact_interactive_002": {
+   "maha": 14.626727349572942,
+   "accepted": true
+  },
+  "initial_rgb_001": {
+   "maha": 18.548658094568317,
+   "accepted": true
+  },
+  "left_elevated_j3_001": {
+   "maha": 16.587530782118453,
+   "accepted": true
+  },
+  "left_free_settle_001": {
+   "maha": 17.743531104057247,
+   "accepted": true
+  },
+  "left_free_settle_002": {
+   "maha": 17.379661617573625,
+   "accepted": true
+  },
+  "left_free_settle_003": {
+   "maha": 18.38508060321461,
+   "accepted": true
+  },
+  "left_pc_view_001": {
+   "maha": 14.698390336455708,
+   "accepted": true
+  },
+  "left_reader_002": {
+   "maha": 16.115825574367367,
+   "accepted": true
+  },
+  "left_rest_sweep_001": {
+   "maha": 16.195988217879133,
+   "accepted": true
+  },
+  "left_standoff_001": {
+   "maha": 14.798868165019194,
+   "accepted": true
+  },
+  "left_standoff_002": {
+   "maha": 14.943803335713657,
+   "accepted": true
+  },
+  "left_standoff_003": {
+   "maha": 15.026802276470844,
+   "accepted": true
+  },
+  "pc_contact_survey_001": {
+   "maha": 13.804651483796317,
+   "accepted": true
+  },
+  "pc_manual_motion_001": {
+   "maha": 16.27353381348828,
+   "accepted": true
+  },
+  "pc_stickers_001": {
+   "maha": 15.536846543873626,
+   "accepted": true
+  },
+  "pc_stickers_002": {
+   "maha": 13.775465342464662,
+   "accepted": true
+  },
+  "pc_stickers_003": {
+   "maha": 14.739918966915537,
+   "accepted": true
+  },
+  "rear_brace_patch_001": {
+   "maha": 16.667058895812385,
+   "accepted": true
+  }
+ },
+ "real_rejected": "0/24"
+}

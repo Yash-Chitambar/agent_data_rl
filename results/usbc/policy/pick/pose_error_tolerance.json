@@ -1,0 +1,173 @@
+{
+ "method": "privileged expert with the reader pose it plans with perturbed: xy error of fixed magnitude in a random direction, yaw error of fixed magnitude with random sign, about the body centre; full DR; n = 1024 each, seed 40000 (scripts/policy/pick_expert_eval.py --pose_err)",
+ "runs": {
+  "xy0.001_yaw0": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  },
+  "xy0.002_yaw0": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  },
+  "xy0.002_yaw3": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  },
+  "xy0.003_yaw0": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  },
+  "xy0.003_yaw4": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  },
+  "xy0.004_yaw0": {
+   "success": 1023,
+   "n": 1024,
+   "rate": 0.9990234375,
+   "wilson95_lo": 0.9944890376332649,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 1,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 1
+   }
+  },
+  "xy0.004_yaw6": {
+   "success": 1018,
+   "n": 1024,
+   "rate": 0.994140625,
+   "wilson95_lo": 0.9872755606107949,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 6,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 6
+   }
+  },
+  "xy0.005_yaw0": {
+   "success": 981,
+   "n": 1024,
+   "rate": 0.9580078125,
+   "wilson95_lo": 0.943915065312417,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 35,
+    "tilt>=3": 8,
+    "hold_drift>=1mm": 35
+   }
+  },
+  "xy0_yaw2": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  },
+  "xy0_yaw4": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  },
+  "xy0_yaw6": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  },
+  "xy0_yaw8": {
+   "success": 1024,
+   "n": 1024,
+   "rate": 1.0,
+   "wilson95_lo": 0.9962624591182143,
+   "failures": {
+    "nonfinite": 0,
+    "not_done": 0,
+    "ik_fail": 0,
+    "lift<60mm": 0,
+    "tilt>=3": 0,
+    "hold_drift>=1mm": 0
+   }
+  }
+ }
+}

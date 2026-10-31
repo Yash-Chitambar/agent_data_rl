@@ -27,6 +27,8 @@ ap.add_argument('--no_dr', action='store_true', help='nominal physics: no contac
 ap.add_argument('--write_spread', action='store_true')
 ap.add_argument('--impratio', type=float, default=None)
 ap.add_argument('--ki', type=float, default=0.03)
+ap.add_argument('--reader_est', default=None, help='plan with the ZED reader estimator (checkpoint); renders the ZED at reset with visual DR')
+ap.add_argument('--pose_err', type=float, nargs=2, default=None, help='planning pose error: xy (m, random direction), yaw (deg, random sign)')
 ap.add_argument('--settle_max_s', type=float, default=2.0)
 ap.add_argument('--finger_open', type=float, default=-1., help='approach finger opening (m per finger); -1: task default')
 ap.add_argument('--lift_v', type=float, default=0.10, help='expert Cartesian speed after closing (m/s)')
@@ -44,6 +46,9 @@ def wilson_lo(k, n, z=1.96):
 
 
 cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout=a.layout), episode_s=12. + a.hold_s)
+if a.reader_est:
+    cfg.physics.render_rgb = True; cfg.physics.visual_dr = True; cfg.physics.measured_camera_cadence = False
+    cfg.physics.camera_resolution = torch.load(a.reader_est, map_location='cpu')['res']
 if a.impratio is not None: cfg.impratio = a.impratio
 if a.finger_open >= 0: cfg.finger_open = a.finger_open or None
 if a.grip_range: cfg.grip_force_scale_range = tuple(a.grip_range)
@@ -58,7 +63,21 @@ print('built', round(time.time() - t0, 1), 's', flush=True)
 torch.manual_seed(a.seed)
 rows = []
 for batch in range(math.ceil(a.episodes / a.nworld)):
-    task.reset(); ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v, integral_gain=a.ki, settle_max_s=a.settle_max_s); ex.reset()
+    if a.reader_est: task.cfg.physics.render_rgb = True
+    task.reset()
+    est_fn, est_err = None, None
+    if a.reader_est:
+        from blind_insertion.perception.reader_zed import ReaderZedEstimator, reader_pose
+        if batch == 0: EST = ReaderZedEstimator(a.reader_est)
+        xy_hat, yaw_hat = EST(task.runtime.render()['top'])
+        task.cfg.physics.render_rgb = False      # one ZED frame at the rest pose; no rendering while stepping
+        p_hat, R_hat = reader_pose(task, xy_hat, yaw_hat)
+        est_fn = lambda: (p_hat, R_hat)   # noqa: E731
+        p_t, R_t = task.reader_pose(); bz = float(task.lay.variants[0].peg_boxes[0][0][2])
+        est_err = ((p_hat + R_hat[:, :, 2] * bz)[:, :2] - (p_t + R_t[:, :, 2] * bz)[:, :2]).norm(dim=1) * 1e3
+        est_yaw_err = torch.rad2deg(torch.atan2(-R_hat[:, 1, 2], -R_hat[:, 0, 2]) - torch.atan2(-R_t[:, 1, 2], -R_t[:, 0, 2])).abs()
+    ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v, integral_gain=a.ki, settle_max_s=a.settle_max_s,
+                    pose_err=a.pose_err, reader_pose_fn=est_fn); ex.reset()
     N = a.nworld
     start_hold = {k: torch.zeros(N, *s, device=task.device) for k, s in (('p', (3,)), ('R', (3, 3)), ('tilt', ()))}
     steps = torch.zeros(N, dtype=torch.long, device=task.device)
@@ -95,6 +114,8 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
          'reader_x': pr[:, 0], 'reader_y': pr[:, 1],
          'reader_yaw_deg': torch.rad2deg(torch.atan2(-K.quat_to_mat(pr[:, 3:])[:, 1, 2], -K.quat_to_mat(pr[:, 3:])[:, 0, 2])),
          'latency': task.latency, 'grip_scale': task.runtime.grip_scale if task.runtime.grip_scale is not None else torch.ones(N, device=task.device),
+         'est_xy_err_mm': est_err if est_err is not None else torch.zeros(N, device=task.device),
+         'est_yaw_err_deg': est_yaw_err if est_err is not None else torch.zeros(N, device=task.device),
          'pad_mu': task.runtime.geom_friction[:, task.pads[0], 0], 'reader_mu': task.runtime.geom_friction[:, task.reader_geoms[0], 0]}
     for i, nm in enumerate('xyz'): d[f'inhand_d{nm}_mm'] = rel_p[:, i] * 1e3
     for i, nm in enumerate('xyz'): d[f'inhand_r{nm}_deg'] = torch.rad2deg(rel_r[:, i])
@@ -117,6 +138,8 @@ summ = {'n': n, 'success': k, 'rate': k / n, 'wilson95_lo': wilson_lo(k, n), 'se
         'settle_err_mm_p50_p99': [float(np.percentile(df.settle_err_mm, q)) for q in (50, 99)],
         'episode_s_p50_p99': [float(np.percentile(df.steps[df.done], q) * task.dt) for q in (50, 99)] if df.done.any() else None}
 okm = df.success.values
+if a.reader_est:
+    summ['estimator'] = {'ckpt': a.reader_est, **{f'{k}_p{q}': float(np.percentile(df[k], q)) for k in ('est_xy_err_mm', 'est_yaw_err_deg') for q in (50, 99, 99.5, 100)}}
 sp = {'n_success': int(okm.sum())}
 for c in [c for c in df.columns if c.startswith('inhand_')]:
     v = df[c].values[okm]
