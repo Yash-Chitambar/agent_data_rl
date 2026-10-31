@@ -25,6 +25,9 @@ ap.add_argument('--seed', type=int, default=1000)
 ap.add_argument('--out', default='results/usbc/policy/pick/expert')
 ap.add_argument('--no_dr', action='store_true', help='nominal physics: no contact/control DR')
 ap.add_argument('--write_spread', action='store_true')
+ap.add_argument('--impratio', type=float, default=None)
+ap.add_argument('--grip_range', type=float, nargs=2, default=None)
+ap.add_argument('--pad_mu_range', type=float, nargs=2, default=None)
 ap.add_argument('--layout', default='results/usbc/policy/pick/task_layout.json')
 a = ap.parse_args()
 
@@ -36,6 +39,9 @@ def wilson_lo(k, n, z=1.96):
 
 
 cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout=a.layout))
+if a.impratio is not None: cfg.impratio = a.impratio
+if a.grip_range: cfg.grip_force_scale_range = tuple(a.grip_range)
+if a.pad_mu_range: cfg.pad_friction_range = tuple(a.pad_mu_range)
 if a.no_dr:
     cfg.pad_friction_range = cfg.reader_table_friction_range = cfg.grip_force_scale_range = None
     cfg.latency_steps = (0,); cfg.enc_offset_deg = 0.

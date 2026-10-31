@@ -6,6 +6,8 @@ plug along +x, towards the port side). A (cell, bin) is feasible when, at all 4 
 bin edges (8 reader poses):
   * pre-grasp, grasp and lift IK (tilt 60 deg, roll 0) solve to 1 mm / 0.6 deg with every joint
     >= MARGIN rad inside its limits (6 fixed + 24 random seeds);
+  * the right hand (every link_6-subtree geom point, open) stays >= 1 cm outside the PC hull below
+    the PC top at the three poses;
   * the footprint is >= 1 cm inside the table's back edge, and the reader footprint (body + neck + plug, +1.5 cm) is outside the hull of every PC pose of the
     training box (port (0.22, 0.36) +/-3 cm, +/-10 deg), as in explore_pc_placement.
 The region is the cell-aligned SIDE x SIDE square with every (cell, bin) feasible that has the
@@ -95,7 +97,42 @@ for i, (x, y, t0) in enumerate(cells):
         if pts[:, 0].max() > WALL_X - .01 or \
                 max(cv2.pointPolygonTest(hull, (float(px), float(py)), True) for px, py in pts) > -READER_MARGIN:
             clear[i] = False; break
-ok = (reach & clear).reshape(len(xs), len(ys), len(yb))
+# Hand clearance: right-hand points (all link_6-subtree geoms, open fingers) at the pre-grasp,
+# grasp and lift poses must stay >= HAND_MARGIN outside the PC hull wherever they are below the
+# PC top (+ margin). Found missing on 2026-10-31: the gripper hit a PC shifted 3 cm towards the reader.
+HAND_MARGIN = .01
+sid = m.site('grasp_site').id; Rs0, ps0 = d.site_xmat[sid].reshape(3, 3), d.site_xpos[sid]
+def subtree(b):
+    return [b] + [c for c in range(m.nbody) if m.body_parentid[c] == b and c != b for c in subtree(c)]
+hand_b = set(subtree(m.body('link_6').id)); hp = []
+for g in range(m.ngeom):
+    if m.geom_bodyid[g] not in hand_b: continue
+    if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+        mid = m.geom_dataid[g]; V = m.mesh_vert[m.mesh_vertadr[mid]:m.mesh_vertadr[mid] + m.mesh_vertnum[mid]]
+    elif m.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX:
+        sz = m.geom_size[g]; V = np.array([[a_ * sz[0], b_ * sz[1], c_ * sz[2]] for a_ in (-1, 1) for b_ in (-1, 1) for c_ in (-1, 1)])
+    else: continue
+    hp.append(((V @ d.geom_xmat[g].reshape(3, 3).T + d.geom_xpos[g]) - ps0) @ Rs0)
+hp = np.concatenate(hp); hp = hp[np.random.default_rng(0).choice(len(hp), min(400, len(hp)), replace=False)]
+hp_t = torch.tensor(hp, dtype=torch.float32, device=dev)
+hull2 = hull.reshape(-1, 2).astype(np.float64)
+edges = np.roll(hull2, -1, 0) - hull2
+nrm = np.stack([edges[:, 1], -edges[:, 0]], 1); nrm /= np.linalg.norm(nrm, axis=1, keepdims=True)
+if (nrm @ (hull2.mean(0) - hull2[0]) > 0).any() and (np.einsum('ij,ij->i', nrm, hull2.mean(0) - hull2) > 0).all(): nrm = -nrm   # outward
+off_h = np.einsum('ij,ij->i', nrm, hull2)
+pc_top = float(m.geom('table').pos[2] + m.geom('table').size[2]) + prof['pc']['measurements']['height_with_feet']['value']
+hand_ok = torch.ones(n, dtype=torch.bool, device=dev)
+nrm_t, off_t = torch.tensor(nrm, dtype=torch.float32, device=dev), torch.tensor(off_h, dtype=torch.float32, device=dev)
+for name in ('pregrasp', 'grasp', 'lift'):
+    p_t, R_t = W[name]
+    for k0 in range(0, n, 4096):
+        P3 = p_t[k0:k0 + 4096, None] + hp_t[None] @ R_t[k0:k0 + 4096].transpose(1, 2)          # (b, k, 3)
+        sd = (P3[..., :2] @ nrm_t.T - off_t).max(-1).values                                    # signed distance to hull (convex)
+        bad = (sd < HAND_MARGIN) & (P3[..., 2] < pc_top + HAND_MARGIN)
+        hand_ok[k0:k0 + 4096] &= ~bad.any(1)
+hand_ok = hand_ok.cpu().numpy().reshape(len(cells), 8).all(1)
+summary_hand = float(hand_ok.mean())
+ok = (reach & clear & hand_ok).reshape(len(xs), len(ys), len(yb))
 cell_ok = ok.all(-1)
 # compact square: all cells feasible; maximize the feasible margin ring (cells within 2 cm outside)
 k = int(round(a.side / CELL))
@@ -110,7 +147,7 @@ for i in range(len(xs) - k + 1):
         score = (ring, -dist)
         if best is None or score > best[0]: best = (score, i, j)
 summary = {'grid_cells': int(cell_ok.size), 'cells_all_bins_feasible': int(cell_ok.sum()), 'reach_frac': float(reach.mean()),
-           'clear_frac': float(clear.mean()), 'tilt_deg': a.tilt, 'joint_margin_rad': a.margin, 'yaw_half_range_deg': a.yaw, 'yaw_centre_deg': a.yaw_centre,
+           'clear_frac': float(clear.mean()), 'hand_clear_frac': summary_hand, 'tilt_deg': a.tilt, 'joint_margin_rad': a.margin, 'yaw_half_range_deg': a.yaw, 'yaw_centre_deg': a.yaw_centre,
            'pad_contact_height_m': pad_h}
 out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
 np.savez_compressed(out / 'reader_region_search.npz', xs=xs, ys=ys, yaw_bins=yb, feasible=ok, reach=reach.reshape(ok.shape), clear=clear.reshape(ok.shape))
@@ -132,7 +169,7 @@ import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 fig, ax = plt.subplots(figsize=(7, 7))
 frac = ok.mean(-1)
 im = ax.imshow(frac, origin='lower', extent=[ys[0] * 100 - .5, ys[-1] * 100 + .5, xs[0] * 100 - .5, xs[-1] * 100 + .5], cmap='RdYlGn', vmin=0, vmax=1)
-ax.invert_xaxis(); plt.colorbar(im, ax=ax, label=f'fraction of yaw bins feasible (|yaw| <= {a.yaw:g})')
+ax.invert_xaxis(); plt.colorbar(im, ax=ax, label=f'fraction of yaw bins feasible (yaw {a.yaw_centre - a.yaw:g}..{a.yaw_centre + a.yaw:g} deg)')
 h = hull.reshape(-1, 2) * 100; ax.fill(h[:, 1], h[:, 0], color='k', alpha=.3, label='PC hull (all box poses)')
 y0, y1 = region['y_range_m']; x0, x1 = region['x_range_m']
 ax.plot(np.array([y0, y1, y1, y0, y0]) * 100, np.array([x0, x0, x1, x1, x0]) * 100, 'm-', lw=2, label=f'reader region {a.side*100:.0f} cm')

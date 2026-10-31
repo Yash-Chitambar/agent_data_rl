@@ -1,0 +1,305 @@
+{
+ "grasp": {
+  "axial_behind_neck_m": 0.007,
+  "tip_clearance_m": 0.001,
+  "body_half_thickness_m": 0.004415
+ },
+ "pad_contact_height_m": [
+  0.005882810676043849,
+  0.00893
+ ],
+ "tilt_deg": 60.0,
+ "cases": [
+  {
+   "xy": [
+    0.36,
+    0.1
+   ],
+   "yaw_deg": 0.0,
+   "ik_err_mm": [
+    2.445477764026263e-10,
+    7.687223536855272e-07,
+    3.9310070453406205e-11
+   ],
+   "tip_table_clearance_mm": 1.0310264672843683,
+   "tcp_pos_err_mm": 0.12223258397636784,
+   "tool_axis_tilt_deg": 60.01125340961457,
+   "pad_normal_force_N": [
+    3.52,
+    8.38,
+    8.48,
+    3.62
+   ],
+   "other_reader_contacts": [
+    [
+     "table",
+     "peg_34",
+     0.224
+    ],
+    [
+     "table",
+     "peg_34",
+     0.073
+    ]
+   ],
+   "pad_rows_in_contact": [
+    "left:row03",
+    "left:row13",
+    "right:row00",
+    "right:row10"
+   ],
+   "pad_contact_height_mm": [
+    5.906786077460355,
+    8.506072275669741
+   ],
+   "n_pad_contacts": 4,
+   "finger_gap_mm": 37.98454579678391,
+   "reader_shift_on_close_mm": 0.16156230049031065,
+   "lift_mm": 79.37145445328098,
+   "reader_tilt_deg": 0.043007694689925095,
+   "inhand_drift_mm": 0.10537763003454753,
+   "inhand_rot_drift_deg": 0.11458903091412709,
+   "success": true
+  },
+  {
+   "xy": [
+    0.33,
+    0.05
+   ],
+   "yaw_deg": 25.0,
+   "ik_err_mm": [
+    5.26233377417333e-07,
+    2.6347088666124783e-09,
+    3.554472248947337e-07
+   ],
+   "tip_table_clearance_mm": 1.0060689088430412,
+   "tcp_pos_err_mm": 0.10625886412669223,
+   "tool_axis_tilt_deg": 60.00709884663605,
+   "pad_normal_force_N": [
+    8.48,
+    3.59,
+    3.52,
+    8.41
+   ],
+   "other_reader_contacts": [
+    [
+     "table",
+     "peg_34",
+     0.069
+    ],
+    [
+     "table",
+     "peg_34",
+     0.085
+    ]
+   ],
+   "pad_rows_in_contact": [
+    "left:row03",
+    "left:row13",
+    "right:row00",
+    "right:row10"
+   ],
+   "pad_contact_height_mm": [
+    5.900465278290273,
+    8.503516650102675
+   ],
+   "n_pad_contacts": 4,
+   "finger_gap_mm": 37.98454567953947,
+   "reader_shift_on_close_mm": 0.14575355782138405,
+   "lift_mm": 79.78631912881723,
+   "reader_tilt_deg": 0.08321156279486315,
+   "inhand_drift_mm": 0.10497045015160444,
+   "inhand_rot_drift_deg": 0.1152705607650761,
+   "success": true
+  },
+  {
+   "xy": [
+    0.42,
+    0.15
+   ],
+   "yaw_deg": -25.0,
+   "ik_err_mm": [
+    1.393537784797072e-08,
+    1.388476277894645e-06,
+    2.530897444829832e-07
+   ],
+   "tip_table_clearance_mm": 1.0157746588379952,
+   "tcp_pos_err_mm": 0.0999422699988345,
+   "tool_axis_tilt_deg": 60.01640090424926,
+   "pad_normal_force_N": [
+    8.88,
+    3.12,
+    3.12,
+    8.88
+   ],
+   "other_reader_contacts": [],
+   "pad_rows_in_contact": [
+    "left:row03",
+    "left:row13",
+    "right:row00",
+    "right:row10"
+   ],
+   "pad_contact_height_mm": [
+    5.7533598719081045,
+    8.366634949448343
+   ],
+   "n_pad_contacts": 4,
+   "finger_gap_mm": 37.98454711885338,
+   "reader_shift_on_close_mm": 0.24175901858929652,
+   "lift_mm": 80.19524853163627,
+   "reader_tilt_deg": 0.1384249587674455,
+   "inhand_drift_mm": 0.09679571117934656,
+   "inhand_rot_drift_deg": 0.10707909948305368,
+   "success": true
+  },
+  {
+   "xy": [
+    0.38,
+    0.06
+   ],
+   "yaw_deg": 10.0,
+   "ik_err_mm": [
+    1.1111149710743512e-08,
+    1.3678571863174188e-06,
+    5.470586944960936e-10
+   ],
+   "tip_table_clearance_mm": 1.0234327723763479,
+   "tcp_pos_err_mm": 0.05712321248373703,
+   "tool_axis_tilt_deg": 60.00461796103541,
+   "pad_normal_force_N": [
+    3.08,
+    8.76,
+    8.91,
+    3.24
+   ],
+   "other_reader_contacts": [
+    [
+     "table",
+     "peg_34",
+     0.236
+    ],
+    [
+     "table",
+     "peg_34",
+     0.091
+    ]
+   ],
+   "pad_rows_in_contact": [
+    "left:row03",
+    "left:row13",
+    "right:row00",
+    "right:row10"
+   ],
+   "pad_contact_height_mm": [
+    5.908827652392649,
+    8.520414593817994
+   ],
+   "n_pad_contacts": 4,
+   "finger_gap_mm": 37.98454644985647,
+   "reader_shift_on_close_mm": 0.23728218224831563,
+   "lift_mm": 79.312650668442,
+   "reader_tilt_deg": 0.016912944650004647,
+   "inhand_drift_mm": 0.10682475692882673,
+   "inhand_rot_drift_deg": 0.1139760020337022,
+   "success": true
+  },
+  {
+   "xy": [
+    0.31,
+    0.16
+   ],
+   "yaw_deg": -10.0,
+   "ik_err_mm": [
+    3.3736983109250975e-08,
+    9.311799602058962e-09,
+    2.100651249981799e-05
+   ],
+   "tip_table_clearance_mm": 1.0442292660913925,
+   "tcp_pos_err_mm": 0.11770994431054722,
+   "tool_axis_tilt_deg": 60.019644627208,
+   "pad_normal_force_N": [
+    7.63,
+    4.28,
+    4.37,
+    7.72
+   ],
+   "other_reader_contacts": [
+    [
+     "table",
+     "peg_34",
+     0.169
+    ]
+   ],
+   "pad_rows_in_contact": [
+    "left:row03",
+    "left:row13",
+    "right:row00",
+    "right:row10"
+   ],
+   "pad_contact_height_mm": [
+    5.845577870238171,
+    8.448585593753416
+   ],
+   "n_pad_contacts": 4,
+   "finger_gap_mm": 37.984545165655675,
+   "reader_shift_on_close_mm": 0.1041912676697482,
+   "lift_mm": 80.05348827215265,
+   "reader_tilt_deg": 0.11730359560880407,
+   "inhand_drift_mm": 0.09981466751541428,
+   "inhand_rot_drift_deg": 0.10971807265080367,
+   "success": true
+  },
+  {
+   "xy": [
+    0.4,
+    0.12
+   ],
+   "yaw_deg": 20.0,
+   "ik_err_mm": [
+    5.517044527990233e-08,
+    6.686580560179785e-09,
+    7.952969869612159e-06
+   ],
+   "tip_table_clearance_mm": 1.0160983449556822,
+   "tcp_pos_err_mm": 0.08830533792478559,
+   "tool_axis_tilt_deg": 60.00425060609512,
+   "pad_normal_force_N": [
+    5.23,
+    6.78,
+    6.77,
+    5.22
+   ],
+   "other_reader_contacts": [
+    [
+     "table",
+     "peg_34",
+     0.093
+    ],
+    [
+     "table",
+     "peg_34",
+     0.036
+    ]
+   ],
+   "pad_rows_in_contact": [
+    "left:row03",
+    "left:row13",
+    "right:row00",
+    "right:row10"
+   ],
+   "pad_contact_height_mm": [
+    5.85938170205267,
+    8.459977457585872
+   ],
+   "n_pad_contacts": 4,
+   "finger_gap_mm": 37.984545303061736,
+   "reader_shift_on_close_mm": 0.09944259420821615,
+   "lift_mm": 79.64813365868557,
+   "reader_tilt_deg": 0.06333960507193623,
+   "inhand_drift_mm": 0.10042088755551698,
+   "inhand_rot_drift_deg": 0.11000306859243075,
+   "success": true
+  }
+ ],
+ "scope": "CPU nominal physics, no DR"
+}

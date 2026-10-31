@@ -66,6 +66,7 @@ class PickTask(BimanualTask):
         if cfg.impratio is not None:
             wp.to_torch(rt.m.opt.impratio_invsqrt).fill_(1. / math.sqrt(cfg.impratio))
         self.reader0 = torch.zeros(cfg.physics.nworld, 7, device=dev)
+        self.finger_qadr = [int(m.joint(f + '_finger').qposadr[0]) for f in ('left', 'right')]
         import mujoco
         from blind_insertion.scenes import physical_rig as Rig
         d = mujoco.MjData(m); Rig.reference_pose(m, d, rt.lay); mujoco.mj_forward(m, d)
@@ -224,6 +225,8 @@ class PickExpert:
         self.q_cmd = self.q0.clone()
         self.p_cmd, self.R_cmd = t.chain.fk(self.q_cmd)
         self.grip = torch.ones(N, device=dev)
+        self.finger_prev = t.runtime.q[:, t.finger_qadr].sum(1)
+        self.finger_still = torch.zeros(N, dtype=torch.long, device=dev)
 
     def _cart_step(self, p_wp, R_wp, v):
         dp = p_wp - self.p_cmd
@@ -278,7 +281,14 @@ class PickExpert:
         adv |= (ph == 1) & (dist < 2e-4) & (ang < 5e-3)
         settled = (e_p < self.settle_tol[0]) & (e_r < self.settle_tol[1])
         adv |= (ph == 2) & ((settled & (self.timer >= 5)) | (self.timer >= self.settle_max))
-        adv |= (ph == 3) & (self.timer >= self.close_n)
+        # closed: the fingers have stopped (opening changes < 0.05 mm per step for 5 steps; the
+        # real gripper reports its opening), at least close_s, at most 2.5 s. The squeeze force is
+        # randomized and the fingers are damped, so closing time varies (0.5-0.9 s).
+        fo = t.runtime.q[:, t.finger_qadr].sum(1)
+        still = (fo - self.finger_prev).abs() < 5e-5
+        self.finger_still = torch.where((ph == 3) & still, self.finger_still + 1, torch.zeros_like(self.finger_still))
+        self.finger_prev = fo
+        adv |= (ph == 3) & (((self.timer >= self.close_n) & (self.finger_still >= 5)) | (self.timer >= round(2.5 / self.dt)))
         adv |= (ph == 4) & (dist < 5e-4) & (self.timer >= 10)
         adv |= (ph == 5) & (self.timer >= self.hold_n)
         if not hasattr(self, 'settle_err'):
