@@ -87,6 +87,9 @@ class BimanualCfg:
     opt_overrides: dict | None = None
     # Cameras to render (subset of top, wrist_cam, left_wrist_cam); fewer cameras = cheaper renders.
     camera_names: tuple = ('top', 'wrist_cam', 'left_wrist_cam')
+    # PC mass and inertia scale (1 = measured 284 g). A large value (e.g. 1e3) pins the PC through
+    # its feet friction: the "PC fixed" reference condition for insertion evaluations.
+    pc_mass_scale: float = 1.0
 
 
 class BimanualRuntime:
@@ -134,6 +137,12 @@ class BimanualRuntime:
                     assert g.jntnum[0] == 0 and g.parentid[0] == cam.bodyid[0]
                     rot = np.zeros(9); mujoco.mju_quat2Mat(rot, g.quat)
                     m.cam_pos[cam.id] -= rot.reshape(3, 3) @ off
+        if c.pc_mass_scale != 1.0:
+            if not 0 < c.pc_mass_scale < 1e6:
+                raise ValueError('pc_mass_scale must be positive')
+            b = m.body('fixture').id
+            m.body_mass[b] *= c.pc_mass_scale
+            m.body_inertia[b] *= c.pc_mass_scale
         for key, value in (c.opt_overrides or {}).items():
             if not hasattr(m.opt, key):
                 raise ValueError(f'unknown MjOption field {key}')

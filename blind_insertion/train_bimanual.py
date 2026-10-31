@@ -36,6 +36,7 @@ def set_scale(env: InsertionTask, s: float):
     c.inhand_pos_m = tuple(x * s for x in BASE['inhand_pos_m'])
     c.inhand_rot_deg = tuple(x * s for x in BASE['inhand_rot_deg'])
     c.gap_m = BASE['gap_m']
+    c.npz_scale = s          # used when start_source is Part 2's npz (lateral and angles; gap as sampled)
     env.refresh_pool()
 
 
@@ -72,6 +73,10 @@ def train(args):
                      n_points=env.n_labels, init_std=args.init_std).to(dev)
     opt = torch.optim.Adam(ac.parameters(), lr=pc.lr)
     it, total, t_stage = 0, 0, 0
+    if args.init:
+        ck0 = torch.load(args.init, map_location=dev, weights_only=False)
+        ac.load_state_dict(ck0['model'])
+        print(f'[{args.name}] initialized from {args.init}', flush=True)
     resuming = args.resume and (run / 'last.pt').exists()
     if resuming:
         ck = torch.load(run / 'last.pt', map_location=dev, weights_only=False)
@@ -245,6 +250,7 @@ def parser():
     ap.add_argument('--print_every', type=int, default=5)
     ap.add_argument('--ckpt_every', type=int, default=10)
     ap.add_argument('--resume', action='store_true')
+    ap.add_argument('--init', default='', help='start from this checkpoint (weights + normalizers), fresh optimizer')
     return ap
 
 

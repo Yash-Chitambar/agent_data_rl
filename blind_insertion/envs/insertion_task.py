@@ -74,7 +74,8 @@ class InsertionCfg:
     inhand_rot_deg: tuple = (1.5, 8.0, 1.5)
     # Left arm: press on the PC top at the reachability search's pose (pads `press_m` below the
     # surface as a target; the episode starts with the pads 3 mm above it).
-    left_hold: str = 'press'
+    left_hold: str = 'guarded'          # 'guarded': Part 3's recommended hold (left_hold.py); 'press': simple
+    hold_force_n: float = 35.0
     # 20 mm: arm sag and the +/-1.5 deg encoder-offset error leave only 66 % of worlds touching the
     # PC at 6 mm; at 20 mm all touch and the PC resists ~3-5 N horizontally (n=256, pc mu 0.3-0.9).
     press_m: float = 0.02
@@ -91,6 +92,12 @@ class InsertionCfg:
     shaping_scale_m: float = 0.01
     free_height: float = 0.001          # contact labels: point above the panel by this is free
     pool_per_world: int = 4
+    # Start errors: 'uniform' (lateral_m, angle_deg, gap_m above) or the path of Part 2's per-episode
+    # pre-insert errors (results/usbc/policy/approach/preinsert_error_samples.npz): each start draws a
+    # row, scales x, y, rx, ry, roll by `npz_scale` (curriculum; 1 = Part 2's distribution) and keeps its
+    # gap. Rows that are approach failures (lateral > 8 mm, gap outside 0.5-15 mm) are dropped.
+    start_source: str = 'uniform'
+    npz_scale: float = 1.0
     privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
     grasp_p: tuple | None = None        # TCP in the reader frame; None: solved by InsertionTask.grasp_height
 
@@ -154,6 +161,11 @@ class InsertionTask(BimanualTask):
         rep = json.loads((ROOT / rt.cfg.task_layout).read_text())['nominal']
         self.q_right_report = torch.tensor(rep['q_right'], device=dev)
         self.q_left_report = torch.tensor(rep['q_left'], device=dev)
+        if self.icfg.left_hold == 'guarded':
+            from blind_insertion.envs.left_hold import Harness, HoldCfg, LeftHold
+            self.hold = LeftHold(Harness(rt), HoldCfg(mode='press', across_m=-0.0208, along_m=-0.02,
+                                                      force_n=self.icfg.hold_force_n, guarded=True))
+            self._hold_yaws()
         if self.icfg.grasp_p is None:
             self.icfg.grasp_p = self.grasp_height()
         self._init_nominal()
@@ -255,6 +267,22 @@ class InsertionTask(BimanualTask):
         lp, lR = self.left_chain.fk(self.q_left_report[None])
         self.left_in_pc = (port_R.transpose(1, 2) @ (lp - port_p)[..., None])[..., 0], port_R.transpose(1, 2) @ lR
 
+    def _hold_yaws(self):
+        """Restrict the hold's tool-yaw search to +/-15 deg around the nominal PC pose's best yaw (pool speed)."""
+        pc0 = self._pc_qpos(torch.zeros(1, device=self.device), torch.zeros(1, device=self.device), torch.zeros(1, device=self.device))
+        p, R = self._port_pose(pc0)
+        best = float(self.hold.solve(p, R)['yaw_deg'][0])
+        self.hold.cfg.yaws_deg = (best - 15, best, best + 15)
+
+    def _npz_rows(self):
+        if not hasattr(self, '_npz'):
+            z = np.load(ROOT / self.icfg.start_source)
+            rows = np.stack([z[k] for k in ('x_mm', 'y_mm', 'gap_mm', 'rx_deg', 'ry_deg', 'roll_deg')], 1)
+            keep = np.isfinite(rows).all(1) & (np.hypot(rows[:, 0], rows[:, 1]) <= 8) & (rows[:, 2] >= .5) & (rows[:, 2] <= 15)
+            self._npz = torch.tensor(rows[keep], device=self.device, dtype=torch.float32)
+            self.npz_dropped = int((~keep).sum())
+        return self._npz
+
     def _pc_qpos(self, dx, dy, dyaw_deg):
         """PC free-joint qpos at nominal port + (dx, dy), yaw nominal + dyaw (runtime._sample_layout math)."""
         rt = self.runtime
@@ -285,9 +313,15 @@ class InsertionTask(BimanualTask):
             pc = self._pc_qpos(u(k) * dx, u(k) * dy, u(k) * dyaw)
             port_p, port_R = self._port_pose(pc)
             # plug relative to the port
-            lat = u(k, 2) * torch.tensor(c.lateral_m, device=dev)
-            gap = c.gap_m[0] + (c.gap_m[1] - c.gap_m[0]) * (u(k) + 1) / 2
-            ang = u(k, 3) * c.angle_deg * math.pi / 180
+            if c.start_source == 'uniform':
+                lat = u(k, 2) * torch.tensor(c.lateral_m, device=dev)
+                gap = c.gap_m[0] + (c.gap_m[1] - c.gap_m[0]) * (u(k) + 1) / 2
+                ang = u(k, 3) * c.angle_deg * math.pi / 180
+            else:
+                rows = self._npz_rows()[torch.randint(len(self._npz_rows()), (k,), device=dev, generator=gen)]
+                lat = rows[:, :2] * 1e-3 * c.npz_scale
+                gap = rows[:, 2] * 1e-3
+                ang = rows[:, 3:6] * math.pi / 180 * c.npz_scale
             R_rp = _rpy(ang)
             p_rp = torch.cat([lat, gap[:, None]], 1)
             R_rw = port_R @ R_rp
@@ -302,14 +336,21 @@ class InsertionTask(BimanualTask):
             R_tw = R_rw @ R_rt.transpose(1, 2)
             p_tw = p_rw - (R_tw @ p_rt[..., None])[..., 0]
             q, pe, re = self.right_chain.ik(p_tw, R_tw, self.q_right_nominal.expand(k, 6), iters=40)
-            # left press pose follows the PC
-            lp0, lR0 = self.left_in_pc
-            l_R = port_R @ lR0
-            l_hover = port_p + (port_R @ lp0[..., None].expand(k, 3, 1))[..., 0]
-            down = torch.tensor([0., 0., -1.], device=dev)
-            ql_h, pel, rel = self.left_chain.ik(l_hover, l_R, self.q_left_report.expand(k, 6), iters=30)
-            ql_p, pep, rep = self.left_chain.ik(l_hover + down * (0.003 + c.press_m), l_R, ql_h, iters=20)
-            ok = (pe < 2e-4) & (re < 2e-3) & (pel < 5e-4) & (rel < 5e-3) & (pep < 5e-4) & (rep < 5e-3)
+            if c.left_hold == 'guarded':
+                # Part 3's guarded press (left_hold.py), end state: fingertips on the top at the planned
+                # contact, latched there (encoders), plus dq = Kp^-1 J^T F for hold_force_n.
+                plan = self.hold.solve(port_p, port_R)
+                ql_h, ql_p = plan['q_contact'], plan['dq_force']      # contact pose, force offset
+                ok = (pe < 2e-4) & (re < 2e-3) & plan['ok']
+            else:
+                # simple press: report pose (3 mm above the top) moved with the PC, target press_m deeper
+                lp0, lR0 = self.left_in_pc
+                l_R = port_R @ lR0
+                l_hover = port_p + (port_R @ lp0[..., None].expand(k, 3, 1))[..., 0]
+                down = torch.tensor([0., 0., -1.], device=dev)
+                ql_h, pel, rel = self.left_chain.ik(l_hover, l_R, self.q_left_report.expand(k, 6), iters=30)
+                ql_p, pep, rep = self.left_chain.ik(l_hover + down * (0.003 + c.press_m), l_R, ql_h, iters=20)
+                ok = (pe < 2e-4) & (re < 2e-3) & (pel < 5e-4) & (rel < 5e-3) & (pep < 5e-4) & (rep < 5e-3)
             # fingers: pad surfaces on the reader's side faces (pad sphere radius 1.2 mm)
             h = self.body_half_width + 0.0012 + 3e-4     # 0.3 mm open: the motors close onto the faces
             fingers = torch.full((k, 2), h, device=dev)
@@ -374,7 +415,10 @@ class InsertionTask(BimanualTask):
             rt.camera_sensor.reset(ids, rt.sensor_time)
         self._sample_control(ids)
         self.joint_target[ids] = self._measured_model_angles()[ids]
-        self.left_press_q[ids] = st['q_left_press']
+        if self.icfg.left_hold == 'guarded':   # latched at the true contact as the encoders read it, + force offset
+            self.left_press_q[ids] = st['q_left_hover'] - self.enc_error[ids, 1] + st['q_left_press']
+        else:
+            self.left_press_q[ids] = st['q_left_press']
         self.steps[ids] = 0; self.seated_steps[ids] = 0; self.done[ids] = False; self.previous_action[ids] = 0
         self.sent_history[:, ids] = 0
         for k, v in st.items():
@@ -394,9 +438,11 @@ class InsertionTask(BimanualTask):
     def _update_joint_targets(self, action, measured):
         proposed = super()._update_joint_targets(action, measured)
         # scripted left hold: press target (believed frame), within the tracking cap
-        cap = self.cfg.target_cap_rad
-        lq = torch.maximum(torch.minimum(self.left_press_q, measured[:, 1] + cap), measured[:, 1] - cap)
-        proposed[:, 1] = lq
+        if self.icfg.left_hold == 'guarded':   # scripted hold: absolute target, no policy tracking cap
+            proposed[:, 1] = self.left_press_q   # (35 N needs ~0.15 rad of joint-2 error)
+        else:
+            cap = self.cfg.target_cap_rad
+            proposed[:, 1] = torch.maximum(torch.minimum(self.left_press_q, measured[:, 1] + cap), measured[:, 1] - cap)
         self.joint_target.copy_(proposed)
         return proposed
 
