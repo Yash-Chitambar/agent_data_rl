@@ -35,7 +35,8 @@ class BimanualCfg:
     # PC-feet/table sliding friction, per world, resampled on reset. Unmeasured: the range spans
     # hard plastic to rubber feet on a smooth top. The feet have contact priority, so this value
     # alone sets the pair. None keeps the scene's fixed 0.6.
-    pc_friction_range: tuple | None = (0.3, 0.9)
+    # v1 policy: high fixed-ish friction (real value unknown, revisit after the first policy).
+    pc_friction_range: tuple | None = (0.8, 1.0)
     # Fingertip/wrist-camera alignment fitted to wrist silhouettes (scripts/real2sim/fit_gripper_tips.py
     # --sweep): a fit.json path, 'fitted' for the older bundle-only fit, or None. The silhouettes
     # cannot separate tip geometry from a hand-eye translation error. The sweep fit is held to the
@@ -49,7 +50,8 @@ class BimanualCfg:
     # nominal +/- pc_pose_range (x m, y m, yaw deg) and the reader uniformly in the region (x, y,
     # yaw). The search guarantees both arms reach over the whole PC box. None: legacy fixed poses.
     task_layout: str | None = 'results/usbc/bimanual_20261029/placement/report.json'
-    pc_pose_range: tuple = (.03, .03, 10.)
+    # v1 policy: narrowed from (.03, .03, 10.) to raise success (user, 2026-10-31); widen later.
+    pc_pose_range: tuple = (.015, .015, 5.)
     # Legacy plant only (dynamics_profile=None): right joint-2 friction from the older replays.
     right_joint2_friction_nm: float = 1.0
     right_fric_comp: dict | None = None
