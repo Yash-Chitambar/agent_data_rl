@@ -48,8 +48,12 @@ def create(root):
     if any((root / x).exists() for x in (MANIFEST, SUMS, COMPLETE)):
         raise FileExistsError('manifest already exists; create a new frozen bundle version')
     files = entries(root)
+    session = json.loads((root / 'session.json').read_text())
+    # Older bimanual sessions identify themselves by schema but predate the
+    # session_id field required by the first version of this artifact tool.
+    source_session_id = session.get('session_id') or f"{session.get('schema', 'session')}:{root.name}"
     data = {'schema': 'usbc-session-artifact-v1', 'created_utc': datetime.now(timezone.utc).isoformat(),
-            'source_session_id': json.loads((root / 'session.json').read_text())['session_id'], 'files': files}
+            'source_session_id': source_session_id, 'files': files}
     with (root / MANIFEST).open('x') as f:
         json.dump(data, f, indent=2); f.write('\n')
     with (root / SUMS).open('x') as f:
