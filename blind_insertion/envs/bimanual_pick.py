@@ -50,17 +50,21 @@ class PickTaskCfg(BimanualTaskCfg):
     # points the folded arm at the wall from its base (y 0.62), clear of the region. None: reference.
     left_park_q: tuple | None = (0.0, 0.83, 0.29, -0.02, -0.73, -0.78)
     # Right gripper opened only this far for the approach (finger joint, m; full open 0.0475, pad gap
-    # 92 mm). 0.029: 55 mm pad gap, 10 mm per side around the 34.6 mm body (5 mm per side tipped
-    # 6 % of the readers onto their side when the approach settled 2-3 mm off). Keeps the open fingers
-    # off the PC and the arm mounting plate. The real gripper is position controlled; in sim the
-    # finger joint limit is lowered. None: full opening.
-    finger_open: float | None = 0.029
+    # 92 mm). 0.024: 45 mm pad gap, 5 mm per side around the 34.6 mm body, so the open fingers clear
+    # the arm mounting plate and the PC front in the strip in front of the PC. The real gripper is
+    # position controlled; in sim the finger joint limit is lowered. None: full opening.
+    finger_open: float | None = 0.024
+    # PC pose box for the pick task (x m, y m, yaw deg), replacing BimanualCfg.pc_pose_range: the
+    # reader strip in front of the PC needs the PC x within +/-1 cm (user: acceptable for v1).
+    pc_pose_range: tuple | None = (0.01, 0.015, 5.)
     impratio: float | None = 30.   # 30: least creep (10 s hold rotation p50 0.11 deg vs 0.22 at 10, 0.66 at 3)
 
 
 class PickTask(BimanualTask):
     def __init__(self, cfg=None):
         cfg = cfg or PickTaskCfg()
+        if cfg.pc_pose_range is not None:
+            cfg.physics.pc_pose_range = tuple(cfg.pc_pose_range)
         super().__init__(cfg)
         rt, m = self.runtime, self.runtime.mjm
         dev = self.device
@@ -195,14 +199,14 @@ class PickExpert:
 
     def __init__(self, task: PickTask, v_max=0.10, w_max=1.0, joint_speed=1.2, settle_tol=(6e-4, 0.4),
                  settle_max_s=2.0, close_s=0.6, hold_s=1.0, integral_gain=0.03, integral_cap=0.08,
-                 jitter=None, margin=0.05, seed=0):
+                 jitter=None, margin=0.05, lift_tol_deg=1.0, seed=0):
         self.t, self.v, self.w, self.js = task, v_max, w_max, joint_speed
         self.settle_tol, self.dt = settle_tol, task.dt
         self.settle_max = round(settle_max_s / task.dt)
         self.close_n, self.hold_n = round(close_s / task.dt), round(hold_s / task.dt)
         self.ki, self.icap = integral_gain, integral_cap
         # Optional per-episode grasp-point jitter (reader frame, m) to widen demo coverage.
-        self.jitter, self.margin = jitter, margin
+        self.jitter, self.margin, self.lift_tol = jitter, margin, lift_tol_deg
         self.gen = torch.Generator(device=task.device); self.gen.manual_seed(seed + 101)
 
     def _ik(self, p, R, q0, iters):
@@ -330,7 +334,9 @@ class PickExpert:
         self.finger_still = torch.where((ph == 3) & still, self.finger_still + 1, torch.zeros_like(self.finger_still))
         self.finger_prev = fo
         adv |= (ph == 3) & (((self.timer >= self.close_n) & (self.finger_still >= 5)) | (self.timer >= round(2.5 / self.dt)))
-        adv |= (ph == 4) & (dist < 5e-4) & (self.timer >= 10)
+        # lifted: the command has arrived and the true tool orientation has settled (< lift_tol_deg;
+        # weak wrist gains under the reader-plus-hand load take ~1 s at some poses), at most 3 s
+        adv |= (ph == 4) & (dist < 5e-4) & (self.timer >= 10) & ((e_r < self.lift_tol) | (self.timer >= round(3.0 / self.dt)))
         adv |= (ph == 5) & (self.timer >= self.hold_n)
         if not hasattr(self, 'settle_err'):
             self.settle_err = torch.zeros(N, 2, device=t.device)

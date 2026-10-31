@@ -28,6 +28,10 @@ ap.add_argument('--yaw', type=float, default=30.)
 ap.add_argument('--yaw_centre', type=float, default=0.)
 ap.add_argument('--side', type=float, default=.12)
 ap.add_argument('--side_y', type=float, default=None, help='rectangle: y side (default --side)')
+ap.add_argument('--side_auto', action='store_true', help='largest x depth (<= --side) with a feasible --side_y strip')
+ap.add_argument('--pc_box', type=float, nargs=3, default=None, help='PC pose box for the clearance checks (dx m, dy m, dyaw deg); default BimanualCfg')
+ap.add_argument('--hand_margin', type=float, default=.01)
+ap.add_argument('--reader_margin', type=float, default=.015)
 ap.add_argument('--margin', type=float, default=.10)
 ap.add_argument('--tilt', type=float, default=G.TILT_DEG)
 ap.add_argument('--out', default='results/usbc/policy/pick')
@@ -39,16 +43,16 @@ ap.add_argument('--xr', type=float, nargs=2, default=(.03, .30))
 ap.add_argument('--yr', type=float, nargs=2, default=(-.05, .48))
 ap.add_argument('--target', type=float, nargs=2, default=(.12, .34), help='tie-break: square centre nearest this point')
 ap.add_argument('--left_margin', type=float, default=.015)
-ap.add_argument('--finger_open', type=float, default=.029, help='finger joint opening during the approach (m per finger; full 0.0475)')
+ap.add_argument('--finger_open', type=float, default=.024, help='finger joint opening during the approach (m per finger; full 0.0475)')
 ap.add_argument('--left_park_q', type=float, nargs=6, default=(0.0, 0.83, 0.29, -0.02, -0.73, -0.78),
                 help='left arm parked during the pick (bimanual_pick.PickTaskCfg.left_park_q)')
 ap.add_argument('--left_pose', choices=('both', 'ref', 'press', 'none', 'park'), default='park', help='left-arm poses treated as obstacles during the pick')
 a = ap.parse_args()
 dev = 'cuda:0'
 CELL, BIN = .01, 10.
-READER_BACK, READER_FRONT, READER_HALF_W, READER_MARGIN = .02, .07, .018, .015
+READER_BACK, READER_FRONT, READER_HALF_W, READER_MARGIN = .02, .07, .018, a.reader_margin
 from blind_insertion.envs.bimanual_runtime import BimanualCfg as _BC
-PORT, PC_BOX = (.22, .36, 0.), tuple(_BC.pc_pose_range)   # training box of the PC pose (now +/-1.5 cm, +/-5 deg)
+PORT, PC_BOX = (.22, .36, 0.), tuple(a.pc_box) if a.pc_box else tuple(_BC.pc_pose_range)   # PC pose box for clearance
 PC_CENTRE = (.2685, .3392)
 from blind_insertion.scenes.measured_support import dimensions
 WALL_X = dimensions()['wall_edge_x_m']
@@ -123,7 +127,7 @@ for i, (x, y, t0) in enumerate(cells):
 # Hand clearance: right-hand points (all link_6-subtree geoms, open fingers) at the pre-grasp,
 # grasp and lift poses must stay >= HAND_MARGIN outside the PC hull wherever they are below the
 # PC top (+ margin). Found missing on 2026-10-31: the gripper hit a PC shifted 3 cm towards the reader.
-HAND_MARGIN = .01
+HAND_MARGIN = a.hand_margin
 for f in ('left', 'right'):           # hand points with the fingers at the approach opening
     d.qpos[m.joint(f + '_finger').qposadr] = a.finger_open
 mujoco.mj_forward(m, d)
@@ -199,16 +203,18 @@ summary_hand = float(hand_ok.mean())
 ok = (reach & clear & hand_ok).reshape(len(xs), len(ys), len(yb))
 cell_ok = ok.all(-1)
 # compact square: all cells feasible; maximize the feasible margin ring (cells within 2 cm outside)
-k = int(round(a.side / CELL)); ky = int(round((a.side_y or a.side) / CELL))
+ky = int(round((a.side_y or a.side) / CELL))
 best = None
-for i in range(len(xs) - k + 1):
-    for j in range(len(ys) - ky + 1):
-        if not cell_ok[i:i + k, j:j + ky].all(): continue
-        ring = cell_ok[max(0, i - 2):i + k + 2, max(0, j - 2):j + ky + 2].mean()
-        cxy = np.array([xs[i:i + k].mean(), ys[j:j + ky].mean()])
-        dist = np.linalg.norm(cxy - np.array(a.target))
-        score = (ring >= .75, -dist, ring)    # well surrounded, then nearest the target
-        if best is None or score > best[0]: best = (score, i, j)
+for k in (range(int(round(a.side / CELL)), 0, -1) if a.side_auto else [int(round(a.side / CELL))]):
+  if best is not None: break
+  for i in range(len(xs) - k + 1):
+      for j in range(len(ys) - ky + 1):
+          if not cell_ok[i:i + k, j:j + ky].all(): continue
+          ring = cell_ok[max(0, i - 2):i + k + 2, max(0, j - 2):j + ky + 2].mean()
+          cxy = np.array([xs[i:i + k].mean(), ys[j:j + ky].mean()])
+          dist = np.linalg.norm(cxy - np.array(a.target))
+          score = (ring >= .75, -dist, ring)    # well surrounded, then nearest the target
+          if best is None or score > best[0]: best = (score, i, j, k)
 summary = {'grid_cells': int(cell_ok.size), 'cells_all_bins_feasible': int(cell_ok.sum()), 'reach_frac': float(reach.mean()),
            'clear_frac': float(clear.mean()), 'hand_clear_frac': summary_hand, 'tilt_deg': a.tilt, 'joint_margin_rad': a.margin, 'yaw_half_range_deg': a.yaw, 'yaw_centre_deg': a.yaw_centre,
            'pad_contact_height_m': pad_h}
@@ -216,7 +222,7 @@ out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
 np.savez_compressed(out / 'reader_region_search.npz', xs=xs, ys=ys, yaw_bins=yb, feasible=ok, reach=reach.reshape(ok.shape), clear=clear.reshape(ok.shape), left=left_np.reshape(ok.shape), hand_pc=hand_pc_np.reshape(ok.shape))
 if best is None:
     print(json.dumps(summary, indent=1)); raise SystemExit(f'no fully feasible {a.side} m square')
-_, i, j = best
+_, i, j, k = best
 sel = [(ii, jj) for ii in range(i, i + k) for jj in range(j, j + ky)]
 cyaw = cells[:, 2].reshape(len(xs), len(ys), len(yb))
 samples = [[float(xs[ii]), float(ys[jj]), float(cyaw[ii, jj, kk])] for ii, jj in sel for kk in range(len(yb))]

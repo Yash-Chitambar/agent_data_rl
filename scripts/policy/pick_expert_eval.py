@@ -26,6 +26,8 @@ ap.add_argument('--out', default='results/usbc/policy/pick/expert')
 ap.add_argument('--no_dr', action='store_true', help='nominal physics: no contact/control DR')
 ap.add_argument('--write_spread', action='store_true')
 ap.add_argument('--impratio', type=float, default=None)
+ap.add_argument('--ki', type=float, default=0.03)
+ap.add_argument('--settle_max_s', type=float, default=2.0)
 ap.add_argument('--finger_open', type=float, default=-1., help='approach finger opening (m per finger); -1: task default')
 ap.add_argument('--lift_v', type=float, default=0.10, help='expert Cartesian speed after closing (m/s)')
 ap.add_argument('--hold_s', type=float, default=1.0, help='hold after lift (stability window)')
@@ -56,7 +58,7 @@ print('built', round(time.time() - t0, 1), 's', flush=True)
 torch.manual_seed(a.seed)
 rows = []
 for batch in range(math.ceil(a.episodes / a.nworld)):
-    task.reset(); ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v); ex.reset()
+    task.reset(); ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v, integral_gain=a.ki, settle_max_s=a.settle_max_s); ex.reset()
     N = a.nworld
     start_hold = {k: torch.zeros(N, *s, device=task.device) for k, s in (('p', (3,)), ('R', (3, 3)), ('tilt', ()))}
     steps = torch.zeros(N, dtype=torch.long, device=task.device)

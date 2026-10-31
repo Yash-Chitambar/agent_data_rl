@@ -74,41 +74,42 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   height/tilt; regrasp or retry on a failed grasp.
 - **Metrics:** grasp success; reader still flat in hand (tilt); in-hand position spread; time.
 
-### Part 1 status (2026-10-31, branch `policy/pick`; final config after the "maximize sim success" directive)
+### Part 1 status (2026-10-31, branch `policy/pick`; reader strip in front of the PC)
 
-- **Grasp as code:** `blind_insertion/scenes/reader_grasp.py`, **tilt 55°** everywhere (60° was
-  confirmed by the user; Part 2 found 60° misses 3 of 27 PC poses at the port, 55° reaches all, lift
-  unchanged). `grasp_poses(p_reader, R_reader, offset, tilt)` gives the pre-grasp (6 cm back along
-  the tool axis, 4 cm up), grasp and lift (8 cm up) `grasp_site` poses; `grasp_offset(lay,
-  hand_geometry(m, d), tilt)` puts the lowest open fingertip point 1.0 mm above the table and the
-  touching pad spheres over the reader COM (10.3 mm behind the body front). **`inhand_pose()`**
-  returns the measured in-hand pose (mean, nominal, spread) from
-  `results/usbc/policy/pick/inhand_spread.json`: it replaces the provisional
-  `blind_insertion/envs/inhand.py` numbers for Parts 2 and 4.
-- **Reach:** the tipped grasp needs the reader at x ≳ 0.30 m (60°: 47 % of the old 0.20 m² region,
-  n = 21,035 IK points, `reach_map.*`); the band directly between the right base and the PC is out.
-- **Reader region:** `results/usbc/policy/pick/reader_region.json` (+ `task_layout.json` for
-  `BimanualCfg.task_layout`, `reader_region.png`, ZED view `layout_views/zed.png`), from
-  `scripts/policy/pick_region.py`: body centre **x 0.305-0.405 m, y 0.055-0.155 m (10 cm square),
-  yaw -10..+10°**. Every 1 cm cell × 10° bin passes at 4 corners × 2 bin edges: IK of the three poses
-  with ≥ 0.05 rad joint margin; reader footprint + 1.5 cm and the right hand ≥ 1 cm clear of every PC
-  pose of the ±1.5 cm / ±5° box; ≥ 1 cm inside the table back edge; all neighbouring cells feasible.
-- **Scripted expert:** `blind_insertion/envs/bimanual_pick.py` (`PickTask`, `PickExpert`) on the GPU
-  runtime: joint-space move to the pre-grasp, Cartesian approach along the tool axis, settle (Cartesian
-  integral 0.03/step), close until the fingers stop, lift, hold. DR on: arm dynamics, PC pose
-  (±1.5 cm, ±5°) and feet friction, reader region, latency 0-1 step, encoder offsets ±1.5°,
-  reader-table μ U(0.4, 1). Contact chosen for the smallest in-hand spread (sweep, n = 1024 each,
-  10 s hold): **pad μ 1.2 fixed, squeeze 12 N (×1), impratio 30** (the scene's 100 breaks this
-  grasp below pad μ ≈ 1.3; higher pad μ creeps more: μ 2.0 → 70 %).
-  **Gate passed: 2048/2048 held-out (seed 8000), Wilson 95 % lower bound 99.81 %**; 10 s hold
-  1024/1024 (seed 8100). Reader tilt after lift p50 0.94°, p99 1.47°, max 1.58°. Episode 7.6 s.
-- **In-hand pose spread** (grasp_site frame, about the mean; n = 2048): position p50 0.45 mm,
-  p99 2.7 mm (mostly along the tool axis); rotation p50 0.11°, p99 0.80°. A 10 s hold adds
-  creep p99 0.47 mm / 0.69°. Sim only (pad friction, squeeze, compliance unmeasured).
-- **ACT:** demos `scripts/policy/gen_pick_demos.py` (visual DR defaults, RGB only, DART on 50 %),
-  `scripts/policy/pick_to_lerobot.py`, `scripts/act/train_act.sh`, `scripts/act/export_act.py`,
-  closed-loop eval `scripts/policy/pick_act_eval.py`. Results: FINDINGS.
-- **Check:** `scripts/checks/check_pick_part1.py` (grasp frame, region file, 64-world GPU run).
+- **Grasp as code:** `blind_insertion/scenes/reader_grasp.py`, tilt **55°** (60° confirmed by the
+  user; Part 2: 55° reaches all port poses), `flip=False` (hand reaches along the plug; the flipped
+  grasp cannot be turned to the port). `grasp_poses(...)`: pre-grasp 6 cm back along the tool axis
+  and **10 cm up** (clears the PC case on the move from rest), grasp, lift 8 cm. Fingertips 1.0 mm
+  above the table; touching pad spheres over the reader COM (10.3 mm behind the body front); pad
+  contact band 5.9-8.9 mm of the 8.8 mm face at every tilt 45-60°. **`inhand_pose()`** returns the
+  measured in-hand pose from `results/usbc/policy/pick/inhand_spread.json`.
+- **Reader region (user: in front of the PC):** `results/usbc/policy/pick/reader_region.json`
+  (+ `task_layout.json`, `reader_region.png`, ZED view `layout_views/zed.png`): body centre
+  **x 0.095-0.145 m (5 cm) × y 0.335-0.435 m (10 cm)**, reader yaw = **right-base bearing + 15° ± 10°**
+  (world 73-102°). Bounded by the arm mounting plate (front edge x 0.035 m, 2.3 cm tall: the open
+  fingers spread along x) and the PC front. Each 1 cm cell passes at its 4 corners × yaw edges: IK of
+  pre-grasp/grasp/lift with ≥ 0.05 rad joint margin; reader footprint ≥ 1.5 cm from the PC hull;
+  right hand ≥ 3 mm from the PC hull and the plate, ≥ 1.5 cm from the parked left arm. Needed for
+  5 cm depth: PC x box ±1 cm (pick task), approach opening 24 mm per finger, heading +15° off radial
+  (29 mm opening or PC x ±1.5 cm: 3 cm). Positions further from the radial heading or the old
+  60°/world-yaw windows: `reach_map.*`, FINDINGS.
+- **Post-pick reorientation:** `scripts/policy/pick_reorient_check.py`: from every start to the
+  pre-insert pose (plug 10 mm out, aligned) for 27 PC poses: IK with margin, hand clear of the PC and of
+  the left arm in its press pose: **27/27** (`reorient_check.json`).
+- **Scripted expert:** `blind_insertion/envs/bimanual_pick.py` (`PickTask`, `PickExpert`): left arm
+  parked (joint 1 = 0) during the pick, right gripper opened to 24 mm per finger, joint-space move to
+  the pre-grasp, Cartesian approach, settle (integral 0.03/step, ≤ 3 s), close until the fingers stop,
+  lift until the tool orientation settles (< 1°), hold. DR: arm dynamics, PC pose ±1 cm / ±1.5 cm /
+  ±5° and feet friction, reader region, latency 0-1 step, encoder offsets ±1.5°, reader-table μ
+  U(0.4, 1). Contact: pad μ 1.2, squeeze 12 N, impratio 30 (chosen for the least in-hand creep).
+  **Gate: 2048/2048 held-out (seed 20000), Wilson 95 % lower bound 99.81 %; 10 s hold 1024/1024.**
+  Reader tilt after lift p50 0.98°, max 1.58°. Episode 9.3 s (p50).
+- **In-hand pose spread** (grasp_site frame, about the mean, n = 2048): position p50 0.30 mm,
+  p99 0.77 mm; rotation p50 0.07°, p99 0.24°; a 10 s hold adds p99 0.16 mm / 0.19°. Sim only.
+- **ACT:** pipeline ready (`gen_pick_demos.py` with visual DR, `pick_to_lerobot.py`,
+  `scripts/act/train_act.sh`, `export_act.py`, `pick_act_eval.py`); demos on the strip wait for the
+  user's approval of the window. ACT v1 (old 60° window, 650 demos, 20k steps): 26.0 % (n = 512).
+- **Check:** `scripts/checks/check_pick_part1.py`.
 
 ## Part 2: Approach (IK to pre-insert)
 
