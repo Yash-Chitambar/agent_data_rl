@@ -104,6 +104,170 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 6: why the arm-robust ZED nets miss on real frames
+
+Real test: the 123 ZED frames of `bimanual_stationary_001` (both arms folded, all joints ~0 by the encoders)
+against the manual lid landmark (port (0.2142, 0.3308) m, about +/-5 mm). One factor at a time from the v1
+recipe (each net n = 16,384 renders, 25 epochs; `scripts/perception/zed_ablation.sh`, results
+`results/usbc/policy/approach/ablation/`):
+
+| Training change from v1 | Real offset (mm) | Sim rest / parked p50 (mm) |
+|---|---|---|
+| none (v1 recipe, today's moderate visual DR) | 0.6 | 0.9 / 7.5 |
+| mild visual DR (what v1 used) | 3.0 | 1.0 / 7.5 |
+| Part 1 layout (reader in the front strip) | 2.4 | 0.9 / 7.3 |
+| reader varied (strip / elsewhere / out of view) | 1.9 | 0.9 / 7.7 |
+| **arm poses and gripper openings varied** | **13.9** | 1.6 / 2.1 |
+| arms + reader varied | 8.2 | 1.7 / 2.1 |
+| arms masked from the joint angles (sim segmentation; real mask from the encoders) | 10.9 (bases masked), 8.9 (bases kept) | -- |
+| arms varied + masked | 8.1 | -- |
+
+- **Cause: the arm-pose variation itself.** Visual DR level, PC box, reader placement and layout move the real
+  estimate by <= 3 mm (inside the landmark's uncertainty); every net trained with varied (or masked) arms
+  lands 7-15 mm off, always toward +y. Masking the arm pixels (the real mask from the encoders aligns well
+  with the real arms) does not help, so it is not the arm pixels' look alone.
+- **Contradiction that points at sim-vs-real arm context:** in sim with both arms folded (the real frames'
+  pose) the v1-type nets are 7.5-8 mm off (p50, n = 512) while the arm-varied nets are 2.1-2.7 mm; on the real
+  folded frames it is the reverse (v1 0.4 mm, arm-varied 8-14 mm). The real folded scene does not look to the
+  nets like the sim folded scene; with one real PC placement and a +/-5 mm landmark we cannot tell more.
+- A tight-crop refinement stage (64 px around the coarse estimate) did not train (sim error unchanged); not
+  pursued further.
+- **Decision unchanged:** v1 + presence/OOD + arm-pose gate, ZED frame at the rest pose with the gripper
+  open (round 5). The arm-robust nets stay sim-only.
+- **Needed to go further:** real ZED frames with known PC poses under several arm poses (e.g. the PC at 3-4
+  marked spots, arms folded / parked / pressing, encoders logged). Without them no arm-robust net can be
+  validated on real data.
+
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 5: chain-surfaced issues (elliptic cones, ZED arm poses, hold contact, plug bias)
+
+All with elliptic cones + impratio 30 (the chain and Part 4 solver) unless noted.
+
+- **Hold in the chain context** (`scripts/task/diag_chain_hold.py`: reset -> Part 1 expert pick -> guarded 25 N press,
+  right arm holding the reader at the lift pose; n = 1024 = 2 x 512, seeds 7100-7101):
+  2 cm press: arm-arm 0/1024, PC still 1024/1024 at 3 N and 1024/1024 at 5 N, left joint 2 <= 8.9 N m.
+  3.5 cm press: still 1024/1024 at 3 and 5 N, but **arm-arm 4/1024** (chain: 5/1024): the left forearm (link_5 /
+  link_3 capsules) hits the right arm's link_4 and the two fingertip hulls touch, with the right arm at the
+  post-pick lift pose. A higher stand-off (+5 cm) made it worse (8/1024, PC still 77 %). Elliptic cones hold
+  the PC better than pyramidal (2 cm, 3 N: 100 % vs 99.3 %). **Use the 2 cm press** (= Part 4's training
+  hold): it passes 3 and 5 N with no contact, and 10 N (1024/1024). 15 N at 2 cm: 3 N 100 %, 5 N 100 %, 10 N
+  99.9 %, sink 0.56 mm, left joint 2 <= 5.4 N m -- a lower-torque option if 25 N heats the motor.
+- **PC sink:** with elliptic cones the 25 N press pushes the PC 0.77 mm (p50; p99 0.86) into its feet (3.5 cm:
+  0.89 mm). It is soft-contact compression of the 5 mm box feet, settles during the engage (before the
+  approach), and is almost all vertical (engage translation p99 0.89 mm vs sink p99 0.86 mm; one world in
+  1024 moved 6.1 mm): no effect on the PC-still result; the approach servo measures the live port.
+- **ZED vs arm pose:** v1 (trained at rest, right fingers open) by condition (n = 512 each): rest 0.79 / 2.63 mm,
+  right fingers at 24 mm 2.95 / 5.71, left parked 7.10 / 20.1, left pressing 8.58 / 21.9. Retrained with varied arm
+  poses and openings (`render_data.vary_arms`: right rest/perturbed, fingers closed..open; left rest / parked /
+  pressing; reader in the strip / elsewhere / out of view; PC box widened to +/-3 cm / +/-10 deg): v4 two-net
+  ensemble rest 0.95 / 4.27, parked 1.70 / 5.47, pressing 1.69 / 5.17 mm (accepted, n = 671-703) -- robust in sim
+  but **real frames regress**: 8.7 / 14.1 mm from the manual landmark (v1: 0.41 mm), and the two nets disagree
+  there, so the ensemble gate rejects 122/123 real stationary frames (it knows it cannot handle them).
+  A heteroscedastic (predicted-std) variant was no better (sim p50 1.45 mm, real 15.8 mm).
+- **Gate that rejects what it cannot handle:** the arm configuration is known from the encoders, so the
+  gate now checks it (`ZedEstimator(frames, arms=(q_left, q_right, right_finger))`, envelope in the gate
+  checkpoint). v1 + presence/OOD + arm-pose gate (`runs/perception/zed_v1_gate_arm.pt`, +/-0.05 rad of the rest
+  pose, right fingers >= 40 mm): rest accepted 100 % (0.79 / 2.63 mm), 24 mm / parked / pressing rejected 100 %,
+  arms beyond training (x2.5) 97.7 % rejected. Recommendation: take the ZED frame at the rest pose with the right
+  gripper fully open (as the chain does) with this gate; the v4 ensemble is the fallback when the arms cannot be
+  at rest, not yet for real frames.
+- **Approach under elliptic cones** (2 cm hold, chain layout): v10w + v10ws lateral p50 0.39 / p99 1.67 mm,
+  plug low by 0.20 mm on average (chain: 0.36). One DAgger round on elliptic in-loop states (both holds) ->
+  v12w + v12ws: p50 0.30 / p99 1.41 mm, mean (x, y) = (+0.06, +0.10) mm. **Bias removed** by a servo target
+  offset (-0.06, -0.10) mm calibrated on seeds 1-2, tested on seeds 3-4: **lateral p50 0.27 / p99 1.24 /
+  p99.5 1.63 mm, tilt p99 0.69 deg, roll p99 0.50 deg, mean (x, y) = (-0.03, -0.04) mm, 96.8 % inside 1 mm / 2 deg
+  (n = 1024)**. Deliverable updated (`preinsert_error.json`). 3.5 cm hold: p99 1.49 mm.
+
+### 2026-10-31 (mason, `policy/chain`) — End to end: pick → hold → approach → insertion in one simulation, 99.80 % (n = 1024)
+
+`scripts/eval/eval_chain.py` runs all four parts in one continuous MuJoCo Warp simulation per world:
+no teleports between stages. Each world draws one layout (PC box ±1 cm / ±1.5 cm / ±5°, reader on the
+Part 1 strip) and full DR at reset (arm dynamics, latency 0-1 step, encoder offsets ±1.5° kept through
+all stages, PC feet μ U(0.8, 1), reader-table μ U(0.4, 1), plug-port μ U(0.1, 0.2), port solref 3-4 ms,
+visual DR moderate defaults, RGB only). Stages: ZED CNN + gate (frame at the rest pose) → Part 1
+scripted expert pick → Part 3 guarded 25 N press (planned from the ZED estimate) → new Cartesian
+transport to the look pose → Part 2 wrist servo (wrist_v10w + wrist_v10ws below 7 mm, 6 mm stop) →
+Part 4 blind PPO from the live state (InsertionTask success test: 0.2 s seated, 25 µm aperture tolerance).
+
+**Result (held-out seeds 7000-7001, 2 × 512 worlds):**
+
+| Insertion policy | Hold press point | n | End to end | Wilson 95 % | Failures |
+|---|---|---|---|---|---|
+| **v6 s2 (Part 4 best)** | **2 cm in front of the case centre (Part 4 training value)** | 1024 | **99.80 %** | [99.29, 99.95] | 2 stuck at the mouth |
+| v6 s2 | 3.5 cm (Part 3 round 4) | 1024 | 96.00 % | [94.61, 97.04] | 41 stuck at the mouth |
+| v10dr (hold DR 1.5-4 cm) | 2 cm | 1024 | 99.22 % | [98.47, 99.60] | 7 mouth, 1 jam; 0 arm-arm |
+| v10dr | 3.5 cm | 1024 | 99.22 % | [98.47, 99.60] | 8 mouth; 5 arm-arm (hold engage) |
+| v5 s0 | 2 cm | 1024 | 98.54 % | [97.60, 99.11] | 14 mouth, 1 slip |
+| v5 s0 | 3.5 cm | 1024 | 97.66 % | [96.54, 98.42] | 23 mouth, 1 slip |
+
+v10dr (policy/insertion 7e9ef6e, trained with the press point randomized 1.5-4 cm) removes the hold-position
+sensitivity (99.22 % at both points) but is 0.6 points below v6 at 2 cm; its own eval on chain starts gave 100 % /
+99.95 %. Its 16 chain failures again start low (pre-insert y -0.2 to -4 mm, warm-up lateral 0.3-4.6 mm) and stall
+at the mouth: the live hand-over (warm-up drift, true in-hand state) is harder than sampled chain starts.
+Hold yaw for all runs: InsertionTask's rule (best yaw at the nominal PC pose +/- 15 deg, not LeftHold's -90..90).
+Every stage before the insertion passed 1024/1024 in all six runs (ZED gate, pick, hold latch,
+transport, approach). Gate (≥ 98 %, n ≥ 500) passes with v6 + the 2 cm hold.
+
+**Mismatches (most valuable):**
+- **The blind insertion policy reads the left arm.** Its observation has all 12 encoder angles. With
+  LeftHold's default tool-yaw search (-90..90°) the left wrist (joint 6) sat 0.29 rad from the training
+  value and the policy seated 5/128, against 128/128 from teleported InsertionTask starts in the same
+  runtime. Restricting the yaw to the training set (nominal best ± 15°) fixed it. Moving the press point
+  from 2 to 3.5 cm (Part 3's round-4 hold) costs 3.8 points with v6 (99.80 → 96.00 %) and 0.9 with v5.
+  The failures start well inside the capture region (pre-insert lateral 0.2-1 mm) and stall at the
+  port mouth. Part 3 and Part 4 each pass alone; together the hold must be the one Part 4 trained with,
+  or Part 4 must train with the 3.5 cm hold (or mask the left arm from the actor).
+- **ZED estimate depends on the right gripper opening.** The pick task sets the approach opening (24 mm)
+  in the reset pose. With it in view the ZED CNN is biased: xy p50 3.0 vs 0.8 mm (n = 256). The chain
+  takes the ZED frame with the gripper fully open (the training condition), then closes it. With the left
+  arm parked (Part 1's start) the estimate is xy p50 8.0 / p99 20.6 mm and **the presence/OOD gate still
+  accepts 100 %** of those frames: the gate does not catch this arm-pose shift. Frame at the rest pose:
+  p50 0.77 / p99 2.79 mm, yaw p99 1.49° (Part 2: 0.79 / 3.3 mm).
+- **No transport existed.** Part 2 teleports to the look pose. A joint-space move from the lift pose to
+  the look pose swung the plug 3 cm into the table (in-hand rotation p50 16°, n = 16). A Cartesian path
+  (turn the reader at lift height → via pose 40 mm further out and 30 mm up → look pose; IK each step)
+  keeps the reader: in-hand change p99 0.35 mm / 0.12°, no hand-PC contact (n = 1024). Arrival at the
+  look pose: lateral p50 7.6 / p99 18 mm (Part 2's teleported look pose: 7.5-7.8 / 19.6-20.4 mm).
+- **Pre-insert error matches Part 2.** Chain: lateral p50 0.46 / p99 1.48 mm, tilt p99 0.86°, roll p99
+  0.72°, gap 5.76 mm p50 (Part 2 deliverable: p99 1.64 mm / 0.87°). The plug sits 0.36 mm low on average
+  (y mean -0.36, std 0.45 mm). In the 0.2 s insertion warm-up (feed-forward off, zero action) the error
+  grows by 0.3 mm (p50 0.46 → 0.76, p99 1.48 → 1.91 mm): the policy starts from that, not from Part 2's
+  numbers. Both v6 failures started low (y -0.9 and -0.3 mm).
+- **Solver cones.** Part 4 needs elliptic cones (pyramidal goes non-finite under insertion); Parts 1-3
+  were validated with pyramidal. The chain runs elliptic throughout. The pick still passes 1024/1024, but
+  the in-hand spread about the mean is wider (position p99 0.91 vs 0.77 mm, rotation p99 0.54 vs 0.24°;
+  rotation about the tool axis p99 0.55 vs 0.01°) and the PC sinks 0.77 mm (p50) into its feet when the
+  press engages (Part 2 reports 0.01 mm PC motion with pyramidal).
+- **Hold at 3.5 cm:** 5/1024 worlds had arm-arm contact during the engage (0 at 2 cm); PC moved
+  ≤ 1.1 mm (p99), one world 6.7 mm.
+- Insertion time to seat p50 1.0 / p99 2.5 s; PC motion during insertion p99 1.4 mm.
+
+**Shared-file change:** `BimanualTask(cfg, runtime=None)` and `PickTask(cfg, runtime=None)` can share an
+existing runtime (default unchanged). Weights outside git: `runs/perception/{zed,zed_presence,wrist_v10w,
+wrist_v10ws}.pt`, `runs/chain/P4-insert-best_v6s2.pt` (= policy-insertion `runs/P4-insert-best/best.pt`;
+`P4_INSERT_BEST` overrides). Results `results/usbc/policy/chain/` (`chain_p4v6_hold020.*` = headline);
+demo videos `results/usbc/policy/chain/demos/`. Smoke test `scripts/checks/check_chain.py`.
+Narrowed for success: the hold press point (2 cm, not 3.5 cm), the left tool yaw (training set), the
+ZED frame pose (rest pose, gripper open). Layout and DR ranges are the parts' own.
+
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 4: hold 3 N gate met; ZED presence gate; approach DAgger/specialist
+
+- **Hold:** pressing 3.5 cm in front of the case centre (instead of 2 cm) passes 3 N: 5113/5120 PC still (99.86 %,
+  five runs of n = 1024, two starting from the folded/parked left pose), 5 N 99.5-99.8 %, 10 N 97.0 %, 25 N, left
+  joint 2 <= 8.8 N m. 4.5 cm in front: 98.2 %; longer settle, earlier latch, centred press: no gain.
+- **ZED gate** (`perception/zed_estimator.py`): presence CNN + Mahalanobis OOD on the pose CNN's features
+  (1.25 x sim p99.9). Sim: accepts 100 % with a PC, 0 % without (n = 1024 each). Real first frames of the 24
+  curated sessions: rejects 7/7 without a PC, accepts 14/17 with one (rejected: tape reel, hand, sticky notes on
+  the PC). The 1.25 margin is set from those real distances. Reader in the new strip: no change (xy p99 2.9 mm).
+- **Approach** (lateral p50 / p99 mm, n = 1024, press 2 cm): v9 DAgger 0.37 / 1.84; wider CNN v9w 0.37 / 1.74;
+  v9 + stop-gap specialist v9s 0.34 / 1.68 (93.8 % inside 1 mm / 2 deg); 12-iteration dwell 0.43 / 1.81.
+  Error grows with the DR wrist-camera pose error: with that error inside the real calibration (<= 5.1 mm,
+  <= 1.2 deg; n = 331) v9 + v9s gives p99 1.02 mm, tilt p99 0.72 deg. The DR samples up to 2x real.
+- The 3.5 cm press puts the left fingers next to the port in the wrist image: the round-3/4 nets fail there
+  (v9w p99 11 mm). DAgger at the new hold: v10w 0.42 / 2.04 mm; **v10w + stop-gap specialist v10ws (current deliverable):
+  lateral p50 0.32 / p99 1.64 / p99.5 1.88 mm (x p99 0.93, y p99 1.49), tilt p99 0.87 deg, roll p99 0.57 deg,
+  gap error p99 0.83 mm, 95.3 % inside 1 mm / 2 deg (n = 1024, all finite, ZED gate accepted all)**; with the wrist
+  camera error inside the real calibration (n = 331): lateral p99 1.13 mm, tilt p99 0.70 deg. One more round
+  (v11w + v10ws): p99 1.62 mm, 94.3 %: plateau.
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
 **Result (blind PPO v5 seed 0, `runs/P4-insert-proprio-v5-s0`, ~19 M steps):** held-out seed 1000,

@@ -35,6 +35,7 @@ SCALE['wrist2'] = SCALE['wrist']
 
 WRIST_CROP = (64, 40)          # x0, y0 of the full-resolution 192-px crop (plug tip and port 2 in view)
 MODE = {'wrist': 'resize'}
+VARY = {'scale': 0., 'arms': True, 'reader': True, 'mask': False}
 
 
 def wrist_img(img):
@@ -69,7 +70,7 @@ def generate(r, which, n, cfg=None, nominal=False, states=None):
             ok = lab['ok']
             img = wrist_img(fr['wrist_cam'])
         elif which == 'zed':
-            img, lab = r.sample_top(nominal=nominal)
+            img, lab = r.sample_top(nominal=nominal, vary=VARY['scale'], vary_arms_on=VARY['arms'], vary_reader_on=VARY['reader'], mask_arms=VARY['mask'])
             img, ok = zed_crop(img), torch.ones(len(img), dtype=torch.bool, device=img.device)
         else:
             fr, lab = r.sample(cfg, nominal=nominal)
@@ -114,13 +115,32 @@ def main():
     ap.add_argument('--states-max-gap', type=float, default=1., help='use only recorded states with the tip gap <= this (m)')
     ap.add_argument('--init', default=None, help='checkpoint to fine-tune from')
     ap.add_argument('--lr', type=float, default=2e-3)
+    ap.add_argument('--width', type=int, default=32, help='CNN base width')
+    ap.add_argument('--vary-arms', type=float, default=0., help='ZED: vary arm poses / gripper openings (render_data.vary_arms scale)')
+    ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--pc-range', type=float, nargs=3, default=None, help='PC pose range for the renders (x m, y m, yaw deg); perception may train wider than the task box')
+    ap.add_argument('--mask-arms', action='store_true', help='ZED: grey out the robot arms (segmentation mask from the joint angles; perception/arm_mask.py)')
+    ap.add_argument('--vary-what', choices=('both', 'arms', 'reader'), default='both', help='with --vary-arms: vary arms, reader placement or both')
+    ap.add_argument('--visual-dr-preset', choices=('default', 'mild'), default='default', help="mild: the visual DR the v1 ZED net was trained with (policy/v1 e59ab5f)")
+    ap.add_argument('--hetero', action='store_true', help='also predict a per-axis log std (Gaussian NLL); the gate rejects large predicted std')
+    ap.add_argument('--task-layout', default=None, help='BimanualCfg.task_layout (e.g. results/usbc/policy/pick/task_layout.json: reader on the Part 1 strip)')
     ap.add_argument('--wrist-mode', choices=('resize', 'crop'), default='resize', help='320 px wrist frame -> 192 px: resize or full-resolution centre crop')
     ap.add_argument('--tag', default='', help='suffix of the saved estimator name (e.g. _fine)')
     a = ap.parse_args()
     dev = torch.device('cuda:0')
     MODE['wrist'] = a.wrist_mode
     t0 = time.time()
-    r = ApproachRenderer(nworld=a.nworld, seed=0)
+    VARY['scale'] = a.vary_arms
+    VARY['arms'], VARY['reader'] = a.vary_what in ('both', 'arms'), a.vary_what in ('both', 'reader')
+    VARY['mask'] = a.mask_arms
+    vdr = True
+    if a.visual_dr_preset == 'mild':      # policy/v1 e59ab5f defaults (what the v1 ZED net was trained with)
+        vdr = dict(random_color_prob=.1, saturation_range=(0., .35), nominal_jitter=.15, specular_range=(0., .5),
+                   shininess_range=(0., .5), texture_prob=.15, real_texture_prob=1., light_elevation_deg=(55., 90.),
+                   light_intensity=(.5, .85), light_kelvin=(4000., 6000.), shadow_prob=.3, fill_scale=(.6, 1.2),
+                   ambient_scale=(.8, 1.2))
+    r = ApproachRenderer(nworld=a.nworld, seed=a.seed, task_layout=a.task_layout, pc_pose_range=a.pc_range, visual_dr=vdr)
+    torch.manual_seed(a.seed)
     r.ins.cfg.inhand_rot_deg = a.inhand_rot
     r.ins.cfg.inhand_pos_mm = a.inhand_pos
     r.ins.cfg.tilt_deg = a.tilt
@@ -150,7 +170,10 @@ def main():
     torch.cuda.empty_cache()
     sc = SCALE[a.which].to(dev)
     size = ZED_CROP[2] if a.which == 'zed' else WRIST_SIZE
-    net = (TwoViewPoseNet if a.which == 'wrist2' else PoseNet)(len(sc), size).to(dev)
+    nout = len(sc) * (2 if a.hetero else 1)
+    net = (TwoViewPoseNet if a.which == 'wrist2' else PoseNet)(nout, size, width=a.width).to(dev)
+    k_ = len(sc)
+    mean_of = (lambda o: o[:, :k_]) if a.hetero else (lambda o: o)   # noqa: E731
     if a.init:
         net.load_state_dict(torch.load(a.init, map_location=dev)['net'])
     opt = torch.optim.AdamW(net.parameters(), 1e-3, weight_decay=1e-4)
@@ -165,21 +188,26 @@ def main():
             idx = perm[i * bs:(i + 1) * bs]
             img = X[idx]
             # photometric augmentation on top of the render DR
-            loss = F.smooth_l1_loss(net(img), Y[idx] / sc, beta=.05)
+            o = net(img)
+            if a.hetero:     # Gaussian NLL on normalized targets, log std clamped
+                ls = o[:, k_:].clamp(-7, 3)
+                loss = (.5 * ((o[:, :k_] - Y[idx] / sc) * torch.exp(-ls)) ** 2 + ls).mean() + F.smooth_l1_loss(o[:, :k_], Y[idx] / sc, beta=.05)
+            else:
+                loss = F.smooth_l1_loss(o, Y[idx] / sc, beta=.05)
             opt.zero_grad(); loss.backward(); opt.step(); sched.step(); k += 1
         if ep % 5 == 4 or ep == a.epochs - 1:
             net.eval()
             with torch.no_grad():
-                pred = torch.cat([net(Xt[i:i + 256]) for i in range(0, len(Xt), 256)]) * sc
+                pred = torch.cat([mean_of(net(Xt[i:i + 256])) for i in range(0, len(Xt), 256)]) * sc
             e = errors(a.which, pred, Yt)
             print(ep, f'loss {loss.item():.4f}', {k2: round(v['p50'], 3) for k2, v in e.items()}, flush=True)
     net.eval()
     with torch.no_grad():
-        pred = torch.cat([net(Xt[i:i + 256]) for i in range(0, len(Xt), 256)]) * sc
-        pn = torch.cat([net(Xn[i:i + 256]) for i in range(0, len(Xn), 256)]) * sc
+        pred = torch.cat([mean_of(net(Xt[i:i + 256])) for i in range(0, len(Xt), 256)]) * sc
+        pn = torch.cat([mean_of(net(Xn[i:i + 256])) for i in range(0, len(Xn), 256)]) * sc
     Path('runs/perception').mkdir(parents=True, exist_ok=True)
-    torch.save({'net': net.state_dict(), 'which': a.which, 'scale': sc.cpu(), 'size': size, 'zed_crop': ZED_CROP,
-                'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
+    torch.save({'net': net.state_dict(), 'which': a.which, 'hetero': a.hetero, 'n_out': nout, 'vary_arms': a.vary_arms, 'scale': sc.cpu(), 'size': size, 'zed_crop': ZED_CROP,
+                'width': a.width, 'mask_arms': a.mask_arms, 'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
     rep = {'estimator': a.which + a.tag, 'method': __doc__.strip(), 'n_train': len(X), 'n_test_dr': len(Xt), 'n_test_nominal_look': len(Xn),
            'sample_cfg': vars(cfg), 'args': vars(a), 'test_set': 'held-out in-loop states' if St is not None else 'random poses',
            'held_out_dr_abs_error': errors(a.which, pred, Yt),
