@@ -5,6 +5,12 @@ into [CURRENT](../campaign/CURRENT.md). This page is the scaffold: four parts, w
 achieve, what to explore, and how it is measured. Each part is developed and validated in sim
 first; real tests start only after its sim gate passes.
 
+## v1 priority (user, 2026-10-31)
+
+Maximize sim success first. Shrink any variation (layout, reader yaw, in-hand rotation, start
+errors, grasp tilt) that costs success; widen it again only after the chain passes. Friction
+values are unknown: pick values that work now and refine them from real runs of the first policy.
+
 ## Target accuracy
 
 91.5 % (single-arm USB-C) is not enough. The tasks the self-learning pipeline counts as solved
@@ -26,8 +32,8 @@ Every training episode and every demo is drawn from this. Seed 0 reproduces the 
 |---|---|---|
 | Arm dynamics | Coulomb friction, gravity scale | ×U(0.5, 1.3), ±0.04 (identified profile) |
 | Control | action delay; encoder offsets | 0–1 control step (measured ~8 ms); ±1.5° on joints 2–5 (done: `BimanualTaskCfg.latency_steps`, `enc_offset_deg`) |
-| Contact | plug–port friction; pad friction and stiffness; PC-feet friction | to set; to set; μ U(0.3, 0.9) |
-| Layout | PC pose; reader pose | PC nominal ±3 cm, ±10°; reader: a compact window between the right arm base and the PC (user decision 2026-10-31: smaller is fine if it raises success), yaw ±30° to start; defined by the pick agent from reach + lift reliability |
+| Contact | plug–port friction; pad friction and stiffness; PC-feet friction | to set; to set; μ U(0.8, 1.0) for v1 (real value unknown; tune after the first policy) |
+| Layout | PC pose; reader pose | PC nominal ±1.5 cm, ±5° for v1 (was ±3 cm, ±10°); reader: a compact window between the right arm base and the PC, yaw ±10° for v1; defined by the pick agent from reach + lift reliability |
 | Grasp | in-hand reader position and tilt | to set from real grasp captures (new grasp) |
 | **Appearance** (slide 15) | 16 groups (PC case/dark parts, reader body/trim/plug, table, wall, room, raceway, plates, backdrop black, accents, mount, arm dark/light, gripper, fingertips): random HSV colour (p 0.75; tips 0.25) else nominal ±20 %; specular U(0, 1), shininess U(0, 1); table and wall patterns p 0.5 (8 procedural, 6 real-photo patches, 40 % real), 2–12 repeats | per episode (done: `BimanualCfg.visual_dr`, `envs/visual_dr.py`) |
 | **Lighting** (slide 15) | key point light: elevation 35–90°, azimuth 0–360°, 0.9–1.6 m, intensity 0.3–1.0 (0.65 = nominal), 3200–6500 K, shadows p 0.5; fill ×0.2–1.2; ambient ×0.5–1.5; headlight fixed (Warp compile-time) | per episode (done) |
