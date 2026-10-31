@@ -244,6 +244,10 @@ the **worst** score over the per-episode randomization box (+/-3 cm, +/-10 deg).
 - Not checked: paths between poses, the pick-to-insert carry, and the new grasp (in-hand pose
   only through the +/-8 deg tilt). Physical setup: put the port at the nominal, port panel facing the arm bases.
 
+Views: `scripts/tools/render_layout_views.py` -> `layout_views/` (real | sim | overlay per camera; on the
+ZED view the placement space drawn on the real and sim images: green = single placement works,
+yellow = whole training box works, cyan = training box + PC at nominal, magenta = reader region).
+
 ## Fitted backdrop (2026-10-30)
 
 `blind_insertion/scenes/backdrop.py` replaces the procedural workbench dressing (pegboard, tools,
