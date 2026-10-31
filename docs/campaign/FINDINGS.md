@@ -104,6 +104,30 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/chain`) — Perception-driven pick in the chain: 99.46 % (n = 2048); servo leak is the wrist estimator; pick wrist refine hurts in the chain
+
+**Chain with `--pick expert_estimated`** (Part 1 ZED reader estimator `reader_zed_cap.pt` on the reader capture frame:
+left arm parked, right arm at the capture pose, right gripper open; gate = presence + arm-pose envelope; a rejected
+frame is re-taken once; no wrist refinement), v11 insertion, round-5 approach, seeds 7000-7003, n = 2048:
+**2037/2048 = 99.46 % [99.04, 99.70]**. Reader estimate p50 1.09 / p99 4.08 mm, yaw p99 1.65 deg. Failures: 5 gate
+rejections that persist after the re-take (estimates 1-44 mm off: the gate catches the 15 and 44 mm outliers), 1 pick
+failure (7.7 mm estimate accepted), 5 stuck at the port mouth (insertion). Privileged pick, same seeds: 99.80 %.
+
+**Pick wrist refinement (`reader_wrist.pt`, PickExpert.replan at the hover) makes the estimate worse in the chain:**
+refined error p50 5.5-6.5 / p99 11-21 mm vs 1.05 / 4.0 mm for the ZED alone (n = 128 per variant, seed 6300;
+hover_relative on/off, hold at the hover 1.5 or 4 s). The expert's phase 0 -> 1 transition (where
+`pick_expert_eval.py --reader_wrist` takes the frame) fires with the hand still 80-100 mm short of the hover (PD lag;
+same in a standalone PickTask); holding the expert command for 4 s still leaves ~6 mm (p50). The wrist net was
+trained with the hand teleported exactly to the hover. Off by default (`--reader-wrist`).
+
+**Servo vs in-hand rotation (follow-up).** Rotating about the image-estimated plug tip (`--pivot estimated`) and
+correcting tilt at the stop gap (`--final-rot all`) change nothing at ±2 mm / ±3 deg (n = 256 each: pre-insert lateral
+p99 1.78-1.86 mm, tilt p99 1.39-1.54 deg, corr(in-hand rotation, tilt) 0.51-0.55). The same servo with the true
+relative pose (oracle) gives lateral p99 0.43 mm, tilt p99 0.39 deg, roll p99 0.13 deg: the controller is fine; the
+wrist CNN's angle estimate is biased when the in-hand rotation exceeds its training spread (Part 1's measured spread,
+~0.24 deg p99). Fix: train / DAgger the wrist nets with in-hand rotations of a few degrees. At ±4 mm / ±5 deg with both
+options: 218/256 (pick-limited; 221/256 before).
+
 ### 2026-10-31 (mason, `policy/chain`) — Final chain at n = 4096: 99.85 %; perception-driven pick in the chain: 99.71 %; servo vs in-hand error
 
 **Final config** (v11 insertion, round-5 approach, ZED arm-pose gate, hold 2 cm / 25 N, bumpless torque hand-over,

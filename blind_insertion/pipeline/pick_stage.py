@@ -40,37 +40,64 @@ from blind_insertion.envs.bimanual_pick import PickExpert
 
 
 class ExpertPick:
-    """Part 1 scripted expert. With `estimator`, the reader pose used for planning (grasp poses, flip) is the
-    estimate; execution feedback stays the expert's own (arm joint angles)."""
+    """Part 1 scripted expert. With `estimator`, the reader pose it plans with is the estimate (PickExpert
+    reader_pose_fn); with `wrist` (a callable (chain, expert, at_hover) -> corrected (p, R)), the pose is refined from
+    the right-wrist frame at the pre-grasp hover (PickExpert.replan). Execution feedback stays the expert's own."""
 
-    def __init__(self, estimator=None):
-        self.estimator = estimator
+    def __init__(self, estimator=None, wrist=None, hover_relative=True, hover_wait_s=1.5, hover_tol_m=2e-3):
+        self.estimator, self.wrist = estimator, wrist
+        self.hover_relative, self.hover_wait, self.hover_tol = hover_relative, int(round(hover_wait_s / .02)), hover_tol_m
         self.name = 'expert_privileged' if estimator is None else 'expert_estimated'
 
     def run(self, chain):
         task, n, dev = chain.pick, chain.n, chain.dev
         extra = {}
         ok = torch.ones(n, dtype=torch.bool, device=dev)
-        true_pose = task.reader_pose
+        fn = None
         if self.estimator is not None:
             p_est, R_est, ok = self.estimator(chain)
-            p_t, R_t = true_pose()
+            p_t, R_t = task.reader_pose()
             extra['est_pos_err_mm'] = (p_est - p_t).norm(dim=1) * 1e3
             extra['est_rot_err_deg'] = torch.rad2deg(K.rot_log(R_est @ R_t.transpose(1, 2)).norm(dim=1))
             extra['est_ok'] = ok
-            task.reader_pose = lambda: (p_est.clone(), R_est.clone())       # planning only (PickExpert.reset)
-        try:
-            ex = PickExpert(task, seed=chain.seed)
-            ex.reset()
-        finally:
-            task.reader_pose = true_pose
+            for k_, v_ in getattr(chain, 'reader_est_info', {}).items():
+                extra['est_' + k_] = v_
+            fn = lambda: (p_est.clone(), R_est.clone())       # noqa: E731
+        ex = PickExpert(task, seed=chain.seed, reader_pose_fn=fn)
+        ex.reset()
         ex.ik_ok &= ok                    # rejected estimate: hold (counted as a pick failure)
         self.expert = ex
         self.start_hold = {'p': torch.zeros(n, 3, device=dev), 'R': torch.eye(3, device=dev).repeat(n, 1, 1),
                            'tilt': torch.zeros(n, device=dev)}
+        hover_lag = torch.full((n,), float('nan'), device=dev)
+        ref_err, ref_rot = hover_lag.clone(), hover_lag.clone()
         for k in range(task.max_steps - 1):
             prev = ex.phase.clone()
-            task.step(ex.act())
+            act = ex.act()
+            if self.wrist is not None:
+                at_hover = (ex.phase == 1) & (prev == 0) & ~ex.refined
+                if at_hover.any():
+                    # The joint move ends (phase 0 -> 1) with the hand still ~80-100 mm short of the hover (PD lag,
+                    # n = 16): the wrist frame would be taken far from the pose the net was trained at. Hold the
+                    # expert's joint command (q_cmd + integral) until the hand is within 2 mm of the hover (<= 1.5 s).
+                    for _ in range(self.hover_wait):
+                        pa, _ = task.tcp_pose()
+                        lag = (pa - ex.p_pre).norm(dim=1)
+                        if (lag[at_hover] < self.hover_tol).all():
+                            break
+                        # keep commanding the expert's current joint command (accumulate increments toward it)
+                        a0 = torch.zeros(n, 14, device=dev); a0[:, 6] = ex.grip; a0[:, 13] = 1.
+                        tgt = ex.q_cmd + ex.integ - task.enc_error[:, 0]
+                        a0[:, :6] = ((tgt - task.joint_target[:, 0]) / task.cfg.action_scale_rad).clamp(-1, 1)
+                        task.step(a0)
+                        chain.tick('1 pick')
+                    hover_lag[at_hover] = lag[at_hover]
+                    p_new, R_new = self.wrist(chain, ex)
+                    ex.replan(at_hover, p_new, R_new, hover_relative=self.hover_relative)
+                    p_t, R_t = task.reader_pose()      # reader still on the table: refined-estimate error
+                    ref_err[at_hover] = (ex.p_est - p_t).norm(dim=1)[at_hover]
+                    ref_rot[at_hover] = torch.rad2deg(K.rot_log(ex.R_est @ R_t.transpose(1, 2)).norm(dim=1))[at_hover]
+            task.step(act)
             chain.tick('1 pick')
             entered = (ex.phase == 5) & (prev == 4)
             if entered.any():
@@ -79,9 +106,37 @@ class ExpertPick:
                     self.start_hold[key][entered] = m[mk][entered]
             if ex.done.all():
                 break
+        if self.wrist is not None:
+            extra['refined'] = ex.refined
+            extra['hover_lag_mm'] = hover_lag * 1e3
+            extra['refined_pos_err_mm'] = ref_err * 1e3
+            extra['refined_rot_err_deg'] = ref_rot
         extra['steps'] = torch.full((n,), k + 1, device=dev)
         extra['ik_ok'] = ex.ik_ok
         return dict(done=ex.done, failed=task.failed | ~ok, start_hold=self.start_hold, **extra)
+
+
+class WristRefine:
+    """Part 1 wrist refinement (scripts/perception/train_reader_wrist.py): body-centre xy + yaw correction of the
+    planned reader pose from the right-wrist frame at the pre-grasp hover."""
+
+    def __init__(self, ckpt, dev):
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts' / 'perception'))
+        import train_reader_wrist as RW
+        from blind_insertion.perception.nets import PoseNet
+        ck = torch.load(ckpt, map_location=dev)
+        self.RW = RW
+        self.net = PoseNet(3, ck['size'], width=ck['width']).to(dev).eval()
+        self.net.load_state_dict(ck['net'])
+        self.scale = ck['scale'].to(dev)
+
+    @torch.no_grad()
+    def __call__(self, chain, ex):
+        fr = chain.render()['wrist_cam']
+        corr = torch.cat([self.net(fr[i:i + 256]) for i in range(0, len(fr), 256)]) * self.scale
+        return self.RW.apply_correction(chain.pick, ex.p_est, ex.R_est, corr)
 
 
 class ActPick:
@@ -111,43 +166,30 @@ def noisy_oracle(spec):
 
 
 class ZedReader:
-    """Part 1 ZED reader estimator (perception/reader_zed.py) on the chain's single start frame (chain.start_top:
-    the capture-pose ZED frame that also feeds the PC estimator), with its gate: presence classifier (p >= thresh)
-    and the Mahalanobis feature distance (<= ood_thresh x 1.25). Rejected worlds do not attempt a grasp."""
+    """Part 1 ZED reader estimator (perception/reader_zed.py: estimate(top, q_left, q_right, right_finger_m) -> xy, yaw,
+    ok; gate = presence + arm-pose envelope) on the reader capture frame (chain.reader_frame(): left arm parked, right
+    arm at the capture pose, right gripper open). Rejected worlds re-take the frame `retries` times."""
 
-    OOD_SCALE = 1.25
-
-    def __init__(self, ckpt, dev):
-        from blind_insertion.perception.nets import PoseNet
+    def __init__(self, ckpt, dev, retries=1):
         from blind_insertion.perception.reader_zed import ReaderZedEstimator
-        self.est = ReaderZedEstimator(ckpt, dev)
-        ck = torch.load(ckpt, map_location=dev)
-        self.presence = None
-        if 'presence' in ck:
-            self.presence = PoseNet(1, ck['size'], width=ck.get('presence_width', 16)).to(dev).eval()
-            self.presence.load_state_dict(ck['presence'])
-            self.p_thresh = float(ck.get('presence_thresh', .5))
-        self.gate = 'feat_mean' in ck
-        if self.gate:
-            self.mu, self.prec, self.ood = ck['feat_mean'].to(dev), ck['feat_prec'].to(dev), float(ck['ood_thresh'])
+        self.est, self.retries = ReaderZedEstimator(ckpt, dev), retries
 
     @torch.no_grad()
     def __call__(self, chain):
         from blind_insertion.perception.reader_zed import reader_pose
-        from blind_insertion.perception.zed_estimator import pooled_features
-        top = chain.start_top
-        xy, yaw = self.est(top)
+        top, arms = chain.reader_frame()
+        xy, yaw, ok = self.est.estimate(top, *arms)
+        tries = torch.ones(len(xy), device=xy.device)
+        for _ in range(self.retries):
+            if ok.all():
+                break
+            top, arms = chain.reader_frame()           # re-take (fresh camera noise)
+            xy2, yaw2, ok2 = self.est.estimate(top, *arms)
+            redo = ~ok
+            xy[redo], yaw[redo], ok[redo] = xy2[redo], yaw2[redo], ok2[redo]
+            tries[redo] += 1
         p, R = reader_pose(chain.pick, xy, yaw)
-        x0, y0, s_ = self.est.crop
-        crop = top[:, y0:y0 + s_, x0:x0 + s_].contiguous()
-        ok = torch.ones(len(xy), dtype=torch.bool, device=xy.device)
-        info = {}
-        if self.presence is not None:
-            pr = torch.sigmoid(self.presence(crop)[:, 0]); ok &= pr >= self.p_thresh; info['presence'] = pr
-        if self.gate:
-            f = pooled_features(self.est.net, crop) - self.mu
-            d = ((f @ self.prec) * f).sum(1).clamp(min=0).sqrt(); ok &= d <= self.ood * self.OOD_SCALE; info['mahalanobis'] = d
-        chain.reader_est_info = info
+        chain.reader_est_info = {'tries': tries}
         return p, R, ok
 
 
@@ -158,7 +200,9 @@ def make_pick_stage(kind, reader_estimator='', chain=None):
         if not reader_estimator:
             raise ValueError("--pick expert_estimated needs --reader-estimator 'module:factory' or 'noisy_oracle:<mm>,<deg>'")
         if reader_estimator.startswith('zed:'):
-            return ExpertPick(ZedReader(reader_estimator.split(':', 1)[1], chain.dev))
+            wrist = WristRefine(chain.a.reader_wrist, chain.dev) if getattr(chain.a, 'reader_wrist', '') else None
+            return ExpertPick(ZedReader(reader_estimator.split(':', 1)[1], chain.dev, retries=chain.a.reader_retries), wrist,
+                              hover_relative=bool(chain.a.wrist_hover_relative), hover_wait_s=chain.a.wrist_hover_wait_s)
         if reader_estimator.startswith('noisy_oracle:'):
             return ExpertPick(noisy_oracle(reader_estimator.split(':', 1)[1]))
         mod, fn = reader_estimator.split(':')

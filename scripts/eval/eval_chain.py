@@ -78,6 +78,10 @@ def parse(argv=None):
     ap.add_argument('--reader-estimator', default='zed:runs/perception/reader_zed_cap.pt',
                     help="expert_estimated: 'zed:<ckpt>' (Part 1 ZED reader estimator + gate on the start frame), "
                          "'module:factory' (factory(chain) -> est(chain) -> (p, R, ok)) or 'noisy_oracle:<mm>,<deg>'")
+    ap.add_argument('--reader-wrist', default='', help="expert_estimated: wrist refinement net at the hover, e.g. runs/perception/reader_wrist.pt ('' = off; in the chain it worsens the estimate: 1.05 -> 5-6 mm p50, n = 128)")
+    ap.add_argument('--wrist-hover-relative', type=int, default=1, help='PickExpert.replan hover_relative')
+    ap.add_argument('--wrist-hover-wait-s', type=float, default=1.5, help='hold at the hover until the hand is within 2 mm (max s)')
+    ap.add_argument('--reader-retries', type=int, default=1, help='expert_estimated: re-take the reader frame this often when the gate rejects')
     ap.add_argument('--reader-frame', choices=('cap_parked', 'start', 'parked'), default='cap_parked',
                     help="ZED frame for the reader estimator: 'cap_parked' (left arm parked, right arm at the capture pose, both "
                          "grippers open: reader_zed_cap.pt), 'start' (the capture-pose PC frame; the left gripper hides the reader) or "
@@ -221,6 +225,22 @@ class Chain:
         self.tick(label)
 
     # ------------------------------------------------------------------ stages
+    def reader_frame(self):
+        """ZED frame at the reader capture pose (Part 1 pick: left arm parked = its pose after PickTask.reset, right arm
+        at the ZED capture pose, right gripper fully open), rendered without stepping; returns (top, (q_left, q_right,
+        right_finger_m)) with the encoder (believed) angles for the estimator's arm-pose gate."""
+        rt, ee = self.rt, self.pick.enc_error
+        ra, fq = rt.indices['right'][0], self.pick.finger_qadr
+        q_r, q_f = rt.q[:, ra].clone(), rt.q[:, fq].clone()
+        rt.q[:, ra] = self.zed_q['right']
+        rt.q[:, fq] = .0475
+        self.forward()
+        top = self.render()['top']
+        arms = (rt.q[:, rt.indices['left'][0]] - ee[:, 1], rt.q[:, ra] - ee[:, 0], rt.q[:, fq].mean(1))
+        rt.q[:, ra] = q_r; rt.q[:, fq] = q_f
+        self.forward()
+        return top, arms
+
     def render_top_only(self):
         self.last_top = self.render()['top']
         return self.last_top
@@ -545,17 +565,6 @@ class Chain:
         self.forward()
         est = {'start': self.zed_estimate()}
         self.start_top = self.last_top                    # one start frame for the PC and the reader estimators
-        if a.reader_frame == 'cap_parked':
-            # reader frame (pick agent's sequence): left arm parked (it hides the reader at the capture pose),
-            # right arm still at the capture pose, both grippers fully open
-            lf = self.env.left_finger_q
-            q_lf = rt.q[:, lf].clone()
-            rt.q[:, la] = q_park
-            rt.q[:, lf] = .0475
-            self.forward()
-            self.render_top_only()
-            self.start_top = self.last_top
-            rt.q[:, lf] = q_lf
         rt.q[:, la] = q_park
         rt.q[:, ra] = q_r
         rt.q[:, fq] = q_f
