@@ -34,7 +34,7 @@ class ApproachRenderer:
         self.rt = BimanualRuntime(BimanualCfg(nworld=nworld, device=device, render_rgb=True, visual_dr=visual_dr,
                                               camera_resolution=res, measured_camera_cadence=False))
         self.h = Harness(self.rt, HarnessCfg(enc_offset_deg=0., latency_steps=(0,)))
-        self.hold = LeftHold(self.h, HoldCfg(mode='press', across_m=-.0208, along_m=-.02, yaws_deg=(-90.,), ik_iters=60))
+        self.hold = LeftHold(self.h, HoldCfg(mode='press', across_m=-.0208, along_m=-.035, yaws_deg=(-90.,), ik_iters=60))
         self.ins = RightInserter(self.h, InsertCfg())
         self.ins.seeds = self.ins.seeds[[1, 5]]
         self.n, self.dev = nworld, self.rt.device

@@ -151,18 +151,20 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   before Part 2.
 - **Explore:** brace vs press; target offset into the PC (holding force); timing.
 - **Metrics:** PC translation/rotation during insertion; contact force; collisions with the right arm.
-- **Status (2026-11-01, round 3, `policy/approach-hold`): recommended hold: press 25 N, guarded;
-  gate (99.5 %) met at 1 N, 99.3 % at 3 N.** Code: `blind_insertion/envs/left_hold.py` (`LeftHold`,
-  `Harness`, `RightInserter`), `scripts/task/eval_left_hold.py`, `scripts/task/sweep_left_hold.sh`;
-  results `results/usbc/policy/hold/` (`r3_*` = current DR).
-  - **Recommended hold:** press the closed fingertips down on the PC top, front half (2 cm in front of
-    the case centre), in line with port 2, **25 N** (left joint 2 ~8.5 N m, within the DM4340 rating;
-    35 N needs ~12 N m and is no better); **guarded engage**: descend at 10 mm/s from a 15 mm stand-off
-    until the encoder-estimated force (PD torque through J^+T, bias at the stand-off) exceeds 3 N,
-    latch the measured pose, then ramp dq = Kp^-1 J^T F over 0.4 s (~4-6 s in all). Engage it before
-    the approach; it moves the PC by p99 0.06 mm.
-  - **PC still (< 0.5 mm, < 0.5 deg over 2 s; fixed push at the port along the insertion axis, +/-15 %
-    lateral; n = 1024 each; current DR: PC +/-1.5 cm / +/-5 deg, feet mu U(0.8, 1.0), Part 1 grasp contact
+- **Status (2026-11-01, round 4, `policy/approach-hold`): 3 N gate met: 25 N press 3.5 cm in front of the
+  case centre, 99.86 % still at 3 N (5113/5120, five runs incl. two with a parked/folded left start),
+  99.5-99.8 % at 5 N, 97.0 % at 10 N; left joint 2 <= 8.8 N m.** Code: `blind_insertion/envs/left_hold.py`,
+  `scripts/task/eval_left_hold.py`, `scripts/task/sweep_left_hold.sh`; results `results/usbc/policy/hold/`
+  (`r4*` = current).
+  - **Recommended hold (round 4):** press the closed fingertips down on the PC top **3.5 cm in front of
+    the case centre** (`HoldCfg(mode='press', force_n=25, along_m=-0.035, across_m=-0.0208)`), in line
+    with port 2, guarded engage as below. Round-4 variants at 3 N (n = 1024 each): 2 cm in front 99.3 %,
+    3.5 cm **100 / 99.9 / 99.9 / 99.9 / 99.6 %** (five seeds; 99.9 and 99.6 % with the left arm starting folded),
+    4.5 cm 98.2 %; settle 1.5 s 98.8 %; latch at 1.5 N 98.7 %; centred across the panel 99.4 %.
+    The engagement works from the folded (parked) left pose: all worlds latch, no arm-arm or table contact.
+    The press point is on the PC top, clear of the reader strip in front of the PC.
+  - **Round 3, press 2 cm in front of the centre. PC still (< 0.5 mm, < 0.5 deg over 2 s; fixed push at
+    the port along the insertion axis, +/-15 % lateral; n = 1024 each; DR: PC +/-1.5 cm / +/-5 deg, feet mu U(0.8, 1.0), Part 1 grasp contact
     impratio 30):**
 
     | Press | 1 N | 3 N | 5 N | 10 N |
