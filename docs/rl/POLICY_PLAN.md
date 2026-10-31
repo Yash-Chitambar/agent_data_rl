@@ -25,7 +25,7 @@ Every training episode and every demo is drawn from this. Seed 0 reproduces the 
 | Group | Randomized | Range (source) |
 |---|---|---|
 | Arm dynamics | Coulomb friction, gravity scale | ×U(0.5, 1.3), ±0.04 (identified profile) |
-| Control | action delay; encoder offsets | 0–1 control step (measured ~8 ms); ±1.5° on joints 2–5 |
+| Control | action delay; encoder offsets | 0–1 control step (measured ~8 ms); ±1.5° on joints 2–5 (done: `BimanualTaskCfg.latency_steps`, `enc_offset_deg`) |
 | Contact | plug–port friction; pad friction and stiffness; PC-feet friction | to set; to set; μ U(0.3, 0.9) |
 | Layout | PC pose; reader pose | nominal ±3 cm, ±10°; reader region 0.20 m², yaw ±90° (placement search) |
 | Grasp | in-hand reader position and tilt | to set from real grasp captures (new grasp) |
@@ -41,8 +41,12 @@ Rule from the deck: sim sensors are at least as bad as the real ones.
 
 - **Goal:** the right arm picks the reader from anywhere in its region with the **new grasp**
   and lifts it with a known, small in-hand pose spread.
-- **New grasp (to confirm):** gripper as flat (parallel to the table) as possible so the reader
-  stays flat; pads on the flat faces at the front of the body; plug axis orthogonal to the grasp.
+- **New grasp (decided 2026-10-31): side pinch.** The gripper approaches parallel to the table
+  (horizontal; a slight downward tilt is allowed, horizontal preferred) so the reader stays flat.
+  One finger above, one below: the pads close on the big top and bottom faces at the front of the
+  body (behind the neck). The plug axis is orthogonal to the approach direction. Open question to
+  settle first: the lower finger must get under a reader lying flat (wedge under the front edge
+  with a slight tilt, or stage the reader on a low holder / overhanging lip).
 - **Approach:** scripted IK expert in sim (privileged reader pose) → demos with full DR → ACT on
   wrist + ZED RGB + encoders (sim-only demos, as in task H).
 - **Explore:** scripted (ZED pose estimate + IK) vs ACT; ACT chunk size and ensembling; grasp

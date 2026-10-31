@@ -22,6 +22,13 @@ class BimanualTaskCfg:
     target_cap_rad: float = .1
     seat_tolerance_m: float = .00025
     tilt_limit_deg: float = 2.
+    # Control domain randomization, per world, resampled on reset. Latency: the joint targets reach
+    # the servos this many control steps late (measured ~8 ms = 0.4 step; uniform over the tuple).
+    # Encoder offset error: the calibrated joint offsets are wrong by up to +/- this many degrees on
+    # joints 2-5 (real offsets 0.4-1.3 deg). The policy sees angles shifted by the error and its
+    # targets land shifted by it, as on the real arm (targets are sent in the encoder frame).
+    latency_steps: tuple = (0, 1)
+    enc_offset_deg: float = 1.5
 
 
 class BimanualTask:
@@ -44,10 +51,25 @@ class BimanualTask:
         self.seated_steps=torch.zeros_like(self.steps)
         self.done=torch.zeros(n,device=self.device,dtype=torch.bool)
         self.previous_action=torch.zeros((n,14),device=self.device)
+        if not c.latency_steps or min(c.latency_steps) < 0 or not math.isfinite(c.enc_offset_deg) or c.enc_offset_deg < 0:
+            raise ValueError('latency_steps must be nonnegative integers and enc_offset_deg finite >= 0')
+        self.latency=torch.zeros(n,device=self.device,dtype=torch.long)
+        self.enc_error=torch.zeros((n,2,6),device=self.device)      # observed = true - enc_error (rad)
+        self.sent_history=torch.zeros((max(c.latency_steps)+1,n,14),device=self.device)
         self.joint_target=self._measured_model_angles().clone()
 
     def _measured_model_angles(self):
-        return self.runtime.proprioception()["encoder_rad"].reshape(-1,2,6)+self.runtime.encoder_offsets
+        """Model-frame joint angles as the policy believes them (encoder + calibrated offsets - error)."""
+        return self.runtime.proprioception()["encoder_rad"].reshape(-1,2,6)+self.runtime.encoder_offsets-self.enc_error
+
+    def _sample_control(self, ids):
+        c=self.cfg;n=len(ids)
+        options=torch.tensor(c.latency_steps,device=self.device)
+        self.latency[ids]=options[torch.randint(len(options),(n,),device=self.device)]
+        half=math.radians(c.enc_offset_deg)
+        err=torch.zeros((n,2,6),device=self.device)
+        err[:,:,1:5]=(torch.rand((n,2,4),device=self.device)*2-1)*half
+        self.enc_error[ids]=err
 
     def _update_joint_targets(self, action, measured):
         increments=torch.stack((action[:,:6],action[:,7:13]),dim=1)*self.cfg.action_scale_rad
@@ -63,6 +85,7 @@ class BimanualTask:
 
     def observation(self):
         obs=self.runtime.proprioception()
+        obs['encoder_rad']=obs['encoder_rad']-self.enc_error.flatten(1)
         obs['previous_action']=self.previous_action.clone()
         obs['target_error_rad']=(self.joint_target-self._measured_model_angles()).flatten(1)
         if self.cfg.physics.render_rgb:
@@ -74,6 +97,7 @@ class BimanualTask:
     def reset(self, ids=None):
         if ids is None:ids=torch.arange(self.cfg.physics.nworld,device=self.device)
         self.runtime.reset(ids)
+        self._sample_control(ids)
         self.joint_target[ids]=self._measured_model_angles()[ids]
         self.steps[ids]=0;self.seated_steps[ids]=0;self.done[ids]=False;self.previous_action[ids]=0
         return self.observation()
@@ -87,9 +111,14 @@ class BimanualTask:
         a=a.clamp(-1,1)
         targets=a.clone()
         joint_targets=self._update_joint_targets(a,self._measured_model_angles())
-        targets[:,:6]=joint_targets[:,0]
-        targets[:,7:13]=joint_targets[:,1]
-        self.runtime.step(targets)
+        # Physical targets: the believed-frame target plus the offset error (encoder-frame command).
+        targets[:,:6]=joint_targets[:,0]+self.enc_error[:,0]
+        targets[:,7:13]=joint_targets[:,1]+self.enc_error[:,1]
+        hist=self.sent_history
+        hist[1:]=hist[:-1].clone();hist[0]=targets
+        new=self.steps==0                                  # nothing older to send after a reset
+        hist[1:,new]=targets[new]
+        self.runtime.step(hist[self.latency,torch.arange(len(targets),device=self.device)])
         self.previous_action.copy_(a)
         reward,terminated,truncated,info=self._transition()
         return self.observation(),reward,terminated,truncated,info
