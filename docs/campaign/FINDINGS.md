@@ -104,6 +104,44 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 5: chain-surfaced issues (elliptic cones, ZED arm poses, hold contact, plug bias)
+
+All with elliptic cones + impratio 30 (the chain and Part 4 solver) unless noted.
+
+- **Hold in the chain context** (`scripts/task/diag_chain_hold.py`: reset -> Part 1 expert pick -> guarded 25 N press,
+  right arm holding the reader at the lift pose; n = 1024 = 2 x 512, seeds 7100-7101):
+  2 cm press: arm-arm 0/1024, PC still 1024/1024 at 3 N and 1024/1024 at 5 N, left joint 2 <= 8.9 N m.
+  3.5 cm press: still 1024/1024 at 3 and 5 N, but **arm-arm 4/1024** (chain: 5/1024): the left forearm (link_5 /
+  link_3 capsules) hits the right arm's link_4 and the two fingertip hulls touch, with the right arm at the
+  post-pick lift pose. A higher stand-off (+5 cm) made it worse (8/1024, PC still 77 %). Elliptic cones hold
+  the PC better than pyramidal (2 cm, 3 N: 100 % vs 99.3 %). **Use the 2 cm press** (= Part 4's training
+  hold): it passes 3 and 5 N with no contact. HOLD15
+- **PC sink:** with elliptic cones the 25 N press pushes the PC 0.77 mm (p50; p99 0.86) into its feet (3.5 cm:
+  0.89 mm). It is soft-contact compression of the 5 mm box feet, settles during the engage (before the
+  approach), and is almost all vertical (engage translation p99 0.89 mm vs sink p99 0.86 mm; one world in
+  1024 moved 6.1 mm): no effect on the PC-still result; the approach servo measures the live port.
+- **ZED vs arm pose:** v1 (trained at rest, right fingers open) by condition (n = 512 each): rest 0.79 / 2.63 mm,
+  right fingers at 24 mm 2.95 / 5.71, left parked 7.10 / 20.1, left pressing 8.58 / 21.9. Retrained with varied arm
+  poses and openings (`render_data.vary_arms`: right rest/perturbed, fingers closed..open; left rest / parked /
+  pressing; reader in the strip / elsewhere / out of view; PC box widened to +/-3 cm / +/-10 deg): v4 two-net
+  ensemble rest 0.95 / 4.27, parked 1.70 / 5.47, pressing 1.69 / 5.17 mm (accepted, n = 671-703) -- robust in sim
+  but **real frames regress**: 8.7 / 14.1 mm from the manual landmark (v1: 0.41 mm), and the two nets disagree
+  there, so the ensemble gate rejects 122/123 real stationary frames (it knows it cannot handle them).
+  A heteroscedastic (predicted-std) variant was no better (sim p50 1.45 mm, real 15.8 mm).
+- **Gate that rejects what it cannot handle:** the arm configuration is known from the encoders, so the
+  gate now checks it (`ZedEstimator(frames, arms=(q_left, q_right, right_finger))`, envelope in the gate
+  checkpoint). v1 + presence/OOD + arm-pose gate (`runs/perception/zed_v1_gate_arm.pt`, +/-0.05 rad of the rest
+  pose, right fingers >= 40 mm): rest accepted 100 % (0.79 / 2.63 mm), 24 mm / parked / pressing rejected 100 %,
+  arms beyond training (x2.5) 97.7 % rejected. Recommendation: take the ZED frame at the rest pose with the right
+  gripper fully open (as the chain does) with this gate; the v4 ensemble is the fallback when the arms cannot be
+  at rest, not yet for real frames.
+- **Approach under elliptic cones** (2 cm hold, chain layout): v10w + v10ws lateral p50 0.39 / p99 1.67 mm,
+  plug low by 0.20 mm on average (chain: 0.36). One DAgger round on elliptic in-loop states (both holds) ->
+  v12w + v12ws: p50 0.30 / p99 1.41 mm, mean (x, y) = (+0.06, +0.10) mm. **Bias removed** by a servo target
+  offset (-0.06, -0.10) mm calibrated on seeds 1-2, tested on seeds 3-4: **lateral p50 0.27 / p99 1.24 /
+  p99.5 1.63 mm, tilt p99 0.69 deg, roll p99 0.50 deg, mean (x, y) = (-0.03, -0.04) mm, 96.8 % inside 1 mm / 2 deg
+  (n = 1024)**. Deliverable updated (`preinsert_error.json`). 3.5 cm hold: p99 1.49 mm.
+
 ### 2026-10-31 (mason, `policy/chain`) — End to end: pick → hold → approach → insertion in one simulation, 99.80 % (n = 1024)
 
 `scripts/eval/eval_chain.py` runs all four parts in one continuous MuJoCo Warp simulation per world:

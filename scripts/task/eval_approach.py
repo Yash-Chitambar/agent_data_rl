@@ -81,6 +81,7 @@ def main():
     ap.add_argument('--hold-force', type=float, default=25.)
     ap.add_argument('--elliptic', action='store_true', help='elliptic friction cones + impratio 30 (as the chain and Part 4)')
     ap.add_argument('--task-layout', default=None, help='BimanualCfg.task_layout (results/usbc/policy/pick/task_layout.json: reader on the Part 1 strip)')
+    ap.add_argument('--x-offset-mm', type=float, default=0., help='servo target offset along port x (mm)')
     ap.add_argument('--y-offset-mm', type=float, default=0., help='servo target offset along port y (mm): removes a measured mean bias')
     ap.add_argument('--hold-along', type=float, default=-.02, help='press point from the case centre toward the rear (m); -0.035 = round-4 hold')
     ap.add_argument('--pad-mu', type=float, default=1.2, help='right pad friction (Part 1); <= 0 keeps the scene 1.68')
@@ -215,7 +216,7 @@ def main():
             rel_p_est, rel_rv_est = rel_pose(h)
         # rigid correction of the reader, expressed in the (estimated) port frame: current -> waypoint
         cur_R = K.axis_angle_mat(rel_rv_est / rel_rv_est.norm(dim=1, keepdim=True).clamp(min=1e-9), rel_rv_est.norm(dim=1))
-        tgt_p = torch.tensor([0., a.y_offset_mm * 1e-3, g], device=dev).expand(n, 3)
+        tgt_p = torch.tensor([a.x_offset_mm * 1e-3, a.y_offset_mm * 1e-3, g], device=dev).expand(n, 3)
         rv = -rel_rv_est * a.gain                                # rotate the reader back onto the axis (port frame)
         final = it >= len(sched) - a.final_iters
         if final and (a.final_rot == 'none' or it >= len(sched) - a.final_pos_only):

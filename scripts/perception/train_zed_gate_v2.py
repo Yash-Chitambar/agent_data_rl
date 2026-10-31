@@ -130,6 +130,8 @@ def main():
     names = {0: 'left_rest', 1: 'left_parked', 2: 'left_pressing', 3: 'left_perturbed'}
     for c, nm in names.items():
         m = Lp[:, 3] == c
+        if not (m & ok).any():
+            continue
         cats[nm] = {'n': int(m.sum()), 'accept': float(ok[m].float().mean()), 'xy_mm_p50': float(torch.quantile(e[m & ok], .5)),
                     'xy_mm_p99': float(torch.quantile(e[m & ok], .99))}
     for lo, hi in ((0, .012), (.012, .03), (.03, .0475)):

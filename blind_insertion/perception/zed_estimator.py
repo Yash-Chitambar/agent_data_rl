@@ -51,10 +51,26 @@ class ZedEstimator:
         self.sigma_yaw_thresh = float(cp.get('sigma_yaw_thresh_deg', float('inf')))
         self.dis_xy_thresh = float(cp.get('disagree_xy_thresh_mm', float('inf')))
         self.dis_yaw_thresh = float(cp.get('disagree_yaw_thresh_deg', float('inf')))
+        # Arm-pose gate (encoders): the pose CNN is only valid for the arm configurations it was trained on.
+        # envelope = {'left_refs': [[6 rad], ...], 'right_refs': [[6 rad], ...], 'tol_rad': t,
+        #             'right_finger_min_m': f}. A frame is accepted only when each arm is within tol_rad
+        # (max over joints) of one of its reference poses and the right fingers are open >= f.
+        self.envelope = cp.get('arm_envelope')
+
+    def arm_ok(self, q_left, q_right, right_finger_m):
+        """(B,6), (B,6) believed joint angles (rad, model frame), (B,) right finger opening per finger (m)."""
+        e = self.envelope
+        if e is None:
+            return torch.ones(len(q_left), dtype=torch.bool, device=q_left.device)
+        def near(q, refs):
+            refs = torch.as_tensor(refs, device=q.device, dtype=q.dtype)
+            return ((q[:, None] - refs[None]).abs().max(-1).values <= e['tol_rad']).any(1)
+        return near(q_left, e['left_refs']) & near(q_right, e['right_refs']) & (right_finger_m >= e['right_finger_min_m'])
 
     @torch.no_grad()
-    def __call__(self, frames):
-        """frames: (B, 320, 320, 3) uint8 policy-crop ZED frames."""
+    def __call__(self, frames, arms=None):
+        """frames: (B, 320, 320, 3) uint8 policy-crop ZED frames; arms: optional (q_left, q_right,
+        right_finger_m) from the encoders for the arm-pose gate."""
         x = zed_crop(frames)
         out = self.pose(x)
         k = len(self.scale)
@@ -73,5 +89,7 @@ class ZedEstimator:
         ok = (p >= self.presence_thresh) & (d <= self.ood_thresh * self.ood_scale) & \
              (sxy <= self.sigma_xy_thresh) & (sig[:, 2] <= self.sigma_yaw_thresh) & \
              (dis[:, :2].norm(dim=1) <= self.dis_xy_thresh) & (dis[:, 2] <= self.dis_yaw_thresh)
-        return port, torch.deg2rad(est[:, 2]), ok, {'presence': p, 'mahalanobis': d, 'sigma_xy_mm': sxy, 'sigma_yaw_deg': sig[:, 2],
+        arm = self.arm_ok(*arms) if arms is not None else torch.ones_like(ok)
+        ok = ok & arm
+        return port, torch.deg2rad(est[:, 2]), ok, {'arm_ok': arm, 'presence': p, 'mahalanobis': d, 'sigma_xy_mm': sxy, 'sigma_yaw_deg': sig[:, 2],
                                                     'disagree_xy_mm': dis[:, :2].norm(dim=1), 'disagree_yaw_deg': dis[:, 2]}

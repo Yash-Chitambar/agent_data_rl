@@ -55,7 +55,8 @@ def frames(r, cond):
     with wp.ScopedDevice(rt.cfg.device):
         mjw.forward(rt.m, rt.d)
     p, R = r.h.pc_pose()
-    return zed_crop(rt.render()['top']).contiguous(), p[:, :2], torch.atan2(-R[:, 1, 2], -R[:, 0, 2])
+    arms = (r.h.believed('left'), r.h.believed('right'), rt.q[:, rf[0]].clone())
+    return zed_crop(rt.render()['top']).contiguous(), p[:, :2], torch.atan2(-R[:, 1, 2], -R[:, 0, 2]), arms
 
 
 def main():
@@ -77,12 +78,12 @@ def main():
     for cond in ('rest', 'rest_24mm', 'parked', 'pressing', 'wild'):
         errs = {nm: [] for nm in nets}; yerr = {nm: [] for nm in nets}; ens = []; gerr, gok = [], []
         for _ in range(a.n // r.n):
-            x, pxy, yaw = frames(r, cond)
+            x, pxy, yaw, arms = frames(r, cond)
             if est is not None:
                 full = torch.zeros(len(x), 320, 320, 3, dtype=torch.uint8, device=dev)
                 from blind_insertion.perception.zed_estimator import ZED_CROP
                 full[:, ZED_CROP[1]:ZED_CROP[1] + ZED_CROP[2], ZED_CROP[0]:ZED_CROP[0] + ZED_CROP[2]] = x
-                port, _, ok, _ = est(full)
+                port, _, ok, _ = est(full, arms=arms)
                 gerr.append(((port - pxy).norm(dim=1) * 1e3).cpu()); gok.append(ok.cpu())
             ests = []
             for nm, (net, sc) in nets.items():

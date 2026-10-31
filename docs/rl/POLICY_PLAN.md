@@ -120,6 +120,14 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
 - **Explore:** pose estimators (ZED only, wrist only, both); a visual-servo refinement step at
   the end; how far out to stop (3–10 mm).
 - **Metrics:** lateral and angular pre-insert error distribution vs the capture region of Part 4.
+- **Status (2026-11-01, round 5, `policy/approach-hold`): target met under the chain's solver: lateral
+  p99 1.24 mm, tilt p99 0.69 deg, roll p99 0.50 deg, mean bias (x, y) = (-0.03, -0.04) mm (n = 1024, elliptic
+  cones + impratio 30, 2 cm hold, reader on the Part 1 strip).** Settings:
+  `eval_approach.py --elliptic --fric-comp --tilt 55 --final-rot roll --hold-along -0.02 --coarse-net wrist_v12w
+  --fine-net wrist_v12ws --fine-below-mm 7 --x-offset-mm -0.06 --y-offset-mm -0.10` (offsets calibrated on
+  seeds 1-2, measured on 3-4). ZED: v1 net with the presence/OOD + **arm-pose gate** (`zed_v1_gate_arm.pt`),
+  frame at the rest pose with the right gripper fully open; any other arm configuration is rejected.
+  Details: FINDINGS 2026-11-01 round 5.
 - **Status (2026-11-01, round 4, `policy/approach-hold`): tilt/roll targets met; lateral p99 1.64 mm (target
   1.5 mm; 1.13 mm when the wrist-camera error is inside the real calibration).** Deliverable for Part 4:
   `results/usbc/policy/approach/preinsert_error.json` (+ `preinsert_error_samples.npz`).
@@ -163,6 +171,11 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   before Part 2.
 - **Explore:** brace vs press; target offset into the PC (holding force); timing.
 - **Metrics:** PC translation/rotation during insertion; contact force; collisions with the right arm.
+- **Status (2026-11-01, round 5, `policy/approach-hold`): use the 2 cm press (Part 4's training hold).**
+  Under the chain's elliptic cones, in the chain context (after the Part 1 pick, right arm at the lift
+  pose; n = 1024): 2 cm, 25 N: PC still 100 % at 3 N and 100 % at 5 N, arm-arm 0, left joint 2 <= 8.9 N m;
+  3.5 cm: 100 % / 100 % but arm-arm 4/1024 (left forearm vs right link_4, fingertip hulls). The PC sinks
+  0.77 mm into its feet under the press (soft feet contact; settles during the engage). HOLD15PLAN
 - **Status (2026-11-01, round 4, `policy/approach-hold`): 3 N gate met: 25 N press 3.5 cm in front of the
   case centre, 99.86 % still at 3 N (5113/5120, five runs incl. two with a parked/folded left start),
   99.5-99.8 % at 5 N, 97.0 % at 10 N; left joint 2 <= 8.8 N m.** Code: `blind_insertion/envs/left_hold.py`,
