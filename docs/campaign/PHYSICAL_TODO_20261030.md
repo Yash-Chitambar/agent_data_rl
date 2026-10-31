@@ -107,10 +107,12 @@ measured PC poses under every arm pose the task uses. Rig console running; bases
 1. Mark 4 PC spots with tape at the front-left case corner and along the left edge: the nominal
    (port 2 at x 0.22, y 0.36 m in the right-arm base frame, yaw 0), then +1 cm x, +1.5 cm y and
    -1 cm x / +5 deg yaw.
-2. Measure each spot in the right-arm base frame: run `scripts/real/snapshot.py point --target <x> <y> --tag spotN`
-   with the ZED view, or measure with a steel ruler from the right-arm base plate edge (resolution ±1 mm, write
-   the two offsets and the yaw from the corner pair). Optional, better: tape a 40 mm AprilTag (tag36h11) flat on
-   the PC lid centre; `scripts/real/calib.py` already finds tags in the ZED frame (± ~1 mm).
+2. Measure each spot in the right-arm base frame with a steel ruler from the right-arm base plate edge to
+   two points of the case's front edge (x, y of the front-left corner and of the front-right corner; ±1 mm):
+   port-2 position and yaw follow from the case geometry (port 2 is 30 mm from the left edge on the
+   front face). Better (optional): the calibration board (`scripts/real/calib.py`, 9 x 8 squares, 15 mm)
+   flat on the table with one board corner on a tape mark gives the mark position in the ZED frame (± ~1 mm);
+   then put the PC's front-left corner on that mark. (No AprilTag detector is in the repo yet.)
 3. Record per spot in `data/zed_gt/spots.json`: port-2 x, y (m), yaw (deg), method, uncertainty.
 
 **B. ZED frames per spot and arm pose (8 frames per spot, ~5 min per spot)**
