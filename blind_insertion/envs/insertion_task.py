@@ -345,7 +345,7 @@ class InsertionTask(BimanualTask):
         if len(ids) == 0:
             return
         st = starts if starts is not None else self._take(ids)
-        rt.reset(ids)      # dynamics, PC feet friction, contact DR, layout (overwritten below)
+        rt.reset(ids, forward=False)   # dynamics, PC feet friction, contact DR, visual DR, layout (overwritten below)
         q = rt.q
         qr, ql = rt.indices['right'][0], rt.indices['left'][0]
         q[ids[:, None], torch.tensor(qr, device=self.device)] = st['q_right']
@@ -361,8 +361,10 @@ class InsertionTask(BimanualTask):
         rt.ctrl[ids[:, None], torch.tensor(act_l, device=self.device)] = st['q_left_hover']
         rt.ctrl[ids[:, None], torch.tensor(rt.indices['right'][3], device=self.device)] = rt.cfg.grip_close
         rt.ctrl[ids[:, None], torch.tensor(rt.indices['left'][3], device=self.device)] = rt.cfg.grip_close
-        with wp.ScopedDevice(rt.cfg.device):
-            mjw.forward(rt.m, rt.d)
+        # No mjw.forward: everything below reads qpos; the next physics step recomputes derived
+        # quantities (the reset worlds' first gravity residual uses stale gravcomp, during warmup).
+        if rt.camera_sensor is not None:
+            rt.camera_sensor.reset(ids, rt.sensor_time)
         self._sample_control(ids)
         self.joint_target[ids] = self._measured_model_angles()[ids]
         self.left_press_q[ids] = st['q_left_press']

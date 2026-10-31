@@ -233,8 +233,12 @@ class BimanualRuntime:
                 self.camera_sensor.reset(torch.arange(c.nworld,device=self.device),self.sensor_time)
 
 
-    def reset(self, ids=None):
-        """Reset selected worlds; randomization and task-specific reset poses are separate."""
+    def reset(self, ids=None, forward=True):
+        """Reset selected worlds; randomization and task-specific reset poses are separate.
+
+        forward=False skips the full-batch mjw.forward (~120 ms at 4096 worlds): derived quantities
+        (xpos, gravcomp) of the reset worlds stay stale until the next step, which recomputes them.
+        """
         if ids is None: ids = torch.arange(self.cfg.nworld,device=self.device)
         self.q[ids] = self.initial_q
         self.v[ids] = 0
@@ -247,7 +251,8 @@ class BimanualRuntime:
         if self.cfg.contact_dr: self._sample_contact(ids)
         if self.layout: self._sample_layout(ids)
         if self.cfg.render_rgb: self.visual.sample(ids)
-        with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
+        if forward:
+            with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
         if self.camera_sensor is not None:self.camera_sensor.reset(ids,self.sensor_time)
         return self.state()
 
