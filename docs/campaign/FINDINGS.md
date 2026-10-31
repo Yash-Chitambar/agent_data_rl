@@ -268,6 +268,45 @@ ZED frame pose (rest pose, gripper open). Layout and DR ranges are the parts' ow
   gap error p99 0.83 mm, 95.3 % inside 1 mm / 2 deg (n = 1024, all finite, ZED gate accepted all)**; with the wrist
   camera error inside the real calibration (n = 331): lateral p99 1.13 mm, tilt p99 0.70 deg. One more round
   (v11w + v10ws): p99 1.62 mm, 94.3 %: plateau.
+### 2026-11-01 (mason) — Part 4: does the insertion policy push too hard, and does it sense the edges?
+
+`scripts/analysis/insertion_contact.py`, results `results/usbc/policy/insertion/contact_v11.{json,_live.png,_r3x1.5.png}`.
+Policy v11 (exported best), deterministic, n = 1024 per condition: the held-out live hand-over states (chain,
+hold 2 cm) and Part 2 round 3 × 1.5. Forces are the net contact force of the port on the plug (normal +
+friction rows of the elliptic cones, resolved in the port frame), sampled at the last of the 20 substeps per
+20 ms control step. Summing contact *magnitudes* instead (opposing slot walls squeezing the plug) gives
+90 N median / 1,400-5,600 N max: that is wall squeeze, not push.
+
+| | live (n = 1024) | round 3 × 1.5 (n = 1024) |
+|---|---|---|
+| seated | 99.90 % [99.45, 99.98] | 99.71 % [99.14, 99.90] |
+| peak axial push on the plug p50 / p99 / max | 20.4 / 49.9 / 67.9 N | 23.5 / 57.8 / 66.3 N |
+| mean axial push while in contact p50 / p99 | 6.6 / 9.9 N | 6.6 / 10.5 N |
+| episodes with peak push > 20 N | 51 % | 60 % |
+| peak net reader→PC force p50 / p99 | 21.4 / 63.9 N | 26.5 / 66.7 N |
+| peak pad force on the reader p50 / p99 | 28.8 / 45.8 N | 29.1 / 53.0 N |
+| plug speed at first contact p50 / p99 | 29 / 306 mm/s | 32 / 478 mm/s |
+| peak plug speed after contact p50 / p99 | 93 / 344 mm/s | 98 / 506 mm/s |
+| rim-contact onsets before seating p50 / p99 | 3 / 7 | 3 / 10 |
+
+- **Too hard and too fast at impact.** The steady push while in contact is moderate (~7 N mean), but the plug
+  reaches the panel fast (p99 0.3-0.5 m/s) and the impact spikes to 15-30 N (p99 50-58 N); it then skids
+  sideways 2-3 mm and searches back (plot). Real USB-C needs ~5-20 N to latch; a gentle policy should stay
+  under ~20 N.
+- **Contact sensing, as in the paper:** the contact head on held-out steps: F1 free 0.99, rim contact
+  0.92-0.94, inside 0.92 (balanced accuracy 0.94-0.95). Probes on the actor state (TCN latent + last hidden
+  layer, 75/25 split by world): contact yes/no 94 % (linear, balanced 92 %); touching side (+x, -x, +y, -y,
+  none) 79-82 % (balanced 73-77 %); lateral offset poorly decodable (R² 0.09-0.20; median error 0.29-0.86 mm
+  vs a 0.27-0.74 mm constant baseline). The policy knows *that* and roughly *where* it touches, not the
+  absolute offset.
+- **Behaviour during rim contact:** lateral velocity points toward the port axis in 53-57 % of rim-contact
+  steps (cos p50 0.10-0.23): weakly directed; it backs off (moves out of the panel) in 31 % of rim steps; the
+  lateral offset falls from 0.83 to 0.29 mm (live, p50) between the first and last rim contact. It corrects,
+  but partly by search, not a clean move toward the axis.
+- **Fine-tune (item 3), running:** force penalty above 15 N (0.05/N/step) and a speed penalty within 3 mm of
+  the panel above 20 mm/s (1 per m/s/step), and a stronger variant (above 10 N, 0.1/N; above 15 mm/s, 2 per m/s).
+  Gate: ≥ 99.5 % on the held-out live states with peak push p99 ≤ 20 N.
+
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
 **Result (blind PPO v5 seed 0, `runs/P4-insert-proprio-v5-s0`, ~19 M steps):** held-out seed 1000,
