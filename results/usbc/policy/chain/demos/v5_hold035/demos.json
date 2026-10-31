@@ -1,0 +1,113 @@
+{
+ "seed": 9100,
+ "nworld": 96,
+ "videos": [
+  "chain_w17_insert_lateral_miss.mp4",
+  "chain_w68_insert_lateral_miss.mp4"
+ ],
+ "classes": {
+  "0": "success",
+  "1": "success",
+  "2": "success",
+  "3": "success",
+  "4": "success",
+  "5": "success",
+  "17": "insert_lateral_miss",
+  "68": "insert_lateral_miss"
+ },
+ "batch_classes": {
+  "success": 93,
+  "insert_lateral_miss": 3
+ },
+ "layouts": {
+  "0": {
+   "pc_xy": [
+    0.22738000750541687,
+    0.3463658392429352
+   ],
+   "pc_yaw_deg": 3.191582441329956,
+   "reader_xy": [
+    0.10904436558485031,
+    0.47750866413116455
+   ]
+  },
+  "1": {
+   "pc_xy": [
+    0.22410324215888977,
+    0.35236433148384094
+   ],
+   "pc_yaw_deg": 4.6983561515808105,
+   "reader_xy": [
+    0.155561625957489,
+    0.43265417218208313
+   ]
+  },
+  "2": {
+   "pc_xy": [
+    0.22394365072250366,
+    0.34588417410850525
+   ],
+   "pc_yaw_deg": -2.9873287677764893,
+   "reader_xy": [
+    0.1270890086889267,
+    0.4875372052192688
+   ]
+  },
+  "3": {
+   "pc_xy": [
+    0.2247440367937088,
+    0.3595747947692871
+   ],
+   "pc_yaw_deg": -0.012323369272053242,
+   "reader_xy": [
+    0.14536677300930023,
+    0.47424256801605225
+   ]
+  },
+  "4": {
+   "pc_xy": [
+    0.22648759186267853,
+    0.35344475507736206
+   ],
+   "pc_yaw_deg": -1.289552927017212,
+   "reader_xy": [
+    0.12258246541023254,
+    0.46755796670913696
+   ]
+  },
+  "5": {
+   "pc_xy": [
+    0.21316005289554596,
+    0.35005804896354675
+   ],
+   "pc_yaw_deg": 4.896195411682129,
+   "reader_xy": [
+    0.13303567469120026,
+    0.45438021421432495
+   ]
+  },
+  "17": {
+   "pc_xy": [
+    0.21022208034992218,
+    0.35074305534362793
+   ],
+   "pc_yaw_deg": 4.536006927490234,
+   "reader_xy": [
+    0.10888809710741043,
+    0.4075743556022644
+   ]
+  },
+  "68": {
+   "pc_xy": [
+    0.21511629223823547,
+    0.36146292090415955
+   ],
+   "pc_yaw_deg": -1.2003587484359741,
+   "reader_xy": [
+    0.12024933844804764,
+    0.447803258895874
+   ]
+  }
+ },
+ "note": "top row: Warp policy cameras with the episode visual DR; bottom: CPU MuJoCo free camera, nominal look; earlier configuration (insertion v5 s0, hold 3.5 cm): kept for its two failures (stall at the port mouth); the headline configuration had none in 96 demo worlds"
+}
