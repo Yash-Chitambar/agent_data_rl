@@ -58,7 +58,10 @@ from blind_insertion.perception.zed_estimator import ZedEstimator  # noqa: E402
 from blind_insertion.scenes import reader_grasp as G  # noqa: E402
 
 PICK_LAYOUT = 'results/usbc/policy/pick/task_layout.json'
-INSERT_CKPT = 'runs/chain/P4-insert-proprio-v5-s0_last.pt'   # = policy-insertion runs/P4-insert-proprio-v5-s0/last.pt (v5s0_final)
+import os  # noqa: E402
+# Part 4 best (blind PPO v6 seed 2; copy of policy-insertion runs/P4-insert-best/best.pt, outside git). Override: P4_INSERT_BEST.
+INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_v6s2.pt')
+INSERT_V5 = 'runs/chain/P4-insert-proprio-v5-s0_last.pt'    # earlier: policy-insertion runs/P4-insert-proprio-v5-s0/last.pt
 FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005}   # eval_approach.py
 OUT = ROOT / 'results/usbc/policy/chain'
 
@@ -71,7 +74,7 @@ def parse(argv=None):
     ap.add_argument('--name', default='chain')
     ap.add_argument('--pick', default='expert', help="pick stage: 'expert' (Part 1 scripted, privileged); ACT plugs in via PICK_STAGES")
     ap.add_argument('--zed-at', choices=('start', 'parked', 'after_hold'), default='start')
-    ap.add_argument('--hold-along', type=float, default=-.035, help='press point from the case centre (m): Part 3 round 4 (policy/v1) -0.035; the insertion policy trained with -0.02 (it reads the left encoders)')
+    ap.add_argument('--hold-along', type=float, default=-.02, help='press point from the case centre (m). -0.02: the insertion policy training value (chain 99.80 %%, n = 1024); -0.035: Part 3 round 4 recommendation (chain 96-98 %%: the blind policy reads the left encoders)')
     ap.add_argument('--hold-force', type=float, default=25.)
     ap.add_argument('--hold-yaws', choices=('policy', 'all'), default='policy',
                     help="left tool-yaw candidates: 'policy' = the insertion policy's training set (best nominal yaw +/-15 deg), 'all' = LeftHold default")

@@ -238,6 +238,28 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   and needs a PPO-trained or better-distilled visual policy to answer; contact values (plug-port μ
   0.10-0.20, port solref 3-4 ms) and the 25 µm seating tolerance are choices, not measurements.
 
+## End to end
+
+**Status (2026-10-31, branch `policy/chain`): gate passes, 99.80 % [99.29, 99.95] (1022/1024), with the
+v6 insertion policy and the hold at 2 cm.** `scripts/eval/eval_chain.py`: one continuous simulation per
+world (no teleports), one layout and full DR per world, RGB only. ZED CNN + gate (frame at the rest pose,
+gripper open) → Part 1 scripted pick (pluggable; ACT later) → Part 3 guarded 25 N press → Cartesian
+transport to the look pose → Part 2 wrist servo (v10w + v10ws, 6 mm stop) → Part 4 blind PPO v6 s2 from
+the live state → InsertionTask seated test. Stages before insertion: 1024/1024 each.
+
+| Insertion | Hold | n | End to end |
+|---|---|---|---|
+| v6 s2 | 2 cm (Part 4 training) | 1024 | **99.80 %** |
+| v6 s2 | 3.5 cm (Part 3 round 4) | 1024 | 96.00 % |
+| v5 s0 | 2 cm / 3.5 cm | 1024 each | 98.54 % / 97.66 % |
+
+- The blind policy observes the left encoders: the hold pose (press point, tool yaw) must be the one
+  Part 4 trained with. Use the 2 cm hold for the chain until Part 4 trains with the 3.5 cm hold.
+- Pre-insert error in the chain matches Part 2 (lateral p99 1.48 mm, tilt p99 0.86°); it grows by ~0.3 mm
+  in the insertion warm-up. Remaining failures: stuck at the port mouth from starts ~0.3-0.9 mm low.
+- Demos: `results/usbc/policy/chain/demos/` (ZED + both wrists + close-up, real time). Details: FINDINGS
+  2026-10-31 (`policy/chain`).
+
 ## Order of work
 
 1. Shared DR (control, contact, appearance, lighting, camera) in the bimanual runtime.

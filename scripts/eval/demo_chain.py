@@ -34,7 +34,7 @@ def _free_cam(m, d, label, t_stage, lay_port):
     cam.type = mujoco.mjtCamera.mjCAMERA_FREE
     port = lay_port
     over = dict(lookat=np.array([.15, .33, 0.]), distance=.7, azimuth=160., elevation=-55.)
-    close = dict(lookat=port + np.array([-.035, 0., .005]), distance=.17, azimuth=35., elevation=-18.)
+    close = dict(lookat=port + np.array([-.03, 0., .0]), distance=.16, azimuth=-60., elevation=-14.)   # from the side away from the right arm
     stage = int(label[0])
     if stage <= 3:
         u = 0.
@@ -79,7 +79,7 @@ def render_demos(ch, a):
     stage_start = {}
     for t, lb in enumerate(labels):
         stage_start.setdefault(lb, t)
-    writers = {w: imageio.get_writer(OUT / f'chain_w{w:02d}_{df.e2e_class[w]}.mp4', fps=25, codec='libx264', quality=8,
+    writers = {w: imageio.get_writer(OUT / f'chain_w{w:02d}_{df.e2e_class[w]}.mp4', fps=25, codec='libx264', quality=6,
                                      macro_block_size=None) for w in chosen}
     sheet = {}
     T = len(labels)
