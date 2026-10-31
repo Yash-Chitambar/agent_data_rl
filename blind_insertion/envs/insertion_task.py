@@ -154,6 +154,10 @@ class InsertionCfg:
     # (y = closing axis: the coupled fingers centre the reader, keep it small) and rotation vector (deg).
     inhand_extra_pos_m: tuple = (0.0, 0.0, 0.0)
     inhand_extra_rot_deg: tuple = (0.0, 0.0, 0.0)
+    inhand_extra_frac: float = 1.0      # share of starts that get the extra in-hand error
+    # Hard limit on the commanded TCP speed (m/s): each action is scaled down so that |J_lin dq| / dt stays
+    # below this (J at the believed joint angles: deployable). 0 disables.
+    max_tcp_speed_m_s: float = 0.0
 
 
 # Contact values are unmeasured. User directive (2026-10-31): choose values that let insertion work,
@@ -198,9 +202,10 @@ def inhand_pose(n, cfg: InsertionCfg, device, gen=None, nominal=False):
         lo = lambda keys: torch.tensor([sp[k]['p1'] for k in keys], device=device)
         hi = lambda keys: torch.tensor([sp[k]['p99'] for k in keys], device=device)
         sample = lambda keys, f: ((lo(keys) + hi(keys)) / 2 + u(n, 3) * (hi(keys) - lo(keys)) / 2 * cfg.inhand_spread_scale) * f
-        dp = sample(('inhand_dx_mm', 'inhand_dy_mm', 'inhand_dz_mm'), 1e-3) + u(n, 3) * torch.tensor(cfg.inhand_extra_pos_m, device=device)
+        wide = (torch.rand(n, 1, device=device, generator=gen) < cfg.inhand_extra_frac).float()
+        dp = sample(('inhand_dx_mm', 'inhand_dy_mm', 'inhand_dz_mm'), 1e-3) + wide * u(n, 3) * torch.tensor(cfg.inhand_extra_pos_m, device=device)
         rv = sample(('inhand_rx_deg', 'inhand_ry_deg', 'inhand_rz_deg'), math.pi / 180) \
-            + u(n, 3) * torch.tensor(cfg.inhand_extra_rot_deg, device=device) * math.pi / 180
+            + wide * u(n, 3) * torch.tensor(cfg.inhand_extra_rot_deg, device=device) * math.pi / 180
         ang = rv.norm(dim=1)
         Rv = K.axis_angle_mat(rv / ang.clamp(min=1e-9)[:, None], ang)
         return Rv @ R0, p0 + dp
@@ -666,6 +671,10 @@ class InsertionTask(BimanualTask):
         a6 = torch.as_tensor(action, device=self.device, dtype=torch.float32).clamp(-1, 1)
         warm = self.steps < self.icfg.warmup_steps
         a6 = torch.where(warm[:, None], torch.zeros_like(a6), a6)
+        if self.icfg.max_tcp_speed_m_s > 0:
+            _, _, J = self.right_chain.fk(self._measured_model_angles()[:, 0], with_jac=True)
+            v = (J[:, :3] @ (a6 * self.cfg.action_scale_rad)[..., None])[..., 0].norm(dim=1) / self.dt
+            a6 = a6 * (self.icfg.max_tcp_speed_m_s / v.clamp(min=1e-9)).clamp(max=1.)[:, None]
         a = torch.zeros(self.N, 14, device=self.device)
         a[:, :6] = a6
         a[:, 6] = -1.      # right gripper closed

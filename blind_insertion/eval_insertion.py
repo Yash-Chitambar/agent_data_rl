@@ -72,6 +72,8 @@ class InsertionPolicy:
         mcfg = InsertionCfg(mask_left_obs=ej.get('mask_left_obs', False))
         self.mask_idx = mcfg.left_mask_idx()
         self.meta['mask_left_obs'] = ej.get('mask_left_obs', False)
+        # controller settings the env must use (BimanualTaskCfg): the joint tracking cap bounds the PD torque
+        self.meta['target_cap_rad'] = float(ej.get('target_cap_rad', 0.1))
         self.visual = 'visual' in ck
         if self.visual:   # the env must render the wrist camera at this resolution (env_json in meta)
             self.meta['visual'] = ck['visual']
