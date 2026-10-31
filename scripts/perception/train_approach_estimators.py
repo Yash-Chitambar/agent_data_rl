@@ -114,6 +114,7 @@ def main():
     ap.add_argument('--states-max-gap', type=float, default=1., help='use only recorded states with the tip gap <= this (m)')
     ap.add_argument('--init', default=None, help='checkpoint to fine-tune from')
     ap.add_argument('--lr', type=float, default=2e-3)
+    ap.add_argument('--width', type=int, default=32, help='CNN base width')
     ap.add_argument('--wrist-mode', choices=('resize', 'crop'), default='resize', help='320 px wrist frame -> 192 px: resize or full-resolution centre crop')
     ap.add_argument('--tag', default='', help='suffix of the saved estimator name (e.g. _fine)')
     a = ap.parse_args()
@@ -150,7 +151,7 @@ def main():
     torch.cuda.empty_cache()
     sc = SCALE[a.which].to(dev)
     size = ZED_CROP[2] if a.which == 'zed' else WRIST_SIZE
-    net = (TwoViewPoseNet if a.which == 'wrist2' else PoseNet)(len(sc), size).to(dev)
+    net = (TwoViewPoseNet if a.which == 'wrist2' else PoseNet)(len(sc), size, width=a.width).to(dev)
     if a.init:
         net.load_state_dict(torch.load(a.init, map_location=dev)['net'])
     opt = torch.optim.AdamW(net.parameters(), 1e-3, weight_decay=1e-4)
@@ -179,7 +180,7 @@ def main():
         pn = torch.cat([net(Xn[i:i + 256]) for i in range(0, len(Xn), 256)]) * sc
     Path('runs/perception').mkdir(parents=True, exist_ok=True)
     torch.save({'net': net.state_dict(), 'which': a.which, 'scale': sc.cpu(), 'size': size, 'zed_crop': ZED_CROP,
-                'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
+                'width': a.width, 'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
     rep = {'estimator': a.which + a.tag, 'method': __doc__.strip(), 'n_train': len(X), 'n_test_dr': len(Xt), 'n_test_nominal_look': len(Xn),
            'sample_cfg': vars(cfg), 'args': vars(a), 'test_set': 'held-out in-loop states' if St is not None else 'random poses',
            'held_out_dr_abs_error': errors(a.which, pred, Yt),

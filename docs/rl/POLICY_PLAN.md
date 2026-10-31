@@ -120,29 +120,41 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
 - **Explore:** pose estimators (ZED only, wrist only, both); a visual-servo refinement step at
   the end; how far out to stop (3–10 mm).
 - **Metrics:** lateral and angular pre-insert error distribution vs the capture region of Part 4.
-- **Status (2026-11-01, round 3, `policy/approach-hold`): tilt/roll target met; lateral p99 2.0 mm (target
-  1.5 mm).** Deliverable for Part 4: `results/usbc/policy/approach/preinsert_error.json`
-  (+ `preinsert_error_samples.npz`, per-episode errors to sample RL starts from).
-  - **Pipeline (RGB only):** ZED frame before the arms move -> CNN PC pose (x, y, yaw) -> left hold
-    (Part 3) -> IK move to 30 mm in front of the estimated port (mean measured in-hand pose) -> visual
-    servo on the right wrist RGB (CNN plug-to-port pose; 6 waypoints to the 6 mm stop gap + 6 iterations
-    there with roll correction, the last 2 position only; smooth 0.5 s moves; Coulomb feed-forward on the
-    right arm). `scripts/task/eval_approach.py --fric-comp --tilt 55 --final-rot roll --coarse-net wrist_v8`;
-    estimators `blind_insertion/perception/`, `scripts/perception/train_approach_estimators.py` (DAgger:
-    `--states` from `eval_approach.py --save-states`). Weights `runs/perception/wrist_v8.pt`, `zed.pt`
-    (not in git).
-  - **Current numbers (DR of 3829c31 + Part 1 grasp e94a268, n = 1024):** lateral p50 0.37 / p99 1.98 /
-    p99.5 2.21 mm (x p99 1.04, y p99 1.80), tilt p99 1.12 deg, roll p99 0.68 deg, gap error p99 1.22 mm;
-    90.5 % inside 1 mm / 2 deg. Floor with a perfect estimate: lateral p99 0.11 mm, tilt p99 0.31 deg.
+- **Status (2026-11-01, round 4, `policy/approach-hold`): tilt/roll targets met; lateral p99 1.64 mm (target
+  1.5 mm; 1.13 mm when the wrist-camera error is inside the real calibration).** Deliverable for Part 4:
+  `results/usbc/policy/approach/preinsert_error.json` (+ `preinsert_error_samples.npz`).
+  - **Pipeline (RGB only):** ZED frame before the arms move -> CNN PC pose (x, y, yaw) behind a presence /
+    validity gate (`perception/zed_estimator.py`: no pose when there is no PC or the frame is unlike the
+    training data) -> left hold (Part 3, press 3.5 cm in front of the case centre) -> IK move to 30 mm in front
+    of the estimated port (mean measured in-hand pose) -> visual servo on the right wrist RGB (wide CNN
+    `wrist_v10w` on the way in, stop-gap specialist `wrist_v10ws` at the 6 mm stop; roll corrected at the stop,
+    last 2 iterations position only; smooth 0.5 s moves; Coulomb feed-forward on the right arm).
+    `scripts/task/eval_approach.py --fric-comp --tilt 55 --final-rot roll --hold-along -0.035
+    --coarse-net wrist_v10w --fine-net wrist_v10ws --fine-below-mm 7`. Estimators trained with DAgger
+    (`train_approach_estimators.py --states`, states from `eval_approach.py --save-states`).
+    Weights in `runs/perception/` (not in git).
+  - **Current numbers (DR of policy/v1 b709692, n = 1024):** lateral p50 0.32 / p99 1.64 / p99.5 1.88 mm
+    (x p99 0.93, y p99 1.49), tilt p99 0.87 deg, roll p99 0.57 deg, gap error p99 0.83 mm; 95.3 % inside
+    1 mm / 2 deg. The error grows with the DR wrist-camera pose error (sampled up to 2x real): inside the real
+    calibration (<= 5.1 mm, <= 1.2 deg; n = 331) lateral p99 1.13 mm, tilt p99 0.70 deg.
+    Floor with a perfect estimate at this hold: lateral p99 0.13 mm, tilt p99 0.28 deg (n = 256).
+  - **Round 4 tries** (lateral p99, n = 1024 unless noted, press 2 cm): DAgger v9 1.84; wider CNN v9w 1.74;
+    stop-gap specialist v9 + v9s 1.68; 12-iteration dwell 1.81 (no gain). Moving the hold to 3.5 cm put the left
+    fingers next to the port in the wrist view: old nets failed (11 mm) until one DAgger round (v10w 2.04).
+    Another round (v11w + v10ws): 1.62 / p99.5 1.97 mm, 94.3 % -- same as v10w + v10ws: DAgger has plateaued.
   - **What moved it:** the measured (small) in-hand spread; fixing a one-step command jerk at the
     teleport; Coulomb feed-forward (servo floor 2.8 -> 0.9 mm in round 1); DAgger on in-loop states
     (lateral p99 4.9 -> 2.1 -> 2.2 -> 2.0 mm over three rounds); roll correction at the stop gap.
     Did not help: fine-stage crop net, multi-frame averaging, a 2-net ensemble.
   - **ZED:** CNN on DR renders xy p50 0.79 / p99 3.1 mm, yaw p99 1.6 deg (sim); real frames 0.41 mm from
-    the manual landmark; classical silhouette fit 11.8 mm p50 with 21 % failures. Needs a presence check.
+    the manual landmark; classical silhouette fit 11.8 mm p50 with 21 % failures. Presence / validity gate
+    (round 4): sim accepts 100 % with a PC, 0 % without (n = 1024 each); real session first frames reject
+    7/7 without a PC and accept 14/17 with one (the 3 rejected show a reel, a hand, sticky notes);
+    unchanged with the reader in the front strip (xy p99 2.9 mm).
   - **Grasp at the port:** 55 deg reaches every PC pose of the box (60 deg failed at one corner).
   - **Next:** the residual is vertical (camera looks along the plug): a second, rig-mountable RGB view
-    from the side of the port, or a stereo baseline across the wrist; more DAgger rounds give ~0.1 mm each.
+    from the side of the port (needs the user's approval for a mount), or a stereo baseline across the
+    wrist; each DAgger round / specialist gives ~0.1-0.2 mm at p99.
 
 ## Part 3: Left-arm hold
 
@@ -151,18 +163,20 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   before Part 2.
 - **Explore:** brace vs press; target offset into the PC (holding force); timing.
 - **Metrics:** PC translation/rotation during insertion; contact force; collisions with the right arm.
-- **Status (2026-11-01, round 3, `policy/approach-hold`): recommended hold: press 25 N, guarded;
-  gate (99.5 %) met at 1 N, 99.3 % at 3 N.** Code: `blind_insertion/envs/left_hold.py` (`LeftHold`,
-  `Harness`, `RightInserter`), `scripts/task/eval_left_hold.py`, `scripts/task/sweep_left_hold.sh`;
-  results `results/usbc/policy/hold/` (`r3_*` = current DR).
-  - **Recommended hold:** press the closed fingertips down on the PC top, front half (2 cm in front of
-    the case centre), in line with port 2, **25 N** (left joint 2 ~8.5 N m, within the DM4340 rating;
-    35 N needs ~12 N m and is no better); **guarded engage**: descend at 10 mm/s from a 15 mm stand-off
-    until the encoder-estimated force (PD torque through J^+T, bias at the stand-off) exceeds 3 N,
-    latch the measured pose, then ramp dq = Kp^-1 J^T F over 0.4 s (~4-6 s in all). Engage it before
-    the approach; it moves the PC by p99 0.06 mm.
-  - **PC still (< 0.5 mm, < 0.5 deg over 2 s; fixed push at the port along the insertion axis, +/-15 %
-    lateral; n = 1024 each; current DR: PC +/-1.5 cm / +/-5 deg, feet mu U(0.8, 1.0), Part 1 grasp contact
+- **Status (2026-11-01, round 4, `policy/approach-hold`): 3 N gate met: 25 N press 3.5 cm in front of the
+  case centre, 99.86 % still at 3 N (5113/5120, five runs incl. two with a parked/folded left start),
+  99.5-99.8 % at 5 N, 97.0 % at 10 N; left joint 2 <= 8.8 N m.** Code: `blind_insertion/envs/left_hold.py`,
+  `scripts/task/eval_left_hold.py`, `scripts/task/sweep_left_hold.sh`; results `results/usbc/policy/hold/`
+  (`r4*` = current).
+  - **Recommended hold (round 4):** press the closed fingertips down on the PC top **3.5 cm in front of
+    the case centre** (`HoldCfg(mode='press', force_n=25, along_m=-0.035, across_m=-0.0208)`), in line
+    with port 2, guarded engage as below. Round-4 variants at 3 N (n = 1024 each): 2 cm in front 99.3 %,
+    3.5 cm **100 / 99.9 / 99.9 / 99.9 / 99.6 %** (five seeds; 99.9 and 99.6 % with the left arm starting folded),
+    4.5 cm 98.2 %; settle 1.5 s 98.8 %; latch at 1.5 N 98.7 %; centred across the panel 99.4 %.
+    The engagement works from the folded (parked) left pose: all worlds latch, no arm-arm or table contact.
+    The press point is on the PC top, clear of the reader strip in front of the PC.
+  - **Round 3, press 2 cm in front of the centre. PC still (< 0.5 mm, < 0.5 deg over 2 s; fixed push at
+    the port along the insertion axis, +/-15 % lateral; n = 1024 each; DR: PC +/-1.5 cm / +/-5 deg, feet mu U(0.8, 1.0), Part 1 grasp contact
     impratio 30):**
 
     | Press | 1 N | 3 N | 5 N | 10 N |
