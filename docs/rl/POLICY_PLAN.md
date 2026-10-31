@@ -41,11 +41,16 @@ Rule from the deck: sim sensors are at least as bad as the real ones.
 
 - **Goal:** the right arm picks the reader from anywhere in its region with the **new grasp**
   and lifts it with a known, small in-hand pose spread.
-- **New grasp (decided 2026-10-31): top-down side grasp.** The gripper comes in from above with a
-  vertical tool axis (no tilt; the old task-H grasp tilted 25-45°), oriented so the reader stays
-  parallel to the table. The fingers close horizontally on the two side faces of the reader body
-  (8.75 mm tall), at the front of the body behind the neck. The plug axis is orthogonal to the
-  finger closing axis.
+- **New grasp (confirmed by the user 2026-10-31, render: `results/usbc/policy/grasp/grasp_60deg_confirmed.png`):**
+  the gripper reaches forward tipped **60° from vertical** (tool axis 30° below horizontal, tipped
+  about the finger-closing axis toward the reader), so its underside faces the table. The fingers
+  close horizontally on the reader's **two side faces** (8.8 mm tall) near the front of the body,
+  behind the neck; the reader stays flat; the plug points across the closing direction.
+  In `grasp_site` terms (reader at yaw 0, plug along +x): site y (finger opening) = world y,
+  site z = (sin 60°, 0, -cos 60°); pad centroid ≈ 9.6 mm behind the site along -z; fingertips
+  1 mm above the table. CPU check at reader (0.30, 0.0): exact IK; pads cover ~3.7 of the 8.8 mm
+  side face (more tilt = less contact); beyond ~60-65° the arm cannot reach and the finger plates
+  hit the table first. Main risk to test: slip or tip on lift with this small contact height.
 - **Approach:** scripted IK expert in sim (privileged reader pose) → demos with full DR → ACT on
   wrist + ZED RGB + encoders (sim-only demos, as in task H).
 - **Explore:** scripted (ZED pose estimate + IK) vs ACT; ACT chunk size and ensembling; grasp
