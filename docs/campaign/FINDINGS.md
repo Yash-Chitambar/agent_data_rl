@@ -104,6 +104,71 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/chain`) — End to end: pick → hold → approach → insertion in one simulation, 99.80 % (n = 1024)
+
+`scripts/eval/eval_chain.py` runs all four parts in one continuous MuJoCo Warp simulation per world:
+no teleports between stages. Each world draws one layout (PC box ±1 cm / ±1.5 cm / ±5°, reader on the
+Part 1 strip) and full DR at reset (arm dynamics, latency 0-1 step, encoder offsets ±1.5° kept through
+all stages, PC feet μ U(0.8, 1), reader-table μ U(0.4, 1), plug-port μ U(0.1, 0.2), port solref 3-4 ms,
+visual DR moderate defaults, RGB only). Stages: ZED CNN + gate (frame at the rest pose) → Part 1
+scripted expert pick → Part 3 guarded 25 N press (planned from the ZED estimate) → new Cartesian
+transport to the look pose → Part 2 wrist servo (wrist_v10w + wrist_v10ws below 7 mm, 6 mm stop) →
+Part 4 blind PPO from the live state (InsertionTask success test: 0.2 s seated, 25 µm aperture tolerance).
+
+**Result (held-out seeds 7000-7001, 2 × 512 worlds):**
+
+| Insertion policy | Hold press point | n | End to end | Wilson 95 % | Failures |
+|---|---|---|---|---|---|
+| **v6 s2 (Part 4 best)** | **2 cm in front of the case centre (Part 4 training value)** | 1024 | **99.80 %** | [99.29, 99.95] | 2 stuck at the mouth |
+| v6 s2 | 3.5 cm (Part 3 round 4) | 1024 | 96.00 % | [94.61, 97.04] | 41 stuck at the mouth |
+| v5 s0 | 2 cm | 1024 | 98.54 % | [97.60, 99.11] | 14 mouth, 1 slip |
+| v5 s0 | 3.5 cm | 1024 | 97.66 % | [96.54, 98.42] | 23 mouth, 1 slip |
+
+Every stage before the insertion passed 1024/1024 in all four runs (ZED gate, pick, hold latch,
+transport, approach). Gate (≥ 98 %, n ≥ 500) passes with v6 + the 2 cm hold.
+
+**Mismatches (most valuable):**
+- **The blind insertion policy reads the left arm.** Its observation has all 12 encoder angles. With
+  LeftHold's default tool-yaw search (-90..90°) the left wrist (joint 6) sat 0.29 rad from the training
+  value and the policy seated 5/128, against 128/128 from teleported InsertionTask starts in the same
+  runtime. Restricting the yaw to the training set (nominal best ± 15°) fixed it. Moving the press point
+  from 2 to 3.5 cm (Part 3's round-4 hold) costs 3.8 points with v6 (99.80 → 96.00 %) and 0.9 with v5.
+  The failures start well inside the capture region (pre-insert lateral 0.2-1 mm) and stall at the
+  port mouth. Part 3 and Part 4 each pass alone; together the hold must be the one Part 4 trained with,
+  or Part 4 must train with the 3.5 cm hold (or mask the left arm from the actor).
+- **ZED estimate depends on the right gripper opening.** The pick task sets the approach opening (24 mm)
+  in the reset pose. With it in view the ZED CNN is biased: xy p50 3.0 vs 0.8 mm (n = 256). The chain
+  takes the ZED frame with the gripper fully open (the training condition), then closes it. With the left
+  arm parked (Part 1's start) the estimate is xy p50 8.0 / p99 20.6 mm and **the presence/OOD gate still
+  accepts 100 %** of those frames: the gate does not catch this arm-pose shift. Frame at the rest pose:
+  p50 0.77 / p99 2.79 mm, yaw p99 1.49° (Part 2: 0.79 / 3.3 mm).
+- **No transport existed.** Part 2 teleports to the look pose. A joint-space move from the lift pose to
+  the look pose swung the plug 3 cm into the table (in-hand rotation p50 16°, n = 16). A Cartesian path
+  (turn the reader at lift height → via pose 40 mm further out and 30 mm up → look pose; IK each step)
+  keeps the reader: in-hand change p99 0.35 mm / 0.12°, no hand-PC contact (n = 1024). Arrival at the
+  look pose: lateral p50 7.6 / p99 18 mm (Part 2's teleported look pose: 7.5-7.8 / 19.6-20.4 mm).
+- **Pre-insert error matches Part 2.** Chain: lateral p50 0.46 / p99 1.48 mm, tilt p99 0.86°, roll p99
+  0.72°, gap 5.76 mm p50 (Part 2 deliverable: p99 1.64 mm / 0.87°). The plug sits 0.36 mm low on average
+  (y mean -0.36, std 0.45 mm). In the 0.2 s insertion warm-up (feed-forward off, zero action) the error
+  grows by 0.3 mm (p50 0.46 → 0.76, p99 1.48 → 1.91 mm): the policy starts from that, not from Part 2's
+  numbers. Both v6 failures started low (y -0.9 and -0.3 mm).
+- **Solver cones.** Part 4 needs elliptic cones (pyramidal goes non-finite under insertion); Parts 1-3
+  were validated with pyramidal. The chain runs elliptic throughout. The pick still passes 1024/1024, but
+  the in-hand spread about the mean is wider (position p99 0.91 vs 0.77 mm, rotation p99 0.54 vs 0.24°;
+  rotation about the tool axis p99 0.55 vs 0.01°) and the PC sinks 0.77 mm (p50) into its feet when the
+  press engages (Part 2 reports 0.01 mm PC motion with pyramidal).
+- **Hold at 3.5 cm:** 5/1024 worlds had arm-arm contact during the engage (0 at 2 cm); PC moved
+  ≤ 1.1 mm (p99), one world 6.7 mm.
+- Insertion time to seat p50 1.0 / p99 2.5 s; PC motion during insertion p99 1.4 mm.
+
+**Shared-file change:** `BimanualTask(cfg, runtime=None)` and `PickTask(cfg, runtime=None)` can share an
+existing runtime (default unchanged). Weights outside git: `runs/perception/{zed,zed_presence,wrist_v10w,
+wrist_v10ws}.pt`, `runs/chain/P4-insert-best_v6s2.pt` (= policy-insertion `runs/P4-insert-best/best.pt`;
+`P4_INSERT_BEST` overrides). Results `results/usbc/policy/chain/` (`chain_p4v6_hold020.*` = headline);
+demo videos `results/usbc/policy/chain/demos/`. Smoke test `scripts/checks/check_chain.py`.
+Narrowed for success: the hold press point (2 cm, not 3.5 cm), the left tool yaw (training set), the
+ZED frame pose (rest pose, gripper open). Layout and DR ranges are the parts' own.
+
 ### 2026-11-01 (mason, `policy/approach-hold`) — Round 4: hold 3 N gate met; ZED presence gate; approach DAgger/specialist
 
 - **Hold:** pressing 3.5 cm in front of the case centre (instead of 2 cm) passes 3 N: 5113/5120 PC still (99.86 %,
