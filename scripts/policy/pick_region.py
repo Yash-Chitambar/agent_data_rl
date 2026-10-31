@@ -1,12 +1,12 @@
 """New reader start region for Part 1 (user decision 2026-10-31): a compact window between the right
-arm base and the PC where the confirmed 60 deg side grasp reaches with margin.
+arm base and the PC (as close to that band as reach allows) where the confirmed 60 deg side grasp reaches with margin.
 
 Candidates: 1 cm cells, x 0.06-0.34 m, y -0.06-0.32 m, yaw bins of 10 deg over +/-YAW (yaw 0 =
 plug along +x, towards the port side). A (cell, bin) is feasible when, at all 4 cell corners x both
 bin edges (8 reader poses):
   * pre-grasp, grasp and lift IK (tilt 60 deg, roll 0) solve to 1 mm / 0.6 deg with every joint
     >= MARGIN rad inside its limits (6 fixed + 24 random seeds);
-  * the reader footprint (body + neck + plug, +1.5 cm) is outside the hull of every PC pose of the
+  * the footprint is >= 1 cm inside the table's back edge, and the reader footprint (body + neck + plug, +1.5 cm) is outside the hull of every PC pose of the
     training box (port (0.22, 0.36) +/-3 cm, +/-10 deg), as in explore_pc_placement.
 The region is the cell-aligned SIDE x SIDE square with every (cell, bin) feasible that has the
 largest feasible margin around it. Written in the task_layout `reader_region` format to
@@ -23,22 +23,27 @@ from blind_insertion.scenes.pc_rear import layout as rear_layout
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--yaw', type=float, default=30.)
+ap.add_argument('--yaw_centre', type=float, default=0.)
 ap.add_argument('--side', type=float, default=.12)
 ap.add_argument('--margin', type=float, default=.10)
 ap.add_argument('--tilt', type=float, default=60.)
+ap.add_argument('--out', default='results/usbc/policy/pick')
 a = ap.parse_args()
 dev = 'cuda:0'
 CELL, BIN = .01, 10.
 READER_BACK, READER_FRONT, READER_HALF_W, READER_MARGIN = .02, .07, .018, .015
 PORT, PC_BOX = (.22, .36, 0.), (.03, .03, 10.)
+PC_CENTRE = (.2685, .3392)
+from blind_insertion.scenes.measured_support import dimensions
+WALL_X = dimensions()['wall_edge_x_m']
 prof = json.loads(Path('data/real_yam/usbc_lab_20261027/rig_profile_provisional_v0.json').read_text())
 m, l = S.build_scene(detailed=False, bimanual=True, support_mode='free', profile=prof, measured_support=True)
 d = mujoco.MjData(m); R.reference_pose(m, d, l); mujoco.mj_forward(m, d)
 hand = G.hand_geometry(m, d)
 off, pad_h = G.grasp_offset(l, hand, a.tilt)
 chain = K.Chain(m, l.tcp_site, [int(m.joint(f'joint{i}').qposadr[0]) for i in range(1, 7)], device=dev)
-xs = np.round(np.arange(.06, .34 + 1e-9, CELL), 3); ys = np.round(np.arange(-.06, .32 + 1e-9, CELL), 3)
-yb = np.arange(-a.yaw + BIN / 2, a.yaw - BIN / 2 + 1e-9, BIN)
+xs = np.round(np.arange(.06, .44 + 1e-9, CELL), 3); ys = np.round(np.arange(-.10, .32 + 1e-9, CELL), 3)
+yb = a.yaw_centre + np.arange(-a.yaw + BIN / 2, a.yaw - BIN / 2 + 1e-9, BIN)
 X, Y, T = np.meshgrid(xs, ys, yb, indexing='ij')
 cells = np.stack([X.ravel(), Y.ravel(), T.ravel()], 1)
 corner = np.array([[sx * CELL / 2, sy * CELL / 2, st * BIN / 2] for sx in (-1, 1) for sy in (-1, 1) for st in (-1, 1)])
@@ -87,7 +92,8 @@ for i, (x, y, t0) in enumerate(cells):
     for cx, cy, tt in corner:
         t = np.radians(t0 + tt)
         pts = np.array([x + cx, y + cy]) + foot @ np.array([[np.cos(t), np.sin(t)], [-np.sin(t), np.cos(t)]])
-        if max(cv2.pointPolygonTest(hull, (float(px), float(py)), True) for px, py in pts) > -READER_MARGIN:
+        if pts[:, 0].max() > WALL_X - .01 or \
+                max(cv2.pointPolygonTest(hull, (float(px), float(py)), True) for px, py in pts) > -READER_MARGIN:
             clear[i] = False; break
 ok = (reach & clear).reshape(len(xs), len(ys), len(yb))
 cell_ok = ok.all(-1)
@@ -98,13 +104,16 @@ for i in range(len(xs) - k + 1):
     for j in range(len(ys) - k + 1):
         if not cell_ok[i:i + k, j:j + k].all(): continue
         ring = cell_ok[max(0, i - 2):i + k + 2, max(0, j - 2):j + k + 2].mean()
-        dist = np.hypot(xs[i:i + k].mean(), ys[j:j + k].mean())       # tie-break: nearer the base (better dexterity)
+        # tie-break: nearest the segment from the right base to the PC centre (user: between them)
+        cxy = np.array([xs[i:i + k].mean(), ys[j:j + k].mean()]); seg = np.array(PC_CENTRE)
+        dist = np.linalg.norm(cxy - seg * np.clip(cxy @ seg / (seg @ seg), 0, 1))
         score = (ring, -dist)
         if best is None or score > best[0]: best = (score, i, j)
 summary = {'grid_cells': int(cell_ok.size), 'cells_all_bins_feasible': int(cell_ok.sum()), 'reach_frac': float(reach.mean()),
-           'clear_frac': float(clear.mean()), 'tilt_deg': a.tilt, 'joint_margin_rad': a.margin, 'yaw_half_range_deg': a.yaw,
+           'clear_frac': float(clear.mean()), 'tilt_deg': a.tilt, 'joint_margin_rad': a.margin, 'yaw_half_range_deg': a.yaw, 'yaw_centre_deg': a.yaw_centre,
            'pad_contact_height_m': pad_h}
-out = Path('results/usbc/policy/pick'); out.mkdir(parents=True, exist_ok=True)
+out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
+np.savez_compressed(out / 'reader_region_search.npz', xs=xs, ys=ys, yaw_bins=yb, feasible=ok, reach=reach.reshape(ok.shape), clear=clear.reshape(ok.shape))
 if best is None:
     print(json.dumps(summary, indent=1)); raise SystemExit(f'no fully feasible {a.side} m square')
 _, i, j = best
@@ -112,14 +121,13 @@ sel = [(ii, jj) for ii in range(i, i + k) for jj in range(j, j + k)]
 samples = [[float(xs[ii]), float(ys[jj]), float(t)] for ii, jj in sel for t in yb]
 region = {'samples_xy_yaw': samples, 'cell_m': CELL, 'yaw_bin_deg': BIN,
           'x_range_m': [float(xs[i] - CELL / 2), float(xs[i + k - 1] + CELL / 2)], 'y_range_m': [float(ys[j] - CELL / 2), float(ys[j + k - 1] + CELL / 2)],
-          'yaw_range_deg': [-a.yaw, a.yaw], 'centre_xy_m': [float(xs[i:i + k].mean()), float(ys[j:j + k].mean())],
+          'yaw_range_deg': [a.yaw_centre - a.yaw, a.yaw_centre + a.yaw], 'centre_xy_m': [float(xs[i:i + k].mean()), float(ys[j:j + k].mean())],
           'area_m2': round(k * k * CELL * CELL, 4), 'n_cells': k * k, 'mean_yaw_bins_per_cell': float(len(yb)),
-          'clearance': f'reader footprint (+{READER_MARGIN * 100:.1f} cm) outside the hull of every PC pose of the box; '
+          'clearance': f'footprint >= 1 cm inside the table back edge; reader footprint (+{READER_MARGIN * 100:.1f} cm) outside the hull of every PC pose of the box; '
                        f'60 deg side grasp pre-grasp/grasp/lift IK with >= {a.margin} rad joint margin at all cell corners and bin edges',
           'feasible_ring_fraction': float(best[0][0]), 'search': summary,
           'note': 'samples are cell centres (cell_m) x yaw bin centres (yaw_bin_deg); BimanualRuntime._sample_layout jitters within them'}
 (out / 'reader_region.json').write_text(json.dumps(region, indent=1) + '\n')
-np.savez_compressed(out / 'reader_region_search.npz', xs=xs, ys=ys, yaw_bins=yb, feasible=ok, reach=reach.reshape(ok.shape), clear=clear.reshape(ok.shape))
 import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
 fig, ax = plt.subplots(figsize=(7, 7))
 frac = ok.mean(-1)
@@ -132,3 +140,8 @@ ax.plot(0, 0, 'b^', ms=12, label='right arm base'); ax.set(xlabel='y (cm)', ylab
 ax.set_xlim(ys[-1] * 100 + 2, -8); ax.set_ylim(-4, 50); ax.legend(loc='upper right', fontsize=8)
 fig.tight_layout(); fig.savefig(out / 'reader_region.png', dpi=110)
 print(json.dumps({kk: vv for kk, vv in region.items() if kk != 'samples_xy_yaw'}, indent=1))
+# Full task layout for BimanualCfg.task_layout: the placement report with this reader region.
+rep = json.loads(Path('results/usbc/bimanual_20261029/placement/report.json').read_text())
+rep['reader_region'] = region
+rep['reader_region_source'] = 'scripts/policy/pick_region.py (Part 1, 60 deg side grasp)'
+(out / 'task_layout.json').write_text(json.dumps(rep) + '\n')

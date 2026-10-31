@@ -25,6 +25,7 @@ ap.add_argument('--seed', type=int, default=1000)
 ap.add_argument('--out', default='results/usbc/policy/pick/expert')
 ap.add_argument('--no_dr', action='store_true', help='nominal physics: no contact/control DR')
 ap.add_argument('--write_spread', action='store_true')
+ap.add_argument('--layout', default='results/usbc/policy/pick/task_layout.json')
 a = ap.parse_args()
 
 
@@ -34,7 +35,7 @@ def wilson_lo(k, n, z=1.96):
     return (p + z * z / (2 * n) - z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / d
 
 
-cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0'))
+cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout=a.layout))
 if a.no_dr:
     cfg.pad_friction_range = cfg.reader_table_friction_range = cfg.grip_force_scale_range = None
     cfg.latency_steps = (0,); cfg.enc_offset_deg = 0.
@@ -76,7 +77,7 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
     rel_r = K.rot_log(final['inhand_R'] @ nominal_R.transpose(1, 2))
     ok = ex.done & ~task.failed & final['finite'] & (final['lift_m'] > .06) & (final['tilt_deg'] < 3) & (start_hold['tilt'] < 3) & (dp < 1e-3) & (dR < 1.)
     pr = task.reader0
-    d = {'batch': batch, 'success': ok, 'done': ex.done, 'ik_ok': ex.ik_ok, 'tilt_cmd_deg': ex.tilt, 'failed': task.failed, 'lift_mm': final['lift_m'] * 1e3,
+    d = {'batch': batch, 'success': ok, 'done': ex.done, 'ik_ok': ex.ik_ok, 'tilt_cmd_deg': ex.tilt, 'failed': task.failed, 'nonfinite': task.nonfinite, 'nonfinite_part': task.nonfinite_part, 'nonfinite_step': task.nonfinite_step, 'phase_end': ex.phase, 'lift_mm': final['lift_m'] * 1e3,
          'tilt_deg': final['tilt_deg'], 'tilt_start_hold_deg': start_hold['tilt'], 'hold_drift_mm': dp * 1e3, 'hold_rot_drift_deg': dR,
          'settle_err_mm': ex.settle_err[:, 0] * 1e3, 'settle_err_deg': ex.settle_err[:, 1], 'steps': steps,
          'reader_x': pr[:, 0], 'reader_y': pr[:, 1],
@@ -98,7 +99,7 @@ tag = out.name + ('_nodr' if a.no_dr else '') + f'_s{a.seed}'
 df.to_parquet(out.parent / f'{tag}.parquet')
 n, k = len(df), int(df.success.sum())
 summ = {'n': n, 'success': k, 'rate': k / n, 'wilson95_lo': wilson_lo(k, n), 'seed': a.seed, 'dr': not a.no_dr,
-        'failures': {'not_done': int((~df.done).sum()), 'ik_fail': int((~df.ik_ok).sum()), 'lift<60mm': int((df.lift_mm <= 60).sum()),
+        'failures': {'nonfinite': int(df.nonfinite.sum()), 'not_done': int((~df.done).sum()), 'ik_fail': int((~df.ik_ok).sum()), 'lift<60mm': int((df.lift_mm <= 60).sum()),
                      'tilt>=3': int((df.tilt_deg >= 3).sum()), 'hold_drift>=1mm': int((df.hold_drift_mm >= 1).sum())},
         'tilt_deg_p50_p99_max': [float(np.percentile(df.tilt_deg, q)) for q in (50, 99, 100)],
         'settle_err_mm_p50_p99': [float(np.percentile(df.settle_err_mm, q)) for q in (50, 99)],

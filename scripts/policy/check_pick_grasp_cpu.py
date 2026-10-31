@@ -1,4 +1,4 @@
-"""CPU contact check of the Part 1 top-down side grasp (blind_insertion/scenes/reader_grasp.py).
+"""CPU contact check of the Part 1 tipped (60 deg) side grasp (blind_insertion/scenes/reader_grasp.py).
 
 For a few reader poses: IK to pre-grasp / grasp (vertical tool axis), descend open, close, lift
 8 cm, hold 2 s. Reports which pad spheres touch the side faces (rows from the tip), pad contact
@@ -29,6 +29,9 @@ tips = {m.geom('left_tip_hull').id, m.geom('right_tip_hull').id}
 table = m.geom('table').id
 top = float(m.geom('table').pos[2] + m.geom('table').size[2])
 _, _, _, ht = G.reader_dims(l)
+_d = mujoco.MjData(m); R.reference_pose(m, _d, l); mujoco.mj_forward(m, _d)
+HAND = G.hand_geometry(m, _d)
+OFFSET, PAD_H = G.grasp_offset(l, HAND, G.TILT_DEG)
 
 
 def rot(q):
@@ -55,14 +58,16 @@ def run(xy, yaw):
         for s in ('left', 'right'): d.ctrl[m.actuator(pre + 'grip_' + s).id] = 4.
     mujoco.mj_forward(m, d)
     pr, Rr = d.qpos[l.peg_qadr:l.peg_qadr + 3].copy(), rot(d.qpos[l.peg_qadr + 3:l.peg_qadr + 7])
-    W = G.grasp_poses(pr, Rr, l)
+    import torch
+    Wt = G.grasp_poses(torch.tensor(pr[None]), torch.tensor(Rr[None]), OFFSET, G.TILT_DEG)
+    W = {k: (v[0][0].numpy(), v[1][0].numpy()) for k, v in Wt.items()}
     q_pre, e1 = ik(d, *W['pregrasp'], d.qpos[qa].copy())
     q_g, e2 = ik(d, *W['grasp'], q_pre)
     q_l, e3 = ik(d, *W['lift'], q_g)
     out = {'xy': list(xy), 'yaw_deg': yaw, 'ik_err_mm': [e1 * 1e3, e2 * 1e3, e3 * 1e3]}
     last = d.qpos[qa].copy(); integ = np.zeros(6)
     seq = [('pregrasp', q_pre, 2.5, 4.), ('descend', q_g, 1.5, 4.), ('settle', q_g, 1.0, 4.),
-           ('close', q_g, 1.0, -12.), ('lift', q_l, 1.5, -12.), ('hold', q_l, 2.0, -12.)]
+           ('close', q_g, 1.0, -12.), ('lift', q_l, 2.5, -12.), ('hold', q_l, 2.0, -12.)]
     for name, tgt, dur, grip in seq:
         n = int(dur / m.opt.timestep)
         for k in range(n):
@@ -85,12 +90,19 @@ def run(xy, yaw):
             out['tool_axis_tilt_deg'] = float(np.degrees(np.arccos(np.clip(-Rt[2, 2], -1, 1))))
         if name == 'close':
             rows, heights, nf = set(), [], 0
-            for c in d.contact[:d.ncon]:
+            forces, others = [], []
+            for ci in range(d.ncon):
+                c = d.contact[ci]
                 gs = {int(c.geom1), int(c.geom2)}
                 gp = [g for g in gs if g in pad]
+                f = np.zeros(6); mujoco.mj_contactForce(m, d, ci, f)
                 if gp and gs & set(l.peg_slots):
-                    nm = pad[gp[0]]; rows.add((nm.split('_')[0], int(nm[-1])))
-                    heights.append(float(c.pos[2] - top)); f = np.zeros(6); mujoco.mj_contactForce(m, d, list(d.contact).index(c) if False else 0, f)
+                    nm = pad[gp[0]]; rows.add((nm.split('_')[0], nm[-2:]))
+                    heights.append(float(c.pos[2] - top)); forces.append(float(f[0]))
+                elif gs & set(l.peg_slots):
+                    others.append((m.geom(int(c.geom1)).name, m.geom(int(c.geom2)).name, round(float(f[0]), 3)))
+            out['pad_normal_force_N'] = [round(x, 2) for x in forces]
+            out['other_reader_contacts'] = others
             out['pad_rows_in_contact'] = sorted({f'{a}:row{r}' for a, r in rows})
             out['pad_contact_height_mm'] = [float(min(heights) * 1e3), float(max(heights) * 1e3)] if heights else None
             out['n_pad_contacts'] = len(heights)
@@ -109,10 +121,10 @@ def run(xy, yaw):
     return out
 
 
-cases = [((.26, -.01), 0.), ((.26, -.01), 60.), ((.26, -.01), -80.), ((.36, .12), 30.), ((.14, -.18), -40.), ((.40, -.20), 85.)]
+cases = [((.36, .10), 0.), ((.33, .05), 25.), ((.42, .15), -25.), ((.38, .06), 10.), ((.31, .16), -10.), ((.40, .12), 20.)]
 res = [run(*c) for c in cases]
 for r in res: print(json.dumps(r))
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text(json.dumps({'grasp': {'axial_behind_neck_m': G.AXIAL_BEHIND_NECK, 'tip_clearance_m': G.TIP_CLEARANCE,
-    'body_half_thickness_m': ht}, 'cases': res, 'scope': 'CPU nominal physics, no DR'}, indent=1) + '\n')
+    'body_half_thickness_m': ht}, 'pad_contact_height_m': PAD_H, 'tilt_deg': G.TILT_DEG, 'cases': res, 'scope': 'CPU nominal physics, no DR'}, indent=1) + '\n')
 print('success', sum(r['success'] for r in res), '/', len(res))

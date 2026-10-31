@@ -20,6 +20,7 @@ import math
 from dataclasses import dataclass, field
 
 import torch
+import warp as wp
 
 from blind_insertion.envs import kinematics as K
 from blind_insertion.envs.bimanual_runtime import BimanualCfg
@@ -36,6 +37,11 @@ class PickTaskCfg(BimanualTaskCfg):
     pad_friction_range: tuple | None = (1.0, 2.0)      # sim nominal 1.68 (pc_bench)
     reader_table_friction_range: tuple | None = (0.4, 1.0)   # <= 0.3 gave non-finite PC states (MJWarp solver) in ~2-8 % of worlds
     grip_force_scale_range: tuple | None = (0.6, 1.2)  # x the 12 N squeeze (unmeasured)
+    # Contact impedance ratio for this task. The bimanual scene uses 100 (fixes a numerical grasp
+    # creep of the top-down grasp); with the side grasp's ~3 mm contact band, 100 makes the pad
+    # friction fail outright below mu ~1.3 (CPU and GPU: reader stays on the table) while 1-10 hold
+    # (FINDINGS 2026-10-31). None keeps the scene value.
+    impratio: float | None = 10.
 
 
 class PickTask(BimanualTask):
@@ -57,6 +63,8 @@ class PickTask(BimanualTask):
             rt.geom_friction[:, self.table, 0] = cfg.reader_table_friction_range[0]
         if cfg.grip_force_scale_range:
             rt.grip_scale = torch.ones(cfg.physics.nworld, device=dev)
+        if cfg.impratio is not None:
+            wp.to_torch(rt.m.opt.impratio_invsqrt).fill_(1. / math.sqrt(cfg.impratio))
         self.reader0 = torch.zeros(cfg.physics.nworld, 7, device=dev)
         import mujoco
         from blind_insertion.scenes import physical_rig as Rig
@@ -80,15 +88,33 @@ class PickTask(BimanualTask):
         self.reader0[ids] = self.reader_pose_q()[ids]
         if not hasattr(self, 'failed'): self.failed = torch.zeros(self.cfg.physics.nworld, dtype=torch.bool, device=self.device)
         self.failed[ids] = False
+        if not hasattr(self, 'nonfinite'): self.nonfinite = torch.zeros_like(self.failed)
+        self.nonfinite[ids] = False
+        if not hasattr(self, 'nonfinite_part'):
+            self.nonfinite_part = torch.zeros(self.cfg.physics.nworld, dtype=torch.long, device=self.device); self.nonfinite_step = torch.zeros_like(self.nonfinite_part)
+        self.nonfinite_part[ids] = 0; self.nonfinite_step[ids] = 0
         return obs
 
     def step(self, action):
         """BimanualTask.step without its insertion-episode termination: the pick episode length and
         outcome are managed by the caller (see pick_metrics); failures are recorded in `self.failed`."""
         self.done[:] = False
-        out = super().step(action)
+        out = super().step(torch.nan_to_num(torch.as_tensor(action, device=self.device), 0., 0., 0.))
         info = out[4]
-        self.failed |= info['nonfinite'] | info['dropped']
+        rt = self.runtime
+        bad = ~torch.isfinite(rt.q).all(1) | ~torch.isfinite(rt.v).all(1)
+        if bad.any():   # which part went first (diagnostic): 1 right arm, 2 left arm, 4 PC, 8 reader
+            q = rt.q; part = torch.zeros(len(q), dtype=torch.long, device=self.device)
+            for bit, sl in ((1, self.qadr), (2, rt.indices['left'][0]), (4, list(range(rt.pc_qadr, rt.pc_qadr + 7))),
+                            (8, list(range(self.lay.peg_qadr, self.lay.peg_qadr + 7)))):
+                part |= bit * (~torch.isfinite(q[:, sl]).all(1)).long()
+            new = bad & ~self.nonfinite
+            self.nonfinite_part[new] = part[new]; self.nonfinite_step[new] = self.steps[new]
+        self.nonfinite |= bad
+        self.failed |= info['nonfinite'] | info['dropped'] | bad
+        if bad.any():   # quarantine: park the world at its reset state so NaNs do not propagate
+            rt.q[bad] = rt.initial_q; rt.v[bad] = 0
+            self.joint_target[bad] = self._measured_model_angles()[bad]
         self.done[:] = False
         return out
 
@@ -129,7 +155,7 @@ class PickExpert:
     PHASES = ('to_pregrasp', 'descend', 'settle', 'close', 'lift', 'hold', 'done')
 
     def __init__(self, task: PickTask, v_max=0.10, w_max=1.0, joint_speed=1.2, settle_tol=(6e-4, 0.4),
-                 settle_max_s=2.0, close_s=0.6, hold_s=1.0, integral_gain=0.25, integral_cap=0.08,
+                 settle_max_s=2.0, close_s=0.6, hold_s=1.0, integral_gain=0.03, integral_cap=0.08,
                  jitter=None, margin=0.05, seed=0):
         self.t, self.v, self.w, self.js = task, v_max, w_max, joint_speed
         self.settle_tol, self.dt = settle_tol, task.dt
