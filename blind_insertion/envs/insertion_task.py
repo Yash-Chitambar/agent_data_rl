@@ -88,9 +88,12 @@ class InsertionCfg:
 
     LEFT_OBS_IDX = tuple(range(6, 12)) + tuple(range(18, 24)) + tuple(range(31, 38)) + tuple(range(44, 50))
     LEFT_POSE_IDX = tuple(range(6, 12)) + tuple(range(31, 38))
+    LEFT_J6_IDX = (11, 23, 36, 49)      # left joint 6 (tool yaw): encoder, velocity, previous action, target error
 
     def left_mask_idx(self):
-        return () if not self.mask_left_obs else (self.LEFT_POSE_IDX if self.mask_left_obs == 'pose' else self.LEFT_OBS_IDX)
+        if not self.mask_left_obs:
+            return ()
+        return {'pose': self.LEFT_POSE_IDX, 'j6': self.LEFT_J6_IDX}.get(self.mask_left_obs, self.LEFT_OBS_IDX)
     # 20 mm: arm sag and the +/-1.5 deg encoder-offset error leave only 66 % of worlds touching the
     # PC at 6 mm; at 20 mm all touch and the PC resists ~3-5 N horizontally (n=256, pc mu 0.3-0.9).
     press_m: float = 0.02
@@ -696,13 +699,11 @@ class InsertionTask(BimanualTask):
         pos = p - self._p_obs
         self._last_obs = o
         enc, vel, prev, terr = o['encoder_rad'], o['encoder_velocity_rad_s'], o['previous_action'], o['target_error_rad']
-        if self.icfg.mask_left_obs:
-            enc, vel, terr = enc.clone(), vel.clone(), terr.clone()
-            prev = prev.clone()
-            enc[:, 6:], prev[:, 7:] = 0, 0
-            if self.icfg.mask_left_obs != 'pose':
-                vel[:, 6:], terr[:, 6:] = 0, 0
         parts = [enc, vel, prev, terr, pos * 10, eul, tw]
+        if self.icfg.mask_left_obs:
+            base = torch.cat(parts[:4], 1).clone()
+            base[:, list(self.icfg.left_mask_idx())] = 0
+            parts = [base] + parts[4:]
         if self.icfg.privileged_actor:     # teacher only: plug pose in the live port frame, reader in the TCP
             p, R = self.runtime.plug_in_port()
             rel = self._reader_in_tcp()
