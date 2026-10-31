@@ -137,6 +137,22 @@ At 1.5 (seed 1000) by start lateral error: ≤ 1.5 mm 100 % (1855), 1.5-2 mm 99.
 Median time to seat 0.88 s; PC motion p99 1.3 mm. v6 seed 0 at 10 M: 99.27 % [98.80, 99.56] (misses).
 Exported as `runs/P4-insert-best/best.pt`.
 
+**Round 3 (2026-11-01): robustness of the exported policy (v6s2, no retraining).** One change at a time
+against the baseline (scale 1.5, seed 1000: 99.76 %), n = 2048 each:
+
+| Change | Seated | Wilson 95 % | Failures |
+|---|---|---|---|
+| ×2.0 start errors | 99.51 % | [99.10, 99.73] | 9 mouth, 1 slip |
+| Encoder offset ±2° (was ±1.5°) | 99.85 % | [99.57, 99.95] | 3 mouth |
+| PC box ±3 cm / ±10° (was ±1/1.5 cm, ±5°) | 99.61 % | [99.23, 99.80] | 7 mouth, 1 slip |
+| Latency 0-2 steps (was 0-1; measured ~0.4) | 94.24 % | [93.14, 95.17] | 70 mouth, 47 slip |
+| Plug-port μ U(0.10, 0.30) (was 0.10-0.20) | 94.43 % | [93.35, 95.35] | 114 mouth |
+| Wide contact DR (port μ 0.15-0.6, 3-8 ms; pad μ 0.8-2.0, 2-6 ms; squeeze ×0.6-1.4) | 69.53 % | [67.50, 71.49] | 421 slip, 202 mouth |
+
+Margins: start error, encoder offsets and PC placement have margin; latency beyond 1 step, plug-port
+friction above 0.2 and pad friction/squeeze below the Part 1 values do not. The contact values are the
+first thing to measure on the rig (or to train over once measured ranges exist).
+
 **Round 3 (2026-11-01): why the DAgger students looked good in training.** The distiller updates the
 student every control step on a replay buffer that holds the current episode's teacher labels, so the
 privileged teacher steers the student mid-episode through the gradient steps. Same student (wrist,
