@@ -120,7 +120,18 @@ geometric hold with a 25 µm aperture tolerance; n = 2048 per row:
 **PC fixed** (mass ×30, `mj_setConst`; PC motion p99 0.11 mm) at 1.5: 99.22 % [98.73, 99.52] (n = 2048,
 15 stuck at mouth, 1 slip), the same as with the 25 N hold: the hold is not the limit, the lateral
 capture region is. (×1000 mass without `mj_setConst` went non-finite in every world.)
-Other seeds at 1.5: s1 98.68 % [98.09, 99.09], s2 99.07 % [98.56, 99.41]. At 1.5 (seed 0), by start
+Other seeds at 1.5: s1 98.68 % [98.09, 99.09], s2 99.07 % [98.56, 99.41].
+**Round 2 checks (2026-11-01):**
+- *Seated means fully inserted:* seed 0 at 1.5, re-run (99.07 %, n = 2048): the 2029 seated plugs are
+  5.63-5.80 mm deep (median 5.72; seat 5.8 mm at the neck stop), tip centre within 0.08 mm of the
+  axis, tilt median 1.03°, max 1.74°; aperture violation median 13.4 µm, p99 23.6 µm (cap 25). No
+  seated plug is near the rim; failures end at +0.3 mm (outside the panel) with mm-scale violations.
+- *Encoder offsets are not the cause:* the max offset is ≥ 1.13° in 90 % of all episodes; success by
+  bin 99.4 / 98.8 / 99.3 / 99.1 % (flat), latency 0 vs 1: 99.1 vs 99.0 %. The driver is the start
+  lateral error.
+- *Seed ensemble* (mean action of s0-s2): 98.78 % [98.20, 99.17], worse than seed 0 alone.
+- *Export:* `runs/P4-insert-best/best.pt` (+ README.json) and `eval_insertion.load_insertion_policy()`
+  (`InsertionPolicy`, env var `P4_INSERT_BEST` from other worktrees). At 1.5 (seed 0), by start
 lateral error: ≤ 0.5 mm 100 % (888), 0.5-1 mm 99.86 % (692), 1-1.5 mm 99.27 % (275), 1.5-2 mm 94.8 % (96),
 2-3 mm 93.0 % (71), 3-4.5 mm 87.5 % (24); every failure had an encoder-offset error ≥ 1.09°. Median
 time to seat 0.6 / 0.84 / 0.9 s; PC motion p99 ≤ 1.3 mm. Strict (0 µm) aperture test: ≤ 0.25 % at
