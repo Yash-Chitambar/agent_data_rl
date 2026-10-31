@@ -27,28 +27,54 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--yaw', type=float, default=30.)
 ap.add_argument('--yaw_centre', type=float, default=0.)
 ap.add_argument('--side', type=float, default=.12)
+ap.add_argument('--side_y', type=float, default=None, help='rectangle: y side (default --side)')
+ap.add_argument('--side_auto', action='store_true', help='largest x depth (<= --side) with a feasible --side_y strip')
+ap.add_argument('--pc_box', type=float, nargs=3, default=None, help='PC pose box for the clearance checks (dx m, dy m, dyaw deg); default BimanualCfg')
+ap.add_argument('--hand_margin', type=float, default=.01)
+ap.add_argument('--reader_margin', type=float, default=.015)
 ap.add_argument('--margin', type=float, default=.10)
 ap.add_argument('--tilt', type=float, default=G.TILT_DEG)
 ap.add_argument('--out', default='results/usbc/policy/pick')
+ap.add_argument('--yaw_mode', choices=('world', 'bearing'), default='bearing',
+                help='bearing: reader yaw = right-base bearing to the cell (+180 with --flip) +/- --yaw')
+ap.add_argument('--yaw_offset', type=float, default=0., help='bearing mode: reader yaw = bearing + this (deg)')
+ap.add_argument('--flip', type=int, default=0, help='1: flipped grasp (hand reaches from the plug side)')
+ap.add_argument('--xr', type=float, nargs=2, default=(.03, .30))
+ap.add_argument('--yr', type=float, nargs=2, default=(-.05, .48))
+ap.add_argument('--target', type=float, nargs=2, default=(.12, .34), help='tie-break: square centre nearest this point')
+ap.add_argument('--left_margin', type=float, default=.015)
+ap.add_argument('--finger_open', type=float, default=.024, help='finger joint opening during the approach (m per finger; full 0.0475)')
+ap.add_argument('--left_park_q', type=float, nargs=6, default=(0.0, 0.83, 0.29, -0.02, -0.73, -0.78),
+                help='left arm parked during the pick (bimanual_pick.PickTaskCfg.left_park_q)')
+ap.add_argument('--left_pose', choices=('both', 'ref', 'press', 'none', 'park'), default='park', help='left-arm poses treated as obstacles during the pick')
 a = ap.parse_args()
 dev = 'cuda:0'
 CELL, BIN = .01, 10.
-READER_BACK, READER_FRONT, READER_HALF_W, READER_MARGIN = .02, .07, .018, .015
+READER_BACK, READER_FRONT, READER_HALF_W, READER_MARGIN = .02, .07, .018, a.reader_margin
 from blind_insertion.envs.bimanual_runtime import BimanualCfg as _BC
-PORT, PC_BOX = (.22, .36, 0.), tuple(_BC.pc_pose_range)   # training box of the PC pose (now +/-1.5 cm, +/-5 deg)
+PORT, PC_BOX = (.22, .36, 0.), tuple(a.pc_box) if a.pc_box else tuple(_BC.pc_pose_range)   # PC pose box for clearance
 PC_CENTRE = (.2685, .3392)
 from blind_insertion.scenes.measured_support import dimensions
 WALL_X = dimensions()['wall_edge_x_m']
+PLATE_TOP = -.010  # plate top z (table top -0.033)
+PLATE_X = .035   # front (+x) edge of the shared arm mounting plate (measured_support), 2.3 cm tall
 prof = json.loads(Path('data/real_yam/usbc_lab_20261027/rig_profile_provisional_v0.json').read_text())
 m, l = S.build_scene(detailed=False, bimanual=True, support_mode='free', profile=prof, measured_support=True)
 d = mujoco.MjData(m); R.reference_pose(m, d, l); mujoco.mj_forward(m, d)
 hand = G.hand_geometry(m, d)
-off, pad_h = G.grasp_offset(l, hand, a.tilt)
+off, pad_h = G.grasp_offset(l, hand, a.tilt, flip=bool(a.flip))
 chain = K.Chain(m, l.tcp_site, [int(m.joint(f'joint{i}').qposadr[0]) for i in range(1, 7)], device=dev)
-xs = np.round(np.arange(.06, .44 + 1e-9, CELL), 3); ys = np.round(np.arange(-.10, .32 + 1e-9, CELL), 3)
-yb = a.yaw_centre + np.arange(-a.yaw + BIN / 2, a.yaw - BIN / 2 + 1e-9, BIN)
+xs = np.round(np.arange(a.xr[0], a.xr[1] + 1e-9, CELL), 3); ys = np.round(np.arange(a.yr[0], a.yr[1] + 1e-9, CELL), 3)
+if a.yaw_mode == 'bearing':   # one bin per cell centred on the bearing, jitter +/- a.yaw
+    BIN = 2 * a.yaw
+    yb = np.array([0.])
+else:
+    yb = a.yaw_centre + np.arange(-a.yaw + BIN / 2, a.yaw - BIN / 2 + 1e-9, BIN)
 X, Y, T = np.meshgrid(xs, ys, yb, indexing='ij')
 cells = np.stack([X.ravel(), Y.ravel(), T.ravel()], 1)
+if a.yaw_mode == 'bearing':
+    cells[:, 2] = np.degrees(np.arctan2(cells[:, 1], cells[:, 0])) + a.yaw_offset + 180. * a.flip
+    cells[:, 2] = (cells[:, 2] + 180.) % 360. - 180.
 corner = np.array([[sx * CELL / 2, sy * CELL / 2, st * BIN / 2] for sx in (-1, 1) for sy in (-1, 1) for st in (-1, 1)])
 P = (cells[:, None] + corner[None]).reshape(-1, 3); n = len(P)
 # reader poses (place_reader: xy = body centre)
@@ -59,7 +85,7 @@ c, s = torch.cos(yaw), torch.sin(yaw); z, o = torch.zeros_like(c), torch.ones_li
 Rz = torch.stack([torch.stack([c, -s, z], -1), torch.stack([s, c, z], -1), torch.stack([z, z, o], -1)], -2)
 pr = torch.tensor(np.c_[P[:, :2], np.zeros(n)], dtype=torch.float32, device=dev) + (Rz @ torch.tensor([q0[0], q0[1], 0.], dtype=torch.float32, device=dev)[:, None])[..., 0]
 pr[:, 2] = float(q0[2]); Rr = Rz @ R0
-W = G.grasp_poses(pr, Rr, off, a.tilt)
+W = G.grasp_poses(pr, Rr, off, a.tilt, flip=torch.full((n,), bool(a.flip), device=dev))
 lo, hi = chain.lo + a.margin, chain.hi - a.margin
 aim = torch.atan2(pr[:, 1], pr[:, 0])
 gen = torch.Generator(device=dev); gen.manual_seed(1)
@@ -95,13 +121,16 @@ for i, (x, y, t0) in enumerate(cells):
     for cx, cy, tt in corner:
         t = np.radians(t0 + tt)
         pts = np.array([x + cx, y + cy]) + foot @ np.array([[np.cos(t), np.sin(t)], [-np.sin(t), np.cos(t)]])
-        if pts[:, 0].max() > WALL_X - .01 or \
+        if pts[:, 0].max() > WALL_X - .01 or pts[:, 0].min() < PLATE_X + .01 or \
                 max(cv2.pointPolygonTest(hull, (float(px), float(py)), True) for px, py in pts) > -READER_MARGIN:
             clear[i] = False; break
 # Hand clearance: right-hand points (all link_6-subtree geoms, open fingers) at the pre-grasp,
 # grasp and lift poses must stay >= HAND_MARGIN outside the PC hull wherever they are below the
 # PC top (+ margin). Found missing on 2026-10-31: the gripper hit a PC shifted 3 cm towards the reader.
-HAND_MARGIN = .01
+HAND_MARGIN = a.hand_margin
+for f in ('left', 'right'):           # hand points with the fingers at the approach opening
+    d.qpos[m.joint(f + '_finger').qposadr] = a.finger_open
+mujoco.mj_forward(m, d)
 sid = m.site('grasp_site').id; Rs0, ps0 = d.site_xmat[sid].reshape(3, 3), d.site_xpos[sid]
 def subtree(b):
     return [b] + [c for c in range(m.nbody) if m.body_parentid[c] == b and c != b for c in subtree(c)]
@@ -130,40 +159,82 @@ for name in ('pregrasp', 'grasp', 'lift'):
         P3 = p_t[k0:k0 + 4096, None] + hp_t[None] @ R_t[k0:k0 + 4096].transpose(1, 2)          # (b, k, 3)
         sd = (P3[..., :2] @ nrm_t.T - off_t).max(-1).values                                    # signed distance to hull (convex)
         bad = (sd < HAND_MARGIN) & (P3[..., 2] < pc_top + HAND_MARGIN)
+        # shared arm mounting plate (box, 2.3 cm tall at the arm bases): found 2026-10-31, the open
+        # fingers of a hand reaching sideways in front of the PC dipped into it
+        bad |= (P3[..., 0] < PLATE_X + HAND_MARGIN) & (P3[..., 2] < PLATE_TOP + HAND_MARGIN)
         hand_ok[k0:k0 + 4096] &= ~bad.any(1)
+# Left arm (reference pose and nominal press pose): right-hand points >= left_margin away.
+def body_points(prefix_ok, dd):
+    pts = []
+    for g in range(m.ngeom):
+        bn = m.body(int(m.geom_bodyid[g])).name
+        if not prefix_ok(bn): continue
+        if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH:
+            mid = m.geom_dataid[g]; V = m.mesh_vert[m.mesh_vertadr[mid]:m.mesh_vertadr[mid] + m.mesh_vertnum[mid]]
+        elif m.geom_type[g] == mujoco.mjtGeom.mjGEOM_BOX:
+            sz = m.geom_size[g]; V = np.array([[a_ * sz[0], b_ * sz[1], c_ * sz[2]] for a_ in (-1, 1) for b_ in (-1, 1) for c_ in (-1, 1)])
+        else: continue
+        pts.append(V @ dd.geom_xmat[g].reshape(3, 3).T + dd.geom_xpos[g])
+    return np.concatenate(pts)
+is_left = lambda bn: bn.startswith(('left_link_', 'left_gripper', 'left_left_finger', 'left_right_finger', 'left_wrist'))   # noqa: E731
+rep_layout = json.loads(Path('results/usbc/bimanual_20261029/placement/report.json').read_text())['nominal']
+dl = mujoco.MjData(m); dl.qpos[:] = d.qpos
+lq = [int(m.joint(f'left_joint{i}').qposadr[0]) for i in range(1, 7)]
+left_pts = [body_points(is_left, d)] if a.left_pose in ('both', 'ref') else []
+dl.qpos[lq] = rep_layout['q_left']; mujoco.mj_kinematics(m, dl)
+if a.left_pose in ('both', 'press'): left_pts.append(body_points(is_left, dl))
+if a.left_pose == 'park':
+    dl.qpos[lq] = a.left_park_q; mujoco.mj_kinematics(m, dl); left_pts.append(body_points(is_left, dl))
+if not left_pts: left_pts = [np.array([[0., 5., 5.]])]
+left_pts = np.concatenate(left_pts); left_pts = left_pts[np.random.default_rng(1).choice(len(left_pts), min(3000, len(left_pts)), replace=False)]
+lp_t = torch.tensor(left_pts, dtype=torch.float32, device=dev)
+left_ok = torch.ones(n, dtype=torch.bool, device=dev)
+for name in ('pregrasp', 'grasp', 'lift'):
+    p_t, R_t = W[name]
+    for k0 in range(0, n, 512):
+        P3 = p_t[k0:k0 + 512, None] + hp_t[None] @ R_t[k0:k0 + 512].transpose(1, 2)
+        dmin = torch.cdist(P3.reshape(-1, 3), lp_t).min(1).values.reshape(P3.shape[0], -1).min(1).values
+        left_ok[k0:k0 + 512] &= dmin >= a.left_margin
+hand_pc_ok = hand_ok.clone()
+hand_ok &= left_ok
+left_np = left_ok.cpu().numpy().reshape(len(cells), 8).all(1); hand_pc_np = hand_pc_ok.cpu().numpy().reshape(len(cells), 8).all(1)
 hand_ok = hand_ok.cpu().numpy().reshape(len(cells), 8).all(1)
 summary_hand = float(hand_ok.mean())
 ok = (reach & clear & hand_ok).reshape(len(xs), len(ys), len(yb))
 cell_ok = ok.all(-1)
 # compact square: all cells feasible; maximize the feasible margin ring (cells within 2 cm outside)
-k = int(round(a.side / CELL))
+ky = int(round((a.side_y or a.side) / CELL))
 best = None
-for i in range(len(xs) - k + 1):
-    for j in range(len(ys) - k + 1):
-        if not cell_ok[i:i + k, j:j + k].all(): continue
-        ring = cell_ok[max(0, i - 2):i + k + 2, max(0, j - 2):j + k + 2].mean()
-        # tie-break: nearest the segment from the right base to the PC centre (user: between them)
-        cxy = np.array([xs[i:i + k].mean(), ys[j:j + k].mean()]); seg = np.array(PC_CENTRE)
-        dist = np.linalg.norm(cxy - seg * np.clip(cxy @ seg / (seg @ seg), 0, 1))
-        score = (ring, -dist)
-        if best is None or score > best[0]: best = (score, i, j)
+for k in (range(int(round(a.side / CELL)), 0, -1) if a.side_auto else [int(round(a.side / CELL))]):
+  if best is not None: break
+  for i in range(len(xs) - k + 1):
+      for j in range(len(ys) - ky + 1):
+          if not cell_ok[i:i + k, j:j + ky].all(): continue
+          ring = cell_ok[max(0, i - 2):i + k + 2, max(0, j - 2):j + ky + 2].mean()
+          cxy = np.array([xs[i:i + k].mean(), ys[j:j + ky].mean()])
+          dist = np.linalg.norm(cxy - np.array(a.target))
+          score = (ring >= .75, -dist, ring)    # well surrounded, then nearest the target
+          if best is None or score > best[0]: best = (score, i, j, k)
 summary = {'grid_cells': int(cell_ok.size), 'cells_all_bins_feasible': int(cell_ok.sum()), 'reach_frac': float(reach.mean()),
            'clear_frac': float(clear.mean()), 'hand_clear_frac': summary_hand, 'tilt_deg': a.tilt, 'joint_margin_rad': a.margin, 'yaw_half_range_deg': a.yaw, 'yaw_centre_deg': a.yaw_centre,
            'pad_contact_height_m': pad_h}
 out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
-np.savez_compressed(out / 'reader_region_search.npz', xs=xs, ys=ys, yaw_bins=yb, feasible=ok, reach=reach.reshape(ok.shape), clear=clear.reshape(ok.shape))
+np.savez_compressed(out / 'reader_region_search.npz', xs=xs, ys=ys, yaw_bins=yb, feasible=ok, reach=reach.reshape(ok.shape), clear=clear.reshape(ok.shape), left=left_np.reshape(ok.shape), hand_pc=hand_pc_np.reshape(ok.shape))
 if best is None:
     print(json.dumps(summary, indent=1)); raise SystemExit(f'no fully feasible {a.side} m square')
-_, i, j = best
-sel = [(ii, jj) for ii in range(i, i + k) for jj in range(j, j + k)]
-samples = [[float(xs[ii]), float(ys[jj]), float(t)] for ii, jj in sel for t in yb]
+_, i, j, k = best
+sel = [(ii, jj) for ii in range(i, i + k) for jj in range(j, j + ky)]
+cyaw = cells[:, 2].reshape(len(xs), len(ys), len(yb))
+samples = [[float(xs[ii]), float(ys[jj]), float(cyaw[ii, jj, kk])] for ii, jj in sel for kk in range(len(yb))]
 region = {'samples_xy_yaw': samples, 'cell_m': CELL, 'yaw_bin_deg': BIN,
-          'x_range_m': [float(xs[i] - CELL / 2), float(xs[i + k - 1] + CELL / 2)], 'y_range_m': [float(ys[j] - CELL / 2), float(ys[j + k - 1] + CELL / 2)],
-          'yaw_range_deg': [a.yaw_centre - a.yaw, a.yaw_centre + a.yaw], 'centre_xy_m': [float(xs[i:i + k].mean()), float(ys[j:j + k].mean())],
-          'area_m2': round(k * k * CELL * CELL, 4), 'n_cells': k * k, 'mean_yaw_bins_per_cell': float(len(yb)),
+          'x_range_m': [float(xs[i] - CELL / 2), float(xs[i + k - 1] + CELL / 2)], 'y_range_m': [float(ys[j] - CELL / 2), float(ys[j + ky - 1] + CELL / 2)],
+          'yaw_range_deg': ([float(min(x[2] for x in samples) - BIN / 2), float(max(x[2] for x in samples) + BIN / 2)] if a.yaw_mode == 'bearing' else [a.yaw_centre - a.yaw, a.yaw_centre + a.yaw]),
+          'yaw_mode': a.yaw_mode, 'yaw_offset_deg': a.yaw_offset, 'yaw_about_bearing_deg': [-a.yaw, a.yaw] if a.yaw_mode == 'bearing' else None,
+          'grasp': {'tilt_deg': a.tilt, 'flip': bool(a.flip), 'pad_contact_height_m': pad_h}, 'centre_xy_m': [float(xs[i:i + k].mean()), float(ys[j:j + ky].mean())],
+          'area_m2': round(k * ky * CELL * CELL, 4), 'n_cells': k * ky, 'mean_yaw_bins_per_cell': float(len(yb)),
           'clearance': f'footprint >= 1 cm inside the table back edge; reader footprint (+{READER_MARGIN * 100:.1f} cm) outside the hull of every PC pose of the box; '
                        f'60 deg side grasp pre-grasp/grasp/lift IK with >= {a.margin} rad joint margin at all cell corners and bin edges',
-          'feasible_ring_fraction': float(best[0][0]), 'search': summary,
+          'feasible_ring_fraction': float(best[0][2]), 'search': summary,
           'note': 'samples are cell centres (cell_m) x yaw bin centres (yaw_bin_deg); BimanualRuntime._sample_layout jitters within them'}
 (out / 'reader_region.json').write_text(json.dumps(region, indent=1) + '\n')
 import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
@@ -173,7 +244,7 @@ im = ax.imshow(frac, origin='lower', extent=[ys[0] * 100 - .5, ys[-1] * 100 + .5
 ax.invert_xaxis(); plt.colorbar(im, ax=ax, label=f'fraction of yaw bins feasible (yaw {a.yaw_centre - a.yaw:g}..{a.yaw_centre + a.yaw:g} deg)')
 h = hull.reshape(-1, 2) * 100; ax.fill(h[:, 1], h[:, 0], color='k', alpha=.3, label='PC hull (all box poses)')
 y0, y1 = region['y_range_m']; x0, x1 = region['x_range_m']
-ax.plot(np.array([y0, y1, y1, y0, y0]) * 100, np.array([x0, x0, x1, x1, x0]) * 100, 'm-', lw=2, label=f'reader region {a.side*100:.0f} cm')
+ax.plot(np.array([y0, y1, y1, y0, y0]) * 100, np.array([x0, x0, x1, x1, x0]) * 100, 'm-', lw=2, label=f'reader region {a.side*100:.0f} x {(a.side_y or a.side)*100:.0f} cm')
 ax.plot(0, 0, 'b^', ms=12, label='right arm base'); ax.set(xlabel='y (cm)', ylabel='x (cm)', title='Part 1 reader start region (60 deg side grasp)')
 ax.set_xlim(ys[-1] * 100 + 2, -8); ax.set_ylim(-4, 50); ax.legend(loc='upper right', fontsize=8)
 fig.tight_layout(); fig.savefig(out / 'reader_region.png', dpi=110)

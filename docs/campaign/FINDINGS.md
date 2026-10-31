@@ -104,6 +104,27 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/pick`) — Part 1 strip in front of the PC: 5 × 10 cm, gate 2048/2048
+
+- User rejected windows beside the PC. With a world-fixed yaw the tipped grasp needs x ≳ 0.30 m; with
+  the reader yaw tied to the right-base bearing (radial reach) the front of the PC is reachable, but:
+  (1) the recorded left-arm rest pose holds its hand at (0.03, 0.44, 0.17) m over that zone: the left
+  arm is now parked (joint 1 = 0) during the pick; (2) the open fingers spread along x and dipped into
+  the arm mounting plate (front edge x 0.035 m, 2.3 cm tall) or hit the PC front: with the full
+  opening only reader centres x 0.11-0.14 m remain. Widened to **x 0.095-0.145 × y 0.335-0.435 m**
+  with PC x box ±1 cm (pick task), 24 mm approach opening, heading bearing + 15° (± 10°), 3 mm hand
+  margin; 29 mm opening or PC x ±1.5 cm gives 3 cm. The flipped grasp (plug toward the arm) does not
+  widen it and cannot be turned to the port.
+- Expert fixes: pre-grasp 10 cm up (the joint-space move from rest hit the PC case in ~2 % of
+  episodes; seen as 10-130 mm settle errors); wait for the tool orientation (< 1°) after the lift
+  (weak wrist gains under load: 3-4° at the start of the hold at bearing ≈ 95°). A 24 mm opening in
+  the earlier middle window tipped 6 % of readers when the approach settled 2-3 mm off; in the strip,
+  with the PC collisions removed, 0/2048.
+- **Gate (seed 20000): 2048/2048, Wilson lower bound 99.81 %; 10 s hold 1024/1024.** In-hand spread
+  about the mean: position p50 0.30 / p99 0.77 mm, rotation p50 0.07 / p99 0.24°; 10 s creep p99
+  0.16 mm / 0.19°. Reorientation to the pre-insert pose: 27/27 PC poses.
+- Superseded windows (not for use): beside the PC x 0.305-0.405 (gate 2048/2048), x 0.225-0.305 with
+  heading bearing − 50° (gate 2048/2048).
 ### 2026-11-01 (mason, `policy/approach-hold`) — Round 3: hold 25 N; approach with the measured grasp and DAgger
 
 Current DR (policy/v1 3829c31 + e94a268): PC +/-1.5 cm / +/-5 deg, PC feet mu U(0.8, 1.0); Part 1 grasp:

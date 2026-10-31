@@ -26,6 +26,9 @@ ap.add_argument('--out', default='results/usbc/policy/pick/expert')
 ap.add_argument('--no_dr', action='store_true', help='nominal physics: no contact/control DR')
 ap.add_argument('--write_spread', action='store_true')
 ap.add_argument('--impratio', type=float, default=None)
+ap.add_argument('--ki', type=float, default=0.03)
+ap.add_argument('--settle_max_s', type=float, default=2.0)
+ap.add_argument('--finger_open', type=float, default=-1., help='approach finger opening (m per finger); -1: task default')
 ap.add_argument('--lift_v', type=float, default=0.10, help='expert Cartesian speed after closing (m/s)')
 ap.add_argument('--hold_s', type=float, default=1.0, help='hold after lift (stability window)')
 ap.add_argument('--grip_range', type=float, nargs=2, default=None)
@@ -42,6 +45,7 @@ def wilson_lo(k, n, z=1.96):
 
 cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout=a.layout), episode_s=12. + a.hold_s)
 if a.impratio is not None: cfg.impratio = a.impratio
+if a.finger_open >= 0: cfg.finger_open = a.finger_open or None
 if a.grip_range: cfg.grip_force_scale_range = tuple(a.grip_range)
 if a.pad_mu_range: cfg.pad_friction_range = tuple(a.pad_mu_range)
 if a.no_dr:
@@ -54,7 +58,7 @@ print('built', round(time.time() - t0, 1), 's', flush=True)
 torch.manual_seed(a.seed)
 rows = []
 for batch in range(math.ceil(a.episodes / a.nworld)):
-    task.reset(); ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v); ex.reset()
+    task.reset(); ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v, integral_gain=a.ki, settle_max_s=a.settle_max_s); ex.reset()
     N = a.nworld
     start_hold = {k: torch.zeros(N, *s, device=task.device) for k, s in (('p', (3,)), ('R', (3, 3)), ('tilt', ()))}
     steps = torch.zeros(N, dtype=torch.long, device=task.device)
@@ -77,15 +81,15 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
     dp = (final['inhand_p'] - start_hold['p']).norm(dim=1)
     dR = torch.rad2deg(K.rot_log(final['inhand_R'] @ start_hold['R'].transpose(1, 2)).norm(dim=1))
     nominal_p = torch.zeros(N, 3, device=task.device); nominal_R = torch.zeros(N, 3, 3, device=task.device)
-    for tl, off in task.offsets.items():
-        np_, nR = G.nominal_inhand(off, tl); sel = ex.tilt == tl
+    for (tl, fl), off in task.offsets.items():
+        np_, nR = G.nominal_inhand(off, tl, fl); sel = (ex.tilt == tl) & (ex.flip == fl)
         nominal_p[sel] = torch.tensor(np_, dtype=torch.float32, device=task.device); nominal_R[sel] = torch.tensor(nR, dtype=torch.float32, device=task.device)
     nominal_p[~ex.ik_ok] = nominal_p[ex.ik_ok][:1] if ex.ik_ok.any() else 0; nominal_R[~ex.ik_ok] = torch.eye(3, device=task.device)
     rel_p = final['inhand_p'] - nominal_p
     rel_r = K.rot_log(final['inhand_R'] @ nominal_R.transpose(1, 2))
     ok = ex.done & ~task.failed & final['finite'] & (final['lift_m'] > .06) & (final['tilt_deg'] < 3) & (start_hold['tilt'] < 3) & (dp < 1e-3) & (dR < 1.)
     pr = task.reader0
-    d = {'batch': batch, 'success': ok, 'done': ex.done, 'ik_ok': ex.ik_ok, 'tilt_cmd_deg': ex.tilt, 'failed': task.failed, 'nonfinite': task.nonfinite, 'nonfinite_part': task.nonfinite_part, 'nonfinite_step': task.nonfinite_step, 'phase_end': ex.phase, 'lift_mm': final['lift_m'] * 1e3,
+    d = {'batch': batch, 'success': ok, 'done': ex.done, 'ik_ok': ex.ik_ok, 'tilt_cmd_deg': ex.tilt, 'flip': ex.flip, 'failed': task.failed, 'nonfinite': task.nonfinite, 'nonfinite_part': task.nonfinite_part, 'nonfinite_step': task.nonfinite_step, 'phase_end': ex.phase, 'lift_mm': final['lift_m'] * 1e3,
          'tilt_deg': final['tilt_deg'], 'tilt_start_hold_deg': start_hold['tilt'], 'hold_drift_mm': dp * 1e3, 'hold_rot_drift_deg': dR,
          'settle_err_mm': ex.settle_err[:, 0] * 1e3, 'settle_err_deg': ex.settle_err[:, 1], 'steps': steps,
          'reader_x': pr[:, 0], 'reader_y': pr[:, 1],
@@ -132,8 +136,8 @@ if a.write_spread:
     Pm = P[okm].mean(0); Rm = R[okm].mean(0); U, _, Vt = np.linalg.svd(Rm); Rm = U @ Vt
     from blind_insertion.scenes.reader_grasp import _mat_to_quat
     spread = {'source': f'{tag}.parquet', 'n': int(okm.sum()), 'mean_pos_m': Pm.tolist(), 'mean_quat_wxyz': _mat_to_quat(Rm).tolist(),
-              'nominal': {str(tl): {'pos_m': G.nominal_inhand(off, tl)[0].tolist(), 'quat_wxyz': _mat_to_quat(G.nominal_inhand(off, tl)[1]).tolist(), 'pad_contact_height_m': task.pad_contact_height[tl]} for tl, off in task.offsets.items()},
-              'tilt_share': {str(tl): float((df.tilt_cmd_deg[okm] == tl).mean()) for tl in task.offsets}, 'about_nominal': sp,
+              'nominal': {f'tilt{tl:g}_flip{int(fl)}': {'pos_m': G.nominal_inhand(off, tl, fl)[0].tolist(), 'quat_wxyz': _mat_to_quat(G.nominal_inhand(off, tl, fl)[1]).tolist(), 'pad_contact_height_m': task.pad_contact_height[(tl, fl)]} for (tl, fl), off in task.offsets.items()},
+              'grasp_share': {f'tilt{tl:g}_flip{int(fl)}': float(((df.tilt_cmd_deg == tl) & (df.flip == fl))[okm].mean()) for (tl, fl) in task.offsets}, 'about_nominal': sp,
               'units': 'inhand_d* in mm (grasp_site frame), inhand_r* rotation vector in deg (grasp_site frame) about the nominal'}
     G.SPREAD_FILE.write_text(json.dumps(spread, indent=1) + '\n')
     print('wrote', G.SPREAD_FILE)

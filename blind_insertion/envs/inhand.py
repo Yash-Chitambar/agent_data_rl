@@ -79,7 +79,7 @@ def sample_measured(n, device='cpu', generator=None):
     deltas (n,6: dx, dy, dz mm, rx, ry, rz deg)."""
     from blind_insertion.envs import kinematics as K
     s, rows = _measured()
-    nom = s['nominal']['55.0']
+    nom = s['nominal'].get('55.0') or s['nominal']['tilt55_flip0']
     R0 = K.quat_to_mat(torch.tensor(nom['quat_wxyz'], device=device, dtype=torch.float32)[None])[0]
     p0 = torch.tensor(nom['pos_m'], device=device, dtype=torch.float32)
     rows = torch.tensor(rows, device=device, dtype=torch.float32)
