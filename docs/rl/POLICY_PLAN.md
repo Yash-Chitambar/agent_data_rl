@@ -154,31 +154,35 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   before Part 2.
 - **Explore:** brace vs press; target offset into the PC (holding force); timing.
 - **Metrics:** PC translation/rotation during insertion; contact force; collisions with the right arm.
-- **Status (2026-10-31, `policy/approach-hold`): recommended hold found; gate met only without load.**
-  Code: `blind_insertion/envs/left_hold.py` (`LeftHold`, `Harness`, `RightInserter`),
-  `scripts/task/eval_left_hold.py`, `scripts/task/sweep_left_hold.sh`; results `results/usbc/policy/hold/`.
+- **Status (2026-11-01, round 3, `policy/approach-hold`): recommended hold: press 25 N, guarded;
+  gate (99.5 %) met at 1 N, 99.3 % at 3 N.** Code: `blind_insertion/envs/left_hold.py` (`LeftHold`,
+  `Harness`, `RightInserter`), `scripts/task/eval_left_hold.py`, `scripts/task/sweep_left_hold.sh`;
+  results `results/usbc/policy/hold/` (`r3_*` = current DR).
   - **Recommended hold:** press the closed fingertips down on the PC top, front half (2 cm in front of
-    the case centre), in line with port 2; 35 N; **guarded engage**: descend at 10 mm/s from a 15 mm
-    stand-off until the encoder-estimated force (PD torque through J^+T, bias at the stand-off)
-    exceeds 3 N, latch the measured pose, then ramp dq = Kp^-1 J^T F over 0.4 s. Engage takes
-    ~4-6 s; engage it before the approach (it moves the PC: p99 0.27 mm, max 3.1 mm, n = 1024)
-    and take the ZED estimate after it, or re-estimate.
-  - **Why guarded:** an absolute IK target with the force offset puts 2.7-7 N of parasitic
-    sideways force on the PC (encoder-offset error x the coupled arm stiffness); the guarded
-    engage gives 0.4-1.4 N. Arm Cartesian stiffness is only 0.3-0.5 N/mm (kp 80 Nm/rad), so a
-    position offset is not a force command.
-  - **PC motion (full DR, n = 1024 each, 1.5 s hold + 0.5 s ramp, +/-15 % lateral load):**
-    fixed push at the port along the insertion axis 0 N **99.8 %** (2 non-finite worlds), 1 N 99.3 %,
-    2 N 97.3 %, 3 N 96.0 %, 5 N 94.0 %, 10 N 84.4 %. No arm-arm contact in any press run.
-    Brace (rear face): 6.5 % (n = 1024, push U(0, 20) N). Rear-half press: 54 % at 35 N (n = 2048,
-    push U(0, 20) N); front half beats rear half (pitch moment of the port load).
-  - **Limit:** the sim lets the PC slide at 1-5 N with 35 N down and feet mu >= 0.3 (Coulomb capacity
-    >= 11 N); 2-6 % of worlds break loose. Stiffer feet contacts (solref 5 ms) made it worse. This
-    is the soft-friction / box-feet contact, not the hold. Left joint 2 holds ~15 N m at 35 N
-    (DM4340 rated ~9 N m): keep the hold short or use 25 N.
-  - **Open:** privileged scripted insertion jams at the panel (45 um clearance, no chamfer;
-    3.8 % seated under full DR), so the insertion load is undefined until Part 4 exists; real
-    USB-C insertion is 5-20 N, above what this sim hold keeps still.
+    the case centre), in line with port 2, **25 N** (left joint 2 ~8.5 N m, within the DM4340 rating;
+    35 N needs ~12 N m and is no better); **guarded engage**: descend at 10 mm/s from a 15 mm stand-off
+    until the encoder-estimated force (PD torque through J^+T, bias at the stand-off) exceeds 3 N,
+    latch the measured pose, then ramp dq = Kp^-1 J^T F over 0.4 s (~4-6 s in all). Engage it before
+    the approach; it moves the PC by p99 0.06 mm.
+  - **PC still (< 0.5 mm, < 0.5 deg over 2 s; fixed push at the port along the insertion axis, +/-15 %
+    lateral; n = 1024 each; current DR: PC +/-1.5 cm / +/-5 deg, feet mu U(0.8, 1.0), Part 1 grasp contact
+    impratio 30):**
+
+    | Press | 1 N | 3 N | 5 N | 10 N |
+    |---|---|---|---|---|
+    | 15 N | 100 % | 98.1 % | 97.2 % | 91.2 % |
+    | **25 N** | **100 %** | **99.3 %** | **98.3 %** | **95.5 %** |
+    | 35 N | 100 % | 99.0 % | 98.1 % | 95.9 % |
+
+    No arm-arm contact, no non-finite world, no right-arm/reader contact with the PC in these runs.
+  - **Why guarded:** an absolute IK target with the force offset pushes the PC sideways with 2.7-7 N
+    (encoder-offset error through the coupled arm stiffness of 0.3-0.5 N/mm); guarded gives 0.4-1.4 N.
+    A rear-face brace cannot hold (6.5 %, round 1); the front half of the top beats the rear half.
+  - **History:** round 1 (PC +/-3 cm / +/-10 deg, feet mu U(0.3, 0.9), impratio 100) at 35 N: 1 N 99.3 %,
+    3 N 96.0 %, 10 N 84.4 %. The narrower DR and impratio 30 each helped (r2: impratio 100, 3 N 97.0 %).
+  - **Limit:** a few % of PCs still slide at 3-10 N although Coulomb capacity is > 20 N: soft friction
+    on the 5 mm box feet (sim artifact; MuJoCo Warp has no noslip). The scripted privileged insertion
+    still jams (no chamfer), so the real insertion load is set by Part 4.
 
 ## Part 4: Insertion (RL)
 
