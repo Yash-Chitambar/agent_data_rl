@@ -179,6 +179,12 @@ Results: `results/usbc/policy/insertion/`.
   step. Training reward rose 4 → 17 per rollout while success fell 100 → 50 %; held-out at scale 0.25
   the degraded checkpoint seated 49.0 % with 438/1024 plugs fully inserted but never holding (vs 93.4 %,
   n = 2048, for its earlier checkpoint). Longer episodes made it worse. Now a one-time success bonus (10).
+- **Blind PPO v5 (round-3 Part 2 starts, 25 N hold, Part 1 grasp, 10 s episodes, curriculum 0.5 → 1.0
+  → 1.5 × Part 2 errors, 3 seeds):** seed 2 mid-training (stage 1.0, ~8 M steps) held-out at scale 1.0:
+  **98.2 % [97.6, 98.7] (2012/2048)**; failures are 35 stuck at the mouth (1 jam). Success by start
+  lateral error: ≤ 0.5 mm 99.9 % (n = 1276), 0.5-1 mm 98.1 % (579), 1-1.5 mm 95.8 % (119), 1.5-2 mm
+  79 % (48), 2-3 mm 67 % (24); starts > 1 mm below the port are worst (80 %). The blind capture region
+  is ~1 mm: **the approach must be within ~1 mm laterally for ≥ 99 %**. Final per-level numbers below.
 - **Slip termination** relaxed to a drop (10 mm / 15° in the hand); a few mm of in-hand slip that still
   seats is not a failure.
 - **What the wrist camera adds (DAgger from the privileged teacher, n = 1024 each, scale 1.0, in the
