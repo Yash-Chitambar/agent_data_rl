@@ -72,7 +72,13 @@ def parse(argv=None):
     ap.add_argument('--batches', type=int, default=1)
     ap.add_argument('--seed', type=int, default=7000, help='held-out (Part 1 gate 20000, Part 4 1000, Part 2 1-2)')
     ap.add_argument('--name', default='chain')
-    ap.add_argument('--pick', default='expert', help="pick stage: 'expert' (Part 1 scripted, privileged); ACT plugs in via PICK_STAGES")
+    ap.add_argument('--pick', default='expert_privileged', choices=('expert_privileged', 'expert', 'expert_estimated', 'act'),
+                    help='pick stage (blind_insertion/pipeline/pick_stage.py): Part 1 scripted expert planned from the true '
+                         '(privileged) or an estimated reader pose, or ACT (not wired yet)')
+    ap.add_argument('--reader-estimator', default='',
+                    help="expert_estimated: 'module:factory' (factory(chain) -> est(chain) -> (p, R, ok)) or 'noisy_oracle:<mm>,<deg>'")
+    ap.add_argument('--render-failures', default='', help='directory: record every world and render the failures of each batch (demo format)')
+    ap.add_argument('--render-failures-max', type=int, default=4)
     ap.add_argument('--zed-at', choices=('start', 'parked', 'after_hold'), default='start')
     ap.add_argument('--hold-along', type=float, default=-.02, help='press point from the case centre (m). -0.02: the insertion policy training value (chain 99.80 %%, n = 1024); -0.035: Part 3 round 4 recommendation (chain 96-98 %%: the blind policy reads the left encoders)')
     ap.add_argument('--hold-force', type=float, default=25.)
@@ -155,6 +161,8 @@ class Chain:
         self.dev, self.n, self.dt = rt.device, a.nworld, env.dt
         pcfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device=dev, task_layout=PICK_LAYOUT), episode_s=13.)
         self.pick = PickTask(pcfg, runtime=rt)
+        from blind_insertion.pipeline.pick_stage import make_pick_stage
+        self.pick_stage = make_pick_stage(a.pick, a.reader_estimator, self)
         self.h = Harness(rt, HarnessCfg())
         # ZED: v1 net + presence/OOD + arm-pose gate (round 5); the frame is taken at the capture pose of
         # configs/zed_capture_pose.json (the reference pose the net was trained at, grippers open).
@@ -213,32 +221,24 @@ class Chain:
         return self.zed(fr, arms=(ql, qr, fo))
 
     def stage_pick(self, log):
-        task = self.pick
-        ex = PickExpert(task, seed=self.seed)
-        ex.reset()
-        N, dev = self.n, self.dev
-        start_hold = {'p': torch.zeros(N, 3, device=dev), 'R': torch.eye(3, device=dev).repeat(N, 1, 1), 'tilt': torch.zeros(N, device=dev)}
-        for k in range(task.max_steps - 1):
-            prev = ex.phase.clone()
-            task.step(ex.act())
-            self.tick('1 pick')
-            entered = (ex.phase == 5) & (prev == 4)
-            if entered.any():
-                m = task.pick_metrics()
-                start_hold['p'][entered] = m['inhand_p'][entered]; start_hold['R'][entered] = m['inhand_R'][entered]
-                start_hold['tilt'][entered] = m['tilt_deg'][entered]
-            if ex.done.all():
-                break
+        """Pluggable pick (blind_insertion/pipeline/pick_stage.py, --pick); success measured here as in Part 1."""
+        task, N, dev = self.pick, self.n, self.dev
+        res = self.pick_stage.run(self)
+        start_hold = res.get('start_hold') or {'p': task.pick_metrics()['inhand_p'], 'R': task.pick_metrics()['inhand_R'],
+                                               'tilt': task.pick_metrics()['tilt_deg']}
+        for k_, v_ in res.items():
+            if k_ not in ('done', 'failed', 'start_hold') and torch.is_tensor(v_):
+                log[f'pick_{k_}'] = v_
         m = task.pick_metrics()
         dp = (m['inhand_p'] - start_hold['p']).norm(dim=1)
         dR = torch.rad2deg(K.rot_log(m['inhand_R'] @ start_hold['R'].transpose(1, 2)).norm(dim=1))
-        ok = ex.done & ~task.failed & m['finite'] & (m['lift_m'] > .06) & (m['tilt_deg'] < 3) & (start_hold['tilt'] < 3) & (dp < 1e-3) & (dR < 1.)
+        ok = res['done'] & ~res['failed'] & m['finite'] & (m['lift_m'] > .06) & (m['tilt_deg'] < 3) & (start_hold['tilt'] < 3) & (dp < 1e-3) & (dR < 1.)
         off = task.offsets[(G.TILT_DEG, False)]
         np_, nR = G.nominal_inhand(off, G.TILT_DEG, False)
         rel_p = (m['inhand_p'] - torch.tensor(np_, dtype=torch.float32, device=dev)) * 1e3
         rel_r = torch.rad2deg(K.rot_log(m['inhand_R'] @ torch.tensor(nR, dtype=torch.float32, device=dev).T))
-        log.update(pick_ok=ok, pick_done=ex.done, pick_failed=task.failed, pick_ik_ok=ex.ik_ok, pick_lift_mm=m['lift_m'] * 1e3,
-                   pick_tilt_deg=m['tilt_deg'], pick_steps=torch.full((N,), k + 1, device=dev),
+        log.update(pick_ok=ok, pick_done=res['done'], pick_failed=res['failed'], pick_lift_mm=m['lift_m'] * 1e3,
+                   pick_tilt_deg=m['tilt_deg'],
                    **{f'pick_inhand_d{c}_mm': rel_p[:, i] for i, c in enumerate('xyz')},
                    **{f'pick_inhand_r{c}_deg': rel_r[:, i] for i, c in enumerate('xyz')})
         # hand over to the absolute-target harness: same control DR draw, same latency buffer
@@ -651,12 +651,21 @@ def main(argv=None):
         from demo_chain import render_demos   # scripts/eval/demo_chain.py
         return render_demos(ch, a)
     rows, hand = [], []
+    n_rendered = 0
     for b in range(a.batches):
         tb = time.time()
-        out = ch.run_batch(a.seed + b)
+        rec = a.render_failures and n_rendered < a.render_failures_max
+        out = ch.run_batch(a.seed + b, record_ids=list(range(a.nworld)) if rec else None)
         df = pd.DataFrame(out)
         df['e2e_class'] = classify(df)
         rows.append(df)
+        if rec:
+            fails = [i for i in range(len(df)) if df.e2e_class[i] != 'success'][:a.render_failures_max - n_rendered]
+            if fails:
+                from demo_chain import render_worlds
+                render_worlds(ch, df, fails, a.seed + b, out_dir=ROOT / a.render_failures)
+                n_rendered += len(fails)
+            ch.rec = None
         if a.save_handover:
             hs = {k: v.cpu().numpy() for k, v in ch.handover.items()}
             hs['outcome'] = np.array(df.insert_outcome.values, dtype='U16')

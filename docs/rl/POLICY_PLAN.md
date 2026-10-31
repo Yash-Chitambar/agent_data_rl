@@ -284,6 +284,13 @@ the live state → InsertionTask seated test. Stages before insertion: 1024/1024
 - Hand-over (2026-10-31, later): bumpless (feed-forward torque folded into the first insertion target); stop bias
   removed; pre-insert at the policy's start lateral p99 1.1 mm. Remaining failures: insertion policy at the mouth from
   0.2-1.4 mm starts. 4096 live insertion starts saved for training (`runs/chain/handover/`, FINDINGS).
+- **Pick is pluggable** (`blind_insertion/pipeline/pick_stage.py`, `eval_chain.py --pick`): `expert_privileged`
+  (Part 1 expert, true reader pose), `expert_estimated` (same expert planned from an estimate: `--reader-estimator
+  module:factory`, factory(chain) -> est(chain) -> (p, R, ok) in world, reader frame as PickTask.reader_pose; or
+  `noisy_oracle:<mm>,<deg>` for error budgets), `act` (stub: wire a TorchScript export in `ActPick.run`).
+  **Reader-pose error budget for a perception-driven pick** (expert planned from true pose + uniform xy / yaw noise, n = 256
+  each, full chain): +/-1 mm / +/-1.5 deg 256/256; +/-2 mm / +/-3 deg pick 98.4 % (4 failures, all with yaw error ~2.8 deg:
+  tilt in hand or no lift); +/-4 mm / +/-5 deg 86.7 %. The estimator needs ~1 mm / 1.5 deg (yaw matters most).
 - Demos: `results/usbc/policy/chain/demos/` (ZED + both wrists + close-up, real time). Details: FINDINGS
   2026-10-31 (`policy/chain`).
 

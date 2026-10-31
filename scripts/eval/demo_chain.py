@@ -59,18 +59,28 @@ STAGE_NAMES = {'0': 'ZED estimate', '1': 'pick (scripted expert)', '2': 'left ho
 
 
 def render_demos(ch, a):
+    """One recorded batch: render a.demo successes and up to 2 failures, then the contact sheet."""
     from eval_chain import classify
     OUT.mkdir(parents=True, exist_ok=True)
-    rt, n = ch.rt, ch.n
+    n = ch.n
     out = ch.run_batch(a.seed, record_ids=list(range(n)))
     df = pd.DataFrame(out)
     df['e2e_class'] = classify(df)
-    qs = np.stack(ch.rec['q'])          # (T, n, nq)
-    labels = ch.rec['label']
     succ = [i for i in range(n) if df.e2e_class[i] == 'success'][:a.demo]
     fail = [i for i in range(n) if df.e2e_class[i] != 'success'][:2]
-    chosen = succ + fail
-    print('demo worlds', chosen, df.e2e_class[chosen].tolist(), flush=True)
+    meta = render_worlds(ch, df, succ + fail, a.seed)
+    contact_sheet()
+    return meta
+
+
+def render_worlds(ch, df, chosen, seed, out_dir=OUT):
+    """Render recorded worlds of the last batch (ch.rec, all worlds recorded) into MP4s + one tile PNG each.
+    Must run right after the batch: the Warp top row uses the batch's visual DR still loaded in the runtime."""
+    out_dir = Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
+    rt, n = ch.rt, ch.n
+    qs = np.stack(ch.rec['q'])          # (T, n, nq)
+    labels = ch.rec['label']
+    print('render worlds', chosen, df.e2e_class[chosen].tolist(), flush=True)
     m = rt.mjm
     m.vis.global_.offwidth, m.vis.global_.offheight = max(W, m.vis.global_.offwidth), max(H, m.vis.global_.offheight)
     renderer = mujoco.Renderer(m, H, W)
@@ -79,7 +89,8 @@ def render_demos(ch, a):
     stage_start = {}
     for t, lb in enumerate(labels):
         stage_start.setdefault(lb, t)
-    writers = {w: imageio.get_writer(OUT / f'chain_w{w:02d}_{df.e2e_class[w]}.mp4', fps=25, codec='libx264', quality=6,
+    name = {w: f'chain_s{seed}_w{w:03d}_{df.e2e_class[w]}' for w in chosen}
+    writers = {w: imageio.get_writer(out_dir / f'{name[w]}.mp4', fps=25, codec='libx264', quality=6,
                                      macro_block_size=None) for w in chosen}
     sheet = {}
     T = len(labels)
@@ -103,7 +114,7 @@ def render_demos(ch, a):
                 _text(img, nm, (10 + k * TOP, 28), .7)
             _text(img, f'{lb[2:]}', (20, TOP + 45), 1.1, (255, 230, 120))
             _text(img, STAGE_NAMES[lb[0]], (20, TOP + 85), .8)
-            _text(img, f't = {t * ch.dt:5.1f} s   world {w}  seed {a.seed}', (20, TOP + H - 20), .7)
+            _text(img, f't = {t * ch.dt:5.1f} s   world {w}  seed {seed}', (20, TOP + H - 20), .7)
             if lb[0] == '5' and t_stage > 0:
                 res = df.insert_outcome[w]
                 tt = df.insert_t_s[w]
@@ -116,18 +127,28 @@ def render_demos(ch, a):
     for wr in writers.values():
         wr.close()
     renderer.close()
-    tiles = [cv2.resize(sheet[w], (640, int(640 * sheet[w].shape[0] / W))) for w in chosen if w in sheet]
-    cols = 4
-    while len(tiles) % cols:
-        tiles.append(np.zeros_like(tiles[0]))
-    grid = np.concatenate([np.concatenate(tiles[i:i + cols], 1) for i in range(0, len(tiles), cols)], 0)
-    imageio.imwrite(OUT / 'contact_sheet.png', grid)
-    meta = {'seed': a.seed, 'nworld': n, 'videos': [f'chain_w{w:02d}_{df.e2e_class[w]}.mp4' for w in chosen],
-            'classes': {int(w): df.e2e_class[w] for w in chosen},
-            'batch_classes': df.e2e_class.value_counts().to_dict(),
+    for w in chosen:
+        if w in sheet:
+            imageio.imwrite(out_dir / f'{name[w]}_tile.png', cv2.resize(sheet[w], (640, int(640 * sheet[w].shape[0] / W))))
+    meta = {'seed': seed, 'videos': [f'{name[w]}.mp4' for w in chosen], 'classes': {int(w): df.e2e_class[w] for w in chosen},
             'layouts': {int(w): {'pc_xy': [float(df.pc_x[w]), float(df.pc_y[w])], 'pc_yaw_deg': float(df.pc_yaw_deg[w]),
                                  'reader_xy': [float(df.reader_x[w]), float(df.reader_y[w])]} for w in chosen},
             'note': 'top row: Warp policy cameras with the episode visual DR; bottom: CPU MuJoCo free camera, nominal look'}
-    (OUT / 'demos.json').write_text(json.dumps(meta, indent=1) + '\n')
-    print(json.dumps(meta, indent=1))
+    old = json.loads((out_dir / 'demos.json').read_text()) if (out_dir / 'demos.json').exists() else {'batches': []}
+    old.setdefault('batches', []).append(meta)
+    (out_dir / 'demos.json').write_text(json.dumps(old, indent=1) + '\n')
+    print(json.dumps(meta, indent=1), flush=True)
     return meta
+
+
+def contact_sheet(out_dir=OUT, cols=4):
+    """Contact sheet of every *_tile.png in out_dir (successes first)."""
+    out_dir = Path(out_dir)
+    files = sorted(out_dir.glob('*_tile.png'), key=lambda f: ('success' not in f.name, f.name))
+    tiles = [imageio.imread(f) for f in files]
+    if not tiles:
+        return
+    while len(tiles) % cols:
+        tiles.append(np.zeros_like(tiles[0]))
+    grid = np.concatenate([np.concatenate(tiles[i:i + cols], 1) for i in range(0, len(tiles), cols)], 0)
+    imageio.imwrite(out_dir / 'contact_sheet.png', grid)
