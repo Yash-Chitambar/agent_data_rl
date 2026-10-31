@@ -50,12 +50,18 @@ def reader_dims(lay):
     return cz - hz, 2 * hz, hx, hy
 
 
-def site_rotation(tilt_deg=TILT_DEG):
-    """grasp_site axes (columns) in the reader frame."""
+FLIP = np.diag([-1., 1., -1.])   # 180 deg about the reader's vertical (y) axis
+
+
+def site_rotation(tilt_deg=TILT_DEG, flip=False):
+    """grasp_site axes (columns) in the reader frame. flip=False: the hand reaches along the plug
+    (plug away from the hand); flip=True: the same grasp turned 180 deg about the vertical, the hand
+    reaching from the plug side towards the body end (plug towards the arm)."""
     t = -math.radians(tilt_deg)
     Ry = np.array([[math.cos(t), 0, math.sin(t)], [0, 1, 0], [-math.sin(t), 0, math.cos(t)]])
     # rotate the site about its own y: tilt > 0 swings site z (down) towards reader -z (the plug)
-    return np.asarray(R_TOP_TCP, float) @ Ry
+    R = np.asarray(R_TOP_TCP, float) @ Ry
+    return FLIP @ R if flip else R
 
 
 def hand_geometry(m, d, prefix=''):
@@ -76,11 +82,11 @@ def hand_geometry(m, d, prefix=''):
             'pad_radius': float(m.geom_size[pads[0], 0])}
 
 
-def grasp_offset(lay, hand, tilt_deg=TILT_DEG, axial=AXIAL_BEHIND_NECK, tip_clearance=TIP_CLEARANCE):
-    """grasp_site position in the reader frame (m) for a tilt; also returns the touching pads'
-    height range above the table (m)."""
+def grasp_offset(lay, hand, tilt_deg=TILT_DEG, axial=AXIAL_BEHIND_NECK, tip_clearance=TIP_CLEARANCE, flip=False):
+    """grasp_site position in the reader frame (m) for a tilt (and flip); also returns the touching
+    pads' height range above the table (m)."""
     front, _, _, ht = reader_dims(lay)
-    Rs = site_rotation(tilt_deg)
+    Rs = site_rotation(tilt_deg, flip)
     table_y = -ht - SUPPORT_GAP
     tip_h = (hand['tip_vertices'] @ Rs.T)[:, 1]
     y = table_y + tip_clearance - tip_h.min()
@@ -94,9 +100,10 @@ def grasp_offset(lay, hand, tilt_deg=TILT_DEG, axial=AXIAL_BEHIND_NECK, tip_clea
     return np.array([0.0, y, z]), rng
 
 
-def grasp_poses(p_reader, R_reader, offset, tilt_deg=TILT_DEG, back=APPROACH_BACK, up=APPROACH_UP, lift=LIFT_HEIGHT):
+def grasp_poses(p_reader, R_reader, offset, tilt_deg=TILT_DEG, back=APPROACH_BACK, up=APPROACH_UP, lift=LIFT_HEIGHT, flip=None):
     """Pre-grasp, grasp and lift grasp_site poses (torch, batched). offset (N, 3) or (3,); tilt
-    (N,) tensor or float. Pre-grasp is backed off along -site z and raised; lift is straight up."""
+    (N,) tensor or float; flip (N,) bool tensor or None (see site_rotation). Pre-grasp is backed off
+    along -site z and raised; lift is straight up."""
     import torch  # noqa: PLC0415
     dev, dt = p_reader.device, p_reader.dtype
     N = p_reader.shape[0]
@@ -105,6 +112,9 @@ def grasp_poses(p_reader, R_reader, offset, tilt_deg=TILT_DEG, back=APPROACH_BAC
     c, s, z, o = torch.cos(t), torch.sin(t), torch.zeros_like(t), torch.ones_like(t)
     Ry = torch.stack([torch.stack([c, z, s], -1), torch.stack([z, o, z], -1), torch.stack([-s, z, c], -1)], -2)
     Rs = torch.as_tensor(R_TOP_TCP, device=dev, dtype=dt) @ Ry
+    if flip is not None:
+        F = torch.as_tensor(FLIP, device=dev, dtype=dt)
+        Rs = torch.where(torch.as_tensor(flip, device=dev).expand(N)[:, None, None], F @ Rs, Rs)
     off = torch.as_tensor(offset, device=dev, dtype=dt).expand(N, 3)
     p = p_reader + (R_reader @ off[..., None])[..., 0]
     R = R_reader @ Rs
@@ -112,9 +122,9 @@ def grasp_poses(p_reader, R_reader, offset, tilt_deg=TILT_DEG, back=APPROACH_BAC
     return {'pregrasp': (p - back * R[:, :, 2] + up * upv, R), 'grasp': (p, R), 'lift': (p + lift * upv, R)}
 
 
-def nominal_inhand(offset, tilt_deg=TILT_DEG):
+def nominal_inhand(offset, tilt_deg=TILT_DEG, flip=False):
     """Nominal reader pose in the grasp_site frame: (p (3,), R (3, 3))."""
-    R = site_rotation(tilt_deg).T
+    R = site_rotation(tilt_deg, flip).T
     return -R @ np.asarray(offset), R
 
 

@@ -1,0 +1,307 @@
+{
+ "n_starts": 512,
+ "n_pc_poses": 27,
+ "tilt_deg": 55.0,
+ "flip": false,
+ "lift_ik_ok": 1.0,
+ "pre_insert": [
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.345
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.1004318967461586,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.345
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.09904273599386215,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.345
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.09750568121671677,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.36
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.10076496005058289,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.36
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.0984649732708931,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.36
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.09601099789142609,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.375
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.10318653285503387,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.375
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.09990983456373215,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.20500000000000002,
+    0.375
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.0964517667889595,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.345
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.08580466359853745,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.345
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.08451304584741592,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.345
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.08314189314842224,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.36
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.08618682622909546,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.36
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.0838409811258316,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.36
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.08140378445386887,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.375
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.08878482133150101,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.375
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.08535735309123993,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.22,
+    0.375
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.08181589096784592,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.345
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.07133232057094574,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.345
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.07018108665943146,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.345
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.06904908269643784,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.36
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.0717824324965477,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.36
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.06937751173973083,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.36
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.06697055697441101,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.375
+   ],
+   "yaw_deg": -5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.07459834218025208,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.375
+   ],
+   "yaw_deg": 0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.07098554074764252,
+   "ok": true
+  },
+  {
+   "port_xy": [
+    0.235,
+    0.375
+   ],
+   "yaw_deg": 5.0,
+   "ik_ok": true,
+   "hand_in_pc_points": 0,
+   "left_arm_min_dist_m": 0.06733159720897675,
+   "ok": true
+  }
+ ],
+ "pre_insert_ok": "27/27"
+}
