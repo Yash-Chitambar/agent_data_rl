@@ -255,7 +255,9 @@ def main():
          'rx_deg': torch.rad2deg(trv[:, 0]), 'ry_deg': torch.rad2deg(trv[:, 1]), 'roll_deg': torch.rad2deg(trv[:, 2]),
          'tilt_deg': tilt, 'zed_err': zed_err, 'look_lateral_mm': p_look[:, :2].norm(dim=1) * 1e3,
          'inhand': ins.inhand, 'pc_moved_mm': (pc_final - p_true).norm(dim=1) * 1e3, 'finite': fin,
-         'left_latched': hold.latched, 'zed_ok': zed_ok}
+         'left_latched': hold.latched, 'zed_ok': zed_ok,
+         'wrist_cam_pos_err_mm': rt.visual.params['cam_pos_err_mm'][:, rt.visual.camera_names.index('wrist_cam')].clone(),
+         'wrist_cam_rot_err_deg': rt.visual.params['cam_rot_err_deg'][:, rt.visual.camera_names.index('wrist_cam')].clone()}
     if per_world:
         w['servo_per_world'] = torch.stack(per_world, 1)     # (n, iters, [x, y, gap, ik_err, inhand_rot_change])
     w = {k: v.detach().cpu().numpy() for k, v in w.items()}

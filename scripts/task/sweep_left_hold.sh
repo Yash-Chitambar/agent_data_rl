@@ -39,3 +39,21 @@ if [ "$1" = r4 ]; then
   run r4_f25_p3_guard1.5 $B --along -0.02 --guard-force 1.5
   run r4_f25_p3_folded $B --along -0.02 --left-start folded
 fi
+# Round 4b: press 3.5 cm in front of the case centre (`sweep_left_hold.sh r4b`)
+if [ "$1" = r4b ]; then
+  B="--mode press --force 25 --along -0.035 --nworld 1024"
+  run r4b_f25_a035_p3_seed1 $B --push 3 3 --seed 1
+  run r4b_f25_a035_p3_folded $B --push 3 3 --seed 2 --left-start folded
+  run r4b_f25_a035_p1 $B --push 1 1
+  run r4b_f25_a035_p5 $B --push 5 5
+  run r4b_f25_a035_p10 $B --push 10 10
+  run r4b_f25_a045_p3 --mode press --force 25 --along -0.045 --nworld 1024 --push 3 3
+fi
+# Round 4c: recommended hold under policy/v1 b709692 (PC box x +/-1 cm): `sweep_left_hold.sh r4c`
+if [ "$1" = r4c ]; then
+  B="--mode press --force 25 --along -0.035 --nworld 1024"
+  run r4c_f25_a035_p3_s10 $B --push 3 3 --seed 10
+  run r4c_f25_a035_p3_s11_folded $B --push 3 3 --seed 11 --left-start folded
+  run r4c_f25_a035_p5_s12 $B --push 5 5 --seed 12
+  run r4c_f25_a045_p3 --mode press --force 25 --along -0.045 --nworld 1024 --push 3 3 --seed 13
+fi

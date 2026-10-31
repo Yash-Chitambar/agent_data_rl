@@ -5,3 +5,11 @@
  "n": 1024,
  "pass_rate": 1.0,
 == r4_f25_p3_across0
+ "n": 1024,
+ "pass_rate": 0.994140625,
+== r4_f25_p3_guard1.5
+ "n": 1024,
+ "pass_rate": 0.9873046875,
+== r4_f25_p3_folded
+ "n": 1024,
+ "pass_rate": 0.984375,
