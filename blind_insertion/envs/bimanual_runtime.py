@@ -145,6 +145,7 @@ class BimanualRuntime:
             b = m.body('fixture').id
             m.body_mass[b] *= c.pc_mass_scale
             m.body_inertia[b] *= c.pc_mass_scale
+            mujoco.mj_setConst(m, mujoco.MjData(m))   # derived constants (invweight0 ...) follow the new mass
         for key, value in (c.opt_overrides or {}).items():
             if not hasattr(m.opt, key):
                 raise ValueError(f'unknown MjOption field {key}')

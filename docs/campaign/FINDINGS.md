@@ -106,6 +106,23 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
+**Result (blind PPO v5 seed 0, `runs/P4-insert-proprio-v5-s0`, ~19 M steps):** held-out seed 1000,
+Part 2 round-3 pre-insert errors (`preinsert_error_samples.npz`, n = 1024 episodes) × scale, Part 1
+grasp (in-hand spread ×1.25), Part 3 guarded 25 N hold, full DR, 10 s episodes, seated = 0.2 s
+geometric hold with a 25 µm aperture tolerance; n = 2048 per row:
+
+| Scale | Lateral p99 | Seated | Wilson 95 % | Failures | Part 4 gate |
+|---|---|---|---|---|---|
+| 0.5 | ~1.0 mm | 99.90 % | [99.64, 99.97] | 2 slip | pass |
+| **1.0 (Part 2 as measured)** | 1.98 mm | **99.71 %** | [99.36, 99.87] | 3 slip, 3 stuck at mouth | **pass** |
+| 1.5 (requested margin) | ~3.1 mm | 99.17 % | [98.67, 99.48] | 2 slip, 15 stuck at mouth | miss (lower bound 98.7 %) |
+
+Other seeds at 1.5: s1 98.68 % [98.09, 99.09], s2 99.07 % [98.56, 99.41]. At 1.5 (seed 0), by start
+lateral error: ≤ 0.5 mm 100 % (888), 0.5-1 mm 99.86 % (692), 1-1.5 mm 99.27 % (275), 1.5-2 mm 94.8 % (96),
+2-3 mm 93.0 % (71), 3-4.5 mm 87.5 % (24); every failure had an encoder-offset error ≥ 1.09°. Median
+time to seat 0.6 / 0.84 / 0.9 s; PC motion p99 ≤ 1.3 mm. Strict (0 µm) aperture test: ≤ 0.25 % at
+every level (soft-contact penetration; see below). Results: `results/usbc/policy/insertion/eval_blind_v5s0_*`.
+
 Branch `policy/insertion`. Code: `envs/insertion_task.py`, `train_bimanual.py`, `eval_insertion.py`,
 `distill_insertion.py`; checks `scripts/checks/check_insertion_task.py`, `check_insertion_clearance.py`.
 Results: `results/usbc/policy/insertion/`.

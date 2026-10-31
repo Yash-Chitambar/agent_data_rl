@@ -1,0 +1,22 @@
+{
+ "policy": "runs/v5s0_final.pt",
+ "n": 2048,
+ "seated": 0,
+ "rate": 0.0,
+ "wilson95": [
+  0.0,
+  0.0018722692823851506
+ ],
+ "scale": 1.5,
+ "seed": 1000,
+ "outcomes": {
+  "nonfinite": 2048
+ },
+ "strict_seated_rate": 0.0,
+ "seated_or_deep_rate": 0.0,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": null,
+ "t_seat_s_p95": null,
+ "pc_max_mm_p99": NaN,
+ "gate_pass": false
+}

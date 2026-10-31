@@ -215,6 +215,7 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   | PPO privileged teacher | wide DR, 60° grasp, 6 s | 1.0 | 1024 | 80.0 % [77.4, 82.3] | first-episode eval (biased low); +6.3 % deep-unseated |
   | DAgger students (blind / wrist / wrist-approach / wrist+ZED) | students' training conditions | 1.0 | 1024 each | 7.1 / 6.5 / 3.5 / 6.3 % | cameras add nothing measurable via DAgger |
   | PPO blind v3 (10 s, early ckpt) | success-first DR, Part 1 grasp | 0.25 | 2048 | 93.4 % [92.2, 94.4] | 97.1 % incl. deep-unseated |
+  | **PPO blind v5 s0 (final)** | round-3 Part 2 starts, 25 N hold, Part 1 grasp, success-first contact DR, 10 s | 0.5 / **1.0** / 1.5 | 2048 each | 99.90 % / **99.71 %** [99.36, 99.87] / 99.17 % [98.67, 99.48] | gate passes at Part 2's distribution, misses at ×1.5 |
 
   Final per-level table: FINDINGS 2026-10-31 (Part 4).
 
