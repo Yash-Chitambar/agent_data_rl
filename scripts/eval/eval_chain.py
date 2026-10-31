@@ -52,7 +52,7 @@ from blind_insertion.envs.bimanual_pick import PickExpert, PickTask, PickTaskCfg
 from blind_insertion.envs.bimanual_runtime import BimanualCfg  # noqa: E402
 from blind_insertion.envs.insertion_task import InsertionCfg, InsertionTask, failure_class  # noqa: E402
 from blind_insertion.envs.left_hold import Harness, HarnessCfg, HoldCfg, LeftHold  # noqa: E402
-from blind_insertion.eval_insertion import load_policy, wilson  # noqa: E402
+from blind_insertion.eval_insertion import load_insertion_policy, wilson  # noqa: E402
 from blind_insertion.perception.nets import PoseNet, TwoViewPoseNet  # noqa: E402
 from blind_insertion.perception.zed_estimator import ZedEstimator  # noqa: E402
 from blind_insertion.scenes import reader_grasp as G  # noqa: E402
@@ -60,7 +60,7 @@ from blind_insertion.scenes import reader_grasp as G  # noqa: E402
 PICK_LAYOUT = 'results/usbc/policy/pick/task_layout.json'
 import os  # noqa: E402
 # Part 4 best (blind PPO v6 seed 2; copy of policy-insertion runs/P4-insert-best/best.pt, outside git). Override: P4_INSERT_BEST.
-INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_v10dr.pt')   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
+INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_v11.pt')   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
 INSERT_V5 = 'runs/chain/P4-insert-proprio-v5-s0_last.pt'    # earlier: policy-insertion runs/P4-insert-proprio-v5-s0/last.pt
 FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005}   # eval_approach.py
 OUT = ROOT / 'results/usbc/policy/chain'
@@ -165,7 +165,7 @@ class Chain:
         self.zed_q = {s_: torch.tensor(cap[s_], device=dev, dtype=torch.float32) for s_ in ('right', 'left')}
         self.wrist = wrist_loader(a.wrist_net, dev)
         self.fine = wrist_loader(a.fine_net, dev) if a.fine_below_mm > 0 else None
-        self.ac, self.ck = load_policy(ROOT / a.policy, dev)
+        self.pol = load_insertion_policy(str(ROOT / a.policy), dev)   # handles masked left-arm features (v11)
         self.fric = FC.parse(FRIC_COMP, side='right')
         from blind_insertion.envs.inhand import measured_mean
         self.R_sr0, self.p_sr0 = measured_mean(device=dev)      # believed in-hand pose (site in reader)
@@ -430,7 +430,7 @@ class Chain:
         pc_max = torch.zeros(n, device=dev)
         for t in range(env.max_steps):
             with torch.no_grad():
-                act, _ = self.ac.act_mean(env.hist)
+                act = self.pol(env.hist)
             _, _, _, done, info = env.step(act)
             self.tick('5 insert')
             pc_max = torch.maximum(pc_max, info['pc_d'])
@@ -477,7 +477,8 @@ class Chain:
                  sent_history=env.sent_history.transpose(0, 1), left_press_q=env.left_press_q,
                  dof_frictionloss=rt.frictionloss, gravity_scale=rt.gravity_scale, geom_friction=rt.geom_friction[..., 0],
                  geom_solref=rt.geom_solref[..., 0], actuator_gainprm=rt.actuator_gainprm[..., 0],
-                 contact_params=rt.contact_params, seed=torch.full((self.n,), self.seed, device=self.dev))
+                 contact_params=rt.contact_params, seed=torch.full((self.n,), self.seed, device=self.dev),
+                 actor_obs=env.hist[:, -1], previous_action=env.previous_action)
         return {k: v.detach().clone() for k, v in s.items()}
 
     # ------------------------------------------------------------------ episode
@@ -666,9 +667,13 @@ def main(argv=None):
     if hand:
         out = {k: np.concatenate([h_[k] for h_ in hand]) for k in hand[0]}
         out['qpos_names'] = np.array(['see blind_insertion.envs.bimanual_runtime: runtime.indices / pc_qadr / lay.peg_qadr'])
+        out['geom_names'] = np.array([ch.rt.mjm.geom(g).name for g in range(ch.rt.mjm.ngeom)])
         Path(a.save_handover).parent.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(a.save_handover, **out)
         print('saved hand-over states', a.save_handover, len(out['qpos']), flush=True)
+    if a.stop_at_handover:
+        df.to_csv(OUT / f'{a.name}.csv', index=False)
+        return None
     rep = summarize(df, a, time.time() - t0)
     OUT.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUT / f'{a.name}.csv', index=False)

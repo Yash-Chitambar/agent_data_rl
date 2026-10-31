@@ -104,7 +104,7 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
-### 2026-10-31 (mason, `policy/chain`) — Bumpless hand-over, stop bias removed, round-5 approach: 99.61-99.71 % (n = 1024 each); 4096 live insertion starts saved
+### 2026-10-31 (mason, `policy/chain`) — Bumpless hand-over, stop bias removed, round-5 approach: 99.61-99.80 % (n = 1024 each); 4096 live insertion starts saved
 
 **Hand-over drift was the feed-forward switch-off, not the controller switch.** From the same saved state at the
 end of the approach (n = 256): holding the approach command for 0.2 s with the right-arm Coulomb feed-forward on moves
@@ -126,7 +126,8 @@ without it, so the arm sagged by the deadband.
 
 | Insertion | n | End to end | Wilson 95 % | Failures | Arm-arm |
 |---|---|---|---|---|---|
-| v10dr | 1024 | **99.71 %** | [99.14, 99.90] | 3 stuck at the mouth | 0 |
+| **v11 (left j6 masked, hold yaw DR)** | 1024 | **99.80 %** | [99.29, 99.95] | 2 stuck at the mouth | 0 |
+| v10dr | 1024 | 99.71 % | [99.14, 99.90] | 3 stuck at the mouth | 0 |
 | v6 s2 | 1024 | 99.61 % | [99.00, 99.85] | 4 stuck at the mouth | 0 |
 
 Stages before insertion 1024/1024 in both (ZED gate incl. arm-pose check accepts 100 %, xy p50 0.77 / p99 2.79 mm).
@@ -139,7 +140,10 @@ fails in every run): insertion-policy failures, not hand-over.
 q_right, reader, fingers, q_left_hover, q_left_press, inhand_R, inhand_p, err_p, err_ang) + exact restore (qpos, qvel,
 ctrl, qacc_warmstart, enc_error, latency, joint_target incl. the torque hand-over offset, sent_history, left_press_q)
 + per-world DR (dof_frictionloss, gravity_scale, geom_friction, geom_solref, actuator_gainprm, contact_params).
-Loader: `eval_chain.load_handover(path)`.
+Restore exactly into an InsertionTask: `scripts/eval/handover_states.py:restore(env, z, ids, rows)` (also adds
+`actor_obs`, `geom_names` and writes `README.json` next to the file). Check: v11 rolled out from the 4096 restored
+states in a fresh, non-rendering InsertionTask seats 4091/4096 = 99.88 % [99.71, 99.95] (3 slips, 2 mouth).
+World 218 (seed 7000) fails with v6, v10dr and v11: a hard case for the insertion agent.
 ### 2026-11-01 (mason, `policy/approach-hold`) — Round 6: why the arm-robust ZED nets miss on real frames
 
 Real test: the 123 ZED frames of `bimanual_stationary_001` (both arms folded, all joints ~0 by the encoders)
