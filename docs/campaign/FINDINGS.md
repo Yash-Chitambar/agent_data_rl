@@ -204,7 +204,72 @@ geometric hold with a 25 µm aperture tolerance; n = 2048 per row:
 **PC fixed** (mass ×30, `mj_setConst`; PC motion p99 0.11 mm) at 1.5: 99.22 % [98.73, 99.52] (n = 2048,
 15 stuck at mouth, 1 slip), the same as with the 25 N hold: the hold is not the limit, the lateral
 capture region is. (×1000 mass without `mj_setConst` went non-finite in every world.)
-Other seeds at 1.5: s1 98.68 % [98.09, 99.09], s2 99.07 % [98.56, 99.41]. At 1.5 (seed 0), by start
+Other seeds at 1.5: s1 98.68 % [98.09, 99.09], s2 99.07 % [98.56, 99.41].
+**Round 2 result (2026-11-01): gate passed at scale 1.5.** Blind PPO v6 seed 2 (continued from v5 seed 2
+with curriculum 1.5 → 2.0 and 30 % of starts drawn at 1.5-3.5 mm lateral, `hard_frac`; 10 M steps, ~1 h on
+one V100), n = 2048 per row:
+
+| Scale | Eval seed | Seated | Wilson 95 % | Failures |
+|---|---|---|---|---|
+| 0.5 | 1000 | 99.95 % | [99.72, 99.99] | 1 slip |
+| 1.0 | 1000 | 99.95 % | [99.72, 99.99] | 1 stuck at mouth |
+| **1.5** | 1000 | **99.76 %** | [99.43, 99.90] | 4 stuck at mouth, 1 slip |
+| **1.5** | 2000 (independent) | **99.85 %** | [99.57, 99.95] | 2 stuck at mouth, 1 slip |
+
+At 1.5 (seed 1000) by start lateral error: ≤ 1.5 mm 100 % (1855), 1.5-2 mm 99.0 % (96), 2-3 mm 95.8 % (71),
+> 3 mm 100 % (24). Seated plugs 5.63-5.80 mm deep, tilt ≤ 1.92°, aperture violation median 15.7 µm.
+Median time to seat 0.88 s; PC motion p99 1.3 mm. v6 seed 0 at 10 M: 99.27 % [98.80, 99.56] (misses).
+Exported as `runs/P4-insert-best/best.pt`.
+
+**Left-arm dependence (chain feedback, 2026-11-01).** v6s2 reads the left arm (12 encoders etc.): in this
+env, scale 1.5, n = 2048: hold at 2 cm 99.76 %, at 3.5 cm **82.76 %** [81.07, 84.34] (349 stuck at the mouth).
+A 0.26 rad change of left joint 6 alone (tool yaw choice) dropped it to 0.2 % (n = 1024). Diagnosis:
+- Press point drawn in 1.5-4 cm (v6s2, no retraining): 93.5 %, no slips, so the hold is physically fine and
+  the loss is observation dependence.
+- Masking the left arm from the actor (all left features, or only joint angles + previous actions) and
+  fine-tuning makes grasp slips appear and grow (to 30 % in training): the left arm is the actor's insertion
+  **force sensor** (the plug pushes the PC, the PC pushes the left hand, its encoders move). Without it the
+  policy pushes harder and the reader slips.
+- Fix used: keep the left observations and randomize the hold per start (press point 1.5-4 cm in front of the
+  case centre; optional tool yaw ±15°) and train on Part 2 round-3 + the chain's 1024 actual starts
+  (`results/usbc/policy/insertion/aux/starts_round3_plus_chain.npz`; chain starts sit 0.36 mm low).
+
+**Round 3 (2026-11-01): robustness of the exported policy (v6s2, no retraining).** One change at a time
+against the baseline (scale 1.5, seed 1000: 99.76 %), n = 2048 each:
+
+| Change | Seated | Wilson 95 % | Failures |
+|---|---|---|---|
+| ×2.0 start errors | 99.51 % | [99.10, 99.73] | 9 mouth, 1 slip |
+| Encoder offset ±2° (was ±1.5°) | 99.85 % | [99.57, 99.95] | 3 mouth |
+| PC box ±3 cm / ±10° (was ±1/1.5 cm, ±5°) | 99.61 % | [99.23, 99.80] | 7 mouth, 1 slip |
+| Latency 0-2 steps (was 0-1; measured ~0.4) | 94.24 % | [93.14, 95.17] | 70 mouth, 47 slip |
+| Plug-port μ U(0.10, 0.30) (was 0.10-0.20) | 94.43 % | [93.35, 95.35] | 114 mouth |
+| Wide contact DR (port μ 0.15-0.6, 3-8 ms; pad μ 0.8-2.0, 2-6 ms; squeeze ×0.6-1.4) | 69.53 % | [67.50, 71.49] | 421 slip, 202 mouth |
+
+Margins: start error, encoder offsets and PC placement have margin; latency beyond 1 step, plug-port
+friction above 0.2 and pad friction/squeeze below the Part 1 values do not. The contact values are the
+first thing to measure on the rig (or to train over once measured ranges exist).
+
+**Round 3 (2026-11-01): why the DAgger students looked good in training.** The distiller updates the
+student every control step on a replay buffer that holds the current episode's teacher labels, so the
+privileged teacher steers the student mid-episode through the gradient steps. Same student (wrist,
+1.02 M steps), same env, β = 0, 256 worlds: with updates (lr 3e-4) 100 % / 90.5 % seated (n = 320, 359);
+frozen (lr 0) 3.1 % / 0.0 % (n = 258, 243). The training logs measured online teacher leakage, not the
+student; the held-out evals (≤ 7 %) were right. Not an env mismatch (memorization was also ruled out:
+the wrist student scores 0.6 % on its own training start pool vs 0.4 % on seed 1000). Frozen-policy
+evals, as the chain uses, are unaffected.
+
+**Round 2 checks (2026-11-01):**
+- *Seated means fully inserted:* seed 0 at 1.5, re-run (99.07 %, n = 2048): the 2029 seated plugs are
+  5.63-5.80 mm deep (median 5.72; seat 5.8 mm at the neck stop), tip centre within 0.08 mm of the
+  axis, tilt median 1.03°, max 1.74°; aperture violation median 13.4 µm, p99 23.6 µm (cap 25). No
+  seated plug is near the rim; failures end at +0.3 mm (outside the panel) with mm-scale violations.
+- *Encoder offsets are not the cause:* the max offset is ≥ 1.13° in 90 % of all episodes; success by
+  bin 99.4 / 98.8 / 99.3 / 99.1 % (flat), latency 0 vs 1: 99.1 vs 99.0 %. The driver is the start
+  lateral error.
+- *Seed ensemble* (mean action of s0-s2): 98.78 % [98.20, 99.17], worse than seed 0 alone.
+- *Export:* `runs/P4-insert-best/best.pt` (+ README.json) and `eval_insertion.load_insertion_policy()`
+  (`InsertionPolicy`, env var `P4_INSERT_BEST` from other worktrees). At 1.5 (seed 0), by start
 lateral error: ≤ 0.5 mm 100 % (888), 0.5-1 mm 99.86 % (692), 1-1.5 mm 99.27 % (275), 1.5-2 mm 94.8 % (96),
 2-3 mm 93.0 % (71), 3-4.5 mm 87.5 % (24); every failure had an encoder-offset error ≥ 1.09°. Median
 time to seat 0.6 / 0.84 / 0.9 s; PC motion p99 ≤ 1.3 mm. Strict (0 µm) aperture test: ≤ 0.25 % at

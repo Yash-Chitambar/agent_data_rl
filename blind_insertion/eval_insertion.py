@@ -36,10 +36,59 @@ def wilson(k, n, z=1.96):
 def load_policy(path, dev):
     ck = torch.load(path, map_location=dev, weights_only=False)
     ac = ActorCritic(ck['obs_dim'], ck['act_dim'], ck['critic_dim'], history=ck['history'], n_points=ck['n_points']).to(dev)
+    if 'visual' in ck:     # proprio + wrist RGB (policies/visual_insertion.py)
+        from blind_insertion.policies.visual_insertion import VisualAC
+        ac = VisualAC(ac, ck['visual']['res']).to(dev)
     ac.load_state_dict(ck['model'])
     ac.eval()
     ac.obs_norm.freeze(); ac.crit_norm.freeze()
     return ac, ck
+
+
+# Exported best Part 4 policy. runs/ is per worktree: other worktrees set P4_INSERT_BEST, e.g.
+# /home/yashchitambar/wt/policy-insertion/runs/P4-insert-best/best.pt
+BEST = Path(os.environ.get('P4_INSERT_BEST', Path(__file__).resolve().parents[1] / 'runs/P4-insert-best/best.pt'))
+
+
+class InsertionPolicy:
+    """Deployable Part 4 insertion policy (blind PPO, InsertionTask contract).
+
+    Call on the env's actor history `hist` (N, H, D; the first 62 features are the deployable
+    observation, see BIMANUAL_POLICY_INTERFACE.md) -> (N, 6) normalized right-arm joint actions
+    (deterministic mean). Several checkpoints form an ensemble (mean of their means).
+    `meta` holds what the env must match: env_json, action_mode, history, episode_s.
+    """
+
+    def __init__(self, paths, device='cuda:0'):
+        paths = [paths] if isinstance(paths, (str, Path)) else list(paths)
+        self.members = [load_policy(str(q), device) for q in paths]
+        ck = self.members[0][1]
+        self.obs_dim = ck['obs_dim']
+        ej = json.loads(ck.get('env_json') or '{}')
+        self.meta = dict(paths=[str(q) for q in paths], env_json=ej, action_mode=ck.get('action_mode', 'accumulate'),
+                         history=ck['history'], episode_s=ej.get('episode_s', 6.0), obs_dim=self.obs_dim)
+
+        self.visual = 'visual' in ck
+        if self.visual:   # the env must render the wrist camera at this resolution (env_json in meta)
+            self.meta['visual'] = ck['visual']
+            self.meta['env_json'] = dict(ej, render_rgb=True, visual_dr=True, camera_resolution=ck['visual']['res'],
+                                         camera_names=list(ck['visual']['cams']))
+
+    @torch.no_grad()
+    def __call__(self, hist, frames=None, age=None):
+        """frames/age: the latest right-wrist RGB frame (N, res, res, 3) uint8 and its age (s), visual only."""
+        h = hist[..., :self.obs_dim]
+        acts = [ac.act_mean(h, frames, age)[0] if 'visual' in ck else ac.act_mean(h)[0] for ac, ck in self.members]
+        return torch.stack(acts).mean(0).clamp(-1, 1)
+
+
+def load_insertion_policy(path=None, device='cuda:0'):
+    """Stable entry point for the chain eval: the exported best Part 4 policy (or `path`, a checkpoint,
+    a list of checkpoints, or a comma-separated string of them)."""
+    path = path or BEST
+    if isinstance(path, str) and ',' in path:
+        path = path.split(',')
+    return InsertionPolicy(path, device)
 
 
 def main():
@@ -63,7 +112,7 @@ def main():
     if a.policy == 'scripted':
         ac, ck = None, {}
     else:
-        ck = torch.load(a.policy, map_location=dev, weights_only=False)
+        ck = torch.load(a.policy.split(',')[0], map_location=dev, weights_only=False)
         if 'variant' in ck:          # DAgger student (distill_insertion.py)
             from blind_insertion.distill_insertion import Student
             student = Student(ck['cams'], ck['res'], history=ck['history'], n_points=ck['n_points']).to(dev)
@@ -71,7 +120,8 @@ def main():
             ac = None
             ck = dict(ck, env_json=json.dumps(ck['env_json']))
         else:
-            ac, ck = load_policy(a.policy, dev)
+            ens = load_insertion_policy(a.policy, dev)
+            ac, ck = ens.members[0]
     args = argparse.Namespace(nworld=a.nworld, seed=a.seed,
                               action_mode=a.action_mode or ck.get('action_mode', 'accumulate'),
                               env_json=a.env_json if a.env_json is not None else ck.get('env_json', ''))
@@ -101,8 +151,11 @@ def main():
             elif ac is None:
                 act = env.scripted_action(gain=0.1)
             else:
-                mu, _ = ac.act_mean(hist)
-                act = mu if not a.stochastic else ac.dist(hist)[0].sample()
+                if ens.visual:
+                    fr, ag = env.runtime.camera_sensor.observation(env.runtime.sensor_time)
+                    act = ens(hist, fr['wrist_cam'], ag['wrist_cam'])
+                else:
+                    act = ens(hist) if not a.stochastic else ac.dist(hist)[0].sample()
         hist, _, _, done, info = env.step(act)
         pc_max = torch.maximum(pc_max, info['pc_d'])
         if 'final' in info:
@@ -113,6 +166,7 @@ def main():
                 if count[w] < a.per_world:
                     rows.append(dict(world=w, episode=int(count[w]), outcome=cls[j], success=bool(f['success'][j]),
                                      strict_seated_hold=bool(f['strict_hold'][j]),
+                                     aperture_violation_um=float(f['aperture_violation'][j] * 1e6),
                                      t_s=float(info['steps'][w]) * env.dt,
                                      tip_x_mm=float(f['p'][j, 0] * 1e3), tip_y_mm=float(f['p'][j, 1] * 1e3),
                                      tip_z_mm=float(f['p'][j, 2] * 1e3), tilt_deg=float(f['tilt'][j]),

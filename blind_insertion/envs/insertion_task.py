@@ -76,6 +76,24 @@ class InsertionCfg:
     # surface as a target; the episode starts with the pads 3 mm above it).
     left_hold: str = 'guarded'          # 'guarded': Part 3's recommended hold (left_hold.py); 'press': simple
     hold_force_n: float = 25.0          # Part 3 recommendation (round 3)
+    # Hold DR (chain feedback 2026-11-01): press point along the PC (m from the case centre toward the
+    # rear face; negative = toward the panel/front) drawn per start in this range, and the tool yaw
+    # offset (deg) from the best yaw drawn in +/- hold_yaw_deg. Defaults = Part 3's fixed hold (2 cm front).
+    hold_along_m: tuple = (-0.02, -0.02)
+    hold_yaw_deg: float = 0.0
+    # Hide the left arm from the actor (its encoder, velocity, previous-action and target-error entries
+    # are zeroed; the critic keeps the privileged state). The left arm is scripted, so its pose carries
+    # nothing the insertion needs, and reading it made the policy depend on the hold placement.
+    mask_left_obs: object = False       # False | True/'all' | 'pose' (left joint angles + previous actions only)
+
+    LEFT_OBS_IDX = tuple(range(6, 12)) + tuple(range(18, 24)) + tuple(range(31, 38)) + tuple(range(44, 50))
+    LEFT_POSE_IDX = tuple(range(6, 12)) + tuple(range(31, 38))
+    LEFT_J6_IDX = (11, 23, 36, 49)      # left joint 6 (tool yaw): encoder, velocity, previous action, target error
+
+    def left_mask_idx(self):
+        if not self.mask_left_obs:
+            return ()
+        return {'pose': self.LEFT_POSE_IDX, 'j6': self.LEFT_J6_IDX}.get(self.mask_left_obs, self.LEFT_OBS_IDX)
     # 20 mm: arm sag and the +/-1.5 deg encoder-offset error leave only 66 % of worlds touching the
     # PC at 6 mm; at 20 mm all touch and the PC resists ~3-5 N horizontally (n=256, pc mu 0.3-0.9).
     press_m: float = 0.02
@@ -103,6 +121,10 @@ class InsertionCfg:
     # gap. Rows that are approach failures (lateral > 8 mm, gap outside 0.5-15 mm) are dropped.
     start_source: str = 'uniform'
     npz_scale: float = 1.0
+    # Over-sample hard starts: this fraction of npz starts gets its lateral error replaced by a uniform
+    # draw in an annulus [lo, hi] m (direction uniform); angles and gap stay from the npz row (scaled).
+    hard_frac: float = 0.0
+    hard_lat_m: tuple = (0.0015, 0.003)
     privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
     grasp_p: tuple | None = None        # legacy 60-deg geometric grasp only (grasp='geometric60')
     # In-hand pose: 'part1' = Part 1's measured pick (scenes/reader_grasp.inhand_pose(): 55-deg grasp,
@@ -315,11 +337,40 @@ class InsertionTask(BimanualTask):
         lp, lR = self.left_chain.fk(self.q_left_report[None])
         self.left_in_pc = (port_R.transpose(1, 2) @ (lp - port_p)[..., None])[..., 0], port_R.transpose(1, 2) @ lR
 
+    def _hold_plan(self, port_p, port_R, gen, bins=8):
+        """Hold plan per start; with hold DR, starts are split into bins with their own press point/yaw."""
+        c, h = self.icfg, self.hold
+        if c.hold_along_m[0] == c.hold_along_m[1] and not c.hold_yaw_deg:
+            h.cfg.along_m = c.hold_along_m[0]
+            return h.solve(port_p, port_R)
+        k = len(port_p)
+        b = torch.randint(bins, (k,), device=self.device, generator=gen)
+        out = None
+        base_yaws = self._best_yaw
+        for i in range(bins):
+            sel = (b == i).nonzero()[:, 0]
+            if not len(sel):
+                continue
+            r = torch.rand(2, device=self.device, generator=gen)
+            h.cfg.along_m = float(c.hold_along_m[0] + (c.hold_along_m[1] - c.hold_along_m[0]) * r[0])
+            off = float((r[1] * 2 - 1) * c.hold_yaw_deg)
+            h.cfg.yaws_deg = (base_yaws - 15 + off, base_yaws + off, base_yaws + 15 + off)   # best-margin yaw of the shifted set
+            pl = h.solve(port_p[sel], port_R[sel])
+            if out is None:
+                out = {key: torch.zeros(k, *v.shape[1:], device=self.device, dtype=v.dtype)
+                       for key, v in pl.items() if torch.is_tensor(v) and v.shape[:1] == (len(sel),)}
+            for key in out:
+                out[key][sel] = pl[key]
+        h.cfg.yaws_deg = (base_yaws - 15, base_yaws, base_yaws + 15)
+        return out
+
     def _hold_yaws(self):
         """Restrict the hold's tool-yaw search to +/-15 deg around the nominal PC pose's best yaw (pool speed)."""
         pc0 = self._pc_qpos(torch.zeros(1, device=self.device), torch.zeros(1, device=self.device), torch.zeros(1, device=self.device))
         p, R = self._port_pose(pc0)
+        self.hold.cfg.along_m = self.icfg.hold_along_m[0]
         best = float(self.hold.solve(p, R)['yaw_deg'][0])
+        self._best_yaw = best
         self.hold.cfg.yaws_deg = (best - 15, best, best + 15)
 
     def _npz_rows(self):
@@ -370,6 +421,11 @@ class InsertionTask(BimanualTask):
                 lat = rows[:, :2] * 1e-3 * c.npz_scale
                 gap = rows[:, 2] * 1e-3
                 ang = rows[:, 3:6] * math.pi / 180 * c.npz_scale
+                if c.hard_frac > 0:
+                    hard = (torch.rand(k, device=dev, generator=gen) < c.hard_frac)
+                    rad = c.hard_lat_m[0] + (c.hard_lat_m[1] - c.hard_lat_m[0]) * torch.rand(k, device=dev, generator=gen)
+                    th = torch.rand(k, device=dev, generator=gen) * 2 * math.pi
+                    lat = torch.where(hard[:, None], torch.stack([rad * torch.cos(th), rad * torch.sin(th)], 1), lat)
             R_rp = _rpy(ang)
             p_rp = torch.cat([lat, gap[:, None]], 1)
             R_rw = port_R @ R_rp
@@ -387,7 +443,7 @@ class InsertionTask(BimanualTask):
             if c.left_hold == 'guarded':
                 # Part 3's guarded press (left_hold.py), end state: fingertips on the top at the planned
                 # contact, latched there (encoders), plus dq = Kp^-1 J^T F for hold_force_n.
-                plan = self.hold.solve(port_p, port_R)
+                plan = self._hold_plan(port_p, port_R, gen)
                 ql_h, ql_p = plan['q_contact'], plan['dq_force']      # contact pose, force offset
                 ok = (pe < 2e-4) & (re < 2e-3) & plan['ok']
             else:
@@ -547,7 +603,12 @@ class InsertionTask(BimanualTask):
         terminated = success | failure
         truncated = (self.steps >= self.max_steps) & ~terminated
         self.done = terminated | truncated
-        self._last = dict(strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
+        poly = self.hole
+        ed = torch.roll(poly, -1, 0) - poly
+        rr = pts[..., None, :2] - poly[None, None]
+        outside = -((ed[..., 0] * rr[..., 1] - ed[..., 1] * rr[..., 0]) / ed.norm(dim=1))   # >0: outside that edge (m)
+        violation = outside.max(-1).values.max(-1).values.clamp(min=0)
+        self._last = dict(aperture_violation=violation, strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
                           pushed=pushed, far=far, bad=bad, pc_d=pc_d, tilt=metrics['tilt_deg'],
                           aperture=metrics['aperture_fit'], ang_rel=ang_rel, d_rel=d_rel.norm(dim=1))
         info = {'success': success.clone(), 'nonfinite': bad, 'slip': slip, 'pushed': pushed, 'far': far,
@@ -637,8 +698,12 @@ class InsertionTask(BimanualTask):
         eul = K.euler_xyz(R0.T @ R)
         pos = p - self._p_obs
         self._last_obs = o
-        parts = [o['encoder_rad'], o['encoder_velocity_rad_s'], o['previous_action'], o['target_error_rad'],
-                 pos * 10, eul, tw]
+        enc, vel, prev, terr = o['encoder_rad'], o['encoder_velocity_rad_s'], o['previous_action'], o['target_error_rad']
+        parts = [enc, vel, prev, terr, pos * 10, eul, tw]
+        if self.icfg.mask_left_obs:
+            base = torch.cat(parts[:4], 1).clone()
+            base[:, list(self.icfg.left_mask_idx())] = 0
+            parts = [base] + parts[4:]
         if self.icfg.privileged_actor:     # teacher only: plug pose in the live port frame, reader in the TCP
             p, R = self.runtime.plug_in_port()
             rel = self._reader_in_tcp()
