@@ -84,7 +84,8 @@ def main():
     cams = CAMS[a.variant]
     env_json = json.loads(tck.get('env_json') or '{}') | {'privileged_actor': True}
     if cams:
-        env_json |= {'render_rgb': True, 'visual_dr': not a.no_visual_dr, 'camera_resolution': a.res}
+        env_json |= {'render_rgb': True, 'visual_dr': not a.no_visual_dr, 'camera_resolution': a.res,
+                     'camera_names': list(cams)}
     args = argparse.Namespace(nworld=a.nworld, seed=a.seed, action_mode=tck.get('action_mode', 'accumulate'),
                               env_json=json.dumps(env_json))
     env = make_env(args)

@@ -85,6 +85,8 @@ class BimanualCfg:
     # MjModel.opt overrides applied before the GPU model is built, e.g. {"cone": 1} (elliptic
     # friction cones; impratio only acts on those). None keeps the scene's solver options.
     opt_overrides: dict | None = None
+    # Cameras to render (subset of top, wrist_cam, left_wrist_cam); fewer cameras = cheaper renders.
+    camera_names: tuple = ('top', 'wrist_cam', 'left_wrist_cam')
 
 
 class BimanualRuntime:
@@ -189,7 +191,9 @@ class BimanualRuntime:
         self.force = wp.to_torch(self.d.qfrc_applied)
         self.sensor_time = 0.0
         self.camera_sensor = None
-        self.camera_names = ('top','wrist_cam','left_wrist_cam')
+        self.camera_names = tuple(c.camera_names)
+        if not self.camera_names or not set(self.camera_names) <= {'top','wrist_cam','left_wrist_cam'}:
+            raise ValueError('camera_names must be a non-empty subset of top, wrist_cam, left_wrist_cam')
         calibration = R.load()
         self.encoder_offsets = torch.tensor(
             [calibration['arms'][side]['joint_offsets_rad'] for side in ('right','left')],
@@ -229,7 +233,7 @@ class BimanualRuntime:
             self.visual = VD.VisualDR(m,self.m,self.visual_dr_cfg,self.look,self.camera_names,c.nworld,self.device,centre)
             if c.measured_camera_cadence:
                 from blind_insertion.envs.camera_cadence import CameraCadence
-                self.camera_sensor=CameraCadence(self.render,c.nworld,self.device)
+                self.camera_sensor=CameraCadence(self.render,c.nworld,self.device,cameras=self.camera_names)
                 self.camera_sensor.reset(torch.arange(c.nworld,device=self.device),self.sensor_time)
 
 

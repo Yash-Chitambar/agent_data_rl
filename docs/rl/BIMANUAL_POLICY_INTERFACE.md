@@ -63,3 +63,19 @@ electrical connection or successful hardware transfer.
 
 The GPU episode check additionally verifies target-error observations and
 selective target reset, alongside termination, truncation and seating duration.
+
+## Part 4 insertion episode (`envs/insertion_task.py`)
+
+`InsertionTask` subclasses `BimanualTask` and keeps its controller (accumulated targets, 0.1 rad
+cap, per-world latency and encoder-offset error). Contract differences, documented here:
+
+- **Policy action: 6-D** (right joints 1-6, normalized, x 0.04 rad). The env fills the 14-D command:
+  right gripper closed, left arm scripted (press target on the PC top, through the same cap), left
+  gripper closed. Actions are ignored for the first 10 steps (0.2 s warmup: grasp and press settle).
+- **Actor observation: 62-D** = the 50-D proprioception above (encoders, velocities, 14 previous
+  actions, 12 target errors) + right TCP position (x10, relative to the nominal pre-insert TCP),
+  XYZ Euler angles relative to the nominal TCP orientation, and TCP twist, all from forward
+  kinematics of the *believed* joint angles (no object state). `privileged_actor=True` appends 18
+  privileged values (teacher only).
+- Use `action_mode="accumulate"`: with relative targets, zero action has zero stiffness and the arm
+  drifts 23 mm in 2 s under the identified gravity/friction model (FINDINGS 2026-10-31).
