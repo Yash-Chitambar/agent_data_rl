@@ -5,7 +5,7 @@ per world: colours and gloss of each appearance group (PC case, reader, table, w
 arms, gripper, ...), patterns on the table and wall (procedural or real-photo patches), the key and
 fill lights (elevation, intensity, colour temperature, shadows) and the camera extrinsic and
 intrinsic error. Every rendered frame then goes through a camera model on the GPU: per-camera
-nominal gain, radial distortion, blur, exposure, per-channel gain, brightness, sensor noise.
+nominal gain and black level, radial distortion, blur, exposure, per-channel gain, brightness, sensor noise.
 
 Seed 0 = real look: with `visual_dr=None` (or in a world drawn as nominal, `nominal_prob`) the
 images are the nominal look: `configs/warp_look_duchamp3.json`, fitted to the recorded real frames
@@ -57,7 +57,8 @@ GROUPS = {
     'table': ['n:table', 'n:vdr_table_decal'],
     'wall': ['n:bd_wall', 'n:vdr_wall_decal', 'n:detail_room_wall', 'n:detail_room_ceiling'],
     'room': ['n:detail_room_floor', 'n:detail_room_bench', 'n:detail_room_mat', 'n:detail_room_box', 'n:bd_gap'],
-    'raceway': ['n:bd_raceway', 'n:bd_plate', 'n:bd_ryobi_label'],
+    'plates': ['n:bd_plate', 'n:bd_ryobi_label'],         # outlet plates (one material with the label)
+    'raceway': ['n:bd_raceway'],
     'accents': ['n:bd_ryobi', 'n:bd_strip_switch'],
     'backdrop_black': ['n:bd_plug', 'n:bd_strip', 'n:bd_device', 'n:bd_cable'],
     'mount': ['n:shared_mounting_plate'],
@@ -366,6 +367,9 @@ class VisualDR:
         gain = (look or {}).get('camera_gain', {})
         self.cam_gain = {c: torch.tensor(gain.get(c, [1., 1., 1.]), device=self.device, dtype=torch.float32)
                          for c in self.camera_names}
+        offset = (look or {}).get('camera_offset', {})      # black level, 0-255 units
+        self.cam_offset = {c: torch.tensor(offset.get(c, [0., 0., 0.]), device=self.device, dtype=torch.float32) / 255
+                           for c in self.camera_names}
         self.nominal = torch.ones(nworld, dtype=torch.bool, device=self.device)
         if cfg is None:
             return
@@ -534,7 +538,7 @@ class VisualDR:
     def image(self, camera, rgb, new_frame=True):
         """Float RGB (nworld, H, W, 3) in [0, 1] from the renderer -> uint8 camera image."""
         k = self.camera_names.index(camera)
-        x = rgb * self.cam_gain[camera]
+        x = rgb * self.cam_gain[camera] + self.cam_offset[camera]
         if self.cfg is None:
             return (x.clamp(0, 1) * 255).to(torch.uint8)
         if new_frame and self.cfg.image_per_frame and k == 0:
