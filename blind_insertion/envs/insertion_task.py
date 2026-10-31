@@ -82,8 +82,8 @@ class InsertionCfg:
     warmup_steps: int = 10              # actions ignored while the grasp and the press settle
     # termination (failure) thresholds
     far_m: float = 0.02                 # tip further than this from the port centre
-    slip_m: float = 0.004               # reader moved in the hand since the end of warmup
-    slip_deg: float = 6.0
+    slip_m: float = 0.010               # reader moved in the hand since the end of warmup (drop, not a few-mm slip)
+    slip_deg: float = 15.0
     pc_move_m: float = 0.01             # PC translation since reset
     pc_tilt_deg: float = 5.0
     # reward: sparse capture + seated (Bronars et al.) + potential shaping on tip error
@@ -422,8 +422,14 @@ class InsertionTask(BimanualTask):
         rt.ctrl[ids[:, None], torch.tensor(act_l, device=self.device)] = st['q_left_hover']
         rt.ctrl[ids[:, None], torch.tensor(rt.indices['right'][3], device=self.device)] = rt.cfg.grip_close
         rt.ctrl[ids[:, None], torch.tensor(rt.indices['left'][3], device=self.device)] = rt.cfg.grip_close
-        # No mjw.forward: everything below reads qpos; the next physics step recomputes derived
-        # quantities (the reset worlds' first gravity residual uses stale gravcomp, during warmup).
+        # Derived quantities (gravcomp for the driver-gravity residual) must match the new pose before the
+        # first step. A full-batch mjw.forward costs ~120 ms at 4096 worlds, so it is skipped for the
+        # handful of worlds that auto-reset each step (their stale gravcomp comes from a similar arm
+        # pose), but run after large resets: without it the first episode after reset_all used the
+        # gravcomp of the runtime's folded reference pose and seated 0.8 % vs 14-16 % (n=256 each).
+        if len(ids) > self.N // 8:
+            with wp.ScopedDevice(rt.cfg.device):
+                mjw.forward(rt.m, rt.d)
         if rt.camera_sensor is not None:
             rt.camera_sensor.reset(ids, rt.sensor_time)
         self._sample_control(ids)
