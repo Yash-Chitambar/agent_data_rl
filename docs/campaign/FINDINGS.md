@@ -150,6 +150,15 @@ A 0.26 rad change of left joint 6 alone (tool yaw choice) dropped it to 0.2 % (n
   case centre; optional tool yaw ±15°) and train on Part 2 round-3 + the chain's 1024 actual starts
   (`results/usbc/policy/insertion/aux/starts_round3_plus_chain.npz`; chain starts sit 0.36 mm low).
 
+- **Result (v10dr, exported as best.pt):** fine-tuned from v6s2 with the press-point DR (no yaw DR), 5.2 M
+  steps. n = 2048 each: chain starts, hold 2 cm 100 % [99.81, 100], hold 3.5 cm 99.95 % [99.72, 99.99];
+  round-3 × 1.5, hold 2 cm 99.61 % [99.23, 99.80], hold 3.5 cm 99.61 % [99.23, 99.80]. Gate met at both holds.
+- **Tool yaw is still a sensitivity:** v10dr with random hold yaw ±15° (best-margin yaw of the shifted set):
+  47.85 % (n = 1024). Yaw changes the whole left-arm IK, not only joint 6; at ±30° there is no left-right or
+  left-reader contact (n = 512) but 10.9 % slips: behavioural (misread force signal), not physical. Training
+  with yaw DR (v11: left joint 6 masked; v12: unmasked) is in progress; the hold yaw must match between the
+  chain and this env until then (this env: best of nominal ± 15° by joint margin).
+
 **Round 3 (2026-11-01): robustness of the exported policy (v6s2, no retraining).** One change at a time
 against the baseline (scale 1.5, seed 1000: 99.76 %), n = 2048 each:
 
