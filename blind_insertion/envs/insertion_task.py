@@ -125,6 +125,11 @@ class InsertionCfg:
     # draw in an annulus [lo, hi] m (direction uniform); angles and gap stay from the npz row (scaled).
     hard_frac: float = 0.0
     hard_lat_m: tuple = (0.0015, 0.003)
+    # Live hand-over states from the chain (scripts/eval/eval_chain.py --save-handover, policy-chain): this
+    # fraction of resets restores a saved state exactly (qpos/qvel/ctrl/warm start, controller state, latency
+    # buffer, hold target and the per-world DR values); the rest use the start pool.
+    live_states: str = ''
+    live_frac: float = 0.0
     privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
     grasp_p: tuple | None = None        # legacy 60-deg geometric grasp only (grasp='geometric60')
     # In-hand pose: 'part1' = Part 1's measured pick (scenes/reader_grasp.inhand_pose(): 55-deg grasp,
@@ -539,10 +544,73 @@ class InsertionTask(BimanualTask):
         self.captured[ids] = False
         self.strict_run[ids] = 0
         self.strict_best[ids] = 0
+        if hasattr(self, 'is_live'):
+            self.is_live[ids] = False
+        if self.icfg.live_states and self.icfg.live_frac > 0:
+            live = ids[torch.rand(len(ids), device=self.device, generator=self.gen) < self.icfg.live_frac]
+            if len(live):
+                self._restore_live(live)
         self.ref_rel[ids] = self._reader_in_tcp()[ids]
         o = self._actor_obs()
         self.hist[ids] = o[ids, None].expand(-1, self.icfg.history, -1)
         self.phi[ids] = self._potential()[ids]
+
+    def _live(self):
+        if not hasattr(self, '_live_data'):
+            z = np.load(self.icfg.live_states if Path(self.icfg.live_states).is_absolute() else ROOT / self.icfg.live_states)
+            keep = np.ones(len(z['qpos']), bool)
+            for k in ('qpos', 'qvel'):
+                keep &= np.isfinite(z[k]).all(1)
+            if 'err_p' in z.files:      # approach failures are not insertion starts (as the chain counts them)
+                ep = z['err_p'] * 1e3
+                keep &= (np.hypot(ep[:, 0], ep[:, 1]) <= 8) & (ep[:, 2] >= .5) & (ep[:, 2] <= 15)
+            self._live_data = {k: torch.as_tensor(z[k][keep], device=self.device) for k in z.files
+                               if z[k].dtype.kind in 'fiub' and len(z[k]) == len(keep)}
+            self.live_n = int(keep.sum())
+        return self._live_data
+
+    def _restore_live(self, ids):
+        """Exact restore of saved chain hand-over states into worlds `ids` (rows drawn uniformly)."""
+        L, rt = self._live(), self.runtime
+        if self.icfg.live_frac >= 1:     # evaluation: each saved state in turn
+            ptr = getattr(self, '_live_ptr', 0)
+            r = (ptr + torch.arange(len(ids), device=self.device)) % self.live_n
+            self._live_ptr = ptr + len(ids)
+        else:
+            r = torch.randint(self.live_n, (len(ids),), device=self.device, generator=self.gen)
+        g = lambda k: L[k][r]
+        f32 = lambda k: g(k).to(torch.float32)
+        rt.q[ids] = f32('qpos'); rt.v[ids] = f32('qvel'); rt.ctrl[ids] = f32('ctrl')
+        wp.to_torch(rt.d.qacc_warmstart)[ids] = f32('qacc_warmstart')
+        self.enc_error[ids] = f32('enc_error'); self.latency[ids] = g('latency').long()
+        self.joint_target[ids] = f32('joint_target')
+        self.sent_history[:, ids] = f32('sent_history').transpose(0, 1)
+        self.left_press_q[ids] = f32('left_press_q')
+        if hasattr(rt, 'frictionloss'):
+            rt.frictionloss[ids] = f32('dof_frictionloss')
+        if hasattr(rt, 'gravity_scale'):
+            rt.gravity_scale[ids] = f32('gravity_scale')
+        if hasattr(rt, 'geom_friction'):
+            rt.geom_friction[ids, :, 0] = f32('geom_friction')
+        if hasattr(rt, 'geom_solref'):
+            rt.geom_solref[ids, :, 0] = f32('geom_solref')
+        if hasattr(rt, 'actuator_gainprm'):
+            rt.actuator_gainprm[ids, :, 0] = f32('actuator_gainprm')
+        if hasattr(rt, 'contact_params'):
+            rt.contact_params[ids] = f32('contact_params')
+        for k in ('err_p', 'err_ang', 'pc', 'q_right', 'reader', 'fingers', 'q_left_hover', 'q_left_press', 'inhand_R', 'inhand_p'):
+            if k in self.start and k in L:
+                self.start[k][ids] = f32(k)
+        self.pc_start[ids] = f32('pc')
+        self.steps[ids] = 0; self.seated_steps[ids] = 0; self.previous_action[ids] = 0; self.captured[ids] = False
+        if not hasattr(self, 'is_live'):
+            self.is_live = torch.zeros(self.N, dtype=torch.bool, device=self.device)
+        self.is_live[ids] = True
+        if len(ids) > self.N // 8:
+            with wp.ScopedDevice(rt.cfg.device):
+                mjw.forward(rt.m, rt.d)
+        if rt.camera_sensor is not None:
+            rt.camera_sensor.reset(ids, rt.sensor_time)
 
     def reset_all(self):
         self.reset(torch.arange(self.N, device=self.device))
