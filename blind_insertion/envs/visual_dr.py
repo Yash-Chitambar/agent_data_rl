@@ -103,6 +103,7 @@ class VisualDRCfg:
     light_distance_m: tuple = (.9, 1.6)
     light_intensity: tuple = (.3, 1.)       # key diffuse = I / 0.65 x nominal key diffuse
     light_kelvin: tuple = (3200., 6500.)    # colour temperature of key, fill and ambient
+    fill_elevation_deg: tuple = (20., 90.)
     shadow_prob: float = .5                 # key light casts shadows
     fill_scale: tuple = (.2, 1.2)           # fill diffuse x nominal
     ambient_scale: tuple = (.5, 1.5)        # per-light ambient x nominal
@@ -382,6 +383,11 @@ class VisualDR:
         self.groups = {g: torch.as_tensor(v, device=dev, dtype=torch.long) for g, v in group_geoms(mjm).items() if len(v)}
         self.group_mat = {g: mjm.material('vdr_' + g).id for g in self.groups}
         self.decal = {g: (mjm.geom(DECAL[g]).id, mjm.material(f'vdr_{g}_tex').id) for g in TEXTURED if g in self.groups}
+        # v-span / u-span of each decal (add_assets: table u = x, v = y; wall u = z, v = y): square pattern cells
+        sz = lambda n: mjm.geom(n).size                                      # noqa: E731
+        self.decal_aspect = {'table': float(sz('table')[1] / sz('table')[0])}
+        if 'bd_wall' in names_geoms(mjm):
+            self.decal_aspect['wall'] = float(sz('bd_wall')[1] / sz('bd_wall')[2])
         names = [mjm.texture(i).name for i in range(mjm.ntex)]
         self.tex_proc = torch.tensor([i for i, n in enumerate(names) if n.startswith('vdr_tex_')], device=dev)
         self.tex_real = torch.tensor([i for i, n in enumerate(names) if n.startswith('vdr_real_')], device=dev)
@@ -403,7 +409,11 @@ class VisualDR:
         self.img = {k: torch.zeros(nworld, nc, *s, device=dev) for k, s in (('gain', (3,)), ('exposure', ()), ('brightness', ()))}
         self.img['gain'][:] = 1
         self.img['exposure'][:] = 1
-        self.state = {}
+        # sampled episode parameters per world (logging and checks); nominal worlds hold the nominal values
+        z = lambda *s: torch.zeros(nworld, *s, device=dev)                  # noqa: E731
+        self.params = {'light_elevation_deg': z(), 'light_intensity': z(), 'light_kelvin': z(), 'shadow': z(),
+                       'textured': z(len(TEXTURED)), 'real_texture': z(len(TEXTURED)),
+                       'cam_pos_err_mm': z(nc), 'cam_rot_err_deg': z(nc), 'random_colour': z(len(self.groups))}
         self.sample(torch.arange(nworld, device=dev))
 
     # -------------------------------------------------------------- sampling helpers
@@ -432,6 +442,8 @@ class VisualDR:
         c, n = self.cfg, len(ids)
         nominal = torch.rand(n, generator=self.gen, device=self.device) < c.nominal_prob
         self.nominal[ids] = nominal
+        for v in self.params.values():
+            v[ids] = 0
         self._sample_image(ids, nominal & c.nominal_clean)
         r = ids[~nominal]
         if len(r):
@@ -439,15 +451,29 @@ class VisualDR:
             self._sample_lights(r)
             self._sample_cameras(r)
 
+    def set_nominal(self, ids, clean=True):
+        """Force the nominal (real) look on worlds `ids` until their next sample(); clean=True also
+        turns the camera-image noise off (seed-0 frames, e.g. for real-vs-sim comparisons)."""
+        if self.cfg is None:
+            return
+        ids = torch.as_tensor(ids, device=self.device, dtype=torch.long)
+        for k, v in self.f.items():
+            v[ids] = self.f0[k]
+        for v in self.params.values():
+            v[ids] = 0
+        self.nominal[ids] = True
+        self._sample_image(ids, torch.full((len(ids),), bool(clean), device=self.device))
+
     def _sample_appearance(self, ids):
         c, f, n = self.cfg, self.f, len(ids)
-        for g, geoms in self.groups.items():
+        for gi, (g, geoms) in enumerate(self.groups.items()):
             mat = self.group_mat[g]
             p = c.tips_random_prob if g == 'tips' else c.random_color_prob
             rnd = (torch.rand(n, generator=self.gen, device=self.device) < p)[:, None]
             jit = self.group_rgb0[g] * self._u(1 - c.nominal_jitter, 1 + c.nominal_jitter, (n, 1)) * \
                 self._u(1 - c.nominal_jitter / 4, 1 + c.nominal_jitter / 4, (n, 3))
             rgb = torch.where(rnd, self._hsv(n), jit).clamp(0, 1)
+            self.params['random_colour'][ids, gi] = rnd[:, 0].float()
             spec, shin = self._u(*c.specular_range, n), self._u(*c.shininess_range, n)
             emis = self._u(*c.emission_range, n)
             f['geom_matid'][ids[:, None], geoms] = mat
@@ -459,9 +485,11 @@ class VisualDR:
                 textured = torch.rand(n, generator=self.gen, device=self.device) < c.texture_prob
                 real = torch.rand(n, generator=self.gen, device=self.device) < c.real_texture_prob
                 pick = lambda bank: bank[torch.randint(len(bank), (n,), generator=self.gen, device=self.device)]  # noqa: E731
-                tex = torch.where(real & (len(self.tex_real) > 0), pick(self.tex_real) if len(self.tex_real) else -1,
-                                  pick(self.tex_proc))
+                real &= len(self.tex_real) > 0
+                tex = torch.where(real, pick(self.tex_real) if len(self.tex_real) else -1, pick(self.tex_proc))
                 tex = torch.where(textured, tex, torch.full_like(tex, -1))
+                ti = TEXTURED.index(g)
+                self.params['textured'][ids, ti], self.params['real_texture'][ids, ti] = textured.float(), (textured & real).float()
                 # textured: the pattern carries the colour (bright neutral base); else the group colour
                 base = torch.where(textured[:, None], self._u(.6, 1., (n, 1)).expand(n, 3) *
                                    self._u(.9, 1., (n, 3)), rgb)
@@ -469,13 +497,14 @@ class VisualDR:
                 f['mat_specular'][ids, dmat], f['mat_shininess'][ids, dmat], f['mat_emission'][ids, dmat] = spec, shin, emis
                 f['mat_texid'][ids, dmat, 1] = tex.to(f['mat_texid'].dtype)
                 rep = self._u(*c.texrepeat_range, n)
-                aspect = 1. if g == 'table' else 3.
-                f['mat_texrepeat'][ids, dmat] = torch.stack([rep, rep * aspect], -1)
+                f['mat_texrepeat'][ids, dmat] = torch.stack([rep, rep * self.decal_aspect[g]], -1)
 
     def _sample_lights(self, ids):
         c, f, n, dev = self.cfg, self.f, len(ids), self.device
-        kel = kelvin_rgb(self._u(*c.light_kelvin, n))
-        for li, (el_r, scale) in ((self.key, (c.light_elevation_deg, None)), (self.fill, ((20., 90.), c.fill_scale))):
+        kelvin = self._u(*c.light_kelvin, n)
+        kel = kelvin_rgb(kelvin)
+        self.params['light_kelvin'][ids] = kelvin
+        for li, (el_r, scale) in ((self.key, (c.light_elevation_deg, None)), (self.fill, (c.fill_elevation_deg, c.fill_scale))):
             el = torch.deg2rad(self._u(*el_r, n))
             az = torch.deg2rad(self._u(*c.light_azimuth_deg, n))
             dist = self._u(*c.light_distance_m, n)
@@ -484,12 +513,18 @@ class VisualDR:
             pos[:, 0] = pos[:, 0].clamp(max=self.wall_x - .05)               # stay in front of the wall
             pos[:, 2] = pos[:, 2].clamp(max=self.centre[2] + 1.6)           # under the room ceiling
             dirn = self.centre - pos
+            if scale is None:      # after the wall clamp (which only raises the elevation)
+                self.params['light_elevation_deg'][ids] = torch.rad2deg(torch.asin(-dirn[:, 2] / dirn.norm(dim=-1)))
             f['light_type'][ids, li] = int(mujoco.mjtLightType.mjLIGHT_POINT)
             f['light_pos'][ids, li] = pos
             f['light_dir'][ids, li] = dirn / dirn.norm(dim=-1, keepdim=True)
             if scale is None:
-                inten = self._u(*c.light_intensity, n) / .65
-                f['light_castshadow'][ids, li] = torch.rand(n, generator=self.gen, device=dev) < c.shadow_prob
+                inten = self._u(*c.light_intensity, n)
+                self.params['light_intensity'][ids] = inten
+                inten = inten / .65
+                shadow = torch.rand(n, generator=self.gen, device=dev) < c.shadow_prob
+                f['light_castshadow'][ids, li] = shadow
+                self.params['shadow'][ids] = shadow.float()
             else:
                 inten = self._u(*scale, n)
                 f['light_castshadow'][ids, li] = False
@@ -503,10 +538,12 @@ class VisualDR:
             pos_err = c.cam_pos_mm.get(cam, 0.) * 1e-3 * c.cam_err_scale
             rot_err = math.radians(c.cam_rot_deg.get(cam, 0.)) * c.cam_err_scale
             u = torch.randn(n, 3, generator=self.gen, device=self.device)
-            f['cam_pos'][ids, cid] = self.f0['cam_pos'][cid] + u / u.norm(dim=-1, keepdim=True) * self._u(0, pos_err, (n, 1))
+            mag = self._u(0, pos_err, (n, 1))
+            f['cam_pos'][ids, cid] = self.f0['cam_pos'][cid] + u / u.norm(dim=-1, keepdim=True) * mag
             a = torch.randn(n, 3, generator=self.gen, device=self.device)
             a = a / a.norm(dim=-1, keepdim=True)
             ang = self._u(0, rot_err, (n, 1))
+            self.params['cam_pos_err_mm'][ids, k], self.params['cam_rot_err_deg'][ids, k] = mag[:, 0] * 1e3, torch.rad2deg(ang[:, 0])
             dq = torch.cat([torch.cos(ang / 2), a * torch.sin(ang / 2)], -1)
             f['cam_quat'][ids, cid] = _qmul(self.f0['cam_quat'][cid].expand(n, 4), dq)
             intr = self.f0['cam_intrinsic'][cid].expand(n, 4).clone()

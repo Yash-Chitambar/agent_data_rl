@@ -29,13 +29,19 @@ Every training episode and every demo is drawn from this. Seed 0 reproduces the 
 | Contact | plug–port friction; pad friction and stiffness; PC-feet friction | to set; to set; μ U(0.3, 0.9) |
 | Layout | PC pose; reader pose | nominal ±3 cm, ±10°; reader region 0.20 m², yaw ±90° (placement search) |
 | Grasp | in-hand reader position and tilt | to set from real grasp captures (new grasp) |
-| **Appearance** (slide 15) | colours of PC case, reader, table, backdrop, arms; flat to glossy; patterns on table and backdrop mixed with the real ones | per episode |
-| **Lighting** (slide 15) | elevation 35–90°, intensity 0.3–1.0, 3200–6500 K, shadows half the time | per episode |
-| **Camera image** (slide 15) | gain 0.93–1.07, brightness ±12, exposure ±6 %, noise | per frame |
-| **Camera pose** (slides 14, 16) | extrinsic error ≥ real: ZED ≥ 4.3 mm / 0.6°, wrists ≥ 3–5 mm / 1.2° | per episode |
+| **Appearance** (slide 15) | 16 groups (PC case/dark parts, reader body/trim/plug, table, wall, room, raceway, plates, backdrop black, accents, mount, arm dark/light, gripper, fingertips): random HSV colour (p 0.75; tips 0.25) else nominal ±20 %; specular U(0, 1), shininess U(0, 1); table and wall patterns p 0.5 (8 procedural, 6 real-photo patches, 40 % real), 2–12 repeats | per episode (done: `BimanualCfg.visual_dr`, `envs/visual_dr.py`) |
+| **Lighting** (slide 15) | key point light: elevation 35–90°, azimuth 0–360°, 0.9–1.6 m, intensity 0.3–1.0 (0.65 = nominal), 3200–6500 K, shadows p 0.5; fill ×0.2–1.2; ambient ×0.5–1.5; headlight fixed (Warp compile-time) | per episode (done) |
+| **Camera image** (slide 15) | per-channel gain 0.93–1.07, brightness ±12, exposure ±6 %, Gaussian noise σ 1–4 (per-episode level), blur σ 0–1 px, radial k1 ±0.02 | gain/brightness/exposure/noise per frame, blur/k1 per episode (done) |
+| **Camera pose** (slides 14, 16) | extrinsic error, random direction, magnitude U(0, 2× real): ZED 4.3 mm / 0.6°, right wrist 5.1 mm / 1.2°, left wrist 3.4 mm / 1.2° (mean = real); fx, fy ±1.5 %, principal point ±0.5 % of the sensor | per episode (done) |
 | Camera timing | frame age and cadence | measured cadence model |
 
 Rule from the deck: sim sensors are at least as bad as the real ones.
+
+Visual DR is off by default: `BimanualCfg(render_rgb=True, visual_dr=True)` (or a dict of
+`VisualDRCfg` ranges). 10 % of episodes keep the nominal look (`nominal_prob`). Seed 0 = real look:
+`BimanualCfg.visual_look` (`configs/warp_look_duchamp3.json`, fitted to the real frames in the Warp
+renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
+`results/usbc/policy/visual_dr/contact_sheet.jpg`.
 
 ## Part 1: Pick (ACT, scripted fallback)
 

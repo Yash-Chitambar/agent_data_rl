@@ -104,6 +104,37 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason) — Visual DR for the bimanual Warp runtime; Warp nominal look; left wrist camera was blind
+
+- **Bug:** in the MuJoCo Warp render (what policies see) the left wrist camera sat inside its own lens
+  cylinder: every left-wrist frame was a dark blur. Warp also draws alpha-0 geoms (hidden in the CPU
+  renderer): the Menagerie D405 boxes and 104 hidden PC detail geoms. Both are now left out of the
+  Warp render context (`visual_dr.render_hidden`).
+- **Nominal look (seed 0 = real):** the scene colours were fitted in the CPU renderer; in Warp the wall
+  saturated, the arm black rendered grey (82 vs 40) and the gripper white (226 vs 28). New
+  `configs/warp_look_duchamp3.json` (`scripts/real2sim/fit_warp_look.py`): group colours plus a per-camera
+  RGB gain and black level (right wrist gain 0.74, left wrist lifted blacks +25). On the 21 recorded
+  views (`scripts/real2sim/measure_warp_look.py`): fingertip IoU 0.39 -> 0.79 (right 0.78, left 0.0 -> 0.79),
+  L1 61.1 -> 19.6, region colour error 39.3 -> 9.6 (0-255). Edge distance 4.16 px over all three
+  cameras (before: 3.99 over ZED + right wrist only; ZED 2.84 -> 3.22, right wrist 5.14 -> 5.23):
+  darker, real-contrast objects give Canny fewer dark-on-dark edges.
+- **Visual DR** (`BimanualCfg.visual_dr`, `envs/visual_dr.py`, off by default), per world, resampled on
+  reset: 16 appearance groups (random colour or jittered nominal, flat to glossy), table and wall
+  patterns (8 procedural + 6 real-photo patches), key/fill point lights (elevation 35-90 deg, intensity
+  0.3-1.0, 3200-6500 K, shadows half the episodes), camera extrinsics (U(0, 2x real): mean = ZED
+  4.3 mm / 0.6 deg, wrists 5.1 / 3.4 mm, 1.2 deg) and intrinsics (fx ±1.5 %, c ±0.5 %); per frame on the
+  GPU: gain 0.93-1.07, brightness ±12, exposure ±6 %, noise σ 1-4, blur, radial k1 ±0.02.
+- **What Warp batches per world:** geom_matid, geom/mat rgba, specular, shininess, emission, texid,
+  texrepeat, all light_* fields, cam pos/quat/fovy/intrinsic. **Global:** texture images (we pick per
+  world among the model's textures), headlight (compile-time), use_shadows (per-world via
+  light_castshadow), alpha. Textures sample only on meshes and planes, so patterns live on two
+  visual-only textured quads on the table and wall.
+- **Throughput** (V100, 3 cameras, 320 px): legacy 2139 / 2178 frames/s at 512 / 2048 worlds; nominal
+  look 2431 / 2471 (fewer geoms in the BVH); DR on 1307 / 1501. Shadows cost most (DR without
+  shadows: 1955 at 512); the image model ~12 %.
+- Checks: `scripts/checks/check_visual_dr.py` (ranges, per-world, reset, nominal = DR off, finite, real
+  frames); contact sheet `results/usbc/policy/visual_dr/contact_sheet.jpg`.
+
 ### 2026-10-31 (mason) — Reader region around the PC; PC feet NaN; raceway refit
 
 Reader start region is now every (cell, yaw bin) pair where a top-down pick works and the reader
