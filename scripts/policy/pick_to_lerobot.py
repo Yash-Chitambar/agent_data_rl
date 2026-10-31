@@ -30,6 +30,10 @@ def main():
     ap.add_argument("--shard", type=int, default=0)
     ap.add_argument("--nshards", type=int, default=1, help="convert every nshards-th episode (run shards in parallel, then pick_merge_shards.py)")
     ap.add_argument("--encoder_threads", type=int, default=4)
+    ap.add_argument("--cams", nargs="+", default=["top", "wrist"], help="cameras to keep (e.g. wrist only)")
+    ap.add_argument("--grip_from_phase", type=int, default=None,
+                    help="relabel the gripper action: close (-1) from the first step in this expert phase on (2 = settle: "
+                         "close as soon as the hand arrives at the grasp pose, not after the invisible settle wait)")
     a = ap.parse_args()
     raw, root = Path(a.raw), Path(a.root)
     if root.exists():
@@ -42,8 +46,7 @@ def main():
     h, w = iio.imread(raw / f"{eps[0].stem}_top.mp4", index=0).shape[:2]
     names_q = [f"joint{i}" for i in range(1, 7)]
     features = {
-        "observation.images.top": {"dtype": "video", "shape": (h, w, 3), "names": ["height", "width", "channel"]},
-        "observation.images.wrist": {"dtype": "video", "shape": (h, w, 3), "names": ["height", "width", "channel"]},
+        **{f"observation.images.{c}": {"dtype": "video", "shape": (h, w, 3), "names": ["height", "width", "channel"]} for c in a.cams},
         "observation.state": {"dtype": "float32", "shape": (z0["state"].shape[1],), "names": names_q + ["finger"]},
         "action": {"dtype": "float32", "shape": (z0["action"].shape[1],), "names": names_q + ["gripper", "done"]},
     }
@@ -56,11 +59,15 @@ def main():
         meta = json.loads(str(z["meta"]))
         if not meta["ok"]:
             continue
-        top = iio.imread(raw / f"{f.stem}_top.mp4")
-        wrist = iio.imread(raw / f"{f.stem}_wrist.mp4")
+        vids = {c: iio.imread(raw / f"{f.stem}_{c}.mp4") for c in a.cams}
+        act = z["action"].copy()
+        if a.grip_from_phase is not None:
+            hit = np.nonzero(z["phase"] >= a.grip_from_phase)[0]
+            if len(hit):
+                act[hit[0]:, 6] = -1.
         for t in range(len(z["state"])):
-            ds.add_frame({"observation.images.top": top[t], "observation.images.wrist": wrist[t],
-                          "observation.state": z["state"][t], "action": z["action"][t], "task": TASK})
+            ds.add_frame({**{f"observation.images.{c}": vids[c][t] for c in a.cams},
+                          "observation.state": z["state"][t], "action": act[t], "task": TASK})
         ds.save_episode()
         kept += 1
         if kept % 50 == 0:
