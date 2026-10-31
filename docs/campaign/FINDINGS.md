@@ -303,9 +303,20 @@ friction rows of the elliptic cones, resolved in the port frame), sampled at the
   steps (cos p50 0.10-0.23): weakly directed; it backs off (moves out of the panel) in 31 % of rim steps; the
   lateral offset falls from 0.83 to 0.29 mm (live, p50) between the first and last rim contact. It corrects,
   but partly by search, not a clean move toward the axis.
-- **Fine-tune (item 3), running:** force penalty above 15 N (0.05/N/step) and a speed penalty within 3 mm of
-  the panel above 20 mm/s (1 per m/s/step), and a stronger variant (above 10 N, 0.1/N; above 15 mm/s, 2 per m/s).
-  Gate: ≥ 99.5 % on the held-out live states with peak push p99 ≤ 20 N.
+- **Gentleness fine-tunes** (from v11; live-state mix, same DR; `contact_gentle_*.json/png`), n = 1024 per row:
+
+  | variant | penalties | seated live / r3×1.5 | peak push p50 / p99 (live) | > 20 N | contact speed p50 / p99 |
+  |---|---|---|---|---|---|
+  | v11 | none | 99.90 / 99.71 % | 20.4 / 49.9 N | 51 % | 29 / 306 mm/s |
+  | A | 0.05/N > 15 N; 1/(m/s) > 20 mm/s | 99.80 / 100 % | 19.5 / 47.4 N | 48 % | 27 / 304 mm/s |
+  | B | 0.1/N > 10 N; 2/(m/s) > 15 mm/s | 99.80 / 99.61 % | 18.4 / 45.1 N | 42 % | 24 / 274 mm/s |
+  | C | 0.3/N > 12 N; 5/(m/s) > 15 mm/s within 5 mm | 99.90 / 100 % | 10.5 / 38.1 N | 7.5 % | 25 / 106 mm/s |
+  | D | B + joint tracking cap 0.1 → 0.05 rad | 99.90 / 99.90 % | 8.9 / 30.0 N | 15 % | 15 / 101 mm/s |
+
+  The remaining peaks are at entry/rim impact (46-69 % of episodes) or bottoming at the seat (27-52 %: the
+  policy keeps pushing during the 0.2 s hold). Mean push in contact 4-5 N (C, D). Running: E (cap 0.05 + C's
+  penalties) and F (cap 0.05, 0.5/N > 10 N, 5/(m/s) > 10 mm/s). Gate: ≥ 99.5 % on the held-out live states with
+  peak push p99 ≤ 20 N: not yet met (p99 30 N).
 
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
