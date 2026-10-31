@@ -168,6 +168,8 @@ class BimanualRuntime:
             self.m = mjw.put_model(m, batch_sizes=batched or None)
             self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=c.nconmax,njmax=c.njmax)
         self._graph = None
+        # Optional per-world gripper force scale (nworld,) set by task layers for grasp DR; None = 1.
+        self.grip_scale = None
         self.q = wp.to_torch(self.d.qpos)
         self.v = wp.to_torch(self.d.qvel)
         self.ctrl = wp.to_torch(self.d.ctrl)
@@ -244,6 +246,7 @@ class BimanualRuntime:
             target = action[:,offset:offset+6].clamp(limits[:,0],limits[:,1])
             self.ctrl[:,act] = target
             squeeze = torch.where(action[:,offset+6]>0,self.cfg.grip_open,self.cfg.grip_close)
+            if self.grip_scale is not None: squeeze = squeeze*self.grip_scale
             self.ctrl[:,grip] = squeeze[:,None]
             if self.comp[side] is not None:
                 tau,ramp = self.comp[side]

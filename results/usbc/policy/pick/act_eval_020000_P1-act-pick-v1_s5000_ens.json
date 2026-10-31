@@ -1,0 +1,14 @@
+{
+ "policy": "runs/P1-act-pick-v1/act_020000_traced.pt",
+ "n": 512,
+ "success": 133,
+ "rate": 0.259765625,
+ "wilson95_lo": 0.2236705047391132,
+ "seed": 5000,
+ "execution": "temporal ensembling k=0.01",
+ "failures": {
+  "lift<60mm": 225,
+  "tilt>=3": 105,
+  "drift": 186
+ }
+}

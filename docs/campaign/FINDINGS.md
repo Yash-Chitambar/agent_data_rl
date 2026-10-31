@@ -104,6 +104,57 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/pick`) — Part 1 final config: tilt 55°, yaw ±10° window, fixed pad μ; gate 2048/2048
+
+- After the "maximize sim success" directive: grasp tilt 55° (no fallback), reader window x
+  0.305-0.405, y 0.055-0.155 m, yaw ±10° (`results/usbc/policy/pick/reader_region.json`), PC box
+  ±1.5 cm / ±5°.
+- **In-hand spread sweep** (n = 1024 each, seed 7000, 10 s hold, success = lift, tilt < 3°, in-hand
+  change < 1 mm / 1° over the hold): random pad μ U(1, 2) + squeeze ×U(0.6, 1.2) 94.3 %; pad μ 1.2
+  99.8 % (squeeze ×0.8 / 1.0 / 1.2 alike); μ 1.6 96.8 %; μ 2.0 70.2 %; μ 1.0 100 %; μ 1.2 with
+  impratio 30 100 % (creep p50 0.11° vs 0.22° at 10, 0.66° at 3); slower lift (5 cm/s) no gain.
+  Creep grows with pad μ: a solver artifact, not slip. Chosen: pad μ 1.2, squeeze ×1, impratio 30.
+- **Gate: 2048/2048 (seed 8000, Wilson lower bound 99.81 %); 10 s hold 1024/1024.** In-hand spread
+  about the mean: position p50 0.45 / p99 2.7 mm, rotation p50 0.11 / p99 0.80°; 10 s creep p99
+  0.47 mm / 0.69°. Tilt after lift max 1.58°. `results/usbc/policy/pick/inhand_spread.json`.
+- **ACT v1** (old config: 60°, yaw -30..+10, 650 demos with visual DR): 20k steps 133/512 = 26.0 % held-out
+  (seed 5000; failures: no lift 225, tilt 105; stopped at the config change). ACT v2 on the final config: see below.
+
+### 2026-10-31 (mason, `policy/pick`) — Part 1 pick: 60° side grasp, Part 1 reader region, expert gate 2048/2048
+
+- **Grasp (user-confirmed 60° tipped side grasp) as code:** `scenes/reader_grasp.py` (frames,
+  `grasp_poses`, `grasp_offset`, `inhand_pose()`). With the FlexPoint sphere pads (4 × 4, r 1.2 mm)
+  and fingertips 1.0 mm above the table, pad spheres reach the side face between 5.9 and 8.9 mm
+  (the face is 8.83 mm tall): one sphere per side on the face, one or two straddling the top edge.
+- **Reach:** only 47 % of the old reader region (n = 21,035 IK points) is reachable at 60° with
+  the confirmed hand roll (74 % with the hand turned 180° about the tool axis, 84 % with tilt
+  50-65°). The reader must be at x ≳ 0.30 m; the band between the right base and the PC is out.
+- **New Part 1 region** (user allowed a smaller window): 10 cm square, body centre x 0.315-0.415,
+  y 0.015-0.115 m, yaw -30..+10°. The first 12 cm / ±30° windows failed the expert at 0.9-1 %:
+  yaw > +10° (arm tracking limit, settle error 10-35 mm) and the corner nearest the PC (the gripper
+  hit a PC shifted 3 cm towards the reader: the region search now checks hand-PC clearance).
+- **impratio 100 breaks this grasp.** With the scene's impratio 100 (set for top-down grasp creep)
+  the reader stays on the table whenever pad μ < ~1.3, CPU and GPU, and more squeeze makes it worse
+  (CPU, μ 1.0: 0/6 lifts at 7.2 or 14.4 N; impratio 1 or 10: 6/6). It also gave 1.5-2 % non-finite
+  worlds with low reader-table friction. `PickTaskCfg.impratio = 10` (task-level override of
+  `opt.impratio_invsqrt`); no non-finite worlds since.
+- **Close until the fingers stop.** With the squeeze randomized ×0.6-1.2 and 200 N s/m finger
+  damping, closing takes up to 0.9 s; a fixed 0.6 s close lifted before contact (35 % failures at
+  squeeze ×0.6-0.74). The expert now waits for the opening to stop changing.
+- **A fast Cartesian integral oscillates** with the identified dynamics (gain 0.25/step: hold error
+  27-57 mm); 0.03/step is stable.
+- **Expert gate (all DR, held-out seed 3000): 2048/2048, Wilson 95 % lower bound 99.81 %**; reader
+  tilt p50 1.08°, max 2.40°; in-hand spread (grasp_site frame) std 0.35 / 0.10 / 0.44 mm and
+  0.12 / 0.14 / 0.02°. Sim-only: real pad compliance, friction and squeeze are unmeasured, so Part 4
+  should randomize the in-hand pose wider until real grasp captures exist.
+- **Longer holds creep (impratio 10):** a 10 s hold after lift (n = 1024, seed 4000) keeps every
+  reader (no drops, tilt max 3.1°) but the in-hand rotation drifts median 0.47°, p99 1.5°, max
+  2.1° (7.3 % exceed 1°); it grows with pad μ, so it is numerical (soft friction), not slip.
+  Part 2/4 carries last several seconds: randomize the in-hand pose for that drift.
+- **Open:** the pad model (rigid spheres, 2 ms) loads one sphere per side; a box pad collides with
+  nothing against the reader mesh (CPU, `mj_geomDistance` -0.2 mm but no contact). A pull test on
+  the real gripper (μ, squeeze, slip) is the measurement this grasp depends on.
+
 ### 2026-10-31 (mason, `policy/approach-hold`) — Part 3 left hold and Part 2 approach in the GPU runtime
 
 All numbers: GPU bimanual runtime, full DR (PC layout +/-3 cm/+/-10 deg, PC feet mu U(0.3, 0.9), arm
