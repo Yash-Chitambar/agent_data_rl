@@ -1,0 +1,24 @@
+{
+ "policy": "runs/teacher_snapshot_s1.pt",
+ "n": 1024,
+ "seated": 819,
+ "rate": 0.7998046875,
+ "wilson95": [
+  0.7741953826094387,
+  0.8231729278383969
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 819,
+  "jam": 102,
+  "lateral_miss": 78,
+  "grasp_slip": 25
+ },
+ "strict_seated_rate": 0.03515625,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 1.12,
+ "t_seat_s_p95": 3.201999999999998,
+ "pc_max_mm_p99": 1.7648453414440148,
+ "gate_pass": false
+}

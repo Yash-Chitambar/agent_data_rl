@@ -1,0 +1,24 @@
+{
+ "policy": "scripted",
+ "n": 512,
+ "seated": 212,
+ "rate": 0.4140625,
+ "wilson95": [
+  0.37219106844632627,
+  0.45721392719574677
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "lateral_miss": 234,
+  "seated": 212,
+  "jam": 38,
+  "grasp_slip": 28
+ },
+ "strict_seated_rate": 0.212890625,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 4.8100000000000005,
+ "t_seat_s_p95": 5.84,
+ "pc_max_mm_p99": 0.975770497918129,
+ "gate_pass": false
+}

@@ -106,9 +106,16 @@ class InsertionCfg:
     grasp_p: tuple | None = None        # TCP in the reader frame; None: solved by InsertionTask.grasp_height
 
 
-DEFAULT_CONTACT_DR = dict(port_friction=(0.15, 0.6), port_timeconst=(0.003, 0.008),
-                          pad_friction=(0.8, 2.0), pad_timeconst=(0.002, 0.006),
-                          grip_gain_scale=(0.6, 1.4), reader_friction=0.5)
+# Contact values are unmeasured. User directive (2026-10-31): choose values that let insertion work,
+# record them, refine after the first policy. The first wide ranges (port mu 0.15-0.6, port solref
+# 3-8 ms, pad mu 0.8-2.0, pad solref 2-6 ms, squeeze x0.6-1.4) cost the privileged teacher 85 -> 71 %
+# at high port friction and more jams with soft ports (n=1024). Current (success-first) ranges:
+DEFAULT_CONTACT_DR = dict(port_friction=(0.10, 0.20), port_timeconst=(0.003, 0.004),
+                          pad_friction=(1.5, 2.0), pad_timeconst=(0.002, 0.003),
+                          grip_gain_scale=(1.0, 1.4), reader_friction=0.5)
+WIDE_CONTACT_DR = dict(port_friction=(0.15, 0.6), port_timeconst=(0.003, 0.008),
+                       pad_friction=(0.8, 2.0), pad_timeconst=(0.002, 0.006),
+                       grip_gain_scale=(0.6, 1.4), reader_friction=0.5)
 
 
 def _rpy(x):

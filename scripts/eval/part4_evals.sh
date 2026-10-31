@@ -2,7 +2,7 @@
 # Part 4 held-out evaluations (seed 1000, n = 1024 per row): Part 2 start errors at scale 1.0 with the
 # guarded left hold, the same with the PC pinned (mass x1000), and robustness at scale 1.5.
 #   CUDA_VISIBLE_DEVICES=1 bash scripts/eval/part4_evals.sh <label> <checkpoint> <nworld> [tags...]
-# tags: hold (default), fixed, s15
+# tags: hold (scale 1.0), fixed (scale 1.0, PC mass x1000), s<scale> e.g. s025 s05 s075 s10 s125 s15
 set -euo pipefail
 label=$1; ckpt=$2; nw=$3; shift 3
 tags=${*:-hold fixed s15}
@@ -15,6 +15,8 @@ for t in $tags; do
     hold)  ej="{\"start_source\": \"$npz\"}"; sc=1.0 ;;
     fixed) ej="{\"start_source\": \"$npz\", \"pc_mass_scale\": 1000.0}"; sc=1.0 ;;
     s15)   ej="{\"start_source\": \"$npz\"}"; sc=1.5 ;;
+    s*)    ej="{\"start_source\": \"$npz\"}"; sc=$(echo "${t#s}" | sed 's/^0/0./; s/^1\([0-9]\)/1.\1/') ;;   # s025 -> 0.25, s05 -> 0.5, s125 -> 1.25
+    *)     echo "unknown tag $t"; exit 1 ;;
   esac
   # merge the checkpoint's own env_json (privileged teacher, cameras) with the eval settings
   ej=$(.venv/bin/python - "$ckpt" "$ej" <<'EOF'
