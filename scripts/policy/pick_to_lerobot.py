@@ -27,6 +27,9 @@ def main():
     ap.add_argument("--root", default="data/act/pick_v1")
     ap.add_argument("--repo_id", default="local/pick_v1")
     ap.add_argument("--max_episodes", type=int, default=0)
+    ap.add_argument("--shard", type=int, default=0)
+    ap.add_argument("--nshards", type=int, default=1, help="convert every nshards-th episode (run shards in parallel, then pick_merge_shards.py)")
+    ap.add_argument("--encoder_threads", type=int, default=4)
     a = ap.parse_args()
     raw, root = Path(a.raw), Path(a.root)
     if root.exists():
@@ -34,6 +37,7 @@ def main():
     eps = sorted(raw.glob("ep*.npz"))
     if a.max_episodes:
         eps = eps[:a.max_episodes]
+    eps = eps[a.shard::a.nshards]
     z0 = np.load(eps[0])
     h, w = iio.imread(raw / f"{eps[0].stem}_top.mp4", index=0).shape[:2]
     names_q = [f"joint{i}" for i in range(1, 7)]
@@ -44,7 +48,7 @@ def main():
         "action": {"dtype": "float32", "shape": (z0["action"].shape[1],), "names": names_q + ["gripper", "done"]},
     }
     ds = LeRobotDataset.create(a.repo_id, fps=50, features=features, root=root, robot_type="yam",
-                               use_videos=True, streaming_encoding=True, encoder_threads=4,
+                               use_videos=True, streaming_encoding=True, encoder_threads=a.encoder_threads,
                                rgb_encoder=RGBEncoderConfig(vcodec="h264", crf=20, g=2, preset="fast"))
     kept = 0
     for f in eps:
