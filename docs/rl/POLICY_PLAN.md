@@ -141,7 +141,9 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   --fine-net wrist_v12ws --fine-below-mm 7 --x-offset-mm -0.06 --y-offset-mm -0.10` (offsets calibrated on
   seeds 1-2, measured on 3-4). ZED: v1 net with the presence/OOD + **arm-pose gate** (`zed_v1_gate_arm.pt`),
   frame at the rest pose with the right gripper fully open; any other arm configuration is rejected.
-  Details: FINDINGS 2026-11-01 round 5.
+  Details: FINDINGS 2026-11-01 round 5. Round 6: the arm-robust ZED nets miss real frames because of the
+  arm-pose variation itself (ablation: DR, layout and reader placement do not; masking the arms does not
+  help); v1 + gate stays; real frames with known PC poses under varied arm poses are needed (FINDINGS round 6).
 - **Status (2026-11-01, round 4, `policy/approach-hold`): tilt/roll targets met; lateral p99 1.64 mm (target
   1.5 mm; 1.13 mm when the wrist-camera error is inside the real calibration).** Deliverable for Part 4:
   `results/usbc/policy/approach/preinsert_error.json` (+ `preinsert_error_samples.npz`).
@@ -282,6 +284,9 @@ the live state → InsertionTask seated test. Stages before insertion: 1024/1024
 
 | Insertion | Hold | n | End to end |
 |---|---|---|---|
+| **v11, round-5 approach, bumpless hand-over** | 2 cm | 1024 | **99.80 %** [99.29, 99.95] |
+| v10dr, same | 2 cm | 1024 | 99.71 % [99.14, 99.90] |
+| v6 s2, same | 2 cm | 1024 | 99.61 % [99.00, 99.85] |
 | v6 s2 | 2 cm (Part 4 training) | 1024 | **99.80 %** |
 | v6 s2 | 3.5 cm (Part 3 round 4) | 1024 | 96.00 % |
 | v10dr (hold DR) | 2 cm / 3.5 cm | 1024 each | 99.22 % / 99.22 % |
@@ -289,9 +294,10 @@ the live state → InsertionTask seated test. Stages before insertion: 1024/1024
 
 - The blind policy observes the left encoders: the hold pose (press point, tool yaw) must be the one
   Part 4 trained with. v10dr (trained with the press point randomized) is insensitive to the press point (99.22 % at both) but
-  below v6 at 2 cm; with Part 3's 3.5 cm hold use v10dr. Script default: v10dr, 2 cm (`P4_INSERT_BEST` selects v6).
-- Pre-insert error in the chain matches Part 2 (lateral p99 1.48 mm, tilt p99 0.86°); it grows by ~0.3 mm
-  in the insertion warm-up. Remaining failures: stuck at the port mouth from starts ~0.3-0.9 mm low.
+  below v6 at 2 cm; with Part 3's 3.5 cm hold use v10dr. Script default: v11 (masked left joint 6), 2 cm (`P4_INSERT_BEST` selects another checkpoint).
+- Hand-over (2026-10-31, later): bumpless (feed-forward torque folded into the first insertion target); stop bias
+  removed; pre-insert at the policy's start lateral p99 1.1 mm. Remaining failures: insertion policy at the mouth from
+  0.2-1.4 mm starts. 4096 live insertion starts saved for training (`runs/chain/handover/`, FINDINGS).
 - Demos: `results/usbc/policy/chain/demos/` (ZED + both wrists + close-up, real time). Details: FINDINGS
   2026-10-31 (`policy/chain`).
 

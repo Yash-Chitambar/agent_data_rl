@@ -51,7 +51,7 @@ class ApproachRenderer:
 
     LEFT_PARK = (0.0, 0.83, 0.29, -0.02, -0.73, -0.78)    # bimanual_pick.PickTaskCfg.left_park_q
 
-    def vary_arms(self, scale=1.):
+    def vary_arms(self, scale=1., arms=True, reader=True):
         """Per world, arm configurations the ZED sees in the task: right arm at rest or perturbed
         (N(0, 0.15 scale) rad per joint), right fingers anywhere from closed to fully open (the pick opens
         to 24 mm); left arm at rest, parked (Part 1), pressing (Part 3 hold, 2 or 3.5 cm), or perturbed.
@@ -59,6 +59,10 @@ class ApproachRenderer:
         rt, n, dev = self.rt, self.n, self.dev
         ra, la = rt.indices['right'][0], rt.indices['left'][0]
         rf = [int(rt.mjm.joint(f + '_finger').qposadr[0]) for f in ('left', 'right')]
+        if not arms:
+            if reader:
+                self._vary_reader()
+            return torch.zeros(n, dtype=torch.long, device=dev)
         u = torch.rand(n, generator=self.gen, device=dev)
         pert = torch.randn(n, 6, generator=self.gen, device=dev) * .15 * scale
         rt.q[:, ra] = rt.q[:, ra] + pert * (u < .5)[:, None]
@@ -75,17 +79,22 @@ class ApproachRenderer:
         rt.q[:, la] = lq
         rt.q[:, self.left_fingers] = torch.where((mode == 2)[:, None], torch.zeros(n, 2, device=dev),
                                                  torch.rand(n, 1, generator=self.gen, device=dev).expand(n, 2) * .0475)
-        # reader: where the layout put it (40 %), out of view (30 %, e.g. in the hand / real frames without it),
-        # or anywhere on the table left of the PC (30 %): the PC estimate must not lean on the reader.
+        if reader:
+            self._vary_reader()
+        return mode
+
+    def _vary_reader(self):
+        """Reader where the layout put it (40 %), out of view (30 %, e.g. in the hand / real frames without
+        it), or anywhere on the table left of the PC (30 %): the PC estimate must not lean on the reader."""
+        rt, n, dev = self.rt, self.n, self.dev
         pa = rt.lay.peg_qadr
         ur = torch.rand(n, generator=self.gen, device=dev)
         away = torch.stack([3. + 0 * ur, 3. + 0 * ur, rt.q[:, pa + 2]], 1)
         table = torch.stack([.05 + .15 * torch.rand(n, generator=self.gen, device=dev),
                              -.1 + .3 * torch.rand(n, generator=self.gen, device=dev), rt.q[:, pa + 2]], 1)
         rt.q[:, pa:pa + 3] = torch.where((ur < .3)[:, None], away, torch.where((ur < .6)[:, None], table, rt.q[:, pa:pa + 3]))
-        return mode
 
-    def sample_top(self, nominal=False, vary=0.):
+    def sample_top(self, nominal=False, vary=0., vary_arms_on=True, vary_reader_on=True, mask_arms=False):
         """ZED frames (reader on the table): PC pose labels. vary = 0: arms at the reset pose (round 1-4
         training condition); > 0: vary_arms(scale=vary)."""
         h, n = self.h, self.n
@@ -93,13 +102,19 @@ class ApproachRenderer:
         if nominal:
             self.rt.visual.set_nominal(torch.arange(n, device=self.dev))
         if vary:
-            self.vary_arms(vary)
+            self.vary_arms(vary, arms=vary_arms_on, reader=vary_reader_on)
         with wp.ScopedDevice(self.rt.cfg.device):
             mjw.forward(self.rt.m, self.rt.d)
         port_p, port_R = h.pc_pose()
         frames = self.rt.render()
         yaw = torch.atan2(-port_R[:, 1, 2], -port_R[:, 0, 2])   # insertion direction (-port z) in the plane
-        return frames['top'], {'port_xy': port_p[:, :2].clone(), 'port_yaw': yaw}
+        top = frames['top']
+        if mask_arms:
+            from blind_insertion.perception.arm_mask import ArmMasker, apply_mask
+            if not hasattr(self, 'masker'):
+                self.masker = ArmMasker(self.rt)
+            top = apply_mask(top, self.masker(shift_px=3, generator=self.gen))
+        return top, {'port_xy': port_p[:, :2].clone(), 'port_yaw': yaw}
 
     def sample_states(self, qpos):
         """Re-render recorded states (DAgger: the in-loop distribution) under a fresh visual-DR draw.

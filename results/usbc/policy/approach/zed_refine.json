@@ -1,0 +1,47 @@
+{
+ "method": "Two-stage ZED PC pose: a refinement CNN on a tight 64-px crop centred on the coarse estimate's\nprojected PC centre. Context (arms, wall, reader) mostly falls outside the crop, so the refiner must\nuse the case itself. Trained on DR renders with varied arm poses / reader placement (render_data\n.vary_arms), coarse estimates = truth + N(0, 4 mm) xy, N(0, 2 deg) yaw; target = truth - coarse.\nTested in sim (by arm condition, coarse from the noise model) and on the 123 real stationary frames with\ncoarse estimates from several nets (does the refiner pull them to one answer?).\n\n    CUDA_VISIBLE_DEVICES=4 PYTHONPATH=. .venv/bin/python scripts/perception/train_zed_refine.py\nWrites runs/perception/zed_refine.pt, results/usbc/policy/approach/zed_refine.json",
+ "sim_heldout_vary0.7": {
+  "n": 2048,
+  "xy_mm_p50": 4.863590240478516,
+  "xy_mm_p99": 12.991252899169922,
+  "coarse_xy_mm_p50": 4.713078498840332
+ },
+ "real_stationary": {
+  "zed": {
+   "coarse_vs_landmark_mm": 0.41091091543621533,
+   "refined_vs_landmark_mm": [
+    3.3651444652556712,
+    3.2237075551947196,
+    2.852955927479288
+   ],
+   "refined_xy_m": [
+    0.2119596302509308,
+    0.33247241377830505
+   ]
+  },
+  "zed_abl_e2_arms": {
+   "coarse_vs_landmark_mm": 13.865493558092068,
+   "refined_vs_landmark_mm": [
+    14.74369321029596,
+    15.407650468374415,
+    16.122711445641794
+   ],
+   "refined_xy_m": [
+    0.20722822844982147,
+    0.3452763259410858
+   ]
+  },
+  "zed_v4s0": {
+   "coarse_vs_landmark_mm": 8.69781447324971,
+   "refined_vs_landmark_mm": [
+    9.094411564285016,
+    8.388242943542961,
+    7.696242819069702
+   ],
+   "refined_xy_m": [
+    0.2085936963558197,
+    0.3359878957271576
+   ]
+  }
+ }
+}

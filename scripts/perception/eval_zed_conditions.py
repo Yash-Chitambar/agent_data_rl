@@ -25,10 +25,15 @@ from blind_insertion.perception.zed_estimator import NOMINAL_PORT_XY, zed_crop
 LAYOUT = 'results/usbc/policy/pick/task_layout.json'
 
 
+MASKED = set()
+
+
 def load(name, dev):
     ck = torch.load(f'runs/perception/{name}.pt', map_location=dev)
     net = PoseNet(ck.get('n_out', len(ck['scale'])), ck['size'], width=ck.get('width', 32)).to(dev).eval()
     net.load_state_dict(ck['net'])
+    if ck.get('mask_arms'):
+        MASKED.add(name)
     return net, ck['scale'].to(dev)
 
 
@@ -50,6 +55,11 @@ def frames(r, cond):
         p, R = r.h.pc_pose()
         rt.q[:, la] = r.hold.solve(p, R)['q_contact']
         rt.q[:, r.left_fingers] = 0.
+    elif cond == 'folded':              # both arms at all-zero joints (the real stationary frames' pose), fingers open
+        rt.q[:, rt.indices['right'][0]] = 0.
+        rt.q[:, la] = 0.
+        rt.q[:, rf] = .0475
+        rt.q[:, r.left_fingers] = .0475
     elif cond == 'wild':
         r.vary_arms(2.5)
     with wp.ScopedDevice(rt.cfg.device):
@@ -63,6 +73,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--nets', nargs='+', default=['zed'])
     ap.add_argument('--n', type=int, default=1024)
+    ap.add_argument('--conds', nargs='+', default=['rest', 'rest_24mm', 'parked', 'pressing', 'wild'])
     ap.add_argument('--out', default='results/usbc/policy/approach/zed_conditions.json')
     ap.add_argument('--gate', nargs=3, default=None, metavar=('POSE', 'POSE2', 'GATE'), help='also evaluate ZedEstimator(pose, gate, pose2)')
     a = ap.parse_args()
@@ -75,10 +86,16 @@ def main():
                            pose2=f'runs/perception/{a.gate[1]}.pt' if a.gate[1] != 'none' else None)
     r = ApproachRenderer(nworld=256, seed=555, task_layout=LAYOUT)
     out = {}
-    for cond in ('rest', 'rest_24mm', 'parked', 'pressing', 'wild'):
+    for cond in a.conds:
         errs = {nm: [] for nm in nets}; yerr = {nm: [] for nm in nets}; ens = []; gerr, gok = [], []
         for _ in range(a.n // r.n):
             x, pxy, yaw, arms = frames(r, cond)
+            xm = None
+            if MASKED:
+                from blind_insertion.perception.arm_mask import ArmMasker
+                if not hasattr(r, 'masker'):
+                    r.masker = ArmMasker(r.rt)
+                xm = x.clone(); xm[zed_crop(r.masker())] = 128
             if est is not None:
                 full = torch.zeros(len(x), 320, 320, 3, dtype=torch.uint8, device=dev)
                 from blind_insertion.perception.zed_estimator import ZED_CROP
@@ -88,7 +105,7 @@ def main():
             ests = []
             for nm, (net, sc) in nets.items():
                 with torch.no_grad():
-                    e = net(x)[:, :len(sc)] * sc
+                    e = net(xm if nm in MASKED else x)[:, :len(sc)] * sc
                 port = torch.tensor(NOMINAL_PORT_XY, device=dev) + e[:, :2] * 1e-3
                 errs[nm].append(((port - pxy).norm(dim=1) * 1e3).cpu())
                 yerr[nm].append(torch.rad2deg(torch.atan2(torch.sin(torch.deg2rad(e[:, 2]) - yaw), torch.cos(torch.deg2rad(e[:, 2]) - yaw))).abs().cpu())

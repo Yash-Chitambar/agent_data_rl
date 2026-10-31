@@ -68,6 +68,10 @@ class InsertionPolicy:
         self.meta = dict(paths=[str(q) for q in paths], env_json=ej, action_mode=ck.get('action_mode', 'accumulate'),
                          history=ck['history'], episode_s=ej.get('episode_s', 6.0), obs_dim=self.obs_dim)
 
+        from blind_insertion.envs.insertion_task import InsertionCfg
+        mcfg = InsertionCfg(mask_left_obs=ej.get('mask_left_obs', False))
+        self.mask_idx = mcfg.left_mask_idx()
+        self.meta['mask_left_obs'] = ej.get('mask_left_obs', False)
         self.visual = 'visual' in ck
         if self.visual:   # the env must render the wrist camera at this resolution (env_json in meta)
             self.meta['visual'] = ck['visual']
@@ -78,6 +82,9 @@ class InsertionPolicy:
     def __call__(self, hist, frames=None, age=None):
         """frames/age: the latest right-wrist RGB frame (N, res, res, 3) uint8 and its age (s), visual only."""
         h = hist[..., :self.obs_dim]
+        if self.mask_idx:          # trained with masked left-arm features: mask here too (env-independent)
+            h = h.clone()
+            h[..., list(self.mask_idx)] = 0
         acts = [ac.act_mean(h, frames, age)[0] if 'visual' in ck else ac.act_mean(h)[0] for ac, ck in self.members]
         return torch.stack(acts).mean(0).clamp(-1, 1)
 
