@@ -143,7 +143,10 @@ def inhand_pose(n, cfg: InsertionCfg, device, gen=None, nominal=False):
     if cfg.grasp == 'part1':
         from blind_insertion.scenes.reader_grasp import TILT_DEG, inhand_pose as measured
         m = measured()
-        nom = m['nominal'][f'{TILT_DEG:.1f}']
+        noms = m['nominal']     # keys: '55.0' (older file) or 'tilt55_flip0'/'tilt55_flip1' with grasp_share
+        share = __import__('json').loads(__import__('blind_insertion.scenes.reader_grasp', fromlist=['x']).SPREAD_FILE.read_text()).get('grasp_share', {})
+        key = max(share, key=share.get) if share else (f'{TILT_DEG:.1f}' if f'{TILT_DEG:.1f}' in noms else next(iter(noms)))
+        nom = noms[key]
         R0 = K.quat_to_mat(torch.tensor(nom['quat_wxyz'], device=device, dtype=torch.float32)[None])[0]
         p0 = torch.tensor(nom['pos_m'], device=device, dtype=torch.float32)
         if nominal:
