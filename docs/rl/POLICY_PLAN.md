@@ -137,10 +137,11 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
     (x p99 0.93, y p99 1.49), tilt p99 0.87 deg, roll p99 0.57 deg, gap error p99 0.83 mm; 95.3 % inside
     1 mm / 2 deg. The error grows with the DR wrist-camera pose error (sampled up to 2x real): inside the real
     calibration (<= 5.1 mm, <= 1.2 deg; n = 331) lateral p99 1.13 mm, tilt p99 0.70 deg.
-    Floor with a perfect estimate: lateral p99 0.13 mm, tilt p99 0.28 deg.
+    Floor with a perfect estimate at this hold: lateral p99 0.13 mm, tilt p99 0.28 deg (n = 256).
   - **Round 4 tries** (lateral p99, n = 1024 unless noted, press 2 cm): DAgger v9 1.84; wider CNN v9w 1.74;
     stop-gap specialist v9 + v9s 1.68; 12-iteration dwell 1.81 (no gain). Moving the hold to 3.5 cm put the left
     fingers next to the port in the wrist view: old nets failed (11 mm) until one DAgger round (v10w 2.04).
+    Another round (v11w + v10ws): 1.62 / p99.5 1.97 mm, 94.3 % -- same as v10w + v10ws: DAgger has plateaued.
   - **What moved it:** the measured (small) in-hand spread; fixing a one-step command jerk at the
     teleport; Coulomb feed-forward (servo floor 2.8 -> 0.9 mm in round 1); DAgger on in-loop states
     (lateral p99 4.9 -> 2.1 -> 2.2 -> 2.0 mm over three rounds); roll correction at the stop gap.

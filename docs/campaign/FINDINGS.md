@@ -121,7 +121,8 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   (v9w p99 11 mm). DAgger at the new hold: v10w 0.42 / 2.04 mm; **v10w + stop-gap specialist v10ws (current deliverable):
   lateral p50 0.32 / p99 1.64 / p99.5 1.88 mm (x p99 0.93, y p99 1.49), tilt p99 0.87 deg, roll p99 0.57 deg,
   gap error p99 0.83 mm, 95.3 % inside 1 mm / 2 deg (n = 1024, all finite, ZED gate accepted all)**; with the wrist
-  camera error inside the real calibration (n = 331): lateral p99 1.13 mm, tilt p99 0.70 deg.
+  camera error inside the real calibration (n = 331): lateral p99 1.13 mm, tilt p99 0.70 deg. One more round
+  (v11w + v10ws): p99 1.62 mm, 94.3 %: plateau.
 
 ### 2026-10-31 (mason, `policy/pick`) — Part 1 strip in front of the PC: 5 × 10 cm, gate 2048/2048
 
