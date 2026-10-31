@@ -1,12 +1,12 @@
 """Reader presence classifier for the ZED reader estimator (the Mahalanobis feature gate does not
 separate frames without the reader: results/usbc/policy/pick/reader_zed_gate.json).
 
-Positives: DR renders with the reader on the Part 1 strip. Negatives: the same scenes with the reader
+Frames at the reader capture pose (train_reader_zed.to_capture_pose). Positives: DR renders with the reader on the Part 1 strip. Negatives: the same scenes with the reader
 removed, or lying elsewhere on the table outside the strip. Tested on held-out renders and on real ZED
 frames of the curated 2026-10-28 sessions (no reader on the strip in any of them: all must be rejected).
 
     CUDA_VISIBLE_DEVICES=3 PYTHONPATH=.:scripts/perception MUJOCO_GL=egl .venv/bin/python scripts/perception/train_reader_presence.py
-Adds the presence net to runs/perception/reader_zed_r320.pt ('presence'); writes results/usbc/policy/pick/reader_presence.json
+Adds the presence net to runs/perception/reader_zed_cap.pt ('presence'); writes results/usbc/policy/pick/reader_presence.json
 """
 import argparse, glob, json, sys
 from pathlib import Path
@@ -23,6 +23,7 @@ from blind_insertion.envs.bimanual_runtime import BimanualCfg
 from blind_insertion.perception.nets import PoseNet
 from blind_insertion.perception.reader_zed import ReaderZedEstimator
 from blind_insertion.scenes.physical_rig import real_top_policy_image
+import train_reader_zed as T
 
 REAL = Path('/home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/cameras')
 
@@ -32,6 +33,7 @@ def render(task, crop, n, mode):
     out = []
     while sum(len(o) for o in out) < n:
         task.reset()
+        T.to_capture_pose(task, jitter_rad=.01)
         if mode != 'present':
             pa, N, dev = task.lay.peg_qadr, task.cfg.physics.nworld, task.device
             off = torch.rand(N, device=dev) < .5
@@ -44,7 +46,7 @@ def render(task, crop, n, mode):
 
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--ckpt', default='runs/perception/reader_zed_r320.pt')
+    ap = argparse.ArgumentParser(); ap.add_argument('--ckpt', default='runs/perception/reader_zed_cap.pt')
     ap.add_argument('--n', type=int, default=12288); ap.add_argument('--epochs', type=int, default=15); a = ap.parse_args()
     dev = torch.device('cuda:0')
     est = ReaderZedEstimator(a.ckpt)

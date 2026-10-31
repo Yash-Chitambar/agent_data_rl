@@ -1,6 +1,8 @@
 """ZED reader-pose CNN for the Part 1 pick (RGB only, Part 1 strip in front of the PC).
 
-Renders with the pick task's reset: right arm at rest with the gripper open (24 mm), left arm parked,
+Renders at the reader capture pose: right arm at the ZED capture pose (configs/zed_capture_pose.json),
+both grippers fully open, left arm parked (at the PC capture pose the left gripper hides the strip),
++/-0.01 rad joint jitter,
 PC pose DR (x +/-1 cm, y +/-1.5 cm, +/-5 deg), reader uniform on the strip (yaw = bearing + 15 +/- 10
 deg), policy/v1 visual DR (appearance, lighting, image noise, camera pose/intrinsics error at real
 scale). The input is a fixed square crop of the ZED frame around the strip (projected with the nominal
@@ -57,11 +59,40 @@ def labels(task):
     return torch.stack([c[:, 0] - STRIP_CENTRE[0], c[:, 1] - STRIP_CENTRE[1], yaw - YAW0], 1)
 
 
-def generate(task, box, n, nominal=False):
+CAPTURE = json.loads((Path(__file__).resolve().parents[2] / 'blind_insertion/configs/zed_capture_pose.json').read_text())
+
+
+LEFT_PARK = (0.0, 0.83, 0.29, -0.02, -0.73, -0.78)   # PickTaskCfg.left_park_q
+
+
+def capture_q(left_parked=True):
+    return {'right': CAPTURE['model_frame_rad']['right'], 'left': list(LEFT_PARK) if left_parked else CAPTURE['model_frame_rad']['left']}
+
+
+def to_capture_pose(task, jitter_rad=0., left_parked=True):
+    """Reader capture pose: right arm at the ZED capture pose (configs/zed_capture_pose.json), both
+    grippers fully open; left arm parked. With the left arm at the capture (reference) pose its gripper
+    hangs over the strip and hides the reader from the ZED (2026-11-01), so the reader frame is taken
+    after the left arm parks."""
+    rt = task.runtime; dev = task.device; n = task.cfg.physics.nworld
+    cq = capture_q(left_parked)
+    for side in ('right', 'left'):
+        q = torch.tensor(cq[side], device=dev)
+        rt.q[:, rt.indices[side][0]] = q + (torch.rand(n, 6, device=dev) * 2 - 1) * jitter_rad
+    fingers = [int(rt.mjm.joint(p_ + f + '_finger').qposadr[0]) for p_ in ('', 'left_') for f in ('left', 'right')]
+    rt.q[:, fingers] = .0475
+    import mujoco_warp as mjw
+    with wp.ScopedDevice(task.cfg.physics.device):
+        mjw.kinematics(rt.m, rt.d)
+
+
+def generate(task, box, n, nominal=False, capture=True):
     X, Y = [], []
     x0, y0, s = box
     while sum(len(x) for x in X) < n:
         task.reset()
+        if capture:
+            to_capture_pose(task, jitter_rad=.01)
         if nominal:
             task.runtime.visual.set_nominal(torch.arange(task.cfg.physics.nworld, device=task.device))
         fr = task.runtime.render()['top']
@@ -127,8 +158,11 @@ def main():
     with torch.no_grad():
         pt, pn = pred_of(Xt), pred_of(Xn)
     Path('runs/perception').mkdir(parents=True, exist_ok=True)
+    env = {'left_refs': [list(LEFT_PARK)], 'right_refs': [CAPTURE['model_frame_rad']['right']],
+           'tol_rad': CAPTURE['tolerance_rad'], 'right_finger_min_m': .04}
     torch.save({'net': net.state_dict(), 'size': a.size, 'width': a.width, 'n_out': 3, 'scale': sc.cpu(), 'crop': box, 'res': a.res,
-                'strip_centre': STRIP_CENTRE, 'yaw0': YAW0}, f'runs/perception/reader_zed{a.tag}.pt')
+                'strip_centre': STRIP_CENTRE, 'yaw0': YAW0, 'capture_pose': {'right': 'configs/zed_capture_pose.json right', 'left': 'parked', 'grippers': 'fully open', 'q': capture_q()},
+                'arm_envelope': env}, f'runs/perception/reader_zed{a.tag}.pt')
     rep = {'estimator': 'reader_zed' + a.tag, 'method': __doc__.strip(), 'args': vars(a), 'crop_xy_size_px': box, 'n_train': len(X), 'n_test': len(Xt),
            'held_out_dr_abs_error': errors(pt, Yt), 'held_out_nominal_look_abs_error': errors(pn, Yn), 'generate_s': t_gen, 'total_s': time.time() - t0}
     out = Path(f'results/usbc/policy/pick/reader_zed{a.tag}.json')

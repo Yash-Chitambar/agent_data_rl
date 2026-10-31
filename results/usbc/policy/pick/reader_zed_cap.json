@@ -1,0 +1,77 @@
+{
+ "estimator": "reader_zed_cap",
+ "method": "ZED reader-pose CNN for the Part 1 pick (RGB only, Part 1 strip in front of the PC).\n\nRenders at the reader capture pose: right arm at the ZED capture pose (configs/zed_capture_pose.json),\nboth grippers fully open, left arm parked (at the PC capture pose the left gripper hides the strip),\n+/-0.01 rad joint jitter,\nPC pose DR (x +/-1 cm, y +/-1.5 cm, +/-5 deg), reader uniform on the strip (yaw = bearing + 15 +/- 10\ndeg), policy/v1 visual DR (appearance, lighting, image noise, camera pose/intrinsics error at real\nscale). The input is a fixed square crop of the ZED frame around the strip (projected with the nominal\ncamera). Labels: reader body-centre xy (m) and plug yaw (rad), relative to the strip centre / 1.5 rad.\n\n    CUDA_VISIBLE_DEVICES=3 PYTHONPATH=. MUJOCO_GL=egl .venv/bin/python scripts/perception/train_reader_zed.py --n 49152\nWrites runs/perception/reader_zed{tag}.pt, results/usbc/policy/pick/reader_zed{tag}.json (+ .npz)",
+ "args": {
+  "n": 49152,
+  "n_test": 4096,
+  "res": 320,
+  "size": 128,
+  "epochs": 40,
+  "width": 32,
+  "lr": 0.002,
+  "nworld": 256,
+  "seed": 0,
+  "tag": "_cap"
+ },
+ "crop_xy_size_px": [
+  80,
+  173,
+  128
+ ],
+ "n_train": 49152,
+ "n_test": 4096,
+ "held_out_dr_abs_error": {
+  "x_mm": {
+   "p50": 0.4947513937950134,
+   "p90": 1.443842887878418,
+   "p99": 2.903144359588623,
+   "p99.5": 3.632972240447998
+  },
+  "y_mm": {
+   "p50": 0.7299771308898926,
+   "p90": 2.0001096725463867,
+   "p99": 3.7362780570983887,
+   "p99.5": 4.750594139099121
+  },
+  "yaw_deg": {
+   "p50": 0.3181217312812805,
+   "p90": 0.864128828048706,
+   "p99": 2.0777852535247803,
+   "p99.5": 2.764054298400879
+  },
+  "xy_mm": {
+   "p50": 1.095700979232788,
+   "p90": 2.359584331512451,
+   "p99": 4.383544921875,
+   "p99.5": 5.939725399017334
+  }
+ },
+ "held_out_nominal_look_abs_error": {
+  "x_mm": {
+   "p50": 0.17808005213737488,
+   "p90": 0.45763683319091797,
+   "p99": 1.0195308923721313,
+   "p99.5": 1.072506308555603
+  },
+  "y_mm": {
+   "p50": 0.2982374429702759,
+   "p90": 0.7352501153945923,
+   "p99": 1.1787346601486206,
+   "p99.5": 1.3166890144348145
+  },
+  "yaw_deg": {
+   "p50": 0.2679256796836853,
+   "p90": 0.7109662294387817,
+   "p99": 1.1062225103378296,
+   "p99.5": 1.1883118152618408
+  },
+  "xy_mm": {
+   "p50": 0.4162863790988922,
+   "p90": 0.8263076543807983,
+   "p99": 1.2383538484573364,
+   "p99.5": 1.361328125
+  }
+ },
+ "generate_s": 1329.3066546916962,
+ "total_s": 2598.504221200943
+}
