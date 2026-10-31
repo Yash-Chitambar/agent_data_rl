@@ -56,7 +56,7 @@ GRASP_TIP_CLEARANCE = 0.001
 class InsertionCfg:
     task: BimanualTaskCfg = field(default_factory=lambda: BimanualTaskCfg(
         episode_s=6., physics=BimanualCfg(contact_dr=dict(DEFAULT_CONTACT_DR), opt_overrides={"cone": 1},
-                                                    njmax=1400, nconmax=160)))
+                                                    njmax=2000, nconmax=160)))
     history: int = 30
     # Pre-insert error of the plug relative to the port (port frame): lateral half-ranges (m) for
     # the tip across the aperture (x: long side, y: short side), gap of the tip in front of the
