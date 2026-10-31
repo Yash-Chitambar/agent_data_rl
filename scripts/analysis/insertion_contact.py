@@ -149,6 +149,10 @@ def episode_stats(rec, length, outcome, dt):
                    peak_lateral_port_force_N=Fp[..., :2].norm(dim=-1).max(0).values,
                    peak_net_port_force_N=Fp.norm(dim=-1).max(0).values,
                    peak_net_reader_to_pc_force_N=Fc.norm(dim=-1).max(0).values)
+    ax = Fp[..., 2].clamp(min=0)
+    tpk = ax.argmax(0)
+    zpk = rec['p'][tpk, torch.arange(N, device=fp.device), 2]
+    out_net['depth_at_peak_force_mm'] = -zpk * 1e3            # <0.5: entry / rim impact; >5: bottoming at the seat
     out = dict(**out_net, peak_wall_squeeze_sum_N=fp.max(0).values, mean_port_N_in_contact=fp.sum(0) / nsteps_c, peak_pc_N=fpc.max(0).values,
                peak_pad_N=fpad.max(0).values, speed_first_contact_mm_s=sp_first, peak_speed_after_contact_mm_s=sp_peak,
                rim_contact_steps=rim.sum(0).float(), rim_contact_onsets=onsets.float())
@@ -302,6 +306,9 @@ def main():
              'episode': {key: pct(v) for key, v in st.items()},
              'contact_head': head_metrics(rec, length), 'behaviour': behaviour(rec, length, dt)}
         r['episode']['frac_episodes_peak_axial_over_20N'] = float((st['peak_axial_insertion_force_N'] > 20).mean())
+        dpk = st['depth_at_peak_force_mm']
+        r['episode']['peak_force_phase'] = {'entry_or_rim(<0.5mm)': float((dpk < .5).mean()), 'inside(0.5-5mm)': float(((dpk >= .5) & (dpk <= 5)).mean()),
+                                            'bottoming(>5mm)': float((dpk > 5).mean())}
         r['episode']['frac_episodes_peak_net_over_20N'] = float((st['peak_net_port_force_N'] > 20).mean())
         r['probes'] = probes(rec, length, env)
         report[cond] = r

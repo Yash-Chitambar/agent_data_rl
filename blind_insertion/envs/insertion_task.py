@@ -149,6 +149,11 @@ class InsertionCfg:
     # inhand_pos_m / inhand_rot_deg.
     grasp: str = 'part1'
     inhand_spread_scale: float = 1.25
+    # Extra uniform in-hand error on top of grasp='part1' (perception-driven pick, p99 ~4 mm / 1.4 deg vs the
+    # privileged pick's 0.77 mm / 0.24 deg): half-ranges in the grasp_site frame, position (m) x/y/z
+    # (y = closing axis: the coupled fingers centre the reader, keep it small) and rotation vector (deg).
+    inhand_extra_pos_m: tuple = (0.0, 0.0, 0.0)
+    inhand_extra_rot_deg: tuple = (0.0, 0.0, 0.0)
 
 
 # Contact values are unmeasured. User directive (2026-10-31): choose values that let insertion work,
@@ -193,8 +198,9 @@ def inhand_pose(n, cfg: InsertionCfg, device, gen=None, nominal=False):
         lo = lambda keys: torch.tensor([sp[k]['p1'] for k in keys], device=device)
         hi = lambda keys: torch.tensor([sp[k]['p99'] for k in keys], device=device)
         sample = lambda keys, f: ((lo(keys) + hi(keys)) / 2 + u(n, 3) * (hi(keys) - lo(keys)) / 2 * cfg.inhand_spread_scale) * f
-        dp = sample(('inhand_dx_mm', 'inhand_dy_mm', 'inhand_dz_mm'), 1e-3)
-        rv = sample(('inhand_rx_deg', 'inhand_ry_deg', 'inhand_rz_deg'), math.pi / 180)
+        dp = sample(('inhand_dx_mm', 'inhand_dy_mm', 'inhand_dz_mm'), 1e-3) + u(n, 3) * torch.tensor(cfg.inhand_extra_pos_m, device=device)
+        rv = sample(('inhand_rx_deg', 'inhand_ry_deg', 'inhand_rz_deg'), math.pi / 180) \
+            + u(n, 3) * torch.tensor(cfg.inhand_extra_rot_deg, device=device) * math.pi / 180
         ang = rv.norm(dim=1)
         Rv = K.axis_angle_mat(rv / ang.clamp(min=1e-9)[:, None], ang)
         return Rv @ R0, p0 + dp
