@@ -86,9 +86,10 @@ class InsertionCfg:
     slip_deg: float = 15.0
     pc_move_m: float = 0.01             # PC translation since reset
     pc_tilt_deg: float = 5.0
-    # reward: sparse capture + seated (Bronars et al.) + potential shaping on tip error
+    # reward: one-time capture + one-time success bonus + potential shaping on tip error - failure penalty
     shaping: float = 1.0
     fail_penalty: float = 1.0           # subtracted at a failure termination (slip, PC pushed, far)
+    success_bonus: float = 10.0
     shaping_scale_m: float = 0.01
     # Seating test: plug-edge points may lie this far outside the aperture polygon. MuJoCo's soft
     # contacts let a fully inserted plug sit 3 um median / 14 um max outside a 45 um-clearance slot
@@ -559,7 +560,10 @@ class InsertionTask(BimanualTask):
         # Undiscounted difference: with phi < 0, gamma * phi' - phi adds (gamma - 1) * phi > 0 every step,
         # a bonus for staying far from the port (observed: PPO learned to hover without seating).
         failed = L['slip'] | L['pushed'] | L['far']
-        reward = new_capture.float() + L['seated'].float() + c.shaping * (phi2 - self.phi) \
+        # One-time success bonus. A per-step seated reward (Bronars et al.) was exploited here: policies
+        # hovered just short of the 0.2 s hold and collected it every step (reward 4 -> 17 per rollout
+        # while success fell 100 -> 50 %, worse with longer episodes).
+        reward = new_capture.float() + c.success_bonus * L['success'].float() + c.shaping * (phi2 - self.phi) \
             - c.fail_penalty * (failed & ~L['success']).float()
         reward = torch.where(L['bad'], torch.zeros_like(reward), reward)
         reward = torch.nan_to_num(reward, 0., 0., 0.)

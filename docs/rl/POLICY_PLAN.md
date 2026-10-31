@@ -205,7 +205,17 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
 - Decisions forced by the sim: accumulated joint targets (relative targets drift 23 mm in 2 s),
   elliptic friction cones (grasp creep), seating with a 25 µm aperture tolerance (soft-contact
   penetration of fully inserted plugs is up to 14 µm), action std 0.2.
-- Results: see the table in FINDINGS (updated as runs finish).
+- Results (held-out seed 1000, Part 2 start errors × scale, guarded hold, seating = 0.2 s hold with a
+  25 µm aperture tolerance; n per row; Wilson 95 %):
+
+  | Policy | Conditions | Scale | n | Seated | Notes |
+  |---|---|---|---|---|---|
+  | Scripted privileged (Jacobian) | wide DR, 6 s | 1.0 | 512 | 41.4 % [37.2, 45.7] | feasibility only |
+  | PPO privileged teacher | wide DR, 60° grasp, 6 s | 1.0 | 1024 | 80.0 % [77.4, 82.3] | first-episode eval (biased low); +6.3 % deep-unseated |
+  | DAgger students (blind / wrist / wrist-approach / wrist+ZED) | students' training conditions | 1.0 | 1024 each | 7.1 / 6.5 / 3.5 / 6.3 % | cameras add nothing measurable via DAgger |
+  | PPO blind v3 (10 s, early ckpt) | success-first DR, Part 1 grasp | 0.25 | 2048 | 93.4 % [92.2, 94.4] | 97.1 % incl. deep-unseated |
+
+  Final per-level table: FINDINGS 2026-10-31 (Part 4).
 
 ## Order of work
 
