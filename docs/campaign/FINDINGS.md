@@ -104,6 +104,48 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
+
+Branch `policy/insertion`. Code: `envs/insertion_task.py`, `train_bimanual.py`, `eval_insertion.py`,
+`distill_insertion.py`; checks `scripts/checks/check_insertion_task.py`, `check_insertion_clearance.py`.
+Results: `results/usbc/policy/insertion/`.
+
+- **Episode:** reader in the right hand at a pre-insert pose 2-8 mm in front of port 2 (GPU IK start
+  pool), PC pose nominal ±3 cm / ±10°, left arm pressing on the PC top (scripted), full physics DR
+  (arm friction/gravity, latency 0-1 step, encoder offset ±1.5°, PC feet μ, new contact DR).
+  Start errors (scale 1): plug lateral ±2 mm per axis, ±2° per axis, in-hand ±3 mm (plug axis, grasp
+  height) and ±8° about the closing axis (±1.5° on the other two; the coupled fingers centre the reader).
+- **Grasp (confirmed 60° grasp):** TCP in the reader frame (0, +1.75, 48.9) mm, solved so the lowest
+  finger point is 1 mm below the reader bottom; pad sphere rows cover 6.1 mm of the 8.8 mm side face.
+  At port 2, seated, randomized in-hand pose (n=64 PC poses): fingers ≥ 35 mm from the PC case and
+  ≥ 13.7 mm above the table, gripper housing ≥ 27 mm above the table. **No tilt change is needed near
+  the port** (30-60° all clear).
+- **Bug fixed:** in-hand rotation noise rotated the reader about its plug tip (57 mm from the pads): an
+  8° pitch moved the body 8 mm out of the fingers and the reader fell. Now about the pad centroid.
+- **Grasp creep is a solver artifact:** pyramidal cones (scene default; `impratio` acts on elliptic
+  cones only) let the 17 g reader creep in the pads: 0.5 mm median / 7 mm max in 4 s, 5-9 % slip
+  terminations in a 2 s zero-action hold (n=512), worst at low pad μ. **Elliptic cones** (`cone=1`, new
+  `BimanualCfg.opt_overrides`): 0.09 mm median / 0.4 mm max in 4 s, no slips for pad μ 0.8-2.0.
+  Needs `njmax` 2000 (1400 overflowed once under random actions).
+- **Contact DR** (`BimanualCfg.contact_dr`, batched `geom_friction`/`geom_solref`/`actuator_gainprm`):
+  plug-port μ U(0.15, 0.6) (port geoms have contact priority), port solref 3-8 ms, pad μ U(0.8, 2.0)
+  (reader geoms lowered to 0.5 so the pad sets the pair), pad solref 2-6 ms, squeeze ×U(0.6, 1.4).
+- **Left press holds only ~3-5 N:** at 6 mm press depth only 66 % of worlds touch the PC (arm sag +
+  encoder offset error); at 20 mm all touch, and a horizontal force along the insertion axis moves the
+  PC > 1 mm at 5 N (median 0.85 mm, max 16 mm) and tens of mm at 8 N (n=32 per force). The insertion
+  policy must stay under a few N or Part 3's hold must be stronger (brace on the far face).
+- **Relative actions are unusable on this arm model:** zero action = zero stiffness; in a 2 s
+  zero-action hold the plug drifts 23 mm median (71 mm max) and tilts 8° (accumulated targets:
+  2.1 mm, 1.7°; n=64). A relative-action teacher ended episodes with the reader tilted 35° on the panel.
+  Accumulated targets need a low initial action std (0.2; 0.5 random-walks the targets into the PC).
+- **Reward bug fixed:** potential shaping γφ' − φ with φ < 0 pays (γ − 1)φ > 0 per step for staying far
+  from the port; PPO learned to hover. Now φ' − φ.
+- **Scripted privileged controller** (Jacobian, true reader/port state): 26.2 % seated (n=512, Wilson
+  [22.6, 30.1] %), feasibility only: it is slow (median seat 4.9 s of 6 s) and many "jams" sit
+  at −5.78 mm when time runs out. Clearance per side: 45 µm (width), 80 µm (height).
+- Throughput (V100, elliptic cones, 4096 worlds): ~6.3k env-steps/s alone, ~4k with two runs per GPU.
+  Resets no longer call `mjw.forward` (`runtime.reset(forward=False)`): 250 → 30 ms per reset batch.
+
 ### 2026-10-31 (mason) — Visual DR for the bimanual Warp runtime; Warp nominal look; left wrist camera was blind
 
 - **Bug:** in the MuJoCo Warp render (what policies see) the left wrist camera sat inside its own lens
