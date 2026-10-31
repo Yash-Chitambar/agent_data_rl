@@ -50,8 +50,8 @@ class BimanualCfg:
     # nominal +/- pc_pose_range (x m, y m, yaw deg) and the reader uniformly in the region (x, y,
     # yaw). The search guarantees both arms reach over the whole PC box. None: legacy fixed poses.
     task_layout: str | None = 'results/usbc/bimanual_20261029/placement/report.json'
-    # v1 policy: narrowed from (.03, .03, 10.) to raise success (user, 2026-10-31); widen later.
-    pc_pose_range: tuple = (.015, .015, 5.)
+    # v1 policy: narrowed from (.03, .03, 10.) to raise success; x ±1 cm leaves a 5 cm reader strip in front of the PC (user, 2026-10-31); widen later.
+    pc_pose_range: tuple = (.01, .015, 5.)
     # Legacy plant only (dynamics_profile=None): right joint-2 friction from the older replays.
     right_joint2_friction_nm: float = 1.0
     right_fric_comp: dict | None = None

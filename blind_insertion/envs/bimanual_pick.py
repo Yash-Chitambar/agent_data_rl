@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 
 import torch
 import warp as wp
+import mujoco_warp as mjw
 
 from blind_insertion.envs import kinematics as K
 from blind_insertion.envs.bimanual_runtime import BimanualCfg
@@ -44,12 +45,26 @@ class PickTaskCfg(BimanualTaskCfg):
     # creep of the top-down grasp); with the side grasp's ~3 mm contact band, 100 makes the pad
     # friction fail outright below mu ~1.3 (CPU and GPU: reader stays on the table) while 1-10 hold
     # (FINDINGS 2026-10-31). None keeps the scene value.
+    # Left arm parked during the pick (joint angles, model frame): the recorded reference pose holds
+    # the left hand at (0.03, 0.44, 0.17) m, over the reader region in front of the PC. Joint 1 = 0
+    # points the folded arm at the wall from its base (y 0.62), clear of the region. None: reference.
+    left_park_q: tuple | None = (0.0, 0.83, 0.29, -0.02, -0.73, -0.78)
+    # Right gripper opened only this far for the approach (finger joint, m; full open 0.0475, pad gap
+    # 92 mm). 0.024: 45 mm pad gap, 5 mm per side around the 34.6 mm body, so the open fingers clear
+    # the arm mounting plate and the PC front in the strip in front of the PC. The real gripper is
+    # position controlled; in sim the finger joint limit is lowered. None: full opening.
+    finger_open: float | None = 0.024
+    # PC pose box for the pick task (x m, y m, yaw deg), replacing BimanualCfg.pc_pose_range: the
+    # reader strip in front of the PC needs the PC x within +/-1 cm (user: acceptable for v1).
+    pc_pose_range: tuple | None = (0.01, 0.015, 5.)
     impratio: float | None = 30.   # 30: least creep (10 s hold rotation p50 0.11 deg vs 0.22 at 10, 0.66 at 3)
 
 
 class PickTask(BimanualTask):
     def __init__(self, cfg=None):
         cfg = cfg or PickTaskCfg()
+        if cfg.pc_pose_range is not None:
+            cfg.physics.pc_pose_range = tuple(cfg.pc_pose_range)
         super().__init__(cfg)
         rt, m = self.runtime, self.runtime.mjm
         dev = self.device
@@ -66,6 +81,12 @@ class PickTask(BimanualTask):
             rt.geom_friction[:, self.table, 0] = cfg.reader_table_friction_range[0]
         if cfg.grip_force_scale_range:
             rt.grip_scale = torch.ones(cfg.physics.nworld, device=dev)
+        if cfg.finger_open is not None:
+            jr = wp.to_torch(rt.m.jnt_range)
+            for f in ('left', 'right'):
+                jid = m.joint(f + '_finger').id
+                (jr[:, jid, 1] if jr.dim() == 3 else jr[jid, 1:2]).fill_(cfg.finger_open)
+            rt.initial_q[[int(m.joint(f + '_finger').qposadr[0]) for f in ('left', 'right')]] = cfg.finger_open
         if cfg.impratio is not None:
             wp.to_torch(rt.m.opt.impratio_invsqrt).fill_(1. / math.sqrt(cfg.impratio))
         self.reader0 = torch.zeros(cfg.physics.nworld, 7, device=dev)
@@ -74,15 +95,33 @@ class PickTask(BimanualTask):
         from blind_insertion.scenes import physical_rig as Rig
         d = mujoco.MjData(m); Rig.reference_pose(m, d, rt.lay); mujoco.mj_forward(m, d)
         self.hand = G.hand_geometry(m, d)
+        # offsets[(tilt, flip)]: grasp_site in the reader frame for the normal and the flipped grasp
         self.offsets, self.pad_contact_height = {}, {}
         for tilt in (G.TILT_DEG, *G.TILT_FALLBACK_DEG):
-            self.offsets[tilt], self.pad_contact_height[tilt] = G.grasp_offset(rt.lay, self.hand, tilt)
+            for flip in (False, True):
+                self.offsets[(tilt, flip)], self.pad_contact_height[(tilt, flip)] = G.grasp_offset(rt.lay, self.hand, tilt, flip=flip)
+
+    def grasp_flip(self):
+        """Per world: True when the plug points back towards the right base (|plug bearing - base
+        bearing| > 90 deg), so the hand reaches from the plug side (reader_grasp.site_rotation flip)."""
+        p_r, R_r = self.reader_pose()
+        plug = -R_r[:, :2, 2]                                  # reader z points from the plug to the body end
+        rel = torch.atan2(plug[:, 1], plug[:, 0]) - torch.atan2(p_r[:, 1], p_r[:, 0])
+        return torch.cos(rel) < 0
 
     def reset(self, ids=None):
         if ids is None: ids = torch.arange(self.cfg.physics.nworld, device=self.device)
         obs = super().reset(ids)
         c, rt, n = self.cfg, self.runtime, len(ids)
         u = lambda r, *s: torch.rand(*s, device=self.device) * (r[1] - r[0]) + r[0]   # noqa: E731
+        if c.left_park_q is not None:
+            lq = rt.indices['left'][0]; la = rt.indices['left'][2]
+            park = torch.tensor(c.left_park_q, device=self.device, dtype=rt.q.dtype)
+            rt.q[ids[:, None], torch.tensor(lq, device=self.device)] = park
+            rt.ctrl[ids[:, None], torch.tensor(la, device=self.device)] = park
+            with wp.ScopedDevice(c.physics.device): mjw.forward(rt.m, rt.d)
+            self.joint_target[ids] = self._measured_model_angles()[ids]
+            obs = self.observation()
         if c.pad_friction_range:
             rt.geom_friction[ids[:, None], self.pads, 0] = u(c.pad_friction_range, n, 1).expand(-1, len(self.pads))
         if c.reader_table_friction_range:
@@ -160,14 +199,14 @@ class PickExpert:
 
     def __init__(self, task: PickTask, v_max=0.10, w_max=1.0, joint_speed=1.2, settle_tol=(6e-4, 0.4),
                  settle_max_s=2.0, close_s=0.6, hold_s=1.0, integral_gain=0.03, integral_cap=0.08,
-                 jitter=None, margin=0.05, seed=0):
+                 jitter=None, margin=0.05, lift_tol_deg=1.0, seed=0):
         self.t, self.v, self.w, self.js = task, v_max, w_max, joint_speed
         self.settle_tol, self.dt = settle_tol, task.dt
         self.settle_max = round(settle_max_s / task.dt)
         self.close_n, self.hold_n = round(close_s / task.dt), round(hold_s / task.dt)
         self.ki, self.icap = integral_gain, integral_cap
         # Optional per-episode grasp-point jitter (reader frame, m) to widen demo coverage.
-        self.jitter, self.margin = jitter, margin
+        self.jitter, self.margin, self.lift_tol = jitter, margin, lift_tol_deg
         self.gen = torch.Generator(device=task.device); self.gen.manual_seed(seed + 101)
 
     def _ik(self, p, R, q0, iters):
@@ -185,6 +224,7 @@ class PickExpert:
         # Per world: the first tilt (60 deg, then the fallbacks) whose pre-grasp, grasp and lift all
         # solve with >= margin rad inside the joint limits.
         self.tilt = torch.full((N,), float('nan'), device=dev)
+        self.flip = t.grasp_flip()
         self.offset = torch.zeros(N, 3, device=dev)
         self.p_g = torch.zeros(N, 3, device=dev); self.R_g = torch.zeros(N, 3, 3, device=dev)
         self.p_pre = torch.zeros(N, 3, device=dev); self.p_lift = torch.zeros(N, 3, device=dev)
@@ -194,10 +234,11 @@ class PickExpert:
         for tilt in (G.TILT_DEG, *G.TILT_FALLBACK_DEG):
             todo = torch.isnan(self.tilt)
             if not todo.any(): break
-            off = torch.as_tensor(t.offsets[tilt], device=dev, dtype=torch.float32).expand(N, 3).clone()
+            off = torch.where(self.flip[:, None], torch.as_tensor(t.offsets[(tilt, True)], device=dev, dtype=torch.float32),
+                              torch.as_tensor(t.offsets[(tilt, False)], device=dev, dtype=torch.float32)).clone()
             if self.jitter is not None:
                 off = off + (torch.rand(N, 3, device=dev, generator=self.gen) * 2 - 1) * torch.as_tensor(self.jitter, device=dev, dtype=torch.float32)
-            W = G.grasp_poses(p_r, R_r, off, tilt)
+            W = G.grasp_poses(p_r, R_r, off, tilt, flip=self.flip)
             q_pre, e_pre = None, None
             for sd in ([1.0, 1.0, -.5, 0, 0], [1.6, 1.3, -.9, 0, 0], [2.2, 1.8, -1.2, 0, 0], [.6, .5, -.3, 0, 0]):
                 seed = torch.cat([aim[:, None], torch.tensor(sd, device=dev).expand(N, 5)], 1)
@@ -217,8 +258,9 @@ class PickExpert:
             best_q[ok] = q_pre[ok]
         bad = torch.isnan(self.tilt)       # unreachable: keep the 60 deg poses (episode will fail)
         if bad.any():
-            off = torch.as_tensor(t.offsets[G.TILT_DEG], device=dev, dtype=torch.float32).expand(N, 3)
-            W = G.grasp_poses(p_r, R_r, off, G.TILT_DEG)
+            off = torch.where(self.flip[:, None], torch.as_tensor(t.offsets[(G.TILT_DEG, True)], device=dev, dtype=torch.float32),
+                              torch.as_tensor(t.offsets[(G.TILT_DEG, False)], device=dev, dtype=torch.float32))
+            W = G.grasp_poses(p_r, R_r, off, G.TILT_DEG, flip=self.flip)
             self.offset[bad] = off[bad]
             self.p_pre[bad], self.p_g[bad], self.p_lift[bad], self.R_g[bad] = W['pregrasp'][0][bad], W['grasp'][0][bad], W['lift'][0][bad], W['grasp'][1][bad]
         self.q_pre = best_q
@@ -292,7 +334,9 @@ class PickExpert:
         self.finger_still = torch.where((ph == 3) & still, self.finger_still + 1, torch.zeros_like(self.finger_still))
         self.finger_prev = fo
         adv |= (ph == 3) & (((self.timer >= self.close_n) & (self.finger_still >= 5)) | (self.timer >= round(2.5 / self.dt)))
-        adv |= (ph == 4) & (dist < 5e-4) & (self.timer >= 10)
+        # lifted: the command has arrived and the true tool orientation has settled (< lift_tol_deg;
+        # weak wrist gains under the reader-plus-hand load take ~1 s at some poses), at most 3 s
+        adv |= (ph == 4) & (dist < 5e-4) & (self.timer >= 10) & ((e_r < self.lift_tol) | (self.timer >= round(3.0 / self.dt)))
         adv |= (ph == 5) & (self.timer >= self.hold_n)
         if not hasattr(self, 'settle_err'):
             self.settle_err = torch.zeros(N, 2, device=t.device)
