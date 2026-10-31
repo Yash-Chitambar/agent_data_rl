@@ -133,7 +133,7 @@ def run(a, rt=None, seed=0):
 
 def summarize(w, a, hc, ic, seconds):
     n = len(w['passed']); k = int(w['passed'].sum())
-    q = lambda x, p: float(np.percentile(x, p))
+    q = lambda x, p: float(np.nanpercentile(x, p))
     out = {'n': n, 'pass_rate': k / n, 'wilson95_lower': wilson_lower(k, n), 'gate_met': bool(n >= 1000 and k / n >= .995),
            'tolerance': {'translation_mm': a.tol_mm, 'rotation_deg': a.tol_deg},
            'arm_arm_contact_worlds': int(w['arm_arm'].sum()), 'left_touches_other_worlds': int(w['left_other'].sum()),

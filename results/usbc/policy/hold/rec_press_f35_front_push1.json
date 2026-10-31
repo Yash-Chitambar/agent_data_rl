@@ -1,0 +1,104 @@
+{
+ "n": 1024,
+ "pass_rate": 0.9931640625,
+ "wilson95_lower": 0.985956850275924,
+ "gate_met": false,
+ "tolerance": {
+  "translation_mm": 0.5,
+  "rotation_deg": 0.5
+ },
+ "arm_arm_contact_worlds": 0,
+ "left_touches_other_worlds": 0,
+ "nonfinite_worlds": 5,
+ "right_touches_pc_worlds": 0,
+ "unlatched_worlds": 0,
+ "plan_failed_worlds": 4,
+ "pc_translation_mm": {
+  "p50": 0.0,
+  "p90": 4.814937710762024e-05,
+  "p99": 0.23615491390228271,
+  "p99.5": 0.6147364377975464,
+  "p100": 1000.0
+ },
+ "pc_rotation_deg": {
+  "p50": 0.0,
+  "p90": 2.7450680136098526e-05,
+  "p99": 0.0655389279127121,
+  "p99.5": 0.08292732387781143,
+  "p100": 124.37584686279297
+ },
+ "engage_translation_mm": {
+  "p50": NaN,
+  "p99": NaN,
+  "p100": NaN
+ },
+ "engage_rotation_deg": {
+  "p50": 0.0006764533463865519,
+  "p99": 0.11797605454921722,
+  "p100": 123.27692413330078
+ },
+ "left_contact_force_n": {
+  "p1": 34.11656951904297,
+  "p50": 35.528953552246094,
+  "p99": 39.436851501464844
+ },
+ "seated_rate": null,
+ "hold": {
+  "mode": "press",
+  "across_m": -0.0208,
+  "along_m": -0.02,
+  "brace_height_m": 0.02,
+  "force_n": 35.0,
+  "preload_n": 0.0,
+  "down_n": 0.0,
+  "standoff_m": 0.015,
+  "move_s": 1.5,
+  "engage_s": 0.6,
+  "settle_s": 0.5,
+  "yaws_deg": [
+   -90,
+   -75,
+   -60,
+   -45,
+   -30,
+   -15,
+   0,
+   15,
+   30,
+   45,
+   60,
+   75,
+   90
+  ],
+  "tilt_deg": 0.0,
+  "ik_iters": 120,
+  "guarded": true,
+  "guard_speed_m_s": 0.01,
+  "guard_depth_m": 0.025,
+  "guard_force_n": 3.0,
+  "ramp_s": 0.4
+ },
+ "insert": null,
+ "load": {
+  "type": "push",
+  "push_n": [
+   1.0,
+   1.0
+  ],
+  "lateral_frac": 0.15,
+  "push_hold_s": 1.5
+ },
+ "pc_estimate_error": {
+  "sigma_m": 0.002,
+  "sigma_yaw_deg": 1.0
+ },
+ "enc_offset_deg": 1.5,
+ "feet_solref": null,
+ "feet_solimp": null,
+ "wall_s": 140.28012561798096,
+ "pass_by_feet_mu": {
+  "0.3-0.5": 0.9801699716713881,
+  "0.5-0.7": 1.0,
+  "0.7-0.9": 1.0
+ }
+}

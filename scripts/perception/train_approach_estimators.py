@@ -86,11 +86,13 @@ def main():
     ap.add_argument('--nworld', type=int, default=256)
     ap.add_argument('--lateral', type=float, default=.012)
     ap.add_argument('--gap', type=float, nargs=2, default=(.003, .045))
+    ap.add_argument('--rot', type=float, default=6.)
+    ap.add_argument('--tag', default='', help='suffix of the saved estimator name (e.g. _fine)')
     a = ap.parse_args()
     dev = torch.device('cuda:0')
     t0 = time.time()
     r = ApproachRenderer(nworld=a.nworld, seed=0)
-    cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap))
+    cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot)
     X, Y = generate(r, a.which, a.n, cfg)
     r.gen.manual_seed(12345); torch.manual_seed(12345)
     Xt, Yt = generate(r, a.which, a.n_test, cfg)
@@ -128,12 +130,12 @@ def main():
         pn = torch.cat([net(Xn[i:i + 256]) for i in range(0, len(Xn), 256)]) * sc
     Path('runs/perception').mkdir(parents=True, exist_ok=True)
     torch.save({'net': net.state_dict(), 'which': a.which, 'scale': sc.cpu(), 'size': size, 'zed_crop': ZED_CROP,
-                'wrist_size': WRIST_SIZE, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}.pt')
-    rep = {'estimator': a.which, 'method': __doc__.strip(), 'n_train': len(X), 'n_test_dr': len(Xt), 'n_test_nominal_look': len(Xn),
+                'wrist_size': WRIST_SIZE, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
+    rep = {'estimator': a.which + a.tag, 'method': __doc__.strip(), 'n_train': len(X), 'n_test_dr': len(Xt), 'n_test_nominal_look': len(Xn),
            'sample_cfg': vars(cfg), 'held_out_dr_abs_error': errors(a.which, pred, Yt),
            'held_out_nominal_look_abs_error': errors(a.which, pn, Yn), 'generate_s': t_gen, 'total_s': time.time() - t0,
            'note': 'visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)'}
-    out = Path(f'results/usbc/policy/approach/estimator_{a.which}.json')
+    out = Path(f'results/usbc/policy/approach/estimator_{a.which}{a.tag}.json')
     out.write_text(json.dumps(rep, indent=1) + '\n')
     np.savez_compressed(out.with_suffix('.npz'), pred=pred.cpu().numpy(), target=Yt.cpu().numpy())
     print(json.dumps(rep['held_out_dr_abs_error'], indent=1))

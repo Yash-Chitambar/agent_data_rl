@@ -41,6 +41,9 @@ from blind_insertion.perception.nets import PoseNet
 from train_approach_estimators import NOMINAL, WRIST_SIZE, zed_crop
 
 DT = .02
+# Coulomb feed-forward for the right arm (envs/friction_comp.py; deployable through i2rt's torque field):
+# the identified right-arm Coulomb (dynamics_id/profile.json), fading out within 5 mrad of the target.
+FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005}
 
 
 def load(which, dev):
@@ -64,10 +67,16 @@ def main():
     ap.add_argument('--servo', choices=('wrist', 'oracle', 'none'), default='wrist')
     ap.add_argument('--stop', type=float, default=6., help='final gap in front of the panel (mm)')
     ap.add_argument('--look-gap', type=float, default=30.)
-    ap.add_argument('--iters', type=int, default=6)
-    ap.add_argument('--settle-s', type=float, default=.5)
+    ap.add_argument('--iters', type=int, default=6, help='approach waypoints from the look gap to the stop gap')
+    ap.add_argument('--final-rot', action='store_true', help='keep correcting the angle at the stop gap (default: position only)')
+    ap.add_argument('--final-iters', type=int, default=6, help='extra servo iterations at the stop gap')
+    ap.add_argument('--settle-s', type=float, default=.3)
+    ap.add_argument('--ramp-s', type=float, default=.5)
+    ap.add_argument('--grasp-settle-s', type=float, default=1.)
     ap.add_argument('--gain', type=float, default=1.)
     ap.add_argument('--frames', type=int, default=1, help='wrist frames averaged per estimate')
+    ap.add_argument('--fine-below-mm', type=float, default=0., help='use the fine wrist estimator at waypoints <= this gap (0: never)')
+    ap.add_argument('--fric-comp', action='store_true', help='right-arm Coulomb feed-forward (friction_comp.py)')
     ap.add_argument('--enc-offset-deg', type=float, default=1.5)
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--name', default=None)
@@ -75,7 +84,8 @@ def main():
     t0 = time.time()
     torch.manual_seed(a.seed)
     rt = BimanualRuntime(BimanualCfg(nworld=a.nworld, device='cuda:0', render_rgb=True, visual_dr=True,
-                                     camera_resolution=320, measured_camera_cadence=False))
+                                     camera_resolution=320, measured_camera_cadence=False,
+                                     right_fric_comp=FRIC_COMP if a.fric_comp else None))
     rt.visual.gen.manual_seed(a.seed) if hasattr(rt.visual, 'gen') else None
     h = Harness(rt, HarnessCfg(enc_offset_deg=a.enc_offset_deg))
     n, dev = h.n, h.dev
@@ -126,14 +136,15 @@ def main():
     with wp.ScopedDevice(rt.cfg.device):
         mjw.forward(rt.m, rt.d)
     cmd = qb.clone()
-    for k in range(int(.3 / DT)):
+    for k in range(int(a.grasp_settle_s / DT)):
         h.step(cmd, -1., q_hold, -1.)
     p_look, rv_look = rel_pose(h)
     # 4. servo
     wrist = load('wrist', dev) if a.servo == 'wrist' else None
+    fine = load('wrist_fine', dev) if a.servo == 'wrist' and a.fine_below_mm > 0 else None
     stop = a.stop * 1e-3
-    sched = np.geomspace(a.look_gap * 1e-3, stop, max(a.iters - 1, 1)).tolist() + [stop] * 2 if a.servo != 'none' else []
-    trace = []
+    sched = np.geomspace(a.look_gap * 1e-3, stop, max(a.iters - 1, 1)).tolist() + [stop] * a.final_iters if a.servo != 'none' else []
+    trace, per_world = [], []
     if a.servo == 'none':                                        # open loop: IK straight to the stop pose
         site_p2 = ep + (eR @ torch.tensor([0., 0., stop], device=dev)[:, None].expand(n, 3, 1))[..., 0] + (eR @ p_sr0[:, None].expand(n, 3, 1))[..., 0]
         cmd, _, _ = ch.ik(site_p2, site_R, cmd, iters=100)
@@ -145,8 +156,9 @@ def main():
             for f in range(a.frames):
                 img = rt.render()['wrist_cam']
                 img = F.interpolate(img.permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
+                net = fine if (fine is not None and g * 1e3 <= a.fine_below_mm) else wrist
                 with torch.no_grad():
-                    ests.append(wrist[0](img) * wrist[1])
+                    ests.append(net[0](img) * net[1])
                 if f + 1 < a.frames:
                     h.step(cmd, -1., q_hold, -1.)
             e = torch.stack(ests).mean(0)
@@ -158,21 +170,35 @@ def main():
         tgt_p = torch.tensor([0., 0., g], device=dev).expand(n, 3)
         dR_port = cur_R.transpose(1, 2)                         # rotate the reader back onto the axis
         dR_port = K.axis_angle_mat(K.rot_log(dR_port) / K.rot_log(dR_port).norm(dim=1, keepdim=True).clamp(min=1e-9),
-                                   K.rot_log(dR_port).norm(dim=1) * a.gain)
+                                   K.rot_log(dR_port).norm(dim=1) * (a.gain if (it < len(sched) - a.final_iters or a.final_rot) else 0.))
         # site (hand) moves rigidly with the reader: new = T_world(dR about the tip, then translate)
         qb_now = cmd
         sp_b, sR_b = ch.fk(qb_now)                               # commanded hand pose (believed model)
-        tip_b = sp_b - (sR_b @ (R_sr0.transpose(0, 1) @ p_sr0))[..., 0]   # believed tip (nominal in-hand)
+        tip_b = sp_b - (sR_b @ (R_sr0.transpose(0, 1) @ p_sr0)[:, None])[..., 0]   # believed tip (nominal in-hand)
         dR_w = eR @ dR_port @ eR.transpose(1, 2)
         dt_w = (eR @ ((tgt_p - rel_p_est) * a.gain)[..., None])[..., 0]
         new_R = dR_w @ sR_b
         new_p = tip_b + dt_w + (dR_w @ (sp_b - tip_b)[..., None])[..., 0]
-        cmd, _, _ = ch.ik(new_p, new_R, cmd, iters=40)
+        prev = cmd
+        cmd, ik_pe, ik_re = ch.ik(new_p, new_R, cmd, iters=60)
+        nr = int(a.ramp_s / DT)
+        for k in range(nr):                                      # smooth move: no jerk on the grasp
+            u = (k + 1) / nr; u = u * u * (3 - 2 * u)
+            h.step(prev + (cmd - prev) * u, -1., q_hold, -1.)
         for k in range(int(a.settle_s / DT)):
             h.step(cmd, -1., q_hold, -1.)
         tp, trv = rel_pose(h)
-        trace.append({'gap_target_mm': g * 1e3, 'lateral_mm_p50': float((tp[:, :2].norm(dim=1) * 1e3).median()),
-                      'lateral_mm_p99': float(torch.quantile(tp[:, :2].norm(dim=1) * 1e3, .99))})
+        fin = torch.isfinite(tp).all(1)
+        latn = tp[fin, :2].norm(dim=1) * 1e3
+        sp_t, sR_t = ch.fk(h.q('right'))
+        _, rR = h.reader_pose()
+        slip = torch.rad2deg(K.rot_log(sR_t.transpose(1, 2) @ rR @ ins.R_sr).norm(dim=1))   # in-hand rotation change
+        vnorm = h.rt.v[:, h.rt.indices['right'][1]].norm(dim=1)
+        qerr = (h.believed('right') - cmd).abs().max(1).values
+        per_world.append(torch.stack([tp[:, 0], tp[:, 1], tp[:, 2], ik_pe, slip, vnorm, qerr], 1))
+        trace.append({'gap_target_mm': g * 1e3, 'lateral_mm_p50': float(latn.median()),
+                      'lateral_mm_p99': float(torch.quantile(latn, .99)), 'ik_pos_err_mm_p99': float(torch.quantile(ik_pe[fin], .99) * 1e3),
+                      'inhand_rot_change_deg_p99': float(torch.quantile(slip[fin], .99))})
     # 5. final
     tp, trv = rel_pose(h)
     pc_final, _ = h.pc_pose()
@@ -184,6 +210,8 @@ def main():
          'tilt_deg': tilt, 'zed_err': zed_err, 'look_lateral_mm': p_look[:, :2].norm(dim=1) * 1e3,
          'inhand': ins.inhand, 'pc_moved_mm': (pc_final - p_true).norm(dim=1) * 1e3, 'finite': fin,
          'left_latched': hold.latched}
+    if per_world:
+        w['servo_per_world'] = torch.stack(per_world, 1)     # (n, iters, [x, y, gap, ik_err, inhand_rot_change])
     w = {k: v.detach().cpu().numpy() for k, v in w.items()}
     ok = w['finite'].astype(bool)
     q = lambda x, p: float(np.percentile(x[ok], p))
