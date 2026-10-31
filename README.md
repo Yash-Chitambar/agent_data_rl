@@ -31,6 +31,7 @@ signals. That single-arm work is complete and is the policy/training foundation 
 |---|---|
 | Know what is done, what is next and what is open | [Current campaign](docs/campaign/CURRENT.md) |
 | Understand the research question, hypothesis and gates | [Research direction](docs/research/RESEARCH_DIRECTION.md) |
+| See the policy plan (pick → approach → hold → insert, DR, accuracy targets) | [Policy plan](docs/rl/POLICY_PLAN.md) |
 | Browse all documentation by theme | [Documentation map](docs/README.md) |
 | Find code and the data flow | [Code map](docs/operations/CODE_MAP.md) |
 | Know which branch to use (sim, real rig, experiments) | [Branches](docs/operations/BRANCHES.md) |
