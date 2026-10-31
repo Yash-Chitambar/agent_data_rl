@@ -38,7 +38,7 @@ from blind_insertion.envs.bimanual_runtime import BimanualCfg, BimanualRuntime
 from blind_insertion.envs.inhand import site_in_reader
 from blind_insertion.envs.left_hold import Harness, HarnessCfg, HoldCfg, InsertCfg, LeftHold, RightInserter
 from blind_insertion.perception.nets import PoseNet, TwoViewPoseNet
-from train_approach_estimators import NOMINAL, WRIST_SIZE, zed_crop
+from train_approach_estimators import NOMINAL, WRIST_CROP, WRIST_SIZE, zed_crop
 
 DT = .02
 # Coulomb feed-forward for the right arm (envs/friction_comp.py; deployable through i2rt's torque field):
@@ -48,9 +48,13 @@ FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005
 
 def load(which, dev):
     ck = torch.load(f'runs/perception/{which}.pt', map_location=dev)
+    load.mode[which] = ck.get('wrist_mode', 'resize')
     net = (TwoViewPoseNet if ck['which'] == 'wrist2' else PoseNet)(len(ck['scale']), ck['size']).to(dev)
     net.load_state_dict(ck['net']); net.eval()
     return net, ck['scale'].to(dev)
+
+
+load.mode = {}
 
 
 def rel_pose(h):
@@ -68,7 +72,14 @@ def main():
     ap.add_argument('--stop', type=float, default=6., help='final gap in front of the panel (mm)')
     ap.add_argument('--look-gap', type=float, default=30.)
     ap.add_argument('--iters', type=int, default=6, help='approach waypoints from the look gap to the stop gap')
-    ap.add_argument('--final-rot', action='store_true', help='keep correcting the angle at the stop gap (default: position only)')
+    ap.add_argument('--final-rot', choices=('none', 'roll', 'all'), default='none',
+                    help='angle correction at the stop gap (the last --final-pos-only iterations are position only)')
+    ap.add_argument('--final-pos-only', type=int, default=2)
+    ap.add_argument('--tilt', type=float, default=60., help='grasp tilt from vertical (deg)')
+    ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position spread (mm)')
+    ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
+    ap.add_argument('--hold-force', type=float, default=25.)
+    ap.add_argument('--save-states', default=None, help='npz path: full qpos at every wrist estimate (DAgger data)')
     ap.add_argument('--final-iters', type=int, default=6, help='extra servo iterations at the stop gap')
     ap.add_argument('--settle-s', type=float, default=.3)
     ap.add_argument('--ramp-s', type=float, default=.5)
@@ -112,14 +123,14 @@ def main():
     eR = Rz @ R_true                       # yaw error only (the PC sits flat on the table)
     ep = torch.cat([ex, p_true[:, 2:]], 1)  # height known from the table and the case
     # 2. left hold from the estimate
-    hold = LeftHold(h, HoldCfg(mode='press', force_n=25., across_m=-.0208))
+    hold = LeftHold(h, HoldCfg(mode='press', force_n=a.hold_force, across_m=-.0208, along_m=-.02))
     plan = hold.solve(ep, eR)
     ql0, qr0 = h.believed('left').clone(), h.believed('right').clone()
     for k in range(int(round(hold.duration / DT))):
         h.step(qr0, 1., hold.target(k * DT, ql0), -1.)
     q_hold = hold.hold_target()
     # 3. reader in hand, arm where an IK move to the look pose (believed) would put it
-    ins = RightInserter(h, InsertCfg())
+    ins = RightInserter(h, InsertCfg(tilt_deg=a.tilt, inhand_pos_mm=a.inhand_pos, inhand_rot_deg=a.inhand_rot))
     R_sr0, p_sr0 = site_in_reader(ins.cfg.tilt_deg, ins.cfg.pad_z_m, device=dev)   # believed (nominal) in-hand
     ins.place()                                                # samples the true in-hand pose, solves a seed
     look = torch.tensor([0., 0., a.look_gap * 1e-3], device=dev)
@@ -147,7 +158,7 @@ def main():
     two = a.fine_net.startswith('wrist2')
     stop = a.stop * 1e-3
     sched = np.geomspace(a.look_gap * 1e-3, stop, max(a.iters - 1, 1)).tolist() + [stop] * a.final_iters if a.servo != 'none' else []
-    trace, per_world = [], []
+    trace, per_world, states = [], [], []
     if a.servo == 'none':                                        # open loop: IK straight to the stop pose
         site_p2 = ep + (eR @ torch.tensor([0., 0., stop], device=dev)[:, None].expand(n, 3, 1))[..., 0] + (eR @ p_sr0[:, None].expand(n, 3, 1))[..., 0]
         cmd, _, _ = ch.ik(site_p2, site_R, cmd, iters=100)
@@ -159,8 +170,12 @@ def main():
             for f in range(a.frames):
                 fr = rt.render()
                 rs = lambda x: F.interpolate(x.permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
-                img = rs(fr['wrist_cam'])
                 net = fine if (fine is not None and g * 1e3 <= a.fine_below_mm) else wrist
+                name = a.fine_net if net is fine else a.coarse_net
+                if load.mode.get(name) == 'crop':
+                    img = fr['wrist_cam'][:, WRIST_CROP[1]:WRIST_CROP[1] + WRIST_SIZE, WRIST_CROP[0]:WRIST_CROP[0] + WRIST_SIZE].contiguous()
+                else:
+                    img = rs(fr['wrist_cam'])
                 if net is fine and two:
                     img = torch.stack([img, rs(fr['left_wrist_cam'])], 1)
                 with torch.no_grad():
@@ -169,14 +184,20 @@ def main():
                     h.step(cmd, -1., q_hold, -1.)
             e = torch.stack(ests).mean(0)
             rel_p_est, rel_rv_est = e[:, :3] * 1e-3, torch.deg2rad(e[:, 3:])
+            if a.save_states:
+                states.append(rt.q.clone())
         else:
             rel_p_est, rel_rv_est = rel_pose(h)
         # rigid correction of the reader, expressed in the (estimated) port frame: current -> waypoint
         cur_R = K.axis_angle_mat(rel_rv_est / rel_rv_est.norm(dim=1, keepdim=True).clamp(min=1e-9), rel_rv_est.norm(dim=1))
         tgt_p = torch.tensor([0., 0., g], device=dev).expand(n, 3)
-        dR_port = cur_R.transpose(1, 2)                         # rotate the reader back onto the axis
-        dR_port = K.axis_angle_mat(K.rot_log(dR_port) / K.rot_log(dR_port).norm(dim=1, keepdim=True).clamp(min=1e-9),
-                                   K.rot_log(dR_port).norm(dim=1) * (a.gain if (it < len(sched) - a.final_iters or a.final_rot) else 0.))
+        rv = -rel_rv_est * a.gain                                # rotate the reader back onto the axis (port frame)
+        final = it >= len(sched) - a.final_iters
+        if final and (a.final_rot == 'none' or it >= len(sched) - a.final_pos_only):
+            rv = rv * 0
+        elif final and a.final_rot == 'roll':
+            rv = rv * torch.tensor([0., 0., 1.], device=dev)
+        dR_port = K.axis_angle_mat(rv / rv.norm(dim=1, keepdim=True).clamp(min=1e-9), rv.norm(dim=1))
         # site (hand) moves rigidly with the reader: new = T_world(dR about the tip, then translate)
         qb_now = cmd
         sp_b, sR_b = ch.fk(qb_now)                               # commanded hand pose (believed model)
@@ -239,6 +260,8 @@ def main():
            'look_pose_lateral_mm': {f'p{p}': q(w['look_lateral_mm'], p) for p in (50, 99)},
            'pc_moved_since_reset_mm': {f'p{p}': q(w['pc_moved_mm'], p) for p in (50, 99, 100)},
            'servo_trace': trace, 'wall_s': time.time() - t0}
+    if a.save_states and states:
+        np.savez_compressed(a.save_states, qpos=torch.stack(states, 1).cpu().numpy())
     out = Path(f'results/usbc/policy/approach/{name}.json')
     out.write_text(json.dumps(rep, indent=1) + '\n')
     np.savez_compressed(out.with_suffix('.npz'), **w)

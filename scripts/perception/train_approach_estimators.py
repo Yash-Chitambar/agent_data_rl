@@ -33,7 +33,14 @@ SCALE = {'zed': torch.tensor([30., 30., 10.]), 'wrist': torch.tensor([12., 12., 
 SCALE['wrist2'] = SCALE['wrist']
 
 
+WRIST_CROP = (64, 40)          # x0, y0 of the full-resolution 192-px crop (plug tip and port 2 in view)
+MODE = {'wrist': 'resize'}
+
+
 def wrist_img(img):
+    if MODE['wrist'] == 'crop':
+        x0, y0 = WRIST_CROP
+        return img[:, y0:y0 + WRIST_SIZE, x0:x0 + WRIST_SIZE].contiguous()
     return F.interpolate(img.permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
 
 
@@ -53,10 +60,15 @@ def targets(which, lab):
     return t
 
 
-def generate(r, which, n, cfg=None, nominal=False):
+def generate(r, which, n, cfg=None, nominal=False, states=None):
     imgs, ts = [], []
     while sum(len(x) for x in imgs) < n:
-        if which == 'zed':
+        if states is not None:
+            idx = torch.randint(len(states), (r.n,), generator=r.gen, device=r.dev)
+            fr, lab = r.sample_states(states[idx])
+            ok = lab['ok']
+            img = wrist_img(fr['wrist_cam'])
+        elif which == 'zed':
             img, lab = r.sample_top(nominal=nominal)
             img, ok = zed_crop(img), torch.ones(len(img), dtype=torch.bool, device=img.device)
         else:
@@ -95,16 +107,42 @@ def main():
     ap.add_argument('--gap', type=float, nargs=2, default=(.003, .045))
     ap.add_argument('--rot', type=float, default=6.)
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
+    ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position (mm)')
+    ap.add_argument('--tilt', type=float, default=60., help='grasp tilt from vertical (deg)')
+    ap.add_argument('--states', nargs='*', default=[], help='DAgger: npz files of recorded in-loop qpos (eval_approach --save-states)')
+    ap.add_argument('--n-states', type=int, default=0, help='training samples rendered from --states (added to --n)')
+    ap.add_argument('--states-max-gap', type=float, default=1., help='use only recorded states with the tip gap <= this (m)')
+    ap.add_argument('--init', default=None, help='checkpoint to fine-tune from')
+    ap.add_argument('--lr', type=float, default=2e-3)
+    ap.add_argument('--wrist-mode', choices=('resize', 'crop'), default='resize', help='320 px wrist frame -> 192 px: resize or full-resolution centre crop')
     ap.add_argument('--tag', default='', help='suffix of the saved estimator name (e.g. _fine)')
     a = ap.parse_args()
     dev = torch.device('cuda:0')
+    MODE['wrist'] = a.wrist_mode
     t0 = time.time()
     r = ApproachRenderer(nworld=a.nworld, seed=0)
     r.ins.cfg.inhand_rot_deg = a.inhand_rot
+    r.ins.cfg.inhand_pos_mm = a.inhand_pos
+    r.ins.cfg.tilt_deg = a.tilt
     cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot)
     X, Y = generate(r, a.which, a.n, cfg)
+    St = None
+    if a.states:
+        S = torch.cat([torch.tensor(np.load(f)['qpos'], device=dev).flatten(0, 1) for f in a.states]).float()
+        S = S[torch.isfinite(S).all(1)]
+        if a.states_max_gap < 1:                     # keep the states the estimator will see (reader gap)
+            from blind_insertion.envs import kinematics as K
+            fa, pa = r.rt.pc_qadr, r.rt.lay.peg_qadr
+            pR = K.quat_to_mat(S[:, fa + 3:fa + 7])
+            gap = (pR.transpose(1, 2) @ (S[:, pa:pa + 3] - S[:, fa:fa + 3])[..., None])[:, 2, 0]
+            S = S[gap <= a.states_max_gap]
+        perm = torch.randperm(len(S), device=dev)
+        St, S = S[perm[:len(S) // 10]], S[perm[len(S) // 10:]]          # held-out in-loop states
+        Xs, Ys = generate(r, a.which, a.n_states, states=S)
+        X, Y = torch.cat([X, Xs]), torch.cat([Y, Ys])
+        print(f'in-loop states: {len(S)} train / {len(St)} test, {len(Xs)} renders', flush=True)
     r.gen.manual_seed(12345); torch.manual_seed(12345)
-    Xt, Yt = generate(r, a.which, a.n_test, cfg)
+    Xt, Yt = generate(r, a.which, a.n_test, cfg) if St is None else generate(r, a.which, a.n_test, states=St)
     Xn, Yn = generate(r, a.which, 512, cfg, nominal=True)
     t_gen = time.time() - t0
     print(f'generated {len(X)}+{len(Xt)} in {t_gen:.0f} s', flush=True)
@@ -113,10 +151,12 @@ def main():
     sc = SCALE[a.which].to(dev)
     size = ZED_CROP[2] if a.which == 'zed' else WRIST_SIZE
     net = (TwoViewPoseNet if a.which == 'wrist2' else PoseNet)(len(sc), size).to(dev)
+    if a.init:
+        net.load_state_dict(torch.load(a.init, map_location=dev)['net'])
     opt = torch.optim.AdamW(net.parameters(), 1e-3, weight_decay=1e-4)
     bs = 128
     steps = a.epochs * (len(X) // bs)
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, 2e-3, total_steps=steps, pct_start=.1)
+    sched = torch.optim.lr_scheduler.OneCycleLR(opt, a.lr, total_steps=steps, pct_start=.1)
     k = 0
     for ep in range(a.epochs):
         net.train()
@@ -139,9 +179,10 @@ def main():
         pn = torch.cat([net(Xn[i:i + 256]) for i in range(0, len(Xn), 256)]) * sc
     Path('runs/perception').mkdir(parents=True, exist_ok=True)
     torch.save({'net': net.state_dict(), 'which': a.which, 'scale': sc.cpu(), 'size': size, 'zed_crop': ZED_CROP,
-                'wrist_size': WRIST_SIZE, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
+                'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
     rep = {'estimator': a.which + a.tag, 'method': __doc__.strip(), 'n_train': len(X), 'n_test_dr': len(Xt), 'n_test_nominal_look': len(Xn),
-           'sample_cfg': vars(cfg), 'held_out_dr_abs_error': errors(a.which, pred, Yt),
+           'sample_cfg': vars(cfg), 'args': vars(a), 'test_set': 'held-out in-loop states' if St is not None else 'random poses',
+           'held_out_dr_abs_error': errors(a.which, pred, Yt),
            'held_out_nominal_look_abs_error': errors(a.which, pn, Yn), 'generate_s': t_gen, 'total_s': time.time() - t0,
            'note': 'visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)'}
     out = Path(f'results/usbc/policy/approach/estimator_{a.which}{a.tag}.json')
