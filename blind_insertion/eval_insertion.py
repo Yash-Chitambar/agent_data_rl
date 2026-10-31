@@ -53,6 +53,8 @@ def main():
     ap.add_argument('--env_json', default=None, help='default: the checkpoint\'s env_json')
     ap.add_argument('--out', required=True)
     ap.add_argument('--stochastic', action='store_true')
+    ap.add_argument('--start_source', default='', help="override the start errors: 'uniform' or an npz path")
+    ap.add_argument('--pc_mass_scale', type=float, default=1.0, help='documentation only; set it in --env_json')
     a = ap.parse_args()
     torch.manual_seed(a.seed)
     np.random.seed(a.seed)
@@ -74,6 +76,10 @@ def main():
                               action_mode=a.action_mode or ck.get('action_mode', 'accumulate'),
                               env_json=a.env_json if a.env_json is not None else ck.get('env_json', ''))
     env = make_env(args)
+    if a.start_source:
+        env.icfg.start_source = a.start_source
+    if a.pc_mass_scale != 1.0 and env.runtime.cfg.pc_mass_scale != a.pc_mass_scale:
+        raise ValueError('pass pc_mass_scale through --env_json (the model is built at construction)')
     set_scale(env, a.scale)
     env.reset_all()
     hist, _ = env.observe()
@@ -106,12 +112,13 @@ def main():
             for j, w in enumerate(ids.tolist()):
                 if count[w] < a.per_world:
                     rows.append(dict(world=w, episode=int(count[w]), outcome=cls[j], success=bool(f['success'][j]),
+                                     strict_seated_hold=bool(f['strict_hold'][j]),
                                      t_s=float(info['steps'][w]) * env.dt,
                                      tip_x_mm=float(f['p'][j, 0] * 1e3), tip_y_mm=float(f['p'][j, 1] * 1e3),
                                      tip_z_mm=float(f['p'][j, 2] * 1e3), tilt_deg=float(f['tilt'][j]),
                                      pc_max_mm=float(pc_max[w] * 1e3),
                                      start_lat_x_mm=float(starts['err_p'][w, 0] * 1e3),
-                                     start_lat_y_mm=float(starts['err_p'][w, 1] * 1e3),
+                                     start_lat_y_mm=float(starts['err_p'][w, 1] * 1e3), start_rx_deg=float(starts['err_ang'][w, 0] * 180 / math.pi), start_ry_deg=float(starts['err_ang'][w, 1] * 180 / math.pi), start_roll_deg=float(starts['err_ang'][w, 2] * 180 / math.pi),
                                      start_gap_mm=float(starts['err_p'][w, 2] * 1e3),
                                      start_ang_deg=float(starts['err_ang'][w].norm() * 180 / math.pi),
                                      inhand_x_mm=float(starts['inhand_p'][w, 0] * 1e3),
@@ -133,6 +140,8 @@ def main():
     lo, hi = wilson(k, n)
     summary = dict(policy=a.policy, n=n, seated=k, rate=k / n, wilson95=[lo, hi], scale=a.scale, seed=a.seed,
                    outcomes=df.outcome.value_counts().to_dict(),
+                   strict_seated_rate=float(df.strict_seated_hold.mean()),
+                   aperture_tol_m=env.icfg.aperture_tol_m,
                    t_seat_s_median=float(df[df.success].t_s.median()) if k else None,
                    t_seat_s_p95=float(df[df.success].t_s.quantile(.95)) if k else None,
                    pc_max_mm_p99=float(df.pc_max_mm.quantile(.99)),

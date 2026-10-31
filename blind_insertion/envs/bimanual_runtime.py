@@ -450,7 +450,7 @@ class BimanualRuntime:
                 frames[name]=self.visual.image(name,wp.to_torch(self.rgb_buffer))
         return frames
 
-    def insertion_metrics(self, seat_tolerance_m=.00025, tilt_limit_deg=2.):
+    def insertion_metrics(self, seat_tolerance_m=.00025, tilt_limit_deg=2., aperture_tol_m=0.):
         """Geometric insertion checks in the live port frame, not electrical continuity.
 
         Every sampled plug-edge point must fit the aperture. Both depth bounds
@@ -468,7 +468,10 @@ class BimanualRuntime:
         edge=torch.roll(polygon,-1,0)-polygon
         delta=points[:,:,:2,None].transpose(2,3)-polygon[None,None]
         cross=edge[None,None,:,0]*delta[:,:,:,1]-edge[None,None,:,1]*delta[:,:,:,0]
-        inside=(cross>=-1e-9).all(dim=2).all(dim=1)
+        if aperture_tol_m:   # signed distance outside each edge <= tol (soft-contact penetration allowance)
+            inside=(cross/edge.norm(dim=1)[None,None]>=-aperture_tol_m).all(dim=2).all(dim=1)
+        else:
+            inside=(cross>=-1e-9).all(dim=2).all(dim=1)
         depth=float((self.lay.seating_depth if self.lay.seating_depth is not None else self.lay.depth)[0])
         axial=points[:,:,2]
         tilt=torch.rad2deg(torch.acos(rotation[:,2,2].clamp(-1,1)))

@@ -90,6 +90,10 @@ class InsertionCfg:
     shaping: float = 1.0
     fail_penalty: float = 1.0           # subtracted at a failure termination (slip, PC pushed, far)
     shaping_scale_m: float = 0.01
+    # Seating test: plug-edge points may lie this far outside the aperture polygon. MuJoCo's soft
+    # contacts let a fully inserted plug sit 3 um median / 14 um max outside a 45 um-clearance slot
+    # (n=90 worlds at 5.5-5.8 mm depth, roll < 0.5 deg); 0 is the runtime's strict test.
+    aperture_tol_m: float = 25e-6
     free_height: float = 0.001          # contact labels: point above the panel by this is free
     pool_per_world: int = 4
     # Start errors: 'uniform' (lateral_m, angle_deg, gap_m above) or the path of Part 2's per-episode
@@ -176,6 +180,8 @@ class InsertionTask(BimanualTask):
         self.ref_rel = torch.zeros(n, 4, 4, device=dev)       # reader in TCP at end of warmup
         self.pc_start = torch.zeros(n, 7, device=dev)
         self.captured = torch.zeros(n, dtype=torch.bool, device=dev)
+        self.strict_run = torch.zeros(n, dtype=torch.long, device=dev)
+        self.strict_best = torch.zeros(n, dtype=torch.long, device=dev)
         self.phi = torch.zeros(n, device=dev)
         self.left_press_q = torch.zeros(n, 6, device=dev)
         self.overflow_counts = torch.zeros(16, dtype=torch.long, device=dev)
@@ -427,6 +433,8 @@ class InsertionTask(BimanualTask):
             self.start[k][ids] = v
         self.pc_start[ids] = st['pc']
         self.captured[ids] = False
+        self.strict_run[ids] = 0
+        self.strict_best[ids] = 0
         self.ref_rel[ids] = self._reader_in_tcp()[ids]
         o = self._actor_obs()
         self.hist[ids] = o[ids, None].expand(-1, self.icfg.history, -1)
@@ -465,7 +473,10 @@ class InsertionTask(BimanualTask):
         p, R = rt.plug_in_port()
         pts = p[:, None] + self.edge[None] @ R.transpose(1, 2)
         lab, inside_xy = self._labels(pts)
-        metrics = rt.insertion_metrics(self.cfg.seat_tolerance_m, self.cfg.tilt_limit_deg)
+        metrics = rt.insertion_metrics(self.cfg.seat_tolerance_m, self.cfg.tilt_limit_deg, c.aperture_tol_m)
+        strict = rt.insertion_metrics(self.cfg.seat_tolerance_m, self.cfg.tilt_limit_deg)['geometric_seated']
+        self.strict_run = torch.where(strict, self.strict_run + 1, torch.zeros_like(self.strict_run))
+        self.strict_best = torch.maximum(self.strict_best, self.strict_run)
         finite = metrics['finite'] & torch.isfinite(rt.v).all(1)
         seated = metrics['geometric_seated'] & finite
         self.seated_steps = torch.where(seated, self.seated_steps + 1, torch.zeros_like(self.seated_steps))
@@ -488,7 +499,7 @@ class InsertionTask(BimanualTask):
         terminated = success | failure
         truncated = (self.steps >= self.max_steps) & ~terminated
         self.done = terminated | truncated
-        self._last = dict(p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
+        self._last = dict(strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
                           pushed=pushed, far=far, bad=bad, pc_d=pc_d, tilt=metrics['tilt_deg'],
                           aperture=metrics['aperture_fit'], ang_rel=ang_rel, d_rel=d_rel.norm(dim=1))
         info = {'success': success.clone(), 'nonfinite': bad, 'slip': slip, 'pushed': pushed, 'far': far,
