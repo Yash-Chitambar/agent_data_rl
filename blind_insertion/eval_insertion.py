@@ -174,6 +174,7 @@ def main():
                     rows.append(dict(world=w, episode=int(count[w]), outcome=cls[j], success=bool(f['success'][j]),
                                      strict_seated_hold=bool(f['strict_hold'][j]),
                                      aperture_violation_um=float(f['aperture_violation'][j] * 1e6),
+                                     peak_axial_force_N=float(f['peak_force'][j]), contact_speed_mm_s=float(f['contact_speed'][j] * 1e3),
                                      t_s=float(info['steps'][w]) * env.dt,
                                      tip_x_mm=float(f['p'][j, 0] * 1e3), tip_y_mm=float(f['p'][j, 1] * 1e3),
                                      tip_z_mm=float(f['p'][j, 2] * 1e3), tilt_deg=float(f['tilt'][j]),
@@ -207,6 +208,9 @@ def main():
                    t_seat_s_median=float(df[df.success].t_s.median()) if k else None,
                    t_seat_s_p95=float(df[df.success].t_s.quantile(.95)) if k else None,
                    pc_max_mm_p99=float(df.pc_max_mm.quantile(.99)),
+                   peak_axial_force_N={q: float(df.peak_axial_force_N.quantile(v)) for q, v in (('p50', .5), ('p99', .99), ('max', 1.))},
+                   contact_speed_mm_s={q: float(df.contact_speed_mm_s[df.contact_speed_mm_s >= 0].quantile(v)) for q, v in (('p50', .5), ('p99', .99), ('max', 1.))}
+                   if (df.contact_speed_mm_s >= 0).any() else None,
                    gate_pass=bool(k / n >= 0.995 and lo >= 0.99 and n >= 1000))
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)

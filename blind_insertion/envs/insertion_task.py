@@ -108,6 +108,15 @@ class InsertionCfg:
     shaping: float = 1.0
     fail_penalty: float = 1.0           # subtracted at a failure termination (slip, PC pushed, far)
     success_bonus: float = 10.0
+    # Gentleness (user question 2026-11-01): penalties on the net axial force the port exerts on the plug
+    # above force_thresh_n (per N, per step) and on plug speed above speed_cap_m_s while the tip is within
+    # speed_zone_m of the panel (per m/s, per step). 0 disables (forces are then not computed).
+    force_coef: float = 0.0
+    force_thresh_n: float = 15.0
+    speed_coef: float = 0.0
+    speed_cap_m_s: float = 0.02
+    speed_zone_m: float = 0.003
+    track_forces: bool = False          # compute/log forces even without a penalty (evals)
     shaping_scale_m: float = 0.01
     # Seating test: plug-edge points may lie this far outside the aperture polygon. MuJoCo's soft
     # contacts let a fully inserted plug sit 3 um median / 14 um max outside a 45 um-clearance slot
@@ -253,6 +262,8 @@ class InsertionTask(BimanualTask):
         self.captured = torch.zeros(n, dtype=torch.bool, device=dev)
         self.strict_run = torch.zeros(n, dtype=torch.long, device=dev)
         self.strict_best = torch.zeros(n, dtype=torch.long, device=dev)
+        self.peak_force = torch.zeros(n, device=dev)
+        self.contact_speed = torch.full((n,), -1., device=dev)
         self.phi = torch.zeros(n, device=dev)
         self.left_press_q = torch.zeros(n, 6, device=dev)
         self.overflow_counts = torch.zeros(16, dtype=torch.long, device=dev)
@@ -546,6 +557,8 @@ class InsertionTask(BimanualTask):
         self.captured[ids] = False
         self.strict_run[ids] = 0
         self.strict_best[ids] = 0
+        self.peak_force[ids] = 0
+        self.contact_speed[ids] = -1
         if hasattr(self, 'is_live'):
             self.is_live[ids] = False
         if self.icfg.live_states and self.icfg.live_frac > 0:
@@ -597,7 +610,11 @@ class InsertionTask(BimanualTask):
         wp.to_torch(rt.d.qacc_warmstart)[ids] = f32('qacc_warmstart')
         self.enc_error[ids] = f32('enc_error'); self.latency[ids] = g('latency').long()
         self.joint_target[ids] = f32('joint_target')
-        self.sent_history[:, ids] = f32('sent_history').transpose(0, 1)
+        sh = f32('sent_history').transpose(0, 1)          # (L_saved, n, 14)
+        n_saved, n_buf = sh.shape[0], self.sent_history.shape[0]
+        if n_saved < n_buf:      # longer latency DR here: repeat the oldest saved command
+            sh = torch.cat([sh, sh[-1:].expand(n_buf - n_saved, -1, -1)], 0)
+        self.sent_history[:, ids] = sh[:n_buf]
         self.left_press_q[ids] = f32('left_press_q')
         if hasattr(rt, 'frictionloss'):
             rt.frictionloss[ids] = f32('dof_frictionloss')
@@ -689,7 +706,11 @@ class InsertionTask(BimanualTask):
         rr = pts[..., None, :2] - poly[None, None]
         outside = -((ed[..., 0] * rr[..., 1] - ed[..., 1] * rr[..., 0]) / ed.norm(dim=1))   # >0: outside that edge (m)
         violation = outside.max(-1).values.max(-1).values.clamp(min=0)
-        self._last = dict(aperture_violation=violation, strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
+        if c.force_coef or c.speed_coef or c.track_forces:
+            self._Fax, self._spd = self._contact_force_speed()
+            self.peak_force = torch.maximum(self.peak_force, self._Fax)
+            self.contact_speed = torch.where((self._Fax > 0.05) & (self.contact_speed < 0), self._spd, self.contact_speed)
+        self._last = dict(peak_force=self.peak_force.clone(), contact_speed=self.contact_speed.clone(), aperture_violation=violation, strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
                           pushed=pushed, far=far, bad=bad, pc_d=pc_d, tilt=metrics['tilt_deg'],
                           aperture=metrics['aperture_fit'], ang_rel=ang_rel, d_rel=d_rel.norm(dim=1))
         info = {'success': success.clone(), 'nonfinite': bad, 'slip': slip, 'pushed': pushed, 'far': far,
@@ -710,6 +731,11 @@ class InsertionTask(BimanualTask):
         # while success fell 100 -> 50 %, worse with longer episodes).
         reward = new_capture.float() + c.success_bonus * L['success'].float() + c.shaping * (phi2 - self.phi) \
             - c.fail_penalty * (failed & ~L['success']).float()
+        if c.force_coef or c.speed_coef or c.track_forces:
+            Fax, spd = self._Fax, self._spd
+            near = L['p'][:, 2] < c.speed_zone_m
+            reward = reward - c.force_coef * (Fax - c.force_thresh_n).clamp(min=0) \
+                - c.speed_coef * near.float() * (spd - c.speed_cap_m_s).clamp(min=0)
         reward = torch.where(L['bad'], torch.zeros_like(reward), reward)
         reward = torch.nan_to_num(reward, 0., 0., 0.)
         self.phi = phi2
@@ -730,6 +756,42 @@ class InsertionTask(BimanualTask):
         return self.hist, crit, reward, done, info
 
     # ------------------------------------------------------------------ observations
+    def _contact_force_speed(self):
+        """Net axial force (N) of the port on the plug (port +z = out of the panel; >0 = resisting insertion)
+        from the elliptic-cone contact rows at the last substep, and the plug speed (m/s)."""
+        rt, dev, N = self.runtime, self.device, self.N
+        if not hasattr(self, '_reader_mask'):
+            m = rt.mjm
+            self._reader_mask = torch.zeros(m.ngeom, dtype=torch.bool, device=dev)
+            self._reader_mask[list(rt.lay.peg_slots)] = True
+            self._port_mask = torch.zeros_like(self._reader_mask)
+            self._port_mask[list(rt.lay.fixture_slots)] = True
+            self._peg_dof = int(m.jnt_dofadr[m.body('peg').jntadr[0]])
+        d = rt.d
+        Fw = torch.zeros(N, 3, device=dev)
+        nc = int(d.nacon.numpy()[0])
+        if nc:
+            g = wp.to_torch(d.contact.geom)[:nc].long()
+            w = wp.to_torch(d.contact.worldid)[:nc].long()
+            adr = wp.to_torch(d.contact.efc_address)[:nc, 0].long()
+            a_, b_ = g[:, 0], g[:, 1]
+            msk = (adr >= 0) & ((self._reader_mask[a_] & self._port_mask[b_]) | (self._reader_mask[b_] & self._port_mask[a_]))
+            if msk.any():
+                ef = wp.to_torch(d.efc.force)
+                dim = wp.to_torch(d.contact.dim)[:nc].long()[msk]
+                fr = wp.to_torch(d.contact.frame)[:nc].reshape(nc, 3, 3)[msk]
+                ww, aa = w[msk], adr[msk]
+                fl = torch.zeros(len(ww), 3, device=dev)
+                for r_ in range(3):
+                    okr = dim > r_
+                    fl[okr, r_] = ef[ww[okr], aa[okr] + r_]
+                f = (fr.transpose(1, 2) @ fl[..., None])[..., 0] * torch.where(self._reader_mask[b_[msk]], 1., -1.)[:, None]
+                Fw.index_add_(0, ww, f)
+        _, port_R = self._port_pose(rt.q[:, rt.pc_qadr:rt.pc_qadr + 7])
+        Fp = (port_R.transpose(1, 2) @ Fw[..., None])[..., 0]
+        spd = rt.v[:, self._peg_dof:self._peg_dof + 3].norm(dim=1)
+        return Fp[:, 2].clamp(min=0), spd
+
     def _labels(self, pts):
         z = pts[..., 2]
         poly = self.hole
