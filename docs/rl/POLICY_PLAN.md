@@ -41,12 +41,11 @@ Rule from the deck: sim sensors are at least as bad as the real ones.
 
 - **Goal:** the right arm picks the reader from anywhere in its region with the **new grasp**
   and lifts it with a known, small in-hand pose spread.
-- **New grasp (decided 2026-10-31): side pinch.** The gripper approaches parallel to the table
-  (horizontal; a slight downward tilt is allowed, horizontal preferred) so the reader stays flat.
-  One finger above, one below: the pads close on the big top and bottom faces at the front of the
-  body (behind the neck). The plug axis is orthogonal to the approach direction. Open question to
-  settle first: the lower finger must get under a reader lying flat (wedge under the front edge
-  with a slight tilt, or stage the reader on a low holder / overhanging lip).
+- **New grasp (decided 2026-10-31): top-down side grasp.** The gripper comes in from above with a
+  vertical tool axis (no tilt; the old task-H grasp tilted 25-45°), oriented so the reader stays
+  parallel to the table. The fingers close horizontally on the two side faces of the reader body
+  (8.75 mm tall), at the front of the body behind the neck. The plug axis is orthogonal to the
+  finger closing axis.
 - **Approach:** scripted IK expert in sim (privileged reader pose) → demos with full DR → ACT on
   wrist + ZED RGB + encoders (sim-only demos, as in task H).
 - **Explore:** scripted (ZED pose estimate + IK) vs ACT; ACT chunk size and ensembling; grasp
