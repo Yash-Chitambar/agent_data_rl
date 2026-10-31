@@ -140,6 +140,39 @@ q_right, reader, fingers, q_left_hover, q_left_press, inhand_R, inhand_p, err_p,
 ctrl, qacc_warmstart, enc_error, latency, joint_target incl. the torque hand-over offset, sent_history, left_press_q)
 + per-world DR (dof_frictionloss, gravity_scale, geom_friction, geom_solref, actuator_gainprm, contact_params).
 Loader: `eval_chain.load_handover(path)`.
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 6: why the arm-robust ZED nets miss on real frames
+
+Real test: the 123 ZED frames of `bimanual_stationary_001` (both arms folded, all joints ~0 by the encoders)
+against the manual lid landmark (port (0.2142, 0.3308) m, about +/-5 mm). One factor at a time from the v1
+recipe (each net n = 16,384 renders, 25 epochs; `scripts/perception/zed_ablation.sh`, results
+`results/usbc/policy/approach/ablation/`):
+
+| Training change from v1 | Real offset (mm) | Sim rest / parked p50 (mm) |
+|---|---|---|
+| none (v1 recipe, today's moderate visual DR) | 0.6 | 0.9 / 7.5 |
+| mild visual DR (what v1 used) | 3.0 | 1.0 / 7.5 |
+| Part 1 layout (reader in the front strip) | 2.4 | 0.9 / 7.3 |
+| reader varied (strip / elsewhere / out of view) | 1.9 | 0.9 / 7.7 |
+| **arm poses and gripper openings varied** | **13.9** | 1.6 / 2.1 |
+| arms + reader varied | 8.2 | 1.7 / 2.1 |
+| arms masked from the joint angles (sim segmentation; real mask from the encoders) | 10.9 (bases masked), 8.9 (bases kept) | -- |
+| arms varied + masked | 8.1 | -- |
+
+- **Cause: the arm-pose variation itself.** Visual DR level, PC box, reader placement and layout move the real
+  estimate by <= 3 mm (inside the landmark's uncertainty); every net trained with varied (or masked) arms
+  lands 7-15 mm off, always toward +y. Masking the arm pixels (the real mask from the encoders aligns well
+  with the real arms) does not help, so it is not the arm pixels' look alone.
+- **Contradiction that points at sim-vs-real arm context:** in sim with both arms folded (the real frames'
+  pose) the v1-type nets are 7.5-8 mm off (p50, n = 512) while the arm-varied nets are 2.1-2.7 mm; on the real
+  folded frames it is the reverse (v1 0.4 mm, arm-varied 8-14 mm). The real folded scene does not look to the
+  nets like the sim folded scene; with one real PC placement and a +/-5 mm landmark we cannot tell more.
+- A tight-crop refinement stage (64 px around the coarse estimate) did not train (sim error unchanged); not
+  pursued further.
+- **Decision unchanged:** v1 + presence/OOD + arm-pose gate, ZED frame at the rest pose with the gripper
+  open (round 5). The arm-robust nets stay sim-only.
+- **Needed to go further:** real ZED frames with known PC poses under several arm poses (e.g. the PC at 3-4
+  marked spots, arms folded / parked / pressing, encoders logged). Without them no arm-robust net can be
+  validated on real data.
 
 ### 2026-11-01 (mason, `policy/approach-hold`) — Round 5: chain-surfaced issues (elliptic cones, ZED arm poses, hold contact, plug bias)
 

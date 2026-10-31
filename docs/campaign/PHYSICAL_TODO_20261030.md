@@ -96,3 +96,52 @@ These exist in the single-arm env (`EnvCfg`) and must be ported to the bimanual 
 10-20 grasps of the reader with the new grasp, holding still 1 s after each (wrist cameras +
 ZED). Gives the in-hand reader pose spread for the reset distribution. Until then the sim uses
 a generous in-hand pose randomization.
+
+## 6. Ground-truth captures for the ZED estimator and the grasp (~60-75 min, arms move)
+
+Why: the ZED PC-pose net has been checked on one real PC placement against a ±5 mm hand-marked landmark,
+and in sim it is only valid at one arm pose (FINDINGS 2026-11-01, rounds 5-7). These captures give
+measured PC poses under every arm pose the task uses. Rig console running; bases clamped; `estop.py` open.
+
+**A. Mark and measure the PC spots (10 min)**
+1. Mark 4 PC spots with tape at the front-left case corner and along the left edge: the nominal
+   (port 2 at x 0.22, y 0.36 m in the right-arm base frame, yaw 0), then +1 cm x, +1.5 cm y and
+   -1 cm x / +5 deg yaw.
+2. Measure each spot in the right-arm base frame with a steel ruler from the right-arm base plate edge to
+   two points of the case's front edge (x, y of the front-left corner and of the front-right corner; ±1 mm):
+   port-2 position and yaw follow from the case geometry (port 2 is 30 mm from the left edge on the
+   front face). Better (optional): the calibration board (`scripts/real/calib.py`, 9 x 8 squares, 15 mm)
+   flat on the table with one board corner on a tape mark gives the mark position in the ZED frame (± ~1 mm);
+   then put the PC's front-left corner on that mark. (No AprilTag detector is in the repo yet.)
+3. Record per spot in `data/zed_gt/spots.json`: port-2 x, y (m), yaw (deg), method, uncertainty.
+
+**B. ZED frames per spot and arm pose (8 frames per spot, ~5 min per spot)**
+For each spot (PC on its tape marks, reader as listed):
+```bash
+O=data/zed_gt/spotN
+.venv/bin/python scripts/real/snapshot.py pose --out $O --pose folded  --tag folded_reader      # both arms folded (rigctl rest)
+.venv/bin/python scripts/real/snapshot.py pose --out $O --pose capture --tag capture_reader     # the ZED net's capture pose, grippers open
+.venv/bin/python scripts/real/snapshot.py pose --out $O --pose parked --side left --tag parked_reader   # Part 1 park (left)
+# remove the reader from the table, repeat the three lines with tags *_noreader
+```
+- Reader "in the strip": flat, 2-6 cm in front of the PC's port panel, plug toward the PC (Part 1 strip).
+- Grippers fully open in every frame (the right gripper half-open is a separate known bias: 3 mm).
+- `pose` moves the arms with the safety checks, logs the joint readings in `<tag>.json`, takes the ZED pair
+  and both wrist frames, then returns the arms to where they started.
+- Pressing (left fingertips on the PC top, 2 cm in front of the case centre, 25 N) needs the real hold script
+  (not written yet): skip, or take it later with the hold.
+
+**C. Grasp pull/slip test and in-hand pose (Part 1, ~20 min)**
+1. Grasp the reader as in Part 1 (55° tilt, fingers on the side faces near the body front, 12 N squeeze):
+   place it in the open jaws by hand, then
+   `scripts/real/measure_grasp.py --session data/real_yam/usbc_lab_20261027 --name grasp55_NN --hold-seconds 10`.
+2. In-hand pose: with the reader held still, `snapshot.py capture --out data/grasp55 --tag graspNN` (right
+   wrist + ZED). Repeat 10-20 grasps (re-place the reader each time, ±5 mm / ±10° placement).
+3. Pull/slip: with the reader held and the arm still, pull the reader slowly along its axis (plug direction)
+   with a spring scale on a thread around the neck; record the force when it slips (or 15 N max). Five pulls,
+   also five pulls across (vertical). Write the forces to `data/grasp55/pull.csv`.
+
+**D. After the session**
+Commit `data/zed_gt` (JSON + PNG, small) and `data/grasp55`. Sim side: score the ZED nets on every frame
+against the spot ground truth (`scripts/perception/check_real_zed.py`, extend for `data/zed_gt`), and fit the
+in-hand spread from the wrist frames.

@@ -156,7 +156,13 @@ class Chain:
         pcfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device=dev, task_layout=PICK_LAYOUT), episode_s=13.)
         self.pick = PickTask(pcfg, runtime=rt)
         self.h = Harness(rt, HarnessCfg())
-        self.zed = ZedEstimator(dev, pose=str(ROOT / 'runs/perception/zed.pt'), presence=str(ROOT / f'runs/perception/{a.zed_gate}.pt'))
+        # ZED: v1 net + presence/OOD + arm-pose gate (round 5); the frame is taken at the capture pose of
+        # configs/zed_capture_pose.json (the reference pose the net was trained at, grippers open).
+        gate = ROOT / f'runs/perception/{a.zed_gate}.pt'
+        self.zed = ZedEstimator(dev, pose=str(ROOT / 'runs/perception/zed.pt'),
+                                presence=str(gate if gate.exists() else ROOT / 'runs/perception/zed_presence.pt'))
+        cap = json.loads((ROOT / 'blind_insertion/configs/zed_capture_pose.json').read_text())['model_frame_rad']
+        self.zed_q = {s_: torch.tensor(cap[s_], device=dev, dtype=torch.float32) for s_ in ('right', 'left')}
         self.wrist = wrist_loader(a.wrist_net, dev)
         self.fine = wrist_loader(a.fine_net, dev) if a.fine_below_mm > 0 else None
         self.ac, self.ck = load_policy(ROOT / a.policy, dev)
@@ -200,7 +206,7 @@ class Chain:
     def zed_estimate(self):
         """ZED pose + gate; the arm-pose gate reads the encoders (believed angles) and the right finger opening."""
         fr = self.render()['top']
-        rt, ee = self.rt, self.pick.enc_error
+        rt, ee = self.rt, self.pick.enc_error      # the harness has not taken the control DR yet at the capture
         ql = rt.q[:, rt.indices['left'][0]] - ee[:, 1]
         qr = rt.q[:, rt.indices['right'][0]] - ee[:, 0]
         fo = rt.q[:, self.pick.finger_qadr].mean(1)
@@ -494,13 +500,15 @@ class Chain:
         # 'start' = the rest pose the ZED net was trained on: left arm at the reference pose and the right
         # gripper fully open. With the pick's 24 mm approach opening in view the ZED estimate is biased
         # ~3 mm (p50 3.0 vs 0.8 mm, n = 256): the frame is taken before the fingers close to it.
-        la, fq = rt.indices['left'][0], self.pick.finger_qadr
-        q_park, q_f = rt.q[:, la].clone(), rt.q[:, fq].clone()
-        rt.q[:, la] = self.left_ref
+        la, ra, fq = rt.indices['left'][0], rt.indices['right'][0], self.pick.finger_qadr
+        q_park, q_r, q_f = rt.q[:, la].clone(), rt.q[:, ra].clone(), rt.q[:, fq].clone()
+        rt.q[:, la] = self.zed_q['left']                  # configs/zed_capture_pose.json (= reference pose)
+        rt.q[:, ra] = self.zed_q['right']
         rt.q[:, fq] = .0475
         self.forward()
         est = {'start': self.zed_estimate()}
         rt.q[:, la] = q_park
+        rt.q[:, ra] = q_r
         rt.q[:, fq] = q_f
         self.forward()
         est['parked'] = self.zed_estimate()
