@@ -67,6 +67,17 @@ class BimanualCfg:
     # and 90 rows per world; the margin is for contact-rich insertion. Check buffer_usage().
     nconmax: int = 128
     njmax: int = 800
+    # Contact randomization (Part 4), per world, resampled on reset; None keeps the scene values.
+    # Keys (each optional, uniform (lo, hi)): port_friction (plug-port sliding mu: the port geoms
+    # have contact priority, so their value alone sets the pair), port_timeconst (port solref time
+    # constant, s), pad_friction (pad-reader mu; the reader geoms are lowered to reader_friction so
+    # the pad value sets the pair), pad_timeconst (pad solref time constant, s; MuJoCo averages it
+    # with the reader's 2 ms), grip_gain_scale (squeeze force scale on both right-gripper motors).
+    # Values are bounds chosen around the scene defaults, not measurements (see POLICY_PLAN Part 4).
+    contact_dr: dict | None = None
+    # MjModel.opt overrides applied before the GPU model is built, e.g. {"cone": 1} (elliptic
+    # friction cones; impratio only acts on those). None keeps the scene's solver options.
+    opt_overrides: dict | None = None
 
 
 class BimanualRuntime:
@@ -112,6 +123,10 @@ class BimanualRuntime:
                     assert g.jntnum[0] == 0 and g.parentid[0] == cam.bodyid[0]
                     rot = np.zeros(9); mujoco.mju_quat2Mat(rot, g.quat)
                     m.cam_pos[cam.id] -= rot.reshape(3, 3) @ off
+        for key, value in (c.opt_overrides or {}).items():
+            if not hasattr(m.opt, key):
+                raise ValueError(f'unknown MjOption field {key}')
+            setattr(m.opt, key, value)
         d = mujoco.MjData(m)
         self.layout = None
         if c.task_layout is not None:
@@ -149,7 +164,9 @@ class BimanualRuntime:
         wp.init()
         with wp.ScopedDevice(c.device):
             batched = ({'dof_frictionloss': c.nworld} if self.profile else {}) | \
-                      ({'geom_friction': c.nworld} if c.pc_friction_range else {})
+                      ({'geom_friction': c.nworld} if c.pc_friction_range else {}) | \
+                      ({'geom_friction': c.nworld, 'geom_solref': c.nworld, 'actuator_gainprm': c.nworld}
+                       if c.contact_dr else {})
             self.m = mjw.put_model(m, batch_sizes=batched or None)
             self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=c.nconmax,njmax=c.njmax)
         self._graph = None
@@ -173,6 +190,7 @@ class BimanualRuntime:
                 raise ValueError('scene has no pc_pad_ feet geoms to randomize')
             self.geom_friction = wp.to_torch(self.m.geom_friction)
             self._sample_pc_friction(torch.arange(c.nworld,device=self.device))
+        if c.contact_dr: self._init_contact_dr(m)
         if self.profile:
             arms = [self.profile['arms'][side] for side in ('right','left')]
             f = lambda key: torch.tensor([arm[key] for arm in arms],device=self.device,dtype=self.q.dtype)
@@ -210,6 +228,7 @@ class BimanualRuntime:
             wp.to_torch(getattr(self.d,name))[ids] = 0
         if self.profile: self._sample_dynamics(ids)
         if self.cfg.pc_friction_range: self._sample_pc_friction(ids)
+        if self.cfg.contact_dr: self._sample_contact(ids)
         if self.layout: self._sample_layout(ids)
         with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
         if self.camera_sensor is not None:self.camera_sensor.reset(ids,self.sensor_time)
@@ -284,6 +303,56 @@ class BimanualRuntime:
         lo,hi = self.cfg.pc_friction_range
         mu = torch.rand(len(ids),1,device=self.device)*(hi-lo)+lo
         self.geom_friction[ids[:,None],self.pc_feet,0] = mu.expand(-1,len(self.pc_feet))
+
+    CONTACT_DR_KEYS = ('port_friction','port_timeconst','pad_friction','pad_timeconst','grip_gain_scale')
+
+    def _init_contact_dr(self, m):
+        """Geom/actuator index sets and nominal values for the contact randomization."""
+        unknown = set(self.cfg.contact_dr) - set(self.CONTACT_DR_KEYS) - {'reader_friction'}
+        if unknown:
+            raise ValueError(f'unknown contact_dr keys: {sorted(unknown)}')
+        for key in self.CONTACT_DR_KEYS:
+            if key in self.cfg.contact_dr:
+                lo, hi = self.cfg.contact_dr[key]
+                if not 0 < lo <= hi or not np.isfinite(hi):
+                    raise ValueError(f'contact_dr[{key}] must satisfy 0 < lo <= hi')
+        tt = lambda x: torch.tensor(x, device=self.device, dtype=torch.long)
+        self.port_geoms = tt(list(self.lay.fixture_slots))
+        self.reader_geoms = tt(list(self.lay.peg_slots))
+        self.pad_geoms = tt([g for g in range(m.ngeom) if m.geom(g).name.startswith(('left_pad_s', 'right_pad_s'))])
+        self.grip_acts = tt(list(self.indices['right'][3]))
+        if not len(self.pad_geoms) or not len(self.port_geoms):
+            raise ValueError('scene lacks right pad spheres or port geoms for contact_dr')
+        if (m.geom_priority[self.lay.fixture_slots] <= m.geom_priority[self.lay.peg_slots].max()).any():
+            raise ValueError('port geoms must have contact priority over the reader')
+        self.geom_friction = wp.to_torch(self.m.geom_friction)
+        self.geom_solref = wp.to_torch(self.m.geom_solref)
+        self.actuator_gainprm = wp.to_torch(self.m.actuator_gainprm)
+        self._grip_gain0 = self.actuator_gainprm[0, self.grip_acts, 0].clone()
+        if 'reader_friction' in self.cfg.contact_dr:
+            self.geom_friction[:, self.reader_geoms, 0] = float(self.cfg.contact_dr['reader_friction'])
+        self.contact_params = torch.ones((self.cfg.nworld, len(self.CONTACT_DR_KEYS)), device=self.device)
+        self._sample_contact(torch.arange(self.cfg.nworld, device=self.device))
+
+    def _sample_contact(self, ids):
+        """Per-world plug-port and pad contact parameters; contact_params holds the drawn values."""
+        dr, n = self.cfg.contact_dr, len(ids)
+        for k, key in enumerate(self.CONTACT_DR_KEYS):
+            if key not in dr:
+                continue
+            lo, hi = dr[key]
+            x = torch.rand(n, 1, device=self.device) * (hi - lo) + lo
+            self.contact_params[ids, k] = x[:, 0]
+            if key == 'port_friction':
+                self.geom_friction[ids[:, None], self.port_geoms, 0] = x.expand(-1, len(self.port_geoms))
+            elif key == 'port_timeconst':
+                self.geom_solref[ids[:, None], self.port_geoms, 0] = x.expand(-1, len(self.port_geoms))
+            elif key == 'pad_friction':
+                self.geom_friction[ids[:, None], self.pad_geoms, 0] = x.expand(-1, len(self.pad_geoms))
+            elif key == 'pad_timeconst':
+                self.geom_solref[ids[:, None], self.pad_geoms, 0] = x.expand(-1, len(self.pad_geoms))
+            elif key == 'grip_gain_scale':
+                self.actuator_gainprm[ids[:, None], self.grip_acts, 0] = x * self._grip_gain0
 
     def _sample_dynamics(self, ids):
         """Per-world Coulomb friction and gravity scales around the identified profile."""
