@@ -104,6 +104,38 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/pick`) — Part 1 pick: 60° side grasp, Part 1 reader region, expert gate 2048/2048
+
+- **Grasp (user-confirmed 60° tipped side grasp) as code:** `scenes/reader_grasp.py` (frames,
+  `grasp_poses`, `grasp_offset`, `inhand_pose()`). With the FlexPoint sphere pads (4 × 4, r 1.2 mm)
+  and fingertips 1.0 mm above the table, pad spheres reach the side face between 5.9 and 8.9 mm
+  (the face is 8.83 mm tall): one sphere per side on the face, one or two straddling the top edge.
+- **Reach:** only 47 % of the old reader region (n = 21,035 IK points) is reachable at 60° with
+  the confirmed hand roll (74 % with the hand turned 180° about the tool axis, 84 % with tilt
+  50-65°). The reader must be at x ≳ 0.30 m; the band between the right base and the PC is out.
+- **New Part 1 region** (user allowed a smaller window): 10 cm square, body centre x 0.315-0.415,
+  y 0.015-0.115 m, yaw -30..+10°. The first 12 cm / ±30° windows failed the expert at 0.9-1 %:
+  yaw > +10° (arm tracking limit, settle error 10-35 mm) and the corner nearest the PC (the gripper
+  hit a PC shifted 3 cm towards the reader: the region search now checks hand-PC clearance).
+- **impratio 100 breaks this grasp.** With the scene's impratio 100 (set for top-down grasp creep)
+  the reader stays on the table whenever pad μ < ~1.3, CPU and GPU, and more squeeze makes it worse
+  (CPU, μ 1.0: 0/6 lifts at 7.2 or 14.4 N; impratio 1 or 10: 6/6). It also gave 1.5-2 % non-finite
+  worlds with low reader-table friction. `PickTaskCfg.impratio = 10` (task-level override of
+  `opt.impratio_invsqrt`); no non-finite worlds since.
+- **Close until the fingers stop.** With the squeeze randomized ×0.6-1.2 and 200 N s/m finger
+  damping, closing takes up to 0.9 s; a fixed 0.6 s close lifted before contact (35 % failures at
+  squeeze ×0.6-0.74). The expert now waits for the opening to stop changing.
+- **A fast Cartesian integral oscillates** with the identified dynamics (gain 0.25/step: hold error
+  27-57 mm); 0.03/step is stable.
+- **Expert gate (all DR, held-out seed 3000): 2048/2048, Wilson 95 % lower bound 99.81 %**; reader
+  tilt p50 1.08°, max 2.40°; in-hand spread (grasp_site frame) std 0.35 / 0.10 / 0.44 mm and
+  0.12 / 0.14 / 0.02°. Sim-only: real pad compliance, friction and squeeze are unmeasured, so Part 4
+  should randomize the in-hand pose wider until real grasp captures exist.
+- **Open:** the pad model (rigid spheres, 2 ms) loads one sphere per side; a box pad collides with
+  nothing against the reader mesh (CPU, `mj_geomDistance` -0.2 mm but no contact). A pull test on
+  the real gripper (μ, squeeze, slip) is the measurement this grasp depends on.
+
+
 ### 2026-10-31 (mason) — Visual DR for the bimanual Warp runtime; Warp nominal look; left wrist camera was blind
 
 - **Bug:** in the MuJoCo Warp render (what policies see) the left wrist camera sat inside its own lens
