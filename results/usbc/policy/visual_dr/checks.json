@@ -1,0 +1,58 @@
+{
+ "ranges": {
+  "worlds": 64,
+  "nominal_worlds": 6,
+  "shadow_fraction": 0.569,
+  "textured_fraction": [
+   0.5170000195503235,
+   0.5339999794960022
+  ],
+  "real_texture_fraction": [
+   0.12099999934434891,
+   0.2240000069141388
+  ],
+  "cam_pos_err_mm_mean": [
+   4.300000190734863,
+   5.21999979019165,
+   3.680000066757202
+  ],
+  "cam_rot_err_deg_mean": [
+   0.5860000252723694,
+   1.093999981880188,
+   1.215000033378601
+  ]
+ },
+ "per_world": {
+  "min_pairwise_rms_diff": 0.2184
+ },
+ "reset": "reset(ids) resamples ids only",
+ "nominal_vs_dr_off": {
+  "top": {
+   "mean_abs": 0.0057,
+   "p99": 0.0
+  },
+  "wrist_cam": {
+   "mean_abs": 0.0247,
+   "p99": 0.0
+  },
+  "left_wrist_cam": {
+   "mean_abs": 0.0244,
+   "p99": 0.0
+  }
+ },
+ "real_vs_sim_nominal": {
+  "tip_iou": 0.787,
+  "edge_px": 4.156,
+  "l1": 19.639,
+  "edge_px/top": 3.223,
+  "l1/top": 21.84,
+  "edge_px/wrist_cam": 5.229,
+  "l1/wrist_cam": 13.724,
+  "tip_iou/wrist_cam": 0.784,
+  "edge_px/left_wrist_cam": 4.017,
+  "l1/left_wrist_cam": 23.354,
+  "tip_iou/left_wrist_cam": 0.79,
+  "region_abs_delta_mean": 9.582
+ },
+ "contact_sheet": "results/usbc/policy/visual_dr/contact_sheet.jpg"
+}
