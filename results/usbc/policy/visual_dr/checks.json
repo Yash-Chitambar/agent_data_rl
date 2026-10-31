@@ -2,14 +2,14 @@
  "ranges": {
   "worlds": 64,
   "nominal_worlds": 6,
-  "shadow_fraction": 0.397,
+  "shadow_fraction": 0.483,
   "textured_fraction": [
-   0.2240000069141388,
-   0.2070000022649765
+   0.2759999930858612,
+   0.3449999988079071
   ],
   "real_texture_fraction": [
    0.2240000069141388,
-   0.2070000022649765
+   0.2590000033378601
   ],
   "cam_pos_err_mm_mean": [
    4.300000190734863,
@@ -23,7 +23,7 @@
   ]
  },
  "per_world": {
-  "min_pairwise_rms_diff": 0.1376
+  "min_pairwise_rms_diff": 0.1521
  },
  "reset": "reset(ids) resamples ids only",
  "nominal_vs_dr_off": {
