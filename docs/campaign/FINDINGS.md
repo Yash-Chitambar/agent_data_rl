@@ -121,6 +121,21 @@ geometric hold with a 25 µm aperture tolerance; n = 2048 per row:
 15 stuck at mouth, 1 slip), the same as with the 25 N hold: the hold is not the limit, the lateral
 capture region is. (×1000 mass without `mj_setConst` went non-finite in every world.)
 Other seeds at 1.5: s1 98.68 % [98.09, 99.09], s2 99.07 % [98.56, 99.41].
+**Round 2 result (2026-11-01): gate passed at scale 1.5.** Blind PPO v6 seed 2 (continued from v5 seed 2
+with curriculum 1.5 → 2.0 and 30 % of starts drawn at 1.5-3.5 mm lateral, `hard_frac`; 10 M steps, ~1 h on
+one V100), n = 2048 per row:
+
+| Scale | Eval seed | Seated | Wilson 95 % | Failures |
+|---|---|---|---|---|
+| 1.0 | 1000 | 99.95 % | [99.72, 99.99] | 1 stuck at mouth |
+| **1.5** | 1000 | **99.76 %** | [99.43, 99.90] | 4 stuck at mouth, 1 slip |
+| **1.5** | 2000 (independent) | **99.85 %** | [99.57, 99.95] | 2 stuck at mouth, 1 slip |
+
+At 1.5 (seed 1000) by start lateral error: ≤ 1.5 mm 100 % (1855), 1.5-2 mm 99.0 % (96), 2-3 mm 95.8 % (71),
+> 3 mm 100 % (24). Seated plugs 5.63-5.80 mm deep, tilt ≤ 1.92°, aperture violation median 15.7 µm.
+Median time to seat 0.88 s; PC motion p99 1.3 mm. v6 seed 0 at 10 M: 99.27 % [98.80, 99.56] (misses).
+Exported as `runs/P4-insert-best/best.pt`.
+
 **Round 2 checks (2026-11-01):**
 - *Seated means fully inserted:* seed 0 at 1.5, re-run (99.07 %, n = 2048): the 2029 seated plugs are
   5.63-5.80 mm deep (median 5.72; seat 5.8 mm at the neck stop), tip centre within 0.08 mm of the
