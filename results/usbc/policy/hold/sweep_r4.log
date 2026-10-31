@@ -1,0 +1,7 @@
+== r4_f25_p3_settle1.5
+ "n": 1024,
+ "pass_rate": 0.98828125,
+== r4_f25_p3_along-0.035
+ "n": 1024,
+ "pass_rate": 1.0,
+== r4_f25_p3_across0

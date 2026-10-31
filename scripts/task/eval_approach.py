@@ -49,7 +49,7 @@ FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005
 def load(which, dev):
     ck = torch.load(f'runs/perception/{which}.pt', map_location=dev)
     load.mode[which] = ck.get('wrist_mode', 'resize')
-    net = (TwoViewPoseNet if ck['which'] == 'wrist2' else PoseNet)(len(ck['scale']), ck['size']).to(dev)
+    net = (TwoViewPoseNet if ck['which'] == 'wrist2' else PoseNet)(len(ck['scale']), ck['size'], width=ck.get('width', 32)).to(dev)
     net.load_state_dict(ck['net']); net.eval()
     return net, ck['scale'].to(dev)
 
@@ -111,14 +111,12 @@ def main():
     p_true, R_true = h.pc_pose()
     yaw_true = torch.atan2(-R_true[:, 1, 2], -R_true[:, 0, 2])
     # 1. ZED estimate (arms at reset)
+    zed_ok = torch.ones(n, dtype=torch.bool, device=dev)
     if a.pc == 'zed':
-        zed, zs = load('zed', dev)
+        from blind_insertion.perception.zed_estimator import ZedEstimator
         with wp.ScopedDevice(rt.cfg.device):
             mjw.forward(rt.m, rt.d)
-        with torch.no_grad():
-            est = zed(zed_crop(rt.render()['top'])) * zs
-        ex = torch.tensor(NOMINAL['port_xy'], device=dev) + est[:, :2] * 1e-3
-        eyaw = torch.deg2rad(est[:, 2])
+        ex, eyaw, zed_ok, _ = ZedEstimator(dev)(rt.render()['top'])   # zed_ok False: no pose (presence/validity gate)
     else:
         ex, eyaw = p_true[:, :2].clone(), yaw_true.clone()
     zed_err = torch.cat([(ex - p_true[:, :2]) * 1e3, torch.rad2deg(torch.atan2(torch.sin(eyaw - yaw_true), torch.cos(eyaw - yaw_true)))[:, None]], 1)
@@ -257,7 +255,7 @@ def main():
          'rx_deg': torch.rad2deg(trv[:, 0]), 'ry_deg': torch.rad2deg(trv[:, 1]), 'roll_deg': torch.rad2deg(trv[:, 2]),
          'tilt_deg': tilt, 'zed_err': zed_err, 'look_lateral_mm': p_look[:, :2].norm(dim=1) * 1e3,
          'inhand': ins.inhand, 'pc_moved_mm': (pc_final - p_true).norm(dim=1) * 1e3, 'finite': fin,
-         'left_latched': hold.latched}
+         'left_latched': hold.latched, 'zed_ok': zed_ok}
     if per_world:
         w['servo_per_world'] = torch.stack(per_world, 1)     # (n, iters, [x, y, gap, ik_err, inhand_rot_change])
     w = {k: v.detach().cpu().numpy() for k, v in w.items()}
@@ -278,6 +276,7 @@ def main():
            'zed_error': {'xy_mm_p50': q(np.linalg.norm(w['zed_err'][:, :2], axis=1), 50),
                          'xy_mm_p99': q(np.linalg.norm(w['zed_err'][:, :2], axis=1), 99),
                          'yaw_deg_p99': q(np.abs(w['zed_err'][:, 2]), 99)},
+           'zed_gate_accept_rate': float(w['zed_ok'].mean()),
            'look_pose_lateral_mm': {f'p{p}': q(w['look_lateral_mm'], p) for p in (50, 99)},
            'pc_moved_since_reset_mm': {f'p{p}': q(w['pc_moved_mm'], p) for p in (50, 99, 100)},
            'servo_trace': trace, 'wall_s': time.time() - t0}

@@ -30,3 +30,12 @@ if [ "$1" = r3 ]; then
     run r3_press_f${F}_front_push$P --mode press --force $F --along -0.02 --push $P $P --nworld 1024
   done; done
 fi
+# Round 4: 3 N push, 25 N press, variants (settle, position, latch threshold, folded start): `sweep_left_hold.sh r4`
+if [ "$1" = r4 ]; then
+  B="--mode press --force 25 --push 3 3 --nworld 1024"
+  run r4_f25_p3_settle1.5 $B --along -0.02 --settle-s 1.5
+  run r4_f25_p3_along-0.035 $B --along -0.035
+  run r4_f25_p3_across0 $B --along -0.02 --across 0
+  run r4_f25_p3_guard1.5 $B --along -0.02 --guard-force 1.5
+  run r4_f25_p3_folded $B --along -0.02 --left-start folded
+fi
