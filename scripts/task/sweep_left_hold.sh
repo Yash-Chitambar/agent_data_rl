@@ -12,3 +12,9 @@ run brace_f5_push0-20 --mode brace --force 5 --push 0 20 --nworld 1024
 run press_f25_idle7s --mode press --force 25 --push 0 0 --push-hold-s 7 --nworld 1024
 run press_f25_insert --mode press --force 25 --load insert --nworld 1024
 run press_f35_insert --mode press --force 35 --load insert --nworld 1024
+# Recommended hold (front half of the top, in line with port 2, 35 N, guarded engage): pass vs fixed load
+for F in 0 1 2 3 5 10; do
+run rec_press_f35_front_push$F --mode press --force 35 --along -0.02 --push $F $F --nworld 1024
+done
+run rec_press_f35_front_insert --mode press --force 35 --along -0.02 --load insert --nworld 1024
+run rec_press_f35_front_push0-10_preload4 --mode press --force 35 --along -0.02 --preload 4 --push 0 10 --nworld 1024

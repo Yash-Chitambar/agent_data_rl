@@ -170,7 +170,7 @@ class Harness:
         out['arm_arm'].index_put_((world[arm_arm],), torch.ones_like(world[arm_arm], dtype=torch.bool))
         left_other = touch & ll & ~pc & ~rr & ~reader
         out['left_other'].index_put_((world[left_other],), torch.ones_like(world[left_other], dtype=torch.bool))
-        right_pc = touch & rr & pc
+        right_pc = touch & (rr | reader) & pc
         out['right_pc'].index_put_((world[right_pc],), torch.ones_like(world[right_pc], dtype=torch.bool))
         lp = ll & pc
         if lp.any():

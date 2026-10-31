@@ -1,0 +1,108 @@
+{
+ "n": 1024,
+ "pass_rate": 0.064453125,
+ "wilson95_lower": 0.050980679651949454,
+ "gate_met": false,
+ "tolerance": {
+  "translation_mm": 0.5,
+  "rotation_deg": 0.5
+ },
+ "arm_arm_contact_worlds": 15,
+ "left_touches_other_worlds": 242,
+ "nonfinite_worlds": 29,
+ "unlatched_worlds": 0,
+ "plan_failed_worlds": 30,
+ "pc_translation_mm": {
+  "p50": 24.568401336669922,
+  "p90": 57.29996109008789,
+  "p99": 1000.0,
+  "p99.5": 1000.0,
+  "p100": 16253068509184.0
+ },
+ "pc_rotation_deg": {
+  "p50": 3.1441454887390137,
+  "p90": 7.590062618255615,
+  "p99": 37.59626007080078,
+  "p99.5": 121.80634307861328,
+  "p100": 179.87625122070312
+ },
+ "engage_translation_mm": {
+  "p50": NaN,
+  "p99": NaN,
+  "p100": NaN
+ },
+ "engage_rotation_deg": {
+  "p50": 1.0387714610260446e-05,
+  "p99": 90.10769653320312,
+  "p100": 125.76124572753906
+ },
+ "left_contact_force_n": {
+  "p1": 0.0,
+  "p50": 7.546093940734863,
+  "p99": 16.569520950317383
+ },
+ "seated_rate": null,
+ "hold": {
+  "mode": "brace",
+  "across_m": -0.0208,
+  "along_m": 0.03,
+  "brace_height_m": 0.02,
+  "force_n": 5.0,
+  "preload_n": 0.0,
+  "down_n": 0.0,
+  "standoff_m": 0.015,
+  "move_s": 1.5,
+  "engage_s": 0.6,
+  "settle_s": 0.5,
+  "yaws_deg": [
+   -90,
+   -75,
+   -60,
+   -45,
+   -30,
+   -15,
+   0,
+   15,
+   30,
+   45,
+   60,
+   75,
+   90
+  ],
+  "tilt_deg": 0.0,
+  "ik_iters": 120,
+  "guarded": true,
+  "guard_speed_m_s": 0.01,
+  "guard_depth_m": 0.025,
+  "guard_force_n": 3.0,
+  "ramp_s": 0.4
+ },
+ "insert": null,
+ "load": {
+  "type": "push",
+  "push_n": [
+   0.0,
+   20.0
+  ],
+  "lateral_frac": 0.15,
+  "push_hold_s": 1.5
+ },
+ "pc_estimate_error": {
+  "sigma_m": 0.002,
+  "sigma_yaw_deg": 1.0
+ },
+ "enc_offset_deg": 1.5,
+ "wall_s": 75.49432134628296,
+ "pass_by_push_n": {
+  "0-4": 0.34972677595628415,
+  "4-8": 0.008888888888888889,
+  "8-12": 0.0,
+  "12-16": 0.0,
+  "16-20": 0.0
+ },
+ "pass_by_feet_mu": {
+  "0.3-0.5": 0.036827195467422094,
+  "0.5-0.7": 0.05089820359281437,
+  "0.7-0.9": 0.10682492581602374
+ }
+}

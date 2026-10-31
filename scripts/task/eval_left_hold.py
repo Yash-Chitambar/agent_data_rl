@@ -49,6 +49,12 @@ def wilson_lower(k, n, z=1.96):
 def run(a, rt=None, seed=0):
     torch.manual_seed(seed)
     rt = rt or BimanualRuntime(BimanualCfg(nworld=a.nworld, device='cuda:0'))
+    if a.feet_solref or a.feet_solimp:            # diagnostic: PC-feet contact softness (shared model field)
+        feet = rt.pc_feet if rt.cfg.pc_friction_range else None
+        if a.feet_solref:
+            wp.to_torch(rt.m.geom_solref)[..., feet, :] = torch.tensor(a.feet_solref, device=rt.device)
+        if a.feet_solimp:
+            wp.to_torch(rt.m.geom_solimp)[..., feet, :3] = torch.tensor(a.feet_solimp, device=rt.device)
     h = Harness(rt, HarnessCfg(enc_offset_deg=a.enc_offset_deg))
     h.reset()
     hc = HoldCfg(mode=a.mode, force_n=a.force, preload_n=a.preload, across_m=a.across, along_m=a.along,
@@ -65,7 +71,7 @@ def run(a, rt=None, seed=0):
     Rz = K.axis_angle_mat(torch.tensor([0., 0., 1.], device=dev).expand(n, 3), yaw_err)
     plan = hold.solve(est_p, Rz @ R_reset) if a.mode != 'none' else {'ok': torch.ones(n, dtype=torch.bool, device=dev)}
     q_home_l, q_home_r = h.believed('left').clone(), h.believed('right').clone()
-    flags = {k: torch.zeros(n, dtype=torch.bool, device=dev) for k in ('arm_arm', 'left_other', 'nonfinite')}
+    flags = {k: torch.zeros(n, dtype=torch.bool, device=dev) for k in ('arm_arm', 'left_other', 'nonfinite', 'right_pc')}
     T = int(round(hold.duration / DT))
     for k in range(T):
         h.step(q_home_r, 1., hold.target(k * DT, q_home_l), -1. if a.mode != 'none' else 1.)
@@ -74,7 +80,10 @@ def run(a, rt=None, seed=0):
     p_eng, R_eng = h.pc_pose()
     engage_dp = (p_eng - p_reset).norm(dim=1)
     engage_ang = K.rot_log(R_eng @ R_reset.transpose(1, 2)).norm(dim=1)
-    ins.place()
+    if a.no_right:
+        ins.target, ins.ik_ok = q_home_r, torch.ones(n, dtype=torch.bool, device=dev)
+    else:
+        ins.place()
     q_hold = hold.hold_target() if a.mode != 'none' else q_home_l
     for k in range(int(.3 / DT)):
         h.step(ins.target, -1., q_hold, -1. if a.mode != 'none' else 1.)
@@ -106,7 +115,7 @@ def run(a, rt=None, seed=0):
         dp_max = torch.maximum(dp_max, dp); ang_max = torch.maximum(ang_max, ang)
         if k % 5 == 0:
             c = h.contacts()
-            flags['arm_arm'] |= c['arm_arm']; flags['left_other'] |= c['left_other']
+            flags['arm_arm'] |= c['arm_arm']; flags['left_other'] |= c['left_other']; flags['right_pc'] |= c['right_pc']
             force_sum += c['left_pc_force']; nf += 1
     h.push_pc(torch.zeros(n, 3, device=dev), p0)
     seated = rt.insertion_metrics()['geometric_seated'] if a.load == 'insert' else torch.zeros(n, dtype=torch.bool, device=dev)
@@ -118,7 +127,7 @@ def run(a, rt=None, seed=0):
     w = {'dp_mm': dp_max * 1e3, 'ang_deg': torch.rad2deg(ang_max), 'engage_dp_mm': engage_dp * 1e3,
          'engage_ang_deg': torch.rad2deg(engage_ang), 'push_n': push, 'left_force_n': fmean.norm(dim=1),
          'left_force_down_n': -fmean[:, 2], 'left_force_xy_n': fmean[:, :2].norm(dim=1), 'feet_mu': feet_mu, 'passed': passed, 'arm_arm': flags['arm_arm'],
-         'left_other': flags['left_other'], 'latched': hold.latched if a.mode != 'none' and hc.guarded else torch.ones(n, dtype=torch.bool, device=dev), 'nonfinite': flags['nonfinite'], 'plan_ok': ok, 'seated': seated}
+         'left_other': flags['left_other'], 'latched': hold.latched if a.mode != 'none' and hc.guarded else torch.ones(n, dtype=torch.bool, device=dev), 'nonfinite': flags['nonfinite'], 'right_pc': flags['right_pc'], 'plan_ok': ok, 'seated': seated}
     return {k: v.detach().cpu().numpy() for k, v in w.items()}, hc, ic
 
 
@@ -128,7 +137,7 @@ def summarize(w, a, hc, ic, seconds):
     out = {'n': n, 'pass_rate': k / n, 'wilson95_lower': wilson_lower(k, n), 'gate_met': bool(n >= 1000 and k / n >= .995),
            'tolerance': {'translation_mm': a.tol_mm, 'rotation_deg': a.tol_deg},
            'arm_arm_contact_worlds': int(w['arm_arm'].sum()), 'left_touches_other_worlds': int(w['left_other'].sum()),
-           'nonfinite_worlds': int(w['nonfinite'].sum()), 'unlatched_worlds': int((~w['latched']).sum()), 'plan_failed_worlds': int((~w['plan_ok']).sum()),
+           'nonfinite_worlds': int(w['nonfinite'].sum()), 'right_touches_pc_worlds': int(w['right_pc'].sum()), 'unlatched_worlds': int((~w['latched']).sum()), 'plan_failed_worlds': int((~w['plan_ok']).sum()),
            'pc_translation_mm': {f'p{p}': q(w['dp_mm'], p) for p in (50, 90, 99, 99.5, 100)},
            'pc_rotation_deg': {f'p{p}': q(w['ang_deg'], p) for p in (50, 90, 99, 99.5, 100)},
            'engage_translation_mm': {f'p{p}': q(w['engage_dp_mm'], p) for p in (50, 99, 100)},
@@ -139,7 +148,7 @@ def summarize(w, a, hc, ic, seconds):
            'load': {'type': a.load, 'push_n': a.push if a.load == 'push' else None, 'lateral_frac': a.lateral_frac,
                     'push_hold_s': a.push_hold_s},
            'pc_estimate_error': {'sigma_m': a.pc_est_sigma_m, 'sigma_yaw_deg': a.pc_est_sigma_deg},
-           'enc_offset_deg': a.enc_offset_deg, 'wall_s': seconds}
+           'enc_offset_deg': a.enc_offset_deg, 'feet_solref': a.feet_solref, 'feet_solimp': a.feet_solimp, 'wall_s': seconds}
     # failure rate by push force bin and feet friction bin
     if a.load == 'push' and a.push[1] > a.push[0]:
         edges = np.linspace(a.push[0], a.push[1], 6)
@@ -174,6 +183,9 @@ def parser():
     ap.add_argument('--enc-offset-deg', type=float, default=1.5)
     ap.add_argument('--tol-mm', type=float, default=.5)
     ap.add_argument('--tol-deg', type=float, default=.5)
+    ap.add_argument('--feet-solref', type=float, nargs=2, default=None, help='diagnostic: PC-feet solref (timeconst, dampratio)')
+    ap.add_argument('--feet-solimp', type=float, nargs=3, default=None, help='diagnostic: PC-feet solimp (d0, dwidth, width)')
+    ap.add_argument('--no-right', action='store_true', help='right arm stays at its reset pose (no reader at the port)')
     ap.add_argument('--nworld', type=int, default=1024)
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--out', type=Path)
