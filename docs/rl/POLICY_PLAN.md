@@ -233,7 +233,11 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
 
   Final per-level table: FINDINGS 2026-10-31 (Part 4). Approach accuracy needed: success is 100 % for
   start lateral ≤ 0.5 mm, 99.86 % for 0.5-1 mm, 99.3 % for 1-1.5 mm, ~94 % for 1.5-3 mm.
-- Open: widen the capture region beyond ~1.5 mm (longer training at ×1.5, search behaviour, chamfered
+- **Round 2 (2026-11-01): gate passed at ×1.5.** Blind PPO v6 seed 2 (curriculum 1.5 → 2.0, 30 % hard
+  starts at 1.5-3.5 mm): scale 1.5 99.76 % [99.43, 99.90] (seed 1000) and 99.85 % [99.57, 99.95] (seed
+  2000), scale 1.0 99.95 %, n = 2048 each. Export: `runs/P4-insert-best/best.pt`,
+  `eval_insertion.load_insertion_policy()`.
+- Open (was): widen the capture region beyond ~1.5 mm (longer training at ×1.5, search behaviour, chamfered
   port model if the real port has one); the wrist camera did not help through DAgger (students 3.5-7 %)
   and needs a PPO-trained or better-distilled visual policy to answer; contact values (plug-port μ
   0.10-0.20, port solref 3-4 ms) and the 25 µm seating tolerance are choices, not measurements.

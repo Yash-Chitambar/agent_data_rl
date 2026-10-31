@@ -103,6 +103,10 @@ class InsertionCfg:
     # gap. Rows that are approach failures (lateral > 8 mm, gap outside 0.5-15 mm) are dropped.
     start_source: str = 'uniform'
     npz_scale: float = 1.0
+    # Over-sample hard starts: this fraction of npz starts gets its lateral error replaced by a uniform
+    # draw in an annulus [lo, hi] m (direction uniform); angles and gap stay from the npz row (scaled).
+    hard_frac: float = 0.0
+    hard_lat_m: tuple = (0.0015, 0.003)
     privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
     grasp_p: tuple | None = None        # legacy 60-deg geometric grasp only (grasp='geometric60')
     # In-hand pose: 'part1' = Part 1's measured pick (scenes/reader_grasp.inhand_pose(): 55-deg grasp,
@@ -370,6 +374,11 @@ class InsertionTask(BimanualTask):
                 lat = rows[:, :2] * 1e-3 * c.npz_scale
                 gap = rows[:, 2] * 1e-3
                 ang = rows[:, 3:6] * math.pi / 180 * c.npz_scale
+                if c.hard_frac > 0:
+                    hard = (torch.rand(k, device=dev, generator=gen) < c.hard_frac)
+                    rad = c.hard_lat_m[0] + (c.hard_lat_m[1] - c.hard_lat_m[0]) * torch.rand(k, device=dev, generator=gen)
+                    th = torch.rand(k, device=dev, generator=gen) * 2 * math.pi
+                    lat = torch.where(hard[:, None], torch.stack([rad * torch.cos(th), rad * torch.sin(th)], 1), lat)
             R_rp = _rpy(ang)
             p_rp = torch.cat([lat, gap[:, None]], 1)
             R_rw = port_R @ R_rp
@@ -547,7 +556,12 @@ class InsertionTask(BimanualTask):
         terminated = success | failure
         truncated = (self.steps >= self.max_steps) & ~terminated
         self.done = terminated | truncated
-        self._last = dict(strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
+        poly = self.hole
+        ed = torch.roll(poly, -1, 0) - poly
+        rr = pts[..., None, :2] - poly[None, None]
+        outside = -((ed[..., 0] * rr[..., 1] - ed[..., 1] * rr[..., 0]) / ed.norm(dim=1))   # >0: outside that edge (m)
+        violation = outside.max(-1).values.max(-1).values.clamp(min=0)
+        self._last = dict(aperture_violation=violation, strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
                           pushed=pushed, far=far, bad=bad, pc_d=pc_d, tilt=metrics['tilt_deg'],
                           aperture=metrics['aperture_fit'], ang_rel=ang_rel, d_rel=d_rel.norm(dim=1))
         info = {'success': success.clone(), 'nonfinite': bad, 'slip': slip, 'pushed': pushed, 'far': far,
