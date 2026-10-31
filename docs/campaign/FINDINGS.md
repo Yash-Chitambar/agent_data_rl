@@ -317,6 +317,10 @@ friction rows of the elliptic cones, resolved in the port frame), sampled at the
   policy keeps pushing during the 0.2 s hold). Mean push in contact 4-5 N (C, D). Running: E (cap 0.05 + C's
   penalties) and F (cap 0.05, 0.5/N > 10 N, 5/(m/s) > 10 mm/s). Gate: ≥ 99.5 % on the held-out live states with
   peak push p99 ≤ 20 N: not yet met (p99 30 N).
+- **Wider in-hand error (perception-driven pick, p99 ~4 mm / 2°: `inhand_extra_pos_m` (3, 0.4, 3) mm,
+  `inhand_extra_rot_deg` 1.3° per axis on top of the measured spread), round 3 × 1.0, n = 2048:** v11 95.36 %
+  [94.36, 96.19] (52 mouth, 43 slip; peak push p99 56.9 N); gentle-D 96.44 % [95.54, 97.16] (50 mouth, 23 slip;
+  p99 32.0 N). Not robust to it yet: E and F are being fine-tuned with this in-hand noise (E2, F2).
 
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
