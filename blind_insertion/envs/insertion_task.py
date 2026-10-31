@@ -690,6 +690,8 @@ def failure_class(final: dict) -> list[str]:
             out.append('lateral_miss')
         elif float(final['tilt'][i]) > 2.0:
             out.append('tilt')
+        elif float(final['p'][i, 2]) <= -0.00555:
+            out.append('deep_unseated')     # inserted to depth but failing the aperture-polygon test
         else:
             out.append('jam')
     return out

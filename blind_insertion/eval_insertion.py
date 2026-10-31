@@ -141,6 +141,7 @@ def main():
     summary = dict(policy=a.policy, n=n, seated=k, rate=k / n, wilson95=[lo, hi], scale=a.scale, seed=a.seed,
                    outcomes=df.outcome.value_counts().to_dict(),
                    strict_seated_rate=float(df.strict_seated_hold.mean()),
+                   seated_or_deep_rate=float(df.outcome.isin(['seated', 'deep_unseated']).mean()),
                    aperture_tol_m=env.icfg.aperture_tol_m,
                    t_seat_s_median=float(df[df.success].t_s.median()) if k else None,
                    t_seat_s_p95=float(df[df.success].t_s.quantile(.95)) if k else None,
