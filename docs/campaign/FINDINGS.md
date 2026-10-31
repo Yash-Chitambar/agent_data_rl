@@ -104,6 +104,25 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 4: hold 3 N gate met; ZED presence gate; approach DAgger/specialist
+
+- **Hold:** pressing 3.5 cm in front of the case centre (instead of 2 cm) passes 3 N: 5113/5120 PC still (99.86 %,
+  five runs of n = 1024, two starting from the folded/parked left pose), 5 N 99.5-99.8 %, 10 N 97.0 %, 25 N, left
+  joint 2 <= 8.8 N m. 4.5 cm in front: 98.2 %; longer settle, earlier latch, centred press: no gain.
+- **ZED gate** (`perception/zed_estimator.py`): presence CNN + Mahalanobis OOD on the pose CNN's features
+  (1.25 x sim p99.9). Sim: accepts 100 % with a PC, 0 % without (n = 1024 each). Real first frames of the 24
+  curated sessions: rejects 7/7 without a PC, accepts 14/17 with one (rejected: tape reel, hand, sticky notes on
+  the PC). The 1.25 margin is set from those real distances. Reader in the new strip: no change (xy p99 2.9 mm).
+- **Approach** (lateral p50 / p99 mm, n = 1024, press 2 cm): v9 DAgger 0.37 / 1.84; wider CNN v9w 0.37 / 1.74;
+  v9 + stop-gap specialist v9s 0.34 / 1.68 (93.8 % inside 1 mm / 2 deg); 12-iteration dwell 0.43 / 1.81.
+  Error grows with the DR wrist-camera pose error: with that error inside the real calibration (<= 5.1 mm,
+  <= 1.2 deg; n = 331) v9 + v9s gives p99 1.02 mm, tilt p99 0.72 deg. The DR samples up to 2x real.
+- The 3.5 cm press puts the left fingers next to the port in the wrist image: the round-3/4 nets fail there
+  (v9w p99 11 mm). DAgger at the new hold: v10w 0.42 / 2.04 mm; **v10w + stop-gap specialist v10ws (current deliverable):
+  lateral p50 0.32 / p99 1.64 / p99.5 1.88 mm (x p99 0.93, y p99 1.49), tilt p99 0.87 deg, roll p99 0.57 deg,
+  gap error p99 0.83 mm, 95.3 % inside 1 mm / 2 deg (n = 1024, all finite, ZED gate accepted all)**; with the wrist
+  camera error inside the real calibration (n = 331): lateral p99 1.13 mm, tilt p99 0.70 deg.
+
 ### 2026-10-31 (mason, `policy/pick`) — Part 1 strip in front of the PC: 5 × 10 cm, gate 2048/2048
 
 - User rejected windows beside the PC. With a world-fixed yaw the tipped grasp needs x ≳ 0.30 m; with
