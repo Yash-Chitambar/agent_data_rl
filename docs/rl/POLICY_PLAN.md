@@ -77,6 +77,33 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
 - **Explore:** pose estimators (ZED only, wrist only, both); a visual-servo refinement step at
   the end; how far out to stop (3–10 mm).
 - **Metrics:** lateral and angular pre-insert error distribution vs the capture region of Part 4.
+- **Status (2026-10-31, `policy/approach-hold`): pipeline built and measured; target (1 mm / 2 deg at
+  99.5 %) not reached.** Deliverable for Part 4: `results/usbc/policy/approach/preinsert_error.json`
+  (+ `preinsert_error_samples.npz`, per-episode errors to sample RL starts from).
+  - **Pipeline (RGB only):** ZED frame before the arms move -> CNN PC pose (x, y, yaw) -> left hold
+    (Part 3) -> IK move to 30 mm in front of the estimated port -> visual servo on the right wrist RGB
+    (CNN plug-to-port pose, 6 waypoints to the stop gap + 6 iterations there, smooth 0.5 s moves,
+    position-only at the stop gap) with a Coulomb feed-forward on the right arm.
+    `scripts/task/eval_approach.py`, `scripts/task/sweep_approach.sh`, estimators in
+    `blind_insertion/perception/`, training `scripts/perception/train_approach_estimators.py`.
+  - **Grasp at the port:** the confirmed 60-deg grasp reaches the pre-insert pose over the PC box
+    except the near-left corner (port x 0.19 m, yaw -10 deg) with +8 deg in-hand pitch; 55 deg reaches
+    everywhere (`results/usbc/policy/approach/preinsert_grasp_clearance.json`).
+  - **ZED:** CNN on DR renders xy p50 0.79 / p99 3.1 mm, yaw p99 1.6 deg (sim held-out, n = 2048);
+    real frames: 0.41 mm from the manual landmark, 0.05-0.08 mm frame jitter (n = 123). Classical
+    silhouette: p50 11.8 mm, 21 % failures. ZED alone (open loop) gives lateral p99 21 mm (in-hand pose,
+    encoder offsets): not usable without the wrist servo.
+  - **Execution floor** (servo with a perfect estimate): lateral p99 0.89 mm, tilt p99 1.8 deg, with
+    the Coulomb feed-forward; 2.8 mm without (joint-friction deadband).
+  - **Achieved (right wrist CNN, stop 6 mm, n = 1021):** lateral p50 0.96 / p99 4.5 mm, tilt p50 1.1 /
+    p99 5.7 deg, gap error p99 3.4 mm, roll p99 8.9 deg; 46 % inside 1 mm / 2 deg. Averaging 4 frames
+    does not help (the error is a per-episode bias: camera pose, appearance, in-hand pose).
+    Stop distance barely matters: lateral p50 / p99 3 mm 1.05 / 4.6, 6 mm 0.96 / 4.5, 10 mm 0.92 / 5.5;
+    tilt p99 6.7 / 5.7 / 5.8 deg (n = 1021-1023 each). Recommended: stop at 6 mm. Part 4 must absorb
+    at least lateral +/-4.5 mm, tilt 5.7 deg, roll 9 deg (p99) -- or the approach needs a better view.
+  - **Next:** a second view that sees the plug from the side (the left wrist at the press pose sees
+    only the PC top); an estimator trained on the in-loop distribution (DAgger-style); roll correction
+    at the stop gap; a presence check for the ZED CNN.
 
 ## Part 3: Left-arm hold
 

@@ -15,4 +15,14 @@ wrist)
   run servo_wrist_fine_fc_stop3 --servo wrist --fric-comp --fine-below-mm 12 --stop 3
   run servo_wrist_fine_fc_stop10 --servo wrist --fric-comp --fine-below-mm 12 --stop 10
   run servo_wrist_fine_fc_frames4 --servo wrist --fric-comp --fine-below-mm 12 --frames 4 ;;
+v2)   # wrist estimator trained with in-hand rotation +/-20 deg (covers the grasp sag seen in the loop)
+  run servo_wristv2_fc --servo wrist --fric-comp --coarse-net wrist_v2
+  run servo_wristv2_fc_frames4 --servo wrist --fric-comp --coarse-net wrist_v2 --frames 4
+  run servo_wristv2_fc_stop3 --servo wrist --fric-comp --coarse-net wrist_v2 --stop 3
+  run servo_wristv2_fc_stop10 --servo wrist --fric-comp --coarse-net wrist_v2 --stop 10 ;;
 esac
+# two-view fine estimator (right + left wrist RGB): run with `sweep_approach.sh both`
+if [ "${1}" = both ]; then
+  run servo_both_fine_fc --servo wrist --fric-comp --fine-below-mm 12 --fine-net wrist2_fine
+  run servo_both_fine_fc_frames4 --servo wrist --fric-comp --fine-below-mm 12 --fine-net wrist2_fine --frames 4
+fi

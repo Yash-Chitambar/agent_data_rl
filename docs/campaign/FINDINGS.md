@@ -104,6 +104,60 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/approach-hold`) — Part 3 left hold and Part 2 approach in the GPU runtime
+
+All numbers: GPU bimanual runtime, full DR (PC layout +/-3 cm/+/-10 deg, PC feet mu U(0.3, 0.9), arm
+Coulomb x U(0.5, 1.3), gravity jitter, encoder offsets +/-1.5 deg on joints 2-5, latency 0-1 step) plus,
+for Part 2, policy/v1 visual DR (camera pose up to 2x real) and the confirmed 60-deg grasp with a
+provisional in-hand pose +/-3 mm / +/-8 deg.
+
+**Part 3 (hold).** `blind_insertion/envs/left_hold.py`, `scripts/task/eval_left_hold.py`, results
+`results/usbc/policy/hold/`.
+- The left arm is soft: Cartesian stiffness 0.3-0.5 N/mm at the hold poses (kp 80 Nm/rad). A brace
+  behind the rear face cannot stop the PC (6.5 % still, n = 1024, push U(0, 20) N). The hold must
+  come from feet friction, so press down.
+- An absolute IK target plus a force offset puts 2.7-7 N of sideways force on the PC (encoder-offset
+  error through the coupled stiffness). A **guarded engage** (descend until the encoder-estimated force
+  > 3 N, latch, then add Kp^-1 J^T F) cuts it to 0.4-1.4 N: idle 7 s still in 99.5 % (n = 1024) vs 98.1 %.
+- Front half of the top beats the rear half (pitch moment of the load at the port).
+- **Recommended:** press, 2 cm in front of the case centre, in line with port 2, 35 N, guarded. PC
+  still (< 0.5 mm, < 0.5 deg over 2 s) under a fixed axial push at the port: 0 N 99.8 %, 1 N 99.3 %,
+  2 N 97.3 %, 3 N 96.0 %, 5 N 94.0 %, 10 N 84.4 % (n = 1024 each); 0 arm-arm contacts. **Gate
+  (99.5 %) met only without load.**
+- Sim limit: 2-6 % of worlds slide at 1-5 N although the Coulomb capacity is >= 11 N (35 N down,
+  mu >= 0.3); force and position barely change it; stiffer feet contacts (5 ms) made it worse. Soft
+  friction on the 5 mm box feet, not the hold. MuJoCo Warp has no noslip solver.
+- Left joint 2 holds ~15 N m at 35 N (DM4340 rated ~9 N m): keep the hold short.
+- The privileged scripted insertion jams under full DR (45 um clearance, no chamfer; 3.8 % seated),
+  so a realistic insertion load in sim is still undefined.
+
+**Part 2 (approach).** `blind_insertion/perception/` (render data, CNNs), `scripts/perception/`,
+`scripts/task/eval_approach.py`, results `results/usbc/policy/approach/`.
+- Grasp clearance at the pre-insert pose (`check_preinsert_grasp.py`, 27 PC poses x 9 in-hand
+  extremes x 4 gaps): 60 deg reaches 24/27 poses; it fails at port x 0.19 m, yaw -10 deg with the
+  in-hand +8 deg pitch (joint limit). 55 deg reaches all 27 (margin 0.014 rad), 50 deg margin 0.11 rad.
+  Gripper >= 7.8 mm above the table, >= 20 mm from the left arm, >= 37 mm from the case.
+- **ZED (RGB) PC pose**: learned CNN on 24,576 DR renders: held-out xy p50 0.79 / p99 3.1 mm, yaw
+  p99 1.6 deg (n = 2048, camera error up to 2x real). Classical silhouette fit: 21 % failures, xy p50
+  11.8 mm. **Real frames**: CNN vs the manual landmark 0.41 mm (reference good to ~5 mm), yaw +1.9 deg
+  (reference yaw not fitted), frame-to-frame std 0.05/0.08 mm (n = 123); classical 6.5 mm. The
+  CNN answers on frames without a PC too: it needs a presence check.
+- Open loop (ZED + IK, nominal in-hand pose) misses by lateral p50 8.9 / p99 21 mm, tilt p50 4.5 deg:
+  in-hand pose and encoder offsets dominate. A wrist-camera servo is required.
+- Servo with a perfect relative estimate: lateral p99 2.8 mm without, **0.89 mm with** a Coulomb
+  feed-forward on the right arm (`friction_comp`, identified Coulomb, 5 mrad ramp): the joint-friction
+  deadband (~12-19 mrad) otherwise stalls/limit-cycles the arm. n = 1021-1022.
+- Right-wrist RGB plug-to-port CNN: closed loop lateral p50 1.07 / p99 4.5 mm, tilt p50 1.1 / p99 5.6 deg
+  (n = 1021). The vertical (port y) is the weak axis: the camera looks along the plug.
+- The reader pivots in the 60-deg grasp: in-hand rotation grows by up to ~10 deg (p99) after placement.
+- Retrained with in-hand rotation +/-20 deg (wrist_v2, 32,768 renders; held-out lateral p50 0.64 mm):
+  **lateral p50 0.96 / p99 4.5 mm, tilt p50 1.1 / p99 5.7 deg, roll p99 8.9 deg, 46 % inside 1 mm / 2 deg**
+  at a 6 mm stop (n = 1021 finite of 1024; 3 non-finite, 3 more off by > 10 mm). 4-frame averaging: no change (the error is a per-episode bias). A fine
+  net for the last 12 mm: no better in the loop (n = 512). Stop 3 / 6 / 10 mm: lateral p99 4.6 / 4.5 /
+  5.5 mm. The left wrist at the press pose sees only the PC top, so it adds no plug view.
+- **Deliverable:** `results/usbc/policy/approach/preinsert_error.json` (+ per-episode samples). Target
+  1 mm / 2 deg at 99.5 % is not reached; achievable here is ~1 mm / 1.1 deg median, 4.5 mm / 5.7 deg p99.
+
 ### 2026-10-31 (mason) — Visual DR for the bimanual Warp runtime; Warp nominal look; left wrist camera was blind
 
 - **Bug:** in the MuJoCo Warp render (what policies see) the left wrist camera sat inside its own lens

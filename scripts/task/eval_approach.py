@@ -37,7 +37,7 @@ from blind_insertion.envs import kinematics as K
 from blind_insertion.envs.bimanual_runtime import BimanualCfg, BimanualRuntime
 from blind_insertion.envs.inhand import site_in_reader
 from blind_insertion.envs.left_hold import Harness, HarnessCfg, HoldCfg, InsertCfg, LeftHold, RightInserter
-from blind_insertion.perception.nets import PoseNet
+from blind_insertion.perception.nets import PoseNet, TwoViewPoseNet
 from train_approach_estimators import NOMINAL, WRIST_SIZE, zed_crop
 
 DT = .02
@@ -48,7 +48,7 @@ FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005
 
 def load(which, dev):
     ck = torch.load(f'runs/perception/{which}.pt', map_location=dev)
-    net = PoseNet(len(ck['scale']), ck['size']).to(dev)
+    net = (TwoViewPoseNet if ck['which'] == 'wrist2' else PoseNet)(len(ck['scale']), ck['size']).to(dev)
     net.load_state_dict(ck['net']); net.eval()
     return net, ck['scale'].to(dev)
 
@@ -76,6 +76,8 @@ def main():
     ap.add_argument('--gain', type=float, default=1.)
     ap.add_argument('--frames', type=int, default=1, help='wrist frames averaged per estimate')
     ap.add_argument('--fine-below-mm', type=float, default=0., help='use the fine wrist estimator at waypoints <= this gap (0: never)')
+    ap.add_argument('--coarse-net', default='wrist', help='wrist estimator used above --fine-below-mm (runs/perception/<name>.pt)')
+    ap.add_argument('--fine-net', default='wrist_fine', help='wrist_fine (right wrist) or wrist2_fine (right + left wrist)')
     ap.add_argument('--fric-comp', action='store_true', help='right-arm Coulomb feed-forward (friction_comp.py)')
     ap.add_argument('--enc-offset-deg', type=float, default=1.5)
     ap.add_argument('--seed', type=int, default=1)
@@ -140,8 +142,9 @@ def main():
         h.step(cmd, -1., q_hold, -1.)
     p_look, rv_look = rel_pose(h)
     # 4. servo
-    wrist = load('wrist', dev) if a.servo == 'wrist' else None
-    fine = load('wrist_fine', dev) if a.servo == 'wrist' and a.fine_below_mm > 0 else None
+    wrist = load(a.coarse_net, dev) if a.servo == 'wrist' else None
+    fine = load(a.fine_net, dev) if a.servo == 'wrist' and a.fine_below_mm > 0 else None
+    two = a.fine_net.startswith('wrist2')
     stop = a.stop * 1e-3
     sched = np.geomspace(a.look_gap * 1e-3, stop, max(a.iters - 1, 1)).tolist() + [stop] * a.final_iters if a.servo != 'none' else []
     trace, per_world = [], []
@@ -154,9 +157,12 @@ def main():
         if a.servo == 'wrist':
             ests = []
             for f in range(a.frames):
-                img = rt.render()['wrist_cam']
-                img = F.interpolate(img.permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
+                fr = rt.render()
+                rs = lambda x: F.interpolate(x.permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
+                img = rs(fr['wrist_cam'])
                 net = fine if (fine is not None and g * 1e3 <= a.fine_below_mm) else wrist
+                if net is fine and two:
+                    img = torch.stack([img, rs(fr['left_wrist_cam'])], 1)
                 with torch.no_grad():
                     ests.append(net[0](img) * net[1])
                 if f + 1 < a.frames:

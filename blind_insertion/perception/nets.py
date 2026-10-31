@@ -34,3 +34,22 @@ class PoseNet(nn.Module):
 
     def forward(self, img):
         return self.head(self.body(self.prep(img)))
+
+
+class TwoViewPoseNet(nn.Module):
+    """Two RGB views (e.g. right + left wrist), separate CNN bodies, features fused in the head."""
+
+    def __init__(self, n_out, size, width=32):
+        super().__init__()
+        self.a, self.b = PoseNet(n_out, size, width), PoseNet(n_out, size, width)
+        s = size // 32
+        w = width
+        self.head = nn.Sequential(nn.Linear(2 * 64 * s * s, 256), nn.ReLU(inplace=True), nn.Linear(256, n_out))
+        self.size = size
+
+    def feat(self, net, img):
+        return net.head[:3](net.body(net.prep(img)))
+
+    def forward(self, img):
+        """img: (B, 2, H, W, 3) uint8."""
+        return self.head(torch.cat([self.feat(self.a, img[:, 0]), self.feat(self.b, img[:, 1])], 1))

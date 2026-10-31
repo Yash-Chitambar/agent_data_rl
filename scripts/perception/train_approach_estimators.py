@@ -23,13 +23,18 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from blind_insertion.perception.nets import PoseNet
+from blind_insertion.perception.nets import PoseNet, TwoViewPoseNet
 from blind_insertion.perception.render_data import ApproachRenderer, SampleCfg
 
 NOMINAL = {'port_xy': (.22, .36), 'yaw': 0.}
 ZED_CROP = (110, 70, 160)       # top-left x, y and size (px) of the PC crop in the 320-px ZED frame
 WRIST_SIZE = 192
 SCALE = {'zed': torch.tensor([30., 30., 10.]), 'wrist': torch.tensor([12., 12., 25., 6., 6., 3.])}
+SCALE['wrist2'] = SCALE['wrist']
+
+
+def wrist_img(img):
+    return F.interpolate(img.permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
 
 
 def zed_crop(img):
@@ -56,8 +61,10 @@ def generate(r, which, n, cfg=None, nominal=False):
             img, ok = zed_crop(img), torch.ones(len(img), dtype=torch.bool, device=img.device)
         else:
             fr, lab = r.sample(cfg, nominal=nominal)
-            img, ok = fr['wrist_cam'], lab['ok']
-            img = F.interpolate(img.permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
+            ok = lab['ok']
+            img = wrist_img(fr['wrist_cam'])
+            if which == 'wrist2':
+                img = torch.stack([img, wrist_img(fr['left_wrist_cam'])], 1)
         imgs.append(img[ok].contiguous()); ts.append(targets(which, lab)[ok])
     return torch.cat(imgs)[:n], torch.cat(ts)[:n]
 
@@ -66,7 +73,7 @@ def errors(which, pred, t):
     e = (pred - t).abs().cpu().numpy()
     names = ['x_mm', 'y_mm', 'yaw_deg'] if which == 'zed' else ['x_mm', 'y_mm', 'gap_mm', 'rx_deg', 'ry_deg', 'rz_deg']
     out = {k: {f'p{p}': float(np.percentile(e[:, i], p)) for p in (50, 90, 99, 99.5)} for i, k in enumerate(names)}
-    if which == 'wrist':
+    if which != 'zed':
         lat = np.linalg.norm(e[:, :2], axis=1)
         tilt = np.linalg.norm(e[:, 3:5], axis=1)
         out['lateral_mm'] = {f'p{p}': float(np.percentile(lat, p)) for p in (50, 90, 99, 99.5)}
@@ -79,7 +86,7 @@ def errors(which, pred, t):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--which', choices=('zed', 'wrist'), required=True)
+    ap.add_argument('--which', choices=('zed', 'wrist', 'wrist2'), required=True)
     ap.add_argument('--n', type=int, default=24576)
     ap.add_argument('--n-test', type=int, default=2048)
     ap.add_argument('--epochs', type=int, default=40)
@@ -87,11 +94,13 @@ def main():
     ap.add_argument('--lateral', type=float, default=.012)
     ap.add_argument('--gap', type=float, nargs=2, default=(.003, .045))
     ap.add_argument('--rot', type=float, default=6.)
+    ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--tag', default='', help='suffix of the saved estimator name (e.g. _fine)')
     a = ap.parse_args()
     dev = torch.device('cuda:0')
     t0 = time.time()
     r = ApproachRenderer(nworld=a.nworld, seed=0)
+    r.ins.cfg.inhand_rot_deg = a.inhand_rot
     cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot)
     X, Y = generate(r, a.which, a.n, cfg)
     r.gen.manual_seed(12345); torch.manual_seed(12345)
@@ -103,7 +112,7 @@ def main():
     torch.cuda.empty_cache()
     sc = SCALE[a.which].to(dev)
     size = ZED_CROP[2] if a.which == 'zed' else WRIST_SIZE
-    net = PoseNet(len(sc), size).to(dev)
+    net = (TwoViewPoseNet if a.which == 'wrist2' else PoseNet)(len(sc), size).to(dev)
     opt = torch.optim.AdamW(net.parameters(), 1e-3, weight_decay=1e-4)
     bs = 128
     steps = a.epochs * (len(X) // bs)
