@@ -7,7 +7,7 @@ exactly; the residual torque the simulator must add is therefore
     tau_res(q) = f_g * g_driver(q_enc) - g_true(q_model)
 
 with `g_true` linear in per-link mass/first moments (`theta`, identified by
-`scripts/tools/identify_arm_dynamics.py`). Effective Coulomb friction becomes joint
+`scripts/real2sim/identify_arm_dynamics.py`). Effective Coulomb friction becomes joint
 frictionloss. Both gravity terms use the same regressor: the driver chain has the scene's
 joint axes and anchors (anchors differ only along the axes), so `theta_driver` is the
 driver model's inertia expressed in the scene link frames.

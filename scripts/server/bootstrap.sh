@@ -193,4 +193,4 @@ if [ "$SKIP_SMOKE" = 0 ]; then
   grep -h "sps" runs/_smoke-train.log runs/_smoke-visual.log 2>/dev/null | tail -4 || true
 fi
 
-log "ALL OK. Next: docs/SERVER.md (run_jobs.py on a multi-GPU box, slurm/submit.sh on SLURM)"
+log "ALL OK. Next: docs/operations/SERVER.md (run_jobs.py on a multi-GPU box, slurm/submit.sh on SLURM)"

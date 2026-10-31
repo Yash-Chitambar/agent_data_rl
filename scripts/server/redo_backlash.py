@@ -2,7 +2,7 @@
 """Prepare the server to redo every job that used the old (soft-limit) backlash model.
 
 The backlash hinges had MuJoCo's soft default joint limit until commit 3006b51 (2026-10-21), so every
-backlash level acted as ~0.6 deg of joint compliance (docs/FINDINGS.md, "BUG: the backlash model was a
+backlash level acted as ~0.6 deg of joint compliance (docs/campaign/FINDINGS.md, "BUG: the backlash model was a
 soft spring"). Yash decided to redo the affected runs with the fixed model. This script:
 
   1. finds the affected training runs: every manifest training line whose command has `backlash_arcmin`

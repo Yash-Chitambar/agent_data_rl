@@ -6,7 +6,7 @@ raceway along the table's back edge, the plugs in its outlets, the power strip w
 cables, the black clip-on device on the wall and the Ryobi bit case. Visual only (no
 collision). A dark block fills the shadowed gap between the table's back edge and the raceway.
 Positions are in the right arm base frame (+x toward the wall, z up). The
-parameters in `configs/backdrop_duchamp3.json` come from `scripts/tools/fit_backdrop.py`.
+parameters in `configs/backdrop_duchamp3.json` come from `scripts/real2sim/fit_backdrop.py`.
 """
 import json
 import math

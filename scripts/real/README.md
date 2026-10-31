@@ -1,18 +1,18 @@
 # Real YAM rig tools (duchamp3)
 
 Two YAM arms on CAN, a webcam on each wrist, a ZED 2 above the table. Results and decisions are in
-`docs/FINDINGS.md` (2026-10-24 to 26 entries); open real-vs-sim gaps in `docs/REAL_RIG_GAPS.md`. The camera
+`docs/campaign/FINDINGS.md` (2026-10-24 to 26 entries); open real-vs-sim gaps in `docs/real2sim/REAL_RIG_GAPS.md`. The camera
 spec (intrinsics, mounts, ZED pose, joint offsets, base-to-base pose) is
 `blind_insertion/configs/real_cameras_duchamp3.json`.
 
 ## Open physical TODO (2026-10-30)
 
-Start with [PHYSICAL_TODO_20261030.md](../../docs/PHYSICAL_TODO_20261030.md): gripper opening
+Start with [PHYSICAL_TODO_20261030.md](../../docs/campaign/PHYSICAL_TODO_20261030.md): gripper opening
 sweep (`capture_gripper_sweep.py`, jaws only) and joint backlash (`measure_backlash.py`).
 
 ## Next bimanual measurement session
 
-See [BIMANUAL_MEASUREMENT_PLAN.md](../../docs/BIMANUAL_MEASUREMENT_PLAN.md) for the
+See [BIMANUAL_MEASUREMENT_PLAN.md](../../docs/real2sim/BIMANUAL_MEASUREMENT_PLAN.md) for the
 prioritized remaining measurements, verified existing commands, tests needing a runner
 extension, and the data handoff format. It supplements the historical gap table.
 
@@ -51,7 +51,7 @@ extension, and the data handoff format. It supplements the historical gap table.
 
 ## Bimanual measurement session
 
-The detailed protocol is in [BIMANUAL_MEASUREMENT_PLAN.md](../../docs/BIMANUAL_MEASUREMENT_PLAN.md).
+The detailed protocol is in [BIMANUAL_MEASUREMENT_PLAN.md](../../docs/real2sim/BIMANUAL_MEASUREMENT_PLAN.md).
 These new scripts exclude the gripper measurements. All positions passed to `measure_motion.py`
 are **raw encoder joint radians**. A motion command starts only with `--run`; `plan` and
 `measure_manual.py` are offline. The motion runner expects both tested arms at folded rest

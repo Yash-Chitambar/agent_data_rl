@@ -5993,13 +5993,13 @@
         "sha256": "62f204416d23609e6d8933d9955dc5d79a36121761844024da86537175426a46"
       },
       {
-        "path": "docs/SIM_PHYSICS_AUDIT.md",
+        "path": "docs/real2sim/SIM_PHYSICS_AUDIT.md",
         "kind": "file",
         "size_bytes": 6239,
         "sha256": "9c2a0298fa6b64a4bf83b6592fa735e27740904ca5d90567a0c355c170914962"
       },
       {
-        "path": "docs/USB_C_IMAGE_HANDOFF_20261027.md",
+        "path": "docs/archive/USB_C_IMAGE_HANDOFF_20261027.md",
         "kind": "file",
         "size_bytes": 8115,
         "sha256": "b5f879d93e9f4b700bb399e7b5c866f753d025bae4bb1169591c3e8e1faf7cb8"
@@ -6179,31 +6179,31 @@
         "sha256": "0f59bd8e83033aaec9c05e6bf01fb84f2dbe1636ac35f921762f643c11cb0374"
       },
       {
-        "path": "scripts/tools/build_usbc_profile.py",
+        "path": "scripts/real2sim/build_usbc_profile.py",
         "kind": "file",
         "size_bytes": 5671,
         "sha256": "76bcb370e5461bc264f36bc9f9ec9b51156710e78cf68746c681ec279c2d67c5"
       },
       {
-        "path": "scripts/tools/overlay_usbc_reference.py",
+        "path": "scripts/real2sim/overlay_usbc_reference.py",
         "kind": "file",
         "size_bytes": 2938,
         "sha256": "751043df1be6235c78da28fdc348aa5882e33dd2a4ff54356dfc43ee63276941"
       },
       {
-        "path": "scripts/tools/plot_motion_approach.py",
+        "path": "scripts/real2sim/plot_motion_approach.py",
         "kind": "file",
         "size_bytes": 2300,
         "sha256": "5f5deebd69eeeb9f027b4ce41c059dd074911e1f7fb67f1089a121c35cd02870"
       },
       {
-        "path": "scripts/tools/replay_camera_selection.py",
+        "path": "scripts/real2sim/replay_camera_selection.py",
         "kind": "file",
         "size_bytes": 4958,
         "sha256": "5b58055abf1e5cf32fd80c1d7642fc2a9f01c68cd6648a79f79f9f665fa5bb7b"
       },
       {
-        "path": "scripts/tools/replay_motion_cpu.py",
+        "path": "scripts/real2sim/replay_motion_cpu.py",
         "kind": "file",
         "size_bytes": 12419,
         "sha256": "53709a969ee3cc16831c56944a43593db8851fb9f8a24c6dda3a47e9105a919d"

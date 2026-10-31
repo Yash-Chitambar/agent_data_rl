@@ -1,5 +1,5 @@
 {
- "source": "scripts/tools/identify_arm_dynamics.py",
+ "source": "scripts/real2sim/identify_arm_dynamics.py",
  "model": "g_true = gravity_scale * g_scene; frictionloss = coulomb_nm",
  "friction_solref": [
   0.004,

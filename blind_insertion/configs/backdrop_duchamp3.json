@@ -1,5 +1,5 @@
 {
- "_note": "Fitted by scripts/tools/fit_backdrop.py; right arm base frame, metres/radians.",
+ "_note": "Fitted by scripts/real2sim/fit_backdrop.py; right arm base frame, metres/radians.",
  "wall_x": 0.5275,
  "raceway_front_x": 0.515,
  "raceway_top_z": 0.0479,

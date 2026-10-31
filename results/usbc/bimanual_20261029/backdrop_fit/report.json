@@ -128,7 +128,7 @@
   "note": "raceway front pinned to the measured table edge (0.515 m) and its top kept >= 2.5 cm above the plugs; pass 1 had converged to a low, deep shelf (top 2 cm above the table, 3 cm behind the edge) that showed a white wall line through the gap. Vertical face: 1.9 px vs shelf 1.1 px, but physically consistent (plugs point straight out of a vertical face). before.jpg / after.jpg are from pass 2."
  },
  "params": {
-  "_note": "Fitted by scripts/tools/fit_backdrop.py; right arm base frame, metres/radians.",
+  "_note": "Fitted by scripts/real2sim/fit_backdrop.py; right arm base frame, metres/radians.",
   "wall_x": 0.5275,
   "raceway_front_x": 0.515,
   "raceway_top_z": 0.0479,

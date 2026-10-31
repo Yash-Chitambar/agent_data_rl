@@ -12,7 +12,7 @@ there is no later adopted calibration to substitute.
 - Arm-link and cross-arm collisions restored before compilation; synthetic positive and negative
   contact probes pass. Authored capsule geometry remains approximate.
 - Explicit identification/native PD gain profiles prevent conflating temporary test gains with
-  native free-settle gains. See `docs/BIMANUAL_SLIDE_EVIDENCE_AUDIT.md`.
+  native free-settle gains. See `docs/research/KEYBOX_LESSONS_FOR_USBC.md`.
 - Free PC with reported mass and dimensions; original connector geometry retained.
 - Optional measured support: 480 mm wall-edge to stationary robot-base edge and 23 mm
   mounting rise. Base mesh bottom is the assumed mounting interface (-10 mm model z),
@@ -33,14 +33,14 @@ there is no later adopted calibration to substitute.
 Run from repository root with the existing environment (do not replace CUDA packages):
 
 ```bash
-PYTHONPATH=. .venv/bin/python scripts/tools/check_bimanual_scene.py
-PYTHONPATH=. .venv/bin/python scripts/tools/replay_motion_cpu.py \
+PYTHONPATH=. .venv/bin/python scripts/checks/check_bimanual_scene.py
+PYTHONPATH=. .venv/bin/python scripts/real2sim/replay_motion_cpu.py \
   /home/yashchitambar/usbc_artifacts/left_bimanual_session_20261028_curated_v2/motion/left_rest_j3_fit \
   --side left --source steps --out-dir /tmp/bimanual-replay-review --output-stem left_j3
 ```
 
 Rendering: after the required idle-GPU checks, explicitly select one free GPU and run
-`scripts/tools/render_bimanual_capture.py --bundle BUNDLE --out OUTPUT
+`scripts/real2sim/render_bimanual_capture.py --bundle BUNDLE --out OUTPUT
 --annotation results/usbc/bimanual_20261029/overlays/scene_annotation.json` with
 `PYTHONPATH=.` and `MUJOCO_GL=egl`. Output includes per-camera frame IDs and encoder timing deltas.
 
@@ -145,7 +145,7 @@ cancelled gravity exactly. The real i2rt driver adds its own gravity model
   joint frictionloss = effective Coulomb with a stiff impedance (solref 0.004,
   solimp 0.995/0.9995). Default MuJoCo frictionloss creeps a held joint by
   residual/kp in ~5 s; the stiff impedance leaves ~0.1 mrad/s.
-- Fit (`scripts/tools/identify_arm_dynamics.py`): static torque balance on 46 free-space
+- Fit (`scripts/real2sim/identify_arm_dynamics.py`): static torque balance on 46 free-space
   trials from Oct 25-26 (`data/real_yam`) and Oct 28 (bundle). Friction direction = last
   commanded move (the joints stick-slip). j2/j3 samples on the folded-rest stops excluded.
   Free 20- or 5-parameter inertial fits generalised worse across days than per-joint scales.
@@ -167,7 +167,7 @@ cancelled gravity exactly. The real i2rt driver adds its own gravity model
 
 ## Fingertip alignment (2026-10-30)
 
-`scripts/tools/fit_gripper_tips.py` fits a rigid offset of both FlexPoint finger bodies
+`scripts/real2sim/fit_gripper_tips.py` fits a rigid offset of both FlexPoint finger bodies
 (gripper frame) and the opening per frame to the yellow-tip silhouettes in the calibrated
 wrist crop. Left uses open and closed-empty frames (tips touching: absolute zero), right
 open frames only. Held-out frames from `left_free_settle_001`:
@@ -217,7 +217,7 @@ stick-slip (static > kinetic, 6-12 mrad slips on j2, j3, j5) is still not modell
 
 ## Task layout: PC placement and reader region (2026-10-30)
 
-`scripts/tools/explore_pc_placement.py` searches PC port poses (x 15-40 cm, y -15-60 cm, yaw
+`scripts/task/explore_pc_placement.py` searches PC port poses (x 15-40 cm, y -15-60 cm, yaw
 +/-30 deg; 25,688 poses, 1 cm / 5 deg) on the CPU model. A pose is feasible when the right arm
 reaches the second USB-C port (`usbc_2_target`) along the whole insertion line (60, 30, 6, 0 mm
 out), also with +/-8 deg in-hand tilt, and the left arm can hold the PC (closed fingers 3 mm off
@@ -249,7 +249,7 @@ the **worst** score over the per-episode randomization box (+/-3 cm, +/-10 deg).
 - Not checked: paths between poses, the pick-to-insert carry, and the new grasp (in-hand pose
   only through the +/-8 deg tilt). Physical setup: put the port at the nominal, port panel facing the arm bases.
 
-Views: `scripts/tools/render_layout_views.py` -> `layout_views/` (real | sim | overlay per camera; on the
+Views: `scripts/real2sim/render_layout_views.py` -> `layout_views/` (real | sim | overlay per camera; on the
 ZED view the placement space drawn on the real and sim images: green = single placement works,
 yellow = whole training box works, cyan = training box + PC at nominal, magenta = reader region).
 
@@ -258,7 +258,7 @@ yellow = whole training box works, cyan = training box + PC at nominal, magenta 
 `blind_insertion/scenes/backdrop.py` replaces the procedural workbench dressing (pegboard, tools,
 monitors, generic raceway/power strip) with the objects the real cameras see: wall, silver
 raceway, three plug pairs, power strip + cables, the black clip-on device and the Ryobi bit case.
-Parameters (`configs/backdrop_duchamp3.json`) were fitted by `scripts/tools/fit_backdrop.py` on 21
+Parameters (`configs/backdrop_duchamp3.json`) were fitted by `scripts/real2sim/fit_backdrop.py` on 21
 real frames (ZED + both wrists; `bimanual_stationary_001`, `free_settle_001-003`) at the logged joint
 angles. Each object's sim outline is fitted to Canny edges of the real frame (robots and tips
 masked), then its colour to the real median colour. Mean edge distance at 320 px, initial guess ->

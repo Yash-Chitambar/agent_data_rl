@@ -27,11 +27,11 @@ behavior need validation. Left arm remains at the recorded reference pose.
 Reproduce from the repository root:
 
 ```bash
-PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_reach.py --legacy-grasp
-PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_pick.py --legacy-grasp
-PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_reach.py
-PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_pick.py
-MUJOCO_GL=egl PYTHONPATH=. .venv/bin/python scripts/tools/render_bimanual_pick_audit.py
+PYTHONPATH=. .venv/bin/python scripts/task/audit_bimanual_reach.py --legacy-grasp
+PYTHONPATH=. .venv/bin/python scripts/task/audit_bimanual_pick.py --legacy-grasp
+PYTHONPATH=. .venv/bin/python scripts/task/audit_bimanual_reach.py
+PYTHONPATH=. .venv/bin/python scripts/task/audit_bimanual_pick.py
+MUJOCO_GL=egl PYTHONPATH=. .venv/bin/python scripts/task/render_bimanual_pick_audit.py
 ```
 
 The original single-arm expert's explicit grasp offset is unchanged for
@@ -66,7 +66,7 @@ port error is not an alignment-controller accuracy result.
 Reproduce this unresolved test with:
 
 ```bash
-PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_pick.py --feedback-align --identified-dynamics
+PYTHONPATH=. .venv/bin/python scripts/task/audit_bimanual_pick.py --feedback-align --identified-dynamics
 ```
 
 Next work must address carry clearance/tracking and retained contact under the
@@ -96,8 +96,8 @@ randomization. Privileged object-feedback stages are diagnostics, not a
 hardware-ready visual policy.
 
 ```bash
-PYTHONPATH=. .venv/bin/python scripts/tools/audit_bimanual_pick.py --identified-dynamics --clearance-carry --settle-grasp
-MUJOCO_GL=egl PYTHONPATH=. .venv/bin/python scripts/tools/render_bimanual_carry_audit.py
+PYTHONPATH=. .venv/bin/python scripts/task/audit_bimanual_pick.py --identified-dynamics --clearance-carry --settle-grasp
+MUJOCO_GL=egl PYTHONPATH=. .venv/bin/python scripts/task/render_bimanual_carry_audit.py
 ```
 
 `identified_carry_comparison.png` shows the failed shallow grasp, retained high

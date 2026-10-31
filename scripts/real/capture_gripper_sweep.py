@@ -8,7 +8,7 @@ frames (1280x1024) are saved with the gripper encoder read just before and after
 
 Then, on any machine with the repo:
 
-    PYTHONPATH=. MUJOCO_GL=egl .venv/bin/python scripts/tools/fit_gripper_tips.py --sweep data/gripper_sweep/<name>
+    PYTHONPATH=. MUJOCO_GL=egl .venv/bin/python scripts/real2sim/fit_gripper_tips.py --sweep data/gripper_sweep/<name>
 
 Run the rig console (rigctl.py) or estop.py first. Keep the jaws clear: nothing between them.
 """

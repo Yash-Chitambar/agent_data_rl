@@ -1,7 +1,7 @@
 """Create a real-rig measurement session and record manually measured quantities.
 
 This tool never opens a robot or camera. Values are SI units; unknown values are blank.
-See docs/BIMANUAL_MEASUREMENT_PLAN.md for the measurement protocol.
+See docs/real2sim/BIMANUAL_MEASUREMENT_PLAN.md for the measurement protocol.
 """
 from __future__ import annotations
 

@@ -3,8 +3,8 @@
   "steps": 50,
   "timestep_s": 0.001,
   "max_qpos_difference": [
-    0.00014591620444537323,
-    0.00014591620444537323
+    6.11978011679469e-06,
+    6.086252504108533e-06
   ],
   "finite": true,
   "scope": "short hold with free PC/table contacts; not full task or hardware validation"

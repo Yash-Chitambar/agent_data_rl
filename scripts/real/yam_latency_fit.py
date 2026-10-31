@@ -1,6 +1,6 @@
 """Fit the real YAM's command latency (and gain scale) from joint step tests against the sim.
 
-Protocol and CSV format: docs/REAL_YAM_LATENCY_BACKLASH.md. Each real log is one CSV with one row
+Protocol and CSV format: docs/real2sim/REAL_YAM_LATENCY_BACKLASH.md. Each real log is one CSV with one row
 per encoder reading: t (s, host monotonic clock), q_cmd_1..q_cmd_6 (rad, the target last SENT),
 q_1..q_6 (rad, measured), and optionally t_cmd (s, send time of q_cmd; better than the read time).
 

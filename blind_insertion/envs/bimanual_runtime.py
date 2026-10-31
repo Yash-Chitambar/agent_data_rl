@@ -22,7 +22,7 @@ class BimanualCfg:
     device: str = 'cuda:0'
     substeps: int = 20
     controller_profile: str = 'native_free_settle_20261028'
-    # Identified real-arm dynamics (scripts/tools/identify_arm_dynamics.py, per arm): the
+    # Identified real-arm dynamics (scripts/real2sim/identify_arm_dynamics.py, per arm): the
     # driver's own gravity feedforward replaces perfect gravity cancellation, the plant
     # gravity is the scene's scaled per joint, and joint friction is the measured Coulomb
     # with a stiff (non-creeping) impedance. None restores the legacy ideal-gravcomp plant.
@@ -36,7 +36,7 @@ class BimanualCfg:
     # hard plastic to rubber feet on a smooth top. The feet have contact priority, so this value
     # alone sets the pair. None keeps the scene's fixed 0.6.
     pc_friction_range: tuple | None = (0.3, 0.9)
-    # Fingertip/wrist-camera alignment fitted to wrist silhouettes (scripts/tools/fit_gripper_tips.py
+    # Fingertip/wrist-camera alignment fitted to wrist silhouettes (scripts/real2sim/fit_gripper_tips.py
     # --sweep): a fit.json path, 'fitted' for the older bundle-only fit, or None. The silhouettes
     # cannot separate tip geometry from a hand-eye translation error. The sweep fit is held to the
     # calipered lens-to-tip distance (105.25 mm, both arms); the remaining offsets (<= 4 mm, mostly
@@ -44,7 +44,7 @@ class BimanualCfg:
     # opposite offset ('camera': images match, grasp physics unchanged). 'tips' moves the fingers.
     tip_offset: str | None = 'results/usbc/gripper_sweep/sweep_20261030/fit.json'
     tip_offset_target: str = 'camera'
-    # Task layout from the reachability search (scripts/tools/explore_pc_placement.py): nominal PC
+    # Task layout from the reachability search (scripts/task/explore_pc_placement.py): nominal PC
     # port pose and the SD reader's pick region. Each reset samples, per world, the PC port at the
     # nominal +/- pc_pose_range (x m, y m, yaw deg) and the reader uniformly in the region (x, y,
     # yaw). The search guarantees both arms reach over the whole PC box. None: legacy fixed poses.

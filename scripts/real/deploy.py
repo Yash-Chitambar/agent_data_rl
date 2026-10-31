@@ -1,6 +1,6 @@
 """Deployment control loop for the real YAM: the sim's 50 Hz relative-action scheme, with timing logs.
 
-One loop for the real-arm tests (docs/REAL_YAM_LATENCY_BACKLASH.md) and for policies:
+One loop for the real-arm tests (docs/real2sim/REAL_YAM_LATENCY_BACKLASH.md) and for policies:
 
   * 50 Hz (sim control_dt). Each step: read the encoders, build the observation in the model's
     joint frame (q_model = q_measured + rig.joint_offsets(side)), compute the action, send

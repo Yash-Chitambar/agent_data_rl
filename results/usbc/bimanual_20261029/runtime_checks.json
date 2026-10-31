@@ -13,7 +13,7 @@
     "PC-feet friction per world in range, resampled only on reset",
     "PC port pose and reader pose per world inside the searched layout, resampled only on reset",
     "finite driver gravity residual (none on joint 1)",
-    "reference hold under identified dynamics: max joint drift 0.0056 rad in 0.1 s"
+    "reference hold under identified dynamics: max joint drift 0.0063 rad in 0.1 s"
   ],
   "scope": "physics runtime smoke; task reward, sensor and reset distribution integration unfinished"
 }

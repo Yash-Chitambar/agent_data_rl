@@ -471,7 +471,7 @@ def _add_parallel_gripper(spec: mujoco.MjSpec, parent: mujoco.MjsBody, pos, quat
 # Backlash limit constraint. MuJoCo's default (solref 0.02 s, solimp 0.9/0.95) is a soft spring:
 # under a 5 N wrist load every hinge then turns ~0.011 rad (~38 arcmin) whatever the nominal zone,
 # i.e. it modelled ~0.6 deg of series compliance, not backlash (found 2026-10-21; all runs before
-# this fix). Stiff limits keep the hinge within ~1.2x its zone (CPU check in docs/FINDINGS.md).
+# this fix). Stiff limits keep the hinge within ~1.2x its zone (CPU check in docs/campaign/FINDINGS.md).
 BACKLASH_LIMIT_SOLREF = (0.002, 1.0)
 BACKLASH_LIMIT_SOLIMP = (0.99, 0.999, 0.001, 0.5, 2.0)
 
@@ -498,7 +498,7 @@ def sphere_pads(spec: mujoco.MjSpec, info: "RobotInfo", n: int = 3, radius: floa
 
     MuJoCo's box-mesh multi-contact (CPU and MuJoCo Warp) can return only an edge (2 points) or no
     contact when a narrow part's face is rotated within the pad plane and the two rectangles
-    overlap only partly (Phase E finding, docs/FINDINGS.md). Sphere-mesh contacts give one robust
+    overlap only partly (Phase E finding, docs/campaign/FINDINGS.md). Sphere-mesh contacts give one robust
     point each, independent of face clipping. The sphere surfaces lie exactly on the pad's inner
     face; the box stays as a visual and stops colliding. The spheres take the pad's contact
     parameters and become the robot's pad geoms (so the env's per-reset pad friction and time

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Push code (and optionally finished runs) from this machine to a server with rsync.
 #
-# The primary way to get code onto a server is `git clone --recurse-submodules` (docs/SERVER.md).
+# The primary way to get code onto a server is `git clone --recurse-submodules` (docs/operations/SERVER.md).
 # Use this script for (a) uncommitted work-in-progress code, (b) a machine without GitHub
 # access, or (c) copying finished local runs (checkpoints) that server jobs need.
 #
