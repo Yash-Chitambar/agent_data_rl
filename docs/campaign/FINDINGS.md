@@ -137,6 +137,19 @@ At 1.5 (seed 1000) by start lateral error: ≤ 1.5 mm 100 % (1855), 1.5-2 mm 99.
 Median time to seat 0.88 s; PC motion p99 1.3 mm. v6 seed 0 at 10 M: 99.27 % [98.80, 99.56] (misses).
 Exported as `runs/P4-insert-best/best.pt`.
 
+**Left-arm dependence (chain feedback, 2026-11-01).** v6s2 reads the left arm (12 encoders etc.): in this
+env, scale 1.5, n = 2048: hold at 2 cm 99.76 %, at 3.5 cm **82.76 %** [81.07, 84.34] (349 stuck at the mouth).
+A 0.26 rad change of left joint 6 alone (tool yaw choice) dropped it to 0.2 % (n = 1024). Diagnosis:
+- Press point drawn in 1.5-4 cm (v6s2, no retraining): 93.5 %, no slips, so the hold is physically fine and
+  the loss is observation dependence.
+- Masking the left arm from the actor (all left features, or only joint angles + previous actions) and
+  fine-tuning makes grasp slips appear and grow (to 30 % in training): the left arm is the actor's insertion
+  **force sensor** (the plug pushes the PC, the PC pushes the left hand, its encoders move). Without it the
+  policy pushes harder and the reader slips.
+- Fix used: keep the left observations and randomize the hold per start (press point 1.5-4 cm in front of the
+  case centre; optional tool yaw ±15°) and train on Part 2 round-3 + the chain's 1024 actual starts
+  (`results/usbc/policy/insertion/aux/starts_round3_plus_chain.npz`; chain starts sit 0.36 mm low).
+
 **Round 3 (2026-11-01): robustness of the exported policy (v6s2, no retraining).** One change at a time
 against the baseline (scale 1.5, seed 1000: 99.76 %), n = 2048 each:
 
