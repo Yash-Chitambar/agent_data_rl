@@ -79,6 +79,10 @@ def main():
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position spread (mm)')
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--hold-force', type=float, default=25.)
+    ap.add_argument('--elliptic', action='store_true', help='elliptic friction cones + impratio 30 (as the chain and Part 4)')
+    ap.add_argument('--task-layout', default=None, help='BimanualCfg.task_layout (results/usbc/policy/pick/task_layout.json: reader on the Part 1 strip)')
+    ap.add_argument('--x-offset-mm', type=float, default=0., help='servo target offset along port x (mm)')
+    ap.add_argument('--y-offset-mm', type=float, default=0., help='servo target offset along port y (mm): removes a measured mean bias')
     ap.add_argument('--hold-along', type=float, default=-.02, help='press point from the case centre toward the rear (m); -0.035 = round-4 hold')
     ap.add_argument('--pad-mu', type=float, default=1.2, help='right pad friction (Part 1); <= 0 keeps the scene 1.68')
     ap.add_argument('--impratio', type=float, default=30., help='task impratio (Part 1); <= 0 keeps the scene 100')
@@ -103,7 +107,9 @@ def main():
     torch.manual_seed(a.seed)
     rt = BimanualRuntime(BimanualCfg(nworld=a.nworld, device='cuda:0', render_rgb=True, visual_dr=True,
                                      camera_resolution=320, measured_camera_cadence=False,
-                                     right_fric_comp=FRIC_COMP if a.fric_comp else None))
+                                     right_fric_comp=FRIC_COMP if a.fric_comp else None,
+                                     opt_overrides={'cone': 1, 'impratio': 30.} if a.elliptic else None,
+                                     **({'task_layout': a.task_layout} if a.task_layout else {})))
     rt.visual.gen.manual_seed(a.seed) if hasattr(rt.visual, 'gen') else None
     h = Harness(rt, HarnessCfg(enc_offset_deg=a.enc_offset_deg, pad_mu=a.pad_mu if a.pad_mu > 0 else None,
                                impratio=a.impratio if a.impratio > 0 else None))
@@ -210,7 +216,7 @@ def main():
             rel_p_est, rel_rv_est = rel_pose(h)
         # rigid correction of the reader, expressed in the (estimated) port frame: current -> waypoint
         cur_R = K.axis_angle_mat(rel_rv_est / rel_rv_est.norm(dim=1, keepdim=True).clamp(min=1e-9), rel_rv_est.norm(dim=1))
-        tgt_p = torch.tensor([0., 0., g], device=dev).expand(n, 3)
+        tgt_p = torch.tensor([a.x_offset_mm * 1e-3, a.y_offset_mm * 1e-3, g], device=dev).expand(n, 3)
         rv = -rel_rv_est * a.gain                                # rotate the reader back onto the axis (port frame)
         final = it >= len(sched) - a.final_iters
         if final and (a.final_rot == 'none' or it >= len(sched) - a.final_pos_only):
