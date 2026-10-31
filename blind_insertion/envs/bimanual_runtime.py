@@ -12,7 +12,7 @@ import mujoco_warp as mjw
 import numpy as np
 import torch
 import warp as wp
-from blind_insertion.envs import arm_residual as AR, friction_comp as FC, kinematics as K
+from blind_insertion.envs import arm_residual as AR, friction_comp as FC, kinematics as K, visual_dr as VD
 from blind_insertion.scenes import pc_bench as S, physical_rig as R
 
 
@@ -60,6 +60,13 @@ class BimanualCfg:
     measured_camera_cadence: bool = True
     quantize_encoders: bool = True
     camera_resolution: int = 320
+    # Nominal (real) look of the Warp render: group colours and per-camera gain fitted to the recorded
+    # real frames in the Warp renderer (scripts/real2sim/fit_warp_look.py). None: raw scene colours.
+    visual_look: str | None = 'blind_insertion/configs/warp_look_duchamp3.json'
+    # Per-world visual domain randomization, resampled on reset: None (off: every world renders the
+    # nominal look), True (defaults) or a dict / visual_dr.VisualDRCfg with the ranges (appearance,
+    # lighting, camera image per frame, camera pose and intrinsics). See envs/visual_dr.py.
+    visual_dr: object = None
     # Replay each physics substep from a captured CUDA graph: the Python loop of mjw.step
     # calls is kernel-launch bound (512 worlds: 35 -> 2.3 ms per substep).
     cuda_graph: bool = True
@@ -93,8 +100,10 @@ class BimanualRuntime:
         self.device = torch.device(c.device)
         self.comp = {side: FC.parse(getattr(c, side+'_fric_comp'), side=side) for side in ('right','left')}
         profile_path = Path(__file__).resolve().parents[2] / 'data/real_yam/usbc_lab_20261027/rig_profile_provisional_v0.json'
+        self.visual_dr_cfg = VD.VisualDRCfg.make(c.visual_dr) if c.render_rgb else None
         self.mjm, self.lay = S.build_scene(detailed=True, bimanual=True, measured_support=True,
-            support_mode='free', profile=json.loads(profile_path.read_text()), controller_profile=c.controller_profile)
+            support_mode='free', profile=json.loads(profile_path.read_text()), controller_profile=c.controller_profile,
+            extra_spec=VD.add_assets if self.visual_dr_cfg is not None else None)
         m = self.mjm
         self.profile = None
         if c.dynamics_profile:
@@ -161,12 +170,16 @@ class BimanualRuntime:
         self.initial_q = torch.tensor(d.qpos.copy(),device=self.device,dtype=torch.float32)
         self.initial_ctrl = torch.tensor(d.ctrl.copy(),device=self.device,dtype=torch.float32)
         self.pc_qadr = int(m.joint('pc_free_joint').qposadr[0])
+        self.look = VD.load_look(c.visual_look) if c.render_rgb else None
+        VD.apply_look(m, self.look)
+        if self.visual_dr_cfg is not None: VD.sync_decals(m)
         wp.init()
         with wp.ScopedDevice(c.device):
             batched = ({'dof_frictionloss': c.nworld} if self.profile else {}) | \
                       ({'geom_friction': c.nworld} if c.pc_friction_range else {}) | \
                       ({'geom_friction': c.nworld, 'geom_solref': c.nworld, 'actuator_gainprm': c.nworld}
-                       if c.contact_dr else {})
+                       if c.contact_dr else {}) | \
+                      {k: c.nworld for k in VD.batch_fields(self.visual_dr_cfg)}
             self.m = mjw.put_model(m, batch_sizes=batched or None)
             self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=c.nconmax,njmax=c.njmax)
         self._graph = None
@@ -207,10 +220,13 @@ class BimanualRuntime:
             order = [i for i in range(m.ncam) if active[i]]
             self.camera_indices = [order.index(i) for i in ids]
             res = c.camera_resolution
-            with wp.ScopedDevice(c.device):
+            with wp.ScopedDevice(c.device), VD.render_groups(m):   # alpha-0 geoms stay hidden in Warp
                 self.rc = mjw.create_render_context(m,nworld=c.nworld,cam_res=[(res,res)]*len(ids),
-                    render_rgb=True,render_depth=False,use_textures=True,use_shadows=False,cam_active=active)
+                    render_rgb=True,render_depth=False,use_textures=True,cam_active=active,
+                    **VD.render_context_kwargs(self.visual_dr_cfg))
                 self.rgb_buffer = wp.zeros((c.nworld,res,res),dtype=wp.vec3)
+            centre = self.layout['port_xy'] if self.layout else (.25,.3)
+            self.visual = VD.VisualDR(m,self.m,self.visual_dr_cfg,self.look,self.camera_names,c.nworld,self.device,centre)
             if c.measured_camera_cadence:
                 from blind_insertion.envs.camera_cadence import CameraCadence
                 self.camera_sensor=CameraCadence(self.render,c.nworld,self.device)
@@ -230,6 +246,7 @@ class BimanualRuntime:
         if self.cfg.pc_friction_range: self._sample_pc_friction(ids)
         if self.cfg.contact_dr: self._sample_contact(ids)
         if self.layout: self._sample_layout(ids)
+        if self.cfg.render_rgb: self.visual.sample(ids)
         with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
         if self.camera_sensor is not None:self.camera_sensor.reset(ids,self.sensor_time)
         return self.state()
@@ -400,7 +417,8 @@ class BimanualRuntime:
         return {'encoder_rad':enc.flatten(1),'encoder_velocity_rad_s':v.flatten(1)}
 
     def render(self):
-        """Instantaneous calibrated RGB frames; exposure/frame-age modeling remains separate."""
+        """Instantaneous calibrated RGB frames through the camera model (visual_dr: nominal gain, and
+        with DR distortion, blur, exposure, gain, brightness, noise); frame-age modeling is separate."""
         if not self.cfg.render_rgb:
             raise RuntimeError('construct with render_rgb=True to request camera observations')
         with wp.ScopedDevice(self.cfg.device):
@@ -411,7 +429,7 @@ class BimanualRuntime:
             frames = {}
             for name,index in zip(self.camera_names,self.camera_indices):
                 mjw.get_rgb(self.rc,index,self.rgb_buffer)
-                frames[name]=(wp.to_torch(self.rgb_buffer).clamp(0,1)*255).to(torch.uint8)
+                frames[name]=self.visual.image(name,wp.to_torch(self.rgb_buffer))
         return frames
 
     def insertion_metrics(self, seat_tolerance_m=.00025, tilt_limit_deg=2.):

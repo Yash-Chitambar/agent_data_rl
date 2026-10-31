@@ -27,26 +27,36 @@ Every training episode and every demo is drawn from this. Seed 0 reproduces the 
 | Arm dynamics | Coulomb friction, gravity scale | ×U(0.5, 1.3), ±0.04 (identified profile) |
 | Control | action delay; encoder offsets | 0–1 control step (measured ~8 ms); ±1.5° on joints 2–5 (done: `BimanualTaskCfg.latency_steps`, `enc_offset_deg`) |
 | Contact | plug–port friction; pad friction and stiffness; PC-feet friction | to set; to set; μ U(0.3, 0.9) |
-| Layout | PC pose; reader pose | nominal ±3 cm, ±10°; reader region 0.20 m², yaw ±90° (placement search) |
+| Layout | PC pose; reader pose | PC nominal ±3 cm, ±10°; reader: a compact window between the right arm base and the PC (user decision 2026-10-31: smaller is fine if it raises success), yaw ±30° to start; defined by the pick agent from reach + lift reliability |
 | Grasp | in-hand reader position and tilt | to set from real grasp captures (new grasp) |
-| **Appearance** (slide 15) | colours of PC case, reader, table, backdrop, arms; flat to glossy; patterns on table and backdrop mixed with the real ones | per episode |
-| **Lighting** (slide 15) | elevation 35–90°, intensity 0.3–1.0, 3200–6500 K, shadows half the time | per episode |
-| **Camera image** (slide 15) | gain 0.93–1.07, brightness ±12, exposure ±6 %, noise | per frame |
-| **Camera pose** (slides 14, 16) | extrinsic error ≥ real: ZED ≥ 4.3 mm / 0.6°, wrists ≥ 3–5 mm / 1.2° | per episode |
+| **Appearance** (slide 15) | 16 groups (PC case/dark parts, reader body/trim/plug, table, wall, room, raceway, plates, backdrop black, accents, mount, arm dark/light, gripper, fingertips): random HSV colour (p 0.75; tips 0.25) else nominal ±20 %; specular U(0, 1), shininess U(0, 1); table and wall patterns p 0.5 (8 procedural, 6 real-photo patches, 40 % real), 2–12 repeats | per episode (done: `BimanualCfg.visual_dr`, `envs/visual_dr.py`) |
+| **Lighting** (slide 15) | key point light: elevation 35–90°, azimuth 0–360°, 0.9–1.6 m, intensity 0.3–1.0 (0.65 = nominal), 3200–6500 K, shadows p 0.5; fill ×0.2–1.2; ambient ×0.5–1.5; headlight fixed (Warp compile-time) | per episode (done) |
+| **Camera image** (slide 15) | per-channel gain 0.93–1.07, brightness ±12, exposure ±6 %, Gaussian noise σ 1–4 (per-episode level), blur σ 0–1 px, radial k1 ±0.02 | gain/brightness/exposure/noise per frame, blur/k1 per episode (done) |
+| **Camera pose** (slides 14, 16) | extrinsic error, random direction, magnitude U(0, 2× real): ZED 4.3 mm / 0.6°, right wrist 5.1 mm / 1.2°, left wrist 3.4 mm / 1.2° (mean = real); fx, fy ±1.5 %, principal point ±0.5 % of the sensor | per episode (done) |
 | Camera timing | frame age and cadence | measured cadence model |
 
 Rule from the deck: sim sensors are at least as bad as the real ones.
+
+Visual DR is off by default: `BimanualCfg(render_rgb=True, visual_dr=True)` (or a dict of
+`VisualDRCfg` ranges). 10 % of episodes keep the nominal look (`nominal_prob`). Seed 0 = real look:
+`BimanualCfg.visual_look` (`configs/warp_look_duchamp3.json`, fitted to the real frames in the Warp
+renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
+`results/usbc/policy/visual_dr/contact_sheet.jpg`.
 
 ## Part 1: Pick (ACT, scripted fallback)
 
 - **Goal:** the right arm picks the reader from anywhere in its region with the **new grasp**
   and lifts it with a known, small in-hand pose spread.
-- **New grasp (decided 2026-10-31): side pinch.** The gripper approaches parallel to the table
-  (horizontal; a slight downward tilt is allowed, horizontal preferred) so the reader stays flat.
-  One finger above, one below: the pads close on the big top and bottom faces at the front of the
-  body (behind the neck). The plug axis is orthogonal to the approach direction. Open question to
-  settle first: the lower finger must get under a reader lying flat (wedge under the front edge
-  with a slight tilt, or stage the reader on a low holder / overhanging lip).
+- **New grasp (confirmed by the user 2026-10-31, render: `results/usbc/policy/grasp/grasp_60deg_confirmed.png`):**
+  the gripper reaches forward tipped **60° from vertical** (tool axis 30° below horizontal, tipped
+  about the finger-closing axis toward the reader), so its underside faces the table. The fingers
+  close horizontally on the reader's **two side faces** (8.8 mm tall) near the front of the body,
+  behind the neck; the reader stays flat; the plug points across the closing direction.
+  In `grasp_site` terms (reader at yaw 0, plug along +x): site y (finger opening) = world y,
+  site z = (sin 60°, 0, -cos 60°); pad centroid ≈ 9.6 mm behind the site along -z; fingertips
+  1 mm above the table. CPU check at reader (0.30, 0.0): exact IK; pads cover ~3.7 of the 8.8 mm
+  side face (more tilt = less contact); beyond ~60-65° the arm cannot reach and the finger plates
+  hit the table first. Main risk to test: slip or tip on lift with this small contact height.
 - **Approach:** scripted IK expert in sim (privileged reader pose) → demos with full DR → ACT on
   wrist + ZED RGB + encoders (sim-only demos, as in task H).
 - **Explore:** scripted (ZED pose estimate + IK) vs ACT; ACT chunk size and ensembling; grasp

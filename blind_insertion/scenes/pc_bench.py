@@ -159,8 +159,9 @@ def _free_pc_spec(spec, profile):
 
 def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                 support_mode='fixed', profile=None, bimanual=False, table_top=0.0, measured_support=False,
-                controller_profile=None):
-    """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode."""
+                controller_profile=None, extra_spec=None):
+    """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode.
+    ``extra_spec(spec)`` runs last on the spec before compiling (e.g. visual_dr.add_assets)."""
     from blind_insertion.assets import builder as B   # noqa: PLC0415
     if controller_profile is not None and not bimanual:
         raise ValueError('controller_profile requires the opt-in bimanual scene')
@@ -207,6 +208,8 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         if bimanual:
             from blind_insertion.scenes.bimanual_collision import configure_spec
             configure_spec(sp)
+        if extra_spec is not None:
+            extra_spec(sp)
 
     m, lay = B.build("yam", [variant], pad_spheres=4, table_top=table_top, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")
