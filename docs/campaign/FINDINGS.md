@@ -121,10 +121,17 @@ Part 4 blind PPO from the live state (InsertionTask success test: 0.2 s seated, 
 |---|---|---|---|---|---|
 | **v6 s2 (Part 4 best)** | **2 cm in front of the case centre (Part 4 training value)** | 1024 | **99.80 %** | [99.29, 99.95] | 2 stuck at the mouth |
 | v6 s2 | 3.5 cm (Part 3 round 4) | 1024 | 96.00 % | [94.61, 97.04] | 41 stuck at the mouth |
+| v10dr (hold DR 1.5-4 cm) | 2 cm | 1024 | 99.22 % | [98.47, 99.60] | 7 mouth, 1 jam; 0 arm-arm |
+| v10dr | 3.5 cm | 1024 | 99.22 % | [98.47, 99.60] | 8 mouth; 5 arm-arm (hold engage) |
 | v5 s0 | 2 cm | 1024 | 98.54 % | [97.60, 99.11] | 14 mouth, 1 slip |
 | v5 s0 | 3.5 cm | 1024 | 97.66 % | [96.54, 98.42] | 23 mouth, 1 slip |
 
-Every stage before the insertion passed 1024/1024 in all four runs (ZED gate, pick, hold latch,
+v10dr (policy/insertion 7e9ef6e, trained with the press point randomized 1.5-4 cm) removes the hold-position
+sensitivity (99.22 % at both points) but is 0.6 points below v6 at 2 cm; its own eval on chain starts gave 100 % /
+99.95 %. Its 16 chain failures again start low (pre-insert y -0.2 to -4 mm, warm-up lateral 0.3-4.6 mm) and stall
+at the mouth: the live hand-over (warm-up drift, true in-hand state) is harder than sampled chain starts.
+Hold yaw for all runs: InsertionTask's rule (best yaw at the nominal PC pose +/- 15 deg, not LeftHold's -90..90).
+Every stage before the insertion passed 1024/1024 in all six runs (ZED gate, pick, hold latch,
 transport, approach). Gate (≥ 98 %, n ≥ 500) passes with v6 + the 2 cm hold.
 
 **Mismatches (most valuable):**
@@ -220,6 +227,44 @@ At 1.5 (seed 1000) by start lateral error: ≤ 1.5 mm 100 % (1855), 1.5-2 mm 99.
 > 3 mm 100 % (24). Seated plugs 5.63-5.80 mm deep, tilt ≤ 1.92°, aperture violation median 15.7 µm.
 Median time to seat 0.88 s; PC motion p99 1.3 mm. v6 seed 0 at 10 M: 99.27 % [98.80, 99.56] (misses).
 Exported as `runs/P4-insert-best/best.pt`.
+
+**Left-arm dependence (chain feedback, 2026-11-01).** v6s2 reads the left arm (12 encoders etc.): in this
+env, scale 1.5, n = 2048: hold at 2 cm 99.76 %, at 3.5 cm **82.76 %** [81.07, 84.34] (349 stuck at the mouth).
+A 0.26 rad change of left joint 6 alone (tool yaw choice) dropped it to 0.2 % (n = 1024). Diagnosis:
+- Press point drawn in 1.5-4 cm (v6s2, no retraining): 93.5 %, no slips, so the hold is physically fine and
+  the loss is observation dependence.
+- Masking the left arm from the actor (all left features, or only joint angles + previous actions) and
+  fine-tuning makes grasp slips appear and grow (to 30 % in training): the left arm is the actor's insertion
+  **force sensor** (the plug pushes the PC, the PC pushes the left hand, its encoders move). Without it the
+  policy pushes harder and the reader slips.
+- Fix used: keep the left observations and randomize the hold per start (press point 1.5-4 cm in front of the
+  case centre; optional tool yaw ±15°) and train on Part 2 round-3 + the chain's 1024 actual starts
+  (`results/usbc/policy/insertion/aux/starts_round3_plus_chain.npz`; chain starts sit 0.36 mm low).
+
+**Round 3 (2026-11-01): robustness of the exported policy (v6s2, no retraining).** One change at a time
+against the baseline (scale 1.5, seed 1000: 99.76 %), n = 2048 each:
+
+| Change | Seated | Wilson 95 % | Failures |
+|---|---|---|---|
+| ×2.0 start errors | 99.51 % | [99.10, 99.73] | 9 mouth, 1 slip |
+| Encoder offset ±2° (was ±1.5°) | 99.85 % | [99.57, 99.95] | 3 mouth |
+| PC box ±3 cm / ±10° (was ±1/1.5 cm, ±5°) | 99.61 % | [99.23, 99.80] | 7 mouth, 1 slip |
+| Latency 0-2 steps (was 0-1; measured ~0.4) | 94.24 % | [93.14, 95.17] | 70 mouth, 47 slip |
+| Plug-port μ U(0.10, 0.30) (was 0.10-0.20) | 94.43 % | [93.35, 95.35] | 114 mouth |
+| Wide contact DR (port μ 0.15-0.6, 3-8 ms; pad μ 0.8-2.0, 2-6 ms; squeeze ×0.6-1.4) | 69.53 % | [67.50, 71.49] | 421 slip, 202 mouth |
+
+Margins: start error, encoder offsets and PC placement have margin; latency beyond 1 step, plug-port
+friction above 0.2 and pad friction/squeeze below the Part 1 values do not. The contact values are the
+first thing to measure on the rig (or to train over once measured ranges exist).
+
+**Round 3 (2026-11-01): why the DAgger students looked good in training.** The distiller updates the
+student every control step on a replay buffer that holds the current episode's teacher labels, so the
+privileged teacher steers the student mid-episode through the gradient steps. Same student (wrist,
+1.02 M steps), same env, β = 0, 256 worlds: with updates (lr 3e-4) 100 % / 90.5 % seated (n = 320, 359);
+frozen (lr 0) 3.1 % / 0.0 % (n = 258, 243). The training logs measured online teacher leakage, not the
+student; the held-out evals (≤ 7 %) were right. Not an env mismatch (memorization was also ruled out:
+the wrist student scores 0.6 % on its own training start pool vs 0.4 % on seed 1000). Frozen-policy
+evals, as the chain uses, are unaffected.
 
 **Round 2 checks (2026-11-01):**
 - *Seated means fully inserted:* seed 0 at 1.5, re-run (99.07 %, n = 2048): the 2029 seated plugs are

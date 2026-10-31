@@ -60,7 +60,7 @@ from blind_insertion.scenes import reader_grasp as G  # noqa: E402
 PICK_LAYOUT = 'results/usbc/policy/pick/task_layout.json'
 import os  # noqa: E402
 # Part 4 best (blind PPO v6 seed 2; copy of policy-insertion runs/P4-insert-best/best.pt, outside git). Override: P4_INSERT_BEST.
-INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_v6s2.pt')
+INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_v10dr.pt')   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
 INSERT_V5 = 'runs/chain/P4-insert-proprio-v5-s0_last.pt'    # earlier: policy-insertion runs/P4-insert-proprio-v5-s0/last.pt
 FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005}   # eval_approach.py
 OUT = ROOT / 'results/usbc/policy/chain'
