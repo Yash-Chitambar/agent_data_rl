@@ -76,6 +76,17 @@ class InsertionCfg:
     # surface as a target; the episode starts with the pads 3 mm above it).
     left_hold: str = 'guarded'          # 'guarded': Part 3's recommended hold (left_hold.py); 'press': simple
     hold_force_n: float = 25.0          # Part 3 recommendation (round 3)
+    # Hold DR (chain feedback 2026-11-01): press point along the PC (m from the case centre toward the
+    # rear face; negative = toward the panel/front) drawn per start in this range, and the tool yaw
+    # offset (deg) from the best yaw drawn in +/- hold_yaw_deg. Defaults = Part 3's fixed hold (2 cm front).
+    hold_along_m: tuple = (-0.02, -0.02)
+    hold_yaw_deg: float = 0.0
+    # Hide the left arm from the actor (its encoder, velocity, previous-action and target-error entries
+    # are zeroed; the critic keeps the privileged state). The left arm is scripted, so its pose carries
+    # nothing the insertion needs, and reading it made the policy depend on the hold placement.
+    mask_left_obs: bool = False
+
+    LEFT_OBS_IDX = tuple(range(6, 12)) + tuple(range(18, 24)) + tuple(range(31, 38)) + tuple(range(44, 50))
     # 20 mm: arm sag and the +/-1.5 deg encoder-offset error leave only 66 % of worlds touching the
     # PC at 6 mm; at 20 mm all touch and the PC resists ~3-5 N horizontally (n=256, pc mu 0.3-0.9).
     press_m: float = 0.02
@@ -319,11 +330,40 @@ class InsertionTask(BimanualTask):
         lp, lR = self.left_chain.fk(self.q_left_report[None])
         self.left_in_pc = (port_R.transpose(1, 2) @ (lp - port_p)[..., None])[..., 0], port_R.transpose(1, 2) @ lR
 
+    def _hold_plan(self, port_p, port_R, gen, bins=8):
+        """Hold plan per start; with hold DR, starts are split into bins with their own press point/yaw."""
+        c, h = self.icfg, self.hold
+        if c.hold_along_m[0] == c.hold_along_m[1] and not c.hold_yaw_deg:
+            h.cfg.along_m = c.hold_along_m[0]
+            return h.solve(port_p, port_R)
+        k = len(port_p)
+        b = torch.randint(bins, (k,), device=self.device, generator=gen)
+        out = None
+        base_yaws = self._best_yaw
+        for i in range(bins):
+            sel = (b == i).nonzero()[:, 0]
+            if not len(sel):
+                continue
+            r = torch.rand(2, device=self.device, generator=gen)
+            h.cfg.along_m = float(c.hold_along_m[0] + (c.hold_along_m[1] - c.hold_along_m[0]) * r[0])
+            off = float((r[1] * 2 - 1) * c.hold_yaw_deg)
+            h.cfg.yaws_deg = (base_yaws - 15 + off, base_yaws + off, base_yaws + 15 + off)   # best-margin yaw of the shifted set
+            pl = h.solve(port_p[sel], port_R[sel])
+            if out is None:
+                out = {key: torch.zeros(k, *v.shape[1:], device=self.device, dtype=v.dtype)
+                       for key, v in pl.items() if torch.is_tensor(v) and v.shape[:1] == (len(sel),)}
+            for key in out:
+                out[key][sel] = pl[key]
+        h.cfg.yaws_deg = (base_yaws - 15, base_yaws, base_yaws + 15)
+        return out
+
     def _hold_yaws(self):
         """Restrict the hold's tool-yaw search to +/-15 deg around the nominal PC pose's best yaw (pool speed)."""
         pc0 = self._pc_qpos(torch.zeros(1, device=self.device), torch.zeros(1, device=self.device), torch.zeros(1, device=self.device))
         p, R = self._port_pose(pc0)
+        self.hold.cfg.along_m = self.icfg.hold_along_m[0]
         best = float(self.hold.solve(p, R)['yaw_deg'][0])
+        self._best_yaw = best
         self.hold.cfg.yaws_deg = (best - 15, best, best + 15)
 
     def _npz_rows(self):
@@ -396,7 +436,7 @@ class InsertionTask(BimanualTask):
             if c.left_hold == 'guarded':
                 # Part 3's guarded press (left_hold.py), end state: fingertips on the top at the planned
                 # contact, latched there (encoders), plus dq = Kp^-1 J^T F for hold_force_n.
-                plan = self.hold.solve(port_p, port_R)
+                plan = self._hold_plan(port_p, port_R, gen)
                 ql_h, ql_p = plan['q_contact'], plan['dq_force']      # contact pose, force offset
                 ok = (pe < 2e-4) & (re < 2e-3) & plan['ok']
             else:
@@ -651,8 +691,12 @@ class InsertionTask(BimanualTask):
         eul = K.euler_xyz(R0.T @ R)
         pos = p - self._p_obs
         self._last_obs = o
-        parts = [o['encoder_rad'], o['encoder_velocity_rad_s'], o['previous_action'], o['target_error_rad'],
-                 pos * 10, eul, tw]
+        enc, vel, prev, terr = o['encoder_rad'], o['encoder_velocity_rad_s'], o['previous_action'], o['target_error_rad']
+        if self.icfg.mask_left_obs:
+            enc, vel, terr = enc.clone(), vel.clone(), terr.clone()
+            prev = prev.clone()
+            enc[:, 6:], vel[:, 6:], terr[:, 6:], prev[:, 7:] = 0, 0, 0, 0
+        parts = [enc, vel, prev, terr, pos * 10, eul, tw]
         if self.icfg.privileged_actor:     # teacher only: plug pose in the live port frame, reader in the TCP
             p, R = self.runtime.plug_in_port()
             rel = self._reader_in_tcp()
