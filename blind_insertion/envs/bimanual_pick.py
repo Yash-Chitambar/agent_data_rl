@@ -287,6 +287,8 @@ class PickExpert:
             self.p_pre[bad], self.p_g[bad], self.p_lift[bad], self.R_g[bad] = W['pregrasp'][0][bad], W['grasp'][0][bad], W['lift'][0][bad], W['grasp'][1][bad]
         self.q_pre = best_q
         self.ik_ok = ~bad
+        self.p_est, self.R_est = p_r.clone(), R_r.clone()     # the reader pose planned with
+        self.refined = torch.zeros(N, dtype=torch.bool, device=dev)
         dq = (self.q_pre - self.q0).abs().max(1).values
         self.move_n = torch.clamp((dq / self.js / self.dt).ceil(), min=10).long()
         self.q_cmd = self.q0.clone()
@@ -294,6 +296,23 @@ class PickExpert:
         self.grip = torch.ones(N, device=dev)
         self.finger_prev = t.runtime.q[:, t.finger_qadr].sum(1)
         self.finger_still = torch.zeros(N, dtype=torch.long, device=dev)
+
+    def replan(self, mask, p_r, R_r, hover_relative=True):
+        """New reader pose for the worlds in mask (e.g. a wrist-camera refinement taken at the hover).
+        hover_relative: p_r/R_r are relative to the PLANNED hover and are re-expressed relative to the
+        hand's actual pose (tracking error at the hover does not shift the estimate). Re-plans grasp and
+        lift; the descent starts from the current command."""
+        t = self.t
+        if hover_relative:
+            pa, Ra = t.tcp_pose()
+            Rh = self.R_g; ph = self.p_pre
+            Rrel = Rh.transpose(1, 2) @ R_r; prel = (Rh.transpose(1, 2) @ (p_r - ph)[..., None])[..., 0]
+            p_r, R_r = pa + (Ra @ prel[..., None])[..., 0], Ra @ Rrel
+        W = G.grasp_poses(p_r, R_r, self.offset, self.tilt.nan_to_num(G.TILT_DEG), flip=self.flip)
+        m = mask & self.ik_ok
+        self.p_g[m], self.R_g[m], self.p_lift[m] = W['grasp'][0][m], W['grasp'][1][m], W['lift'][0][m]
+        self.p_est[m], self.R_est[m] = p_r[m], R_r[m]
+        self.refined |= m
 
     def _cart_step(self, p_wp, R_wp, v):
         dp = p_wp - self.p_cmd
