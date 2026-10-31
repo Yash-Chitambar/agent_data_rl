@@ -445,16 +445,21 @@ class RightInserter:
                 [0, .6, .5, -.3, 0, 0], [0, 2.6, 2.2, -1.2, 0, 0], [1.1772, 2.1079, 1.4923, -.9551, 0., 1.1772]]
         self.seeds = torch.tensor(base, device=dev, dtype=torch.float32)
 
-    def place(self, ids=None):
-        """Right arm + reader at the pre-insert pose of the current PC pose (all worlds)."""
+    def place(self, rel_p=None, rel_R=None, resample_inhand=True, forward=True):
+        """Right arm + reader teleported so the reader (tip frame) sits at (rel_R, rel_p) in the port
+        frame of the current PC pose (default: on the axis, preinsert_m out), all worlds."""
         from blind_insertion.envs.inhand import sample_inhand
         h, c = self.h, self.cfg
         port_p, port_R = h.pc_pose()
         n, dev = h.n, h.dev
-        self.R_sr, self.p_sr, self.inhand = sample_inhand(n, c.tilt_deg, c.pad_z_m, c.inhand_pos_mm, c.inhand_rot_deg, device=dev)
-        reader_p = port_p + port_R[:, :, 2] * c.preinsert_m
-        Rt = port_R @ self.R_sr
-        pt = reader_p + (port_R @ self.p_sr[..., None])[..., 0]
+        if resample_inhand or not hasattr(self, 'R_sr'):
+            self.R_sr, self.p_sr, self.inhand = sample_inhand(n, c.tilt_deg, c.pad_z_m, c.inhand_pos_mm, c.inhand_rot_deg, device=dev)
+        if rel_p is None:
+            rel_p = torch.tensor([0., 0., c.preinsert_m], device=dev).expand(n, 3)
+        reader_R = port_R if rel_R is None else port_R @ rel_R
+        reader_p = port_p + (port_R @ rel_p[..., None])[..., 0]
+        Rt = reader_R @ self.R_sr
+        pt = reader_p + (reader_R @ self.p_sr[..., None])[..., 0]
         best = None
         ch = h.chain['right']
         for s in self.seeds:
@@ -475,11 +480,14 @@ class RightInserter:
         rt.q[:, qa] = q
         pa = rt.lay.peg_qadr
         rt.q[:, pa:pa + 3] = reader_p
-        rt.q[:, pa + 3:pa + 7] = K.mat_to_quat(port_R)
-        rt.q[:, self.fingers] = self._finger_q(rt.q[0])
+        rt.q[:, pa + 3:pa + 7] = K.mat_to_quat(reader_R)
+        if not hasattr(self, '_fq'):
+            self._fq = self._finger_q(rt.q[0])
+        rt.q[:, self.fingers] = self._fq
         rt.v[:] = 0
-        with wp.ScopedDevice(rt.cfg.device):
-            mjw.forward(rt.m, rt.d)
+        if forward:
+            with wp.ScopedDevice(rt.cfg.device):
+                mjw.forward(rt.m, rt.d)
         self.target = q - h.enc_error[:, 0]     # believed frame: holds the true pose
         self.q_true0 = q.clone()
         return self.ik_ok
