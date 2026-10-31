@@ -55,7 +55,7 @@ GRASP_TIP_CLEARANCE = 0.001
 @dataclass
 class InsertionCfg:
     task: BimanualTaskCfg = field(default_factory=lambda: BimanualTaskCfg(
-        episode_s=6., physics=BimanualCfg(contact_dr=dict(DEFAULT_CONTACT_DR), opt_overrides={"impratio": 30.0},
+        episode_s=6., physics=BimanualCfg(contact_dr=dict(DEFAULT_CONTACT_DR), opt_overrides={"impratio": 30.0, "cone": 1},
                                                     njmax=2000, nconmax=160)))
     history: int = 30
     # Pre-insert error of the plug relative to the port (port frame): lateral half-ranges (m) for
@@ -120,6 +120,8 @@ DEFAULT_CONTACT_DR = dict(port_friction=(0.10, 0.20), port_timeconst=(0.003, 0.0
                           pad_friction=(1.2, 1.2), grip_gain_scale=(1.0, 1.0), reader_friction=0.5)
 # Pads match Part 1's pick (pad mu 1.2 fixed, 12 N squeeze, impratio 30, scene pad solref), so the
 # in-hand hold is the one that was measured. Earlier success-first pad ranges: mu 1.5-2.0, 2-3 ms, x1.0-1.4.
+# Solver: elliptic cones + impratio 30. Part 1 uses pyramidal cones; under insertion actions those go
+# non-finite (197/256 worlds within 60 steps at impratio 30, 470/256 episodes at 100; elliptic: 0).
 WIDE_CONTACT_DR = dict(port_friction=(0.15, 0.6), port_timeconst=(0.003, 0.008),
                        pad_friction=(0.8, 2.0), pad_timeconst=(0.002, 0.006),
                        grip_gain_scale=(0.6, 1.4), reader_friction=0.5)

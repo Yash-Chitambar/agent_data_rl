@@ -161,6 +161,25 @@ Results: `results/usbc/policy/insertion/`.
 - **Training success is biased high right after a synchronized reset** (the first episodes to finish
   are the quick successes): a teacher logged 98.8 % that settled to ~80-88 % at steady state. Use the
   held-out evals below, not the training curves.
+- **Bug (eval bias):** resets skip `mjw.forward` for speed; after `reset_all` the first step used the
+  gravity compensation of the runtime's folded reference pose. First episodes seated 0.8 % vs 14 % for
+  later ones (blind student, n = 256 each); fixed (forward after resets of > N/8 worlds), equal after.
+  Evals with one episode per world before this fix are biased low and were re-run.
+- **Success-first contact DR** (user directive: maximize sim success): the privileged teacher lost
+  85 → 71 % at high plug-port μ and jammed more with soft ports (wide DR, n = 1024). Now plug-port μ
+  U(0.10, 0.20), port solref 3-4 ms. The same blind PPO policy: 23.6 % (wide DR) → 42.8 % (new DR + new
+  PC ranges ±1.5 cm / ±5°, feet μ 0.8-1.0), scale 1.0, n = 1024 each (first-episode evals, biased low).
+- **Pads now match Part 1** (55° grasp, measured in-hand pose ±(p1..p99)×1.25, pad μ 1.2, 12 N squeeze,
+  impratio 30). Part 1's pyramidal cones go non-finite under insertion actions (197 of 256 worlds in
+  60 steps at impratio 30); elliptic cones + impratio 30: 0. The insertion env uses elliptic.
+- **Episode length:** at the smallest error level a 10 s episode trained to 99.9 % vs 83.5 % at 6 s
+  (training success, same policy init): failures are mostly time spent searching at the mouth.
+- **Slip termination** relaxed to a drop (10 mm / 15° in the hand); a few mm of in-hand slip that still
+  seats is not a failure.
+- **What the wrist camera adds (DAgger from the privileged teacher, n = 1024 each, scale 1.0, in the
+  students' training conditions: 60° grasp, wide DR):** see the table in the status below. DAgger
+  needs a replay buffer longer than an episode: with 2.4 s per world it forgot earlier phases and
+  collapsed as soon as the teacher stopped acting.
 - Throughput (V100, elliptic cones, 4096 worlds): ~6.3k env-steps/s alone, ~4k with two runs per GPU.
   Resets no longer call `mjw.forward` (`runtime.reset(forward=False)`): 250 → 30 ms per reset batch.
 
