@@ -84,29 +84,31 @@ class VisualDRCfg:
     nominal_prob: float = .1
     nominal_clean: bool = False
     # --- appearance, per group (GROUPS) ---
-    random_color_prob: float = .75          # new random colour; else nominal colour jittered
-    tips_random_prob: float = .25           # yellow fingertips: rarer (they stay mostly yellow on the rig)
+    # Defaults are mild (user, 2026-10-31): the scene should still look like the real rig. The
+    # camera-image and camera-pose ranges below stay at real scale.
+    random_color_prob: float = .1           # new random colour; else nominal colour jittered
+    tips_random_prob: float = 0.            # the rig's fingertips stay yellow
     hue_range: tuple = (0., 1.)
-    saturation_range: tuple = (0., .8)
+    saturation_range: tuple = (0., .35)     # random colours stay muted
     value_range: tuple = (.03, .95)         # HSV value of the random colour (dark to light)
-    nominal_jitter: float = .2              # jittered nominal: brightness x U(1 -/+ j), per channel x U(1 -/+ j/4)
-    specular_range: tuple = (0., 1.)        # flat (0) ... glossy (1), MuJoCo material specular
-    shininess_range: tuple = (0., 1.)       # x 128 = Phong exponent
+    nominal_jitter: float = .15             # jittered nominal: brightness x U(1 -/+ j), per channel x U(1 -/+ j/4)
+    specular_range: tuple = (0., .5)        # flat (0) ... glossy (1), MuJoCo material specular
+    shininess_range: tuple = (0., .5)       # x 128 = Phong exponent
     emission_range: tuple = (0., .05)
     # --- patterns on the table and wall decals ---
-    texture_prob: float = .5
-    real_texture_prob: float = .4           # of the textured episodes: a real-photo patch (assets/visual_dr)
+    texture_prob: float = .15
+    real_texture_prob: float = 1.           # of the textured episodes: a real-photo patch (assets/visual_dr); < 1 adds procedural patterns
     texrepeat_range: tuple = (2., 12.)      # pattern repeats across the surface
     # --- lighting: key light (point light) placed on a sphere around the workspace ---
-    light_elevation_deg: tuple = (35., 90.)
+    light_elevation_deg: tuple = (55., 90.)
     light_azimuth_deg: tuple = (0., 360.)
     light_distance_m: tuple = (.9, 1.6)
-    light_intensity: tuple = (.3, 1.)       # key diffuse = I / 0.65 x nominal key diffuse
-    light_kelvin: tuple = (3200., 6500.)    # colour temperature of key, fill and ambient
+    light_intensity: tuple = (.5, .85)      # key diffuse = I / 0.65 x nominal key diffuse
+    light_kelvin: tuple = (4000., 6000.)    # colour temperature of key, fill and ambient
     fill_elevation_deg: tuple = (20., 90.)
-    shadow_prob: float = .5                 # key light casts shadows
-    fill_scale: tuple = (.2, 1.2)           # fill diffuse x nominal
-    ambient_scale: tuple = (.5, 1.5)        # per-light ambient x nominal
+    shadow_prob: float = .3                 # key light casts shadows
+    fill_scale: tuple = (.6, 1.2)           # fill diffuse x nominal
+    ambient_scale: tuple = (.8, 1.2)        # per-light ambient x nominal
     # --- camera image, on the rendered frame (per frame if image_per_frame, else per episode) ---
     gain: tuple = (.93, 1.07)               # per channel
     brightness: float = 12.                 # +/- offset, 0-255 units
