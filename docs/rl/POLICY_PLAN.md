@@ -119,33 +119,29 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
 - **Explore:** pose estimators (ZED only, wrist only, both); a visual-servo refinement step at
   the end; how far out to stop (3–10 mm).
 - **Metrics:** lateral and angular pre-insert error distribution vs the capture region of Part 4.
-- **Status (2026-10-31, `policy/approach-hold`): pipeline built and measured; target (1 mm / 2 deg at
-  99.5 %) not reached.** Deliverable for Part 4: `results/usbc/policy/approach/preinsert_error.json`
+- **Status (2026-11-01, round 3, `policy/approach-hold`): tilt/roll target met; lateral p99 2.0 mm (target
+  1.5 mm).** Deliverable for Part 4: `results/usbc/policy/approach/preinsert_error.json`
   (+ `preinsert_error_samples.npz`, per-episode errors to sample RL starts from).
   - **Pipeline (RGB only):** ZED frame before the arms move -> CNN PC pose (x, y, yaw) -> left hold
-    (Part 3) -> IK move to 30 mm in front of the estimated port -> visual servo on the right wrist RGB
-    (CNN plug-to-port pose, 6 waypoints to the stop gap + 6 iterations there, smooth 0.5 s moves,
-    position-only at the stop gap) with a Coulomb feed-forward on the right arm.
-    `scripts/task/eval_approach.py`, `scripts/task/sweep_approach.sh`, estimators in
-    `blind_insertion/perception/`, training `scripts/perception/train_approach_estimators.py`.
-  - **Grasp at the port:** the confirmed 60-deg grasp reaches the pre-insert pose over the PC box
-    except the near-left corner (port x 0.19 m, yaw -10 deg) with +8 deg in-hand pitch; 55 deg reaches
-    everywhere (`results/usbc/policy/approach/preinsert_grasp_clearance.json`).
-  - **ZED:** CNN on DR renders xy p50 0.79 / p99 3.1 mm, yaw p99 1.6 deg (sim held-out, n = 2048);
-    real frames: 0.41 mm from the manual landmark, 0.05-0.08 mm frame jitter (n = 123). Classical
-    silhouette: p50 11.8 mm, 21 % failures. ZED alone (open loop) gives lateral p99 21 mm (in-hand pose,
-    encoder offsets): not usable without the wrist servo.
-  - **Execution floor** (servo with a perfect estimate): lateral p99 0.89 mm, tilt p99 1.8 deg, with
-    the Coulomb feed-forward; 2.8 mm without (joint-friction deadband).
-  - **Achieved (right wrist CNN, stop 6 mm, n = 1021):** lateral p50 0.96 / p99 4.5 mm, tilt p50 1.1 /
-    p99 5.7 deg, gap error p99 3.4 mm, roll p99 8.9 deg; 46 % inside 1 mm / 2 deg. Averaging 4 frames
-    does not help (the error is a per-episode bias: camera pose, appearance, in-hand pose).
-    Stop distance barely matters: lateral p50 / p99 3 mm 1.05 / 4.6, 6 mm 0.96 / 4.5, 10 mm 0.92 / 5.5;
-    tilt p99 6.7 / 5.7 / 5.8 deg (n = 1021-1023 each). Recommended: stop at 6 mm. Part 4 must absorb
-    at least lateral +/-4.5 mm, tilt 5.7 deg, roll 9 deg (p99) -- or the approach needs a better view.
-  - **Next:** a second view that sees the plug from the side (the left wrist at the press pose sees
-    only the PC top); an estimator trained on the in-loop distribution (DAgger-style); roll correction
-    at the stop gap; a presence check for the ZED CNN.
+    (Part 3) -> IK move to 30 mm in front of the estimated port (mean measured in-hand pose) -> visual
+    servo on the right wrist RGB (CNN plug-to-port pose; 6 waypoints to the 6 mm stop gap + 6 iterations
+    there with roll correction, the last 2 position only; smooth 0.5 s moves; Coulomb feed-forward on the
+    right arm). `scripts/task/eval_approach.py --fric-comp --tilt 55 --final-rot roll --coarse-net wrist_v8`;
+    estimators `blind_insertion/perception/`, `scripts/perception/train_approach_estimators.py` (DAgger:
+    `--states` from `eval_approach.py --save-states`). Weights `runs/perception/wrist_v8.pt`, `zed.pt`
+    (not in git).
+  - **Current numbers (DR of 3829c31 + Part 1 grasp e94a268, n = 1024):** lateral p50 0.37 / p99 1.98 /
+    p99.5 2.21 mm (x p99 1.04, y p99 1.80), tilt p99 1.12 deg, roll p99 0.68 deg, gap error p99 1.22 mm;
+    90.5 % inside 1 mm / 2 deg. Floor with a perfect estimate: lateral p99 0.11 mm, tilt p99 0.31 deg.
+  - **What moved it:** the measured (small) in-hand spread; fixing a one-step command jerk at the
+    teleport; Coulomb feed-forward (servo floor 2.8 -> 0.9 mm in round 1); DAgger on in-loop states
+    (lateral p99 4.9 -> 2.1 -> 2.2 -> 2.0 mm over three rounds); roll correction at the stop gap.
+    Did not help: fine-stage crop net, multi-frame averaging, a 2-net ensemble.
+  - **ZED:** CNN on DR renders xy p50 0.79 / p99 3.1 mm, yaw p99 1.6 deg (sim); real frames 0.41 mm from
+    the manual landmark; classical silhouette fit 11.8 mm p50 with 21 % failures. Needs a presence check.
+  - **Grasp at the port:** 55 deg reaches every PC pose of the box (60 deg failed at one corner).
+  - **Next:** the residual is vertical (camera looks along the plug): a second, rig-mountable RGB view
+    from the side of the port, or a stereo baseline across the wrist; more DAgger rounds give ~0.1 mm each.
 
 ## Part 3: Left-arm hold
 
@@ -154,31 +150,35 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   before Part 2.
 - **Explore:** brace vs press; target offset into the PC (holding force); timing.
 - **Metrics:** PC translation/rotation during insertion; contact force; collisions with the right arm.
-- **Status (2026-10-31, `policy/approach-hold`): recommended hold found; gate met only without load.**
-  Code: `blind_insertion/envs/left_hold.py` (`LeftHold`, `Harness`, `RightInserter`),
-  `scripts/task/eval_left_hold.py`, `scripts/task/sweep_left_hold.sh`; results `results/usbc/policy/hold/`.
+- **Status (2026-11-01, round 3, `policy/approach-hold`): recommended hold: press 25 N, guarded;
+  gate (99.5 %) met at 1 N, 99.3 % at 3 N.** Code: `blind_insertion/envs/left_hold.py` (`LeftHold`,
+  `Harness`, `RightInserter`), `scripts/task/eval_left_hold.py`, `scripts/task/sweep_left_hold.sh`;
+  results `results/usbc/policy/hold/` (`r3_*` = current DR).
   - **Recommended hold:** press the closed fingertips down on the PC top, front half (2 cm in front of
-    the case centre), in line with port 2; 35 N; **guarded engage**: descend at 10 mm/s from a 15 mm
-    stand-off until the encoder-estimated force (PD torque through J^+T, bias at the stand-off)
-    exceeds 3 N, latch the measured pose, then ramp dq = Kp^-1 J^T F over 0.4 s. Engage takes
-    ~4-6 s; engage it before the approach (it moves the PC: p99 0.27 mm, max 3.1 mm, n = 1024)
-    and take the ZED estimate after it, or re-estimate.
-  - **Why guarded:** an absolute IK target with the force offset puts 2.7-7 N of parasitic
-    sideways force on the PC (encoder-offset error x the coupled arm stiffness); the guarded
-    engage gives 0.4-1.4 N. Arm Cartesian stiffness is only 0.3-0.5 N/mm (kp 80 Nm/rad), so a
-    position offset is not a force command.
-  - **PC motion (full DR, n = 1024 each, 1.5 s hold + 0.5 s ramp, +/-15 % lateral load):**
-    fixed push at the port along the insertion axis 0 N **99.8 %** (2 non-finite worlds), 1 N 99.3 %,
-    2 N 97.3 %, 3 N 96.0 %, 5 N 94.0 %, 10 N 84.4 %. No arm-arm contact in any press run.
-    Brace (rear face): 6.5 % (n = 1024, push U(0, 20) N). Rear-half press: 54 % at 35 N (n = 2048,
-    push U(0, 20) N); front half beats rear half (pitch moment of the port load).
-  - **Limit:** the sim lets the PC slide at 1-5 N with 35 N down and feet mu >= 0.3 (Coulomb capacity
-    >= 11 N); 2-6 % of worlds break loose. Stiffer feet contacts (solref 5 ms) made it worse. This
-    is the soft-friction / box-feet contact, not the hold. Left joint 2 holds ~15 N m at 35 N
-    (DM4340 rated ~9 N m): keep the hold short or use 25 N.
-  - **Open:** privileged scripted insertion jams at the panel (45 um clearance, no chamfer;
-    3.8 % seated under full DR), so the insertion load is undefined until Part 4 exists; real
-    USB-C insertion is 5-20 N, above what this sim hold keeps still.
+    the case centre), in line with port 2, **25 N** (left joint 2 ~8.5 N m, within the DM4340 rating;
+    35 N needs ~12 N m and is no better); **guarded engage**: descend at 10 mm/s from a 15 mm stand-off
+    until the encoder-estimated force (PD torque through J^+T, bias at the stand-off) exceeds 3 N,
+    latch the measured pose, then ramp dq = Kp^-1 J^T F over 0.4 s (~4-6 s in all). Engage it before
+    the approach; it moves the PC by p99 0.06 mm.
+  - **PC still (< 0.5 mm, < 0.5 deg over 2 s; fixed push at the port along the insertion axis, +/-15 %
+    lateral; n = 1024 each; current DR: PC +/-1.5 cm / +/-5 deg, feet mu U(0.8, 1.0), Part 1 grasp contact
+    impratio 30):**
+
+    | Press | 1 N | 3 N | 5 N | 10 N |
+    |---|---|---|---|---|
+    | 15 N | 100 % | 98.1 % | 97.2 % | 91.2 % |
+    | **25 N** | **100 %** | **99.3 %** | **98.3 %** | **95.5 %** |
+    | 35 N | 100 % | 99.0 % | 98.1 % | 95.9 % |
+
+    No arm-arm contact, no non-finite world, no right-arm/reader contact with the PC in these runs.
+  - **Why guarded:** an absolute IK target with the force offset pushes the PC sideways with 2.7-7 N
+    (encoder-offset error through the coupled arm stiffness of 0.3-0.5 N/mm); guarded gives 0.4-1.4 N.
+    A rear-face brace cannot hold (6.5 %, round 1); the front half of the top beats the rear half.
+  - **History:** round 1 (PC +/-3 cm / +/-10 deg, feet mu U(0.3, 0.9), impratio 100) at 35 N: 1 N 99.3 %,
+    3 N 96.0 %, 10 N 84.4 %. The narrower DR and impratio 30 each helped (r2: impratio 100, 3 N 97.0 %).
+  - **Limit:** a few % of PCs still slide at 3-10 N although Coulomb capacity is > 20 N: soft friction
+    on the 5 mm box feet (sim artifact; MuJoCo Warp has no noslip). The scripted privileged insertion
+    still jams (no chamfer), so the real insertion load is set by Part 4.
 
 ## Part 4: Insertion (RL)
 

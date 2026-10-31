@@ -62,14 +62,17 @@ def main():
                            'reader about port x / y (deg; tilt = |(rx, ry)|), roll about the port axis (deg). Signed mean/std and '
                            'percentiles of |error|. gap_error = gap - stop distance.',
         'how_measured': 'scripts/task/eval_approach.py (2 seeds x 512 worlds per configuration, GPU runtime): ZED RGB estimate of the '
-                        'PC pose (learned CNN on DR renders) -> left press hold (guarded) -> right arm IK move to 30 mm in front of the '
-                        'estimated port with the nominal in-hand pose (true joints carry the encoder-offset error, true reader the '
-                        'randomized in-hand pose) -> visual servo on the right wrist RGB (learned plug-to-port estimator, coarse net, '
-                        'fine net below 12 mm) with smooth moves and Coulomb feed-forward -> privileged measurement of the live '
-                        'plug-tip pose in the live port frame. DR: PC layout +/-3 cm/+/-10 deg, PC feet mu U(0.3, 0.9), arm '
-                        'Coulomb x U(0.5, 1.3), gravity jitter, encoder offsets +/-1.5 deg (joints 2-5), latency 0-1 step, in-hand '
-                        '+/-3 mm / +/-8 deg (confirmed 60-deg grasp, provisional numbers), policy/v1 visual DR (appearance, lighting, '
-                        'image noise, camera pose up to 2x real: ZED 8.6 mm / 1.2 deg, right wrist 10.2 mm / 2.4 deg, intrinsics).',
+                        'PC pose (learned CNN on DR renders) -> left press hold (guarded, front half of the top) -> right arm IK move '
+                        'to 30 mm in front of the estimated port with the mean in-hand pose (true joints carry the encoder-offset '
+                        'error, the true reader the in-hand pose) -> visual servo on the right wrist RGB (learned plug-to-port CNN; '
+                        'r3_* nets trained with DAgger on in-loop states) with smooth moves and a Coulomb feed-forward; roll '
+                        'correction at the stop gap, last 2 iterations position only -> privileged measurement of the live plug-tip '
+                        'pose in the live port frame. Round 3 (r3_*) DR: PC +/-1.5 cm / +/-5 deg, PC feet mu U(0.8, 1.0), arm Coulomb '
+                        'x U(0.5, 1.3), gravity jitter, encoder offsets +/-1.5 deg (joints 2-5), latency 0-1 step, 55-deg grasp with '
+                        'the Part 1 measured in-hand poses (bootstrap of n = 2048 post-pick poses, results/usbc/policy/pick/), pad mu '
+                        '1.2, impratio 30, policy/v1 visual DR (appearance, lighting, image noise, camera pose up to 2x real, '
+                        'intrinsics). Earlier rounds (no prefix / r2_*) used wider DR, provisional in-hand spreads and had a '
+                        'one-step command jerk at the teleport (fixed in round 3).',
         'recommended_configuration': a.recommended, 'recommended': rec,
         'all_configurations': table,
         'target': 'lateral <= 1 mm and tilt <= 2 deg at 99.5 %',

@@ -66,6 +66,10 @@ def quat_mul(a, b):
 class HarnessCfg:
     enc_offset_deg: float = 1.5           # absolute-target error, joints 2-5, both arms
     latency_steps: tuple = (0, 1)
+    # Part 1 grasp contact (bimanual_pick.PickTaskCfg): right-pad friction and task impratio.
+    # None keeps the scene values (pads 1.68, impratio 100).
+    pad_mu: float | None = 1.2
+    impratio: float | None = 30.
 
 
 class Harness:
@@ -85,6 +89,11 @@ class Harness:
         self.kp = torch.tensor([[m.actuator_gainprm[a, 0] for a in runtime.indices[s][2]] for s in ('right', 'left')],
                                device=dev, dtype=torch.float32)
         self.xfrc = wp.to_torch(runtime.d.xfrc_applied)
+        if self.cfg.pad_mu is not None and hasattr(runtime, 'geom_friction'):
+            pads = [g for g in range(m.ngeom) if m.geom(g).name.startswith(('left_pad_s', 'right_pad_s'))]
+            runtime.geom_friction[:, pads, 0] = self.cfg.pad_mu
+        if self.cfg.impratio is not None:
+            wp.to_torch(runtime.m.opt.impratio_invsqrt).fill_(1. / math.sqrt(self.cfg.impratio))
         self.pc_body = m.body('fixture').id
         self._robot_geoms(m)
 
@@ -428,6 +437,9 @@ class InsertCfg:
     pad_z_m: float = .058
     inhand_pos_mm: float = 3.
     inhand_rot_deg: float = 8.
+    # 'measured': the Part 1 post-pick in-hand poses (inhand.sample_measured; 55-deg grasp); 'uniform':
+    # the provisional tilt_deg / pad_z_m pose +/- inhand_pos_mm / inhand_rot_deg.
+    inhand: str = 'measured'
 
 
 class RightInserter:
@@ -453,7 +465,11 @@ class RightInserter:
         port_p, port_R = h.pc_pose()
         n, dev = h.n, h.dev
         if resample_inhand or not hasattr(self, 'R_sr'):
-            self.R_sr, self.p_sr, self.inhand = sample_inhand(n, c.tilt_deg, c.pad_z_m, c.inhand_pos_mm, c.inhand_rot_deg, device=dev)
+            if c.inhand == 'measured':
+                from blind_insertion.envs.inhand import sample_measured
+                self.R_sr, self.p_sr, self.inhand = sample_measured(n, device=dev)
+            else:
+                self.R_sr, self.p_sr, self.inhand = sample_inhand(n, c.tilt_deg, c.pad_z_m, c.inhand_pos_mm, c.inhand_rot_deg, device=dev)
         if rel_p is None:
             rel_p = torch.tensor([0., 0., c.preinsert_m], device=dev).expand(n, 3)
         reader_R = port_R if rel_R is None else port_R @ rel_R
@@ -489,6 +505,7 @@ class RightInserter:
             with wp.ScopedDevice(rt.cfg.device):
                 mjw.forward(rt.m, rt.d)
         self.target = q - h.enc_error[:, 0]     # believed frame: holds the true pose
+        h.fresh[:] = True                       # teleported: no stale (latency-delayed) command
         self.q_true0 = q.clone()
         return self.ik_ok
 
