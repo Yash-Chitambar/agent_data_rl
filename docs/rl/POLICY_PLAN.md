@@ -37,9 +37,9 @@ Every training episode and every demo is drawn from this. Seed 0 reproduces the 
 
 Rule from the deck: sim sensors are at least as bad as the real ones.
 Appearance and lighting stay mild (user, 2026-10-31): the scene must still look like the real rig
-(`VisualDRCfg` defaults: nominal colours ±15 %, a muted random colour in 10 % of groups, yellow
-fingertips kept, real-photo patterns on 15 % of episodes, light 55–90° up, 0.5–0.85, 4000–6000 K,
-shadows 30 %). Camera-image noise and camera-pose error stay at real scale.
+(`VisualDRCfg` defaults: nominal colours ±20 %, a random colour (saturation ≤ 0.5) in 25 % of
+groups, yellow fingertips kept, patterns on 25 % of episodes (80 % real-photo patches), light
+45–90° up, 0.4–0.95, 3600–6200 K, shadows 40 %). Camera-image noise and camera-pose error stay at real scale.
 **RGB only: no depth cameras or depth data anywhere in the policy pipeline for now.**
 
 Visual DR is off by default: `BimanualCfg(render_rgb=True, visual_dr=True)` (or a dict of
