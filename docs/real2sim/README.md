@@ -25,6 +25,15 @@ Iterating on any of these belongs on the `sim/fidelity` branch ([branches](../op
 - The remaining offset (≤ 4 mm) could be tip geometry or hand-eye, so it moves the wrist
   camera (`tip_offset_target='camera'`): images match, grasp physics unchanged.
 
+## Warp look (what policies see)
+
+The training renderer (MuJoCo Warp) lights the scene differently from the CPU renderer the fits
+above used. `BimanualCfg.visual_look` (`configs/warp_look_duchamp3.json`,
+`scripts/real2sim/fit_warp_look.py`) sets group colours and a per-camera gain and black level fitted
+in Warp to 21 real views; alpha-0 geoms and the wrist lenses are left out of the Warp render.
+Real vs Warp scores: `scripts/real2sim/measure_warp_look.py` (fingertip IoU 0.79, L1 19.6).
+Per-world visual DR on top: `BimanualCfg.visual_dr` (`envs/visual_dr.py`).
+
 ## Background
 
 `blind_insertion/scenes/backdrop.py` + `configs/backdrop_duchamp3.json`, fitted by
