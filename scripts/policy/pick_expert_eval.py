@@ -46,7 +46,7 @@ def wilson_lo(k, n, z=1.96):
     return (p + z * z / (2 * n) - z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / d
 
 
-cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout=a.layout), episode_s=12. + a.hold_s)
+cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout=a.layout), episode_s=(18. if a.reader_wrist else 12.) + a.hold_s)
 if a.reader_est:
     cfg.physics.render_rgb = True; cfg.physics.visual_dr = True; cfg.physics.measured_camera_cadence = False
     cfg.physics.camera_resolution = torch.load(a.reader_est, map_location='cpu')['res']
@@ -85,7 +85,7 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
         est_err = ((p_hat + R_hat[:, :, 2] * bz)[:, :2] - (p_t + R_t[:, :, 2] * bz)[:, :2]).norm(dim=1) * 1e3
         est_yaw_err = torch.rad2deg(torch.atan2(-R_hat[:, 1, 2], -R_hat[:, 0, 2]) - torch.atan2(-R_t[:, 1, 2], -R_t[:, 0, 2])).abs()
     ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v, integral_gain=a.ki, settle_max_s=a.settle_max_s,
-                    pose_err=a.pose_err, reader_pose_fn=est_fn); ex.reset()
+                    pose_err=a.pose_err, reader_pose_fn=est_fn, hover_tol_m=.004 if a.reader_wrist else None); ex.reset()
     N = a.nworld
     start_hold = {k: torch.zeros(N, *s, device=task.device) for k, s in (('p', (3,)), ('R', (3, 3)), ('tilt', ()))}
     steps = torch.zeros(N, dtype=torch.long, device=task.device)
@@ -108,7 +108,9 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
                     fr = task.runtime.render()['wrist_cam']
                     corr = torch.cat([WNET(fr[i:i + 256]) for i in range(0, N, 256)]) * WSC
                 task.cfg.physics.render_rgb = False
-                p_new, R_new = RW.apply_correction(task, ex.p_est, ex.R_est, corr)
+                p_m, R_m = RW.measured_tcp(task)
+                p_eb, R_eb = RW.rebase_estimate(task, ex.p_est, ex.R_est, ex.p_pre, ex.R_g, p_m, R_m)
+                p_new, R_new = RW.apply_correction(task, p_eb, R_eb, corr)
                 ex.replan(at_hover, p_new, R_new)
                 wcorr[at_hover] = corr[at_hover]
         task.step(act)

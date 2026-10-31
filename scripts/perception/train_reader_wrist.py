@@ -3,7 +3,8 @@
 The ZED estimate puts the hand at the pre-grasp hover (6 cm back along the tool axis, 10 cm up). From
 there the right wrist camera sees the reader close up. This CNN predicts the correction of the ZED
 estimate: true minus estimated body centre (m) in the estimated reader's horizontal frame (along the
-plug, across) and the yaw error (rad). Training hovers come from estimates perturbed like the ZED net
+plug, across) and the yaw error (rad). The hand is off the hover by +/-10 mm / +/-3 deg (tracking); the estimate is re-expressed relative to
+the hand's measured (encoder FK, offset errors included) pose, horizontally (rebase_estimate). Training hovers come from estimates perturbed like the ZED net
 (70 %: xy N(0, 2.5 mm), yaw N(0, 2 deg); 30 % gross: xy uniform within 40 mm, yaw U(+/-8 deg)).
 Full visual DR (incl. wrist-camera pose error), left arm parked, gripper at the 24 mm approach opening.
 
@@ -84,13 +85,41 @@ def apply_correction(task, p_est, R_est, corr):
     return c - R_new[:, :, 2] * bz, R_new
 
 
+def heading(R):
+    """Horizontal heading of the tool axis (site z) of a hand orientation."""
+    return torch.atan2(R[:, 1, 2], R[:, 0, 2])
+
+
+def rebase_estimate(task, p_est, R_est, p_hover, R_hover, p_hand, R_hand):
+    """Re-express an estimate made for the PLANNED hover relative to the hand's MEASURED pose, in the
+    horizontal plane only (shift and turn about the vertical; the reader stays flat): what the wrist
+    camera sees is the reader relative to where the hand actually is."""
+    dyaw = heading(R_hand) - heading(R_hover)
+    c, s = torch.cos(dyaw), torch.sin(dyaw)
+    n = len(p_est); z, o = torch.zeros(n, device=p_est.device), torch.ones(n, device=p_est.device)
+    Rz = torch.stack([torch.stack([c, -s, z], -1), torch.stack([s, c, z], -1), torch.stack([z, z, o], -1)], -2)
+    bz = float(task.lay.variants[0].peg_boxes[0][0][2])
+    cen = body_centre(task, p_est, R_est)
+    rel = cen - p_hover; rel[:, 2] = 0
+    cen_new = p_hand + (Rz @ rel[..., None])[..., 0]; cen_new[:, 2] = cen[:, 2]
+    R_new = Rz @ R_est
+    return cen_new - R_new[:, :, 2] * bz, R_new
+
+
+def measured_tcp(task):
+    """Hand pose from the encoders (believed joint angles incl. the encoder-offset error)."""
+    return task.chain.fk(task._measured_model_angles()[:, 0])
+
+
 def hover_q(task, p_est, R_est):
     """IK of the pre-grasp hover for the estimated pose (as PickExpert.reset)."""
     ex = PickExpert(task, reader_pose_fn=lambda: (p_est, R_est)); ex.reset()
     return ex.q_pre, ex.ik_ok
 
 
-def generate(task, n, gen, size=192):
+def generate(task, n, gen, size=192, hover_err=(.010, 3.)):
+    """hover_err: the hand is off the planned hover by U(+/-m) per axis and U(+/-deg) about a random
+    axis (PD tracking error); labels are relative to the hand's measured (encoder FK) pose."""
     X, Y = [], []
     rt = task.runtime
     while sum(len(x) for x in X) < n:
@@ -98,13 +127,22 @@ def generate(task, n, gen, size=192):
         N = task.cfg.physics.nworld
         dxy, dyaw = sample_errors(N, task.device, gen)
         p_est, R_est = estimated_pose(task, dxy, dyaw)
-        q, ok = hover_q(task, p_est, R_est)
+        ex = PickExpert(task, reader_pose_fn=lambda: (p_est, R_est)); ex.reset()
+        p_h, R_h = ex.p_pre, ex.R_g
+        dp = (torch.rand(N, 3, device=task.device, generator=gen) * 2 - 1) * hover_err[0]
+        ax = torch.randn(N, 3, device=task.device, generator=gen); ax = ax / ax.norm(dim=1, keepdim=True)
+        ang = (torch.rand(N, device=task.device, generator=gen) * 2 - 1) * math.radians(hover_err[1])
+        R_t = K.axis_angle_mat(ax, ang) @ R_h
+        q, pe, re = task.chain.ik(p_h + dp, R_t, ex.q_pre, iters=60)
+        ok = ex.ik_ok & (pe < 1e-3)
         rt.q[:, task.qadr] = q
         with wp.ScopedDevice(task.cfg.physics.device):
             mjw.kinematics(rt.m, rt.d)
+        p_m, R_m = measured_tcp(task)
+        p_eb, R_eb = rebase_estimate(task, p_est, R_est, p_h, R_h, p_m, R_m)
         fr = rt.render()['wrist_cam'][ok]
         fr = F.interpolate(fr.permute(0, 3, 1, 2).float(), size=(size, size), mode='area').round().clamp(0, 255).byte().permute(0, 2, 3, 1)
-        X.append(fr.contiguous().cpu()); Y.append(correction_label(task, p_est, R_est)[ok].cpu())
+        X.append(fr.contiguous().cpu()); Y.append(correction_label(task, p_eb, R_eb)[ok].cpu())
     return torch.cat(X)[:n], torch.cat(Y)[:n]
 
 

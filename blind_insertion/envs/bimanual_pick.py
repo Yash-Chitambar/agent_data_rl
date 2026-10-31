@@ -216,7 +216,7 @@ class PickExpert:
 
     def __init__(self, task: PickTask, v_max=0.10, w_max=1.0, joint_speed=1.2, settle_tol=(6e-4, 0.4),
                  settle_max_s=2.0, close_s=0.6, hold_s=1.0, integral_gain=0.03, integral_cap=0.08,
-                 jitter=None, margin=0.05, lift_tol_deg=1.0, pose_err=None, reader_pose_fn=None, seed=0):
+                 jitter=None, margin=0.05, lift_tol_deg=1.0, pose_err=None, reader_pose_fn=None, hover_tol_m=None, seed=0):
         self.t, self.v, self.w, self.js = task, v_max, w_max, joint_speed
         self.settle_tol, self.dt = settle_tol, task.dt
         self.settle_max = round(settle_max_s / task.dt)
@@ -226,7 +226,7 @@ class PickExpert:
         self.jitter, self.margin, self.lift_tol = jitter, margin, lift_tol_deg
         # pose_err = (xy_m, yaw_deg): planning pose error of fixed magnitude, random direction/sign per world.
         # reader_pose_fn: () -> (p (N,3), R (N,3,3)) estimated reader pose (perception); default privileged.
-        self.pose_err, self.reader_pose_fn = pose_err, reader_pose_fn
+        self.pose_err, self.reader_pose_fn, self.hover_tol = pose_err, reader_pose_fn, hover_tol_m
         self.gen = torch.Generator(device=task.device); self.gen.manual_seed(seed + 101)
 
     def _ik(self, p, R, q0, iters):
@@ -297,17 +297,10 @@ class PickExpert:
         self.finger_prev = t.runtime.q[:, t.finger_qadr].sum(1)
         self.finger_still = torch.zeros(N, dtype=torch.long, device=dev)
 
-    def replan(self, mask, p_r, R_r, hover_relative=True):
-        """New reader pose for the worlds in mask (e.g. a wrist-camera refinement taken at the hover).
-        hover_relative: p_r/R_r are relative to the PLANNED hover and are re-expressed relative to the
-        hand's actual pose (tracking error at the hover does not shift the estimate). Re-plans grasp and
-        lift; the descent starts from the current command."""
-        t = self.t
-        if hover_relative:
-            pa, Ra = t.tcp_pose()
-            Rh = self.R_g; ph = self.p_pre
-            Rrel = Rh.transpose(1, 2) @ R_r; prel = (Rh.transpose(1, 2) @ (p_r - ph)[..., None])[..., 0]
-            p_r, R_r = pa + (Ra @ prel[..., None])[..., 0], Ra @ Rrel
+    def replan(self, mask, p_r, R_r):
+        """New reader pose for the worlds in mask (e.g. a wrist-camera refinement at the hover, already
+        expressed relative to the hand's measured pose). Re-plans grasp and lift; the descent starts
+        from the current command."""
         W = G.grasp_poses(p_r, R_r, self.offset, self.tilt.nan_to_num(G.TILT_DEG), flip=self.flip)
         m = mask & self.ik_ok
         self.p_g[m], self.R_g[m], self.p_lift[m] = W['grasp'][0][m], W['grasp'][1][m], W['lift'][0][m]
@@ -352,8 +345,10 @@ class PickExpert:
         # Cartesian integral (true TCP vs its waypoint) mapped through the Jacobian: removes servo
         # sag and IK residuals alike. Active from the settle phase on.
         integrate = (ph >= 2)
+        if self.hover_tol is not None:   # hold at the hover for the wrist camera: servo there too
+            integrate = integrate | ((ph == 0) & (self.timer >= self.move_n))
         _, _, J = t.chain.fk(q, with_jac=True)
-        p_tgt = torch.where((ph >= 4)[:, None], self.p_cmd, self.p_g)
+        p_tgt = torch.where((ph >= 4)[:, None], self.p_cmd, torch.where((ph == 0)[:, None], self.p_pre, self.p_g))
         e6 = torch.cat([p_tgt - p_a, .5 * K.rot_log(self.R_g @ R_a.transpose(1, 2))], 1)
         JJt = J @ J.transpose(1, 2) + 1e-4 * torch.eye(6, device=t.device)
         dq = (J.transpose(1, 2) @ torch.linalg.solve(JJt, e6[..., None]))[..., 0]
@@ -363,7 +358,10 @@ class PickExpert:
         # phase logic
         self.timer += 1
         adv = torch.zeros_like(self.done)
-        adv |= (ph == 0) & (self.timer >= self.move_n + 5) & self.ik_ok
+        hover_ok = torch.ones_like(self.done)
+        if self.hover_tol is not None:   # wait at the hover until the hand is there (wrist-camera refinement)
+            hover_ok = (((p_a - self.p_pre).norm(dim=1) < self.hover_tol) & (e_r < 1.5)) | (self.timer >= self.move_n + round(4.0 / self.dt))
+        adv |= (ph == 0) & (self.timer >= self.move_n + 5) & self.ik_ok & hover_ok
         adv |= (ph == 1) & (dist < 2e-4) & (ang < 5e-3)
         settled = (e_p < self.settle_tol[0]) & (e_r < self.settle_tol[1])
         adv |= (ph == 2) & ((settled & (self.timer >= 5)) | (self.timer >= self.settle_max))
