@@ -215,9 +215,14 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   | PPO privileged teacher | wide DR, 60° grasp, 6 s | 1.0 | 1024 | 80.0 % [77.4, 82.3] | first-episode eval (biased low); +6.3 % deep-unseated |
   | DAgger students (blind / wrist / wrist-approach / wrist+ZED) | students' training conditions | 1.0 | 1024 each | 7.1 / 6.5 / 3.5 / 6.3 % | cameras add nothing measurable via DAgger |
   | PPO blind v3 (10 s, early ckpt) | success-first DR, Part 1 grasp | 0.25 | 2048 | 93.4 % [92.2, 94.4] | 97.1 % incl. deep-unseated |
-  | **PPO blind v5 s0 (final)** | round-3 Part 2 starts, 25 N hold, Part 1 grasp, success-first contact DR, 10 s | 0.5 / **1.0** / 1.5 | 2048 each | 99.90 % / **99.71 %** [99.36, 99.87] / 99.17 % [98.67, 99.48] | gate passes at Part 2's distribution, misses at ×1.5 |
+  | **PPO blind v5 s0 (final)** | round-3 Part 2 starts, 25 N hold, Part 1 grasp, success-first contact DR, 10 s | 0.5 / **1.0** / 1.5 | 2048 each | 99.90 % / **99.71 %** [99.36, 99.87] / 99.17 % [98.67, 99.48] | gate passes at Part 2's distribution, misses at ×1.5; PC fixed at 1.5: 99.22 % (hold is not the limit) |
 
-  Final per-level table: FINDINGS 2026-10-31 (Part 4).
+  Final per-level table: FINDINGS 2026-10-31 (Part 4). Approach accuracy needed: success is 100 % for
+  start lateral ≤ 0.5 mm, 99.86 % for 0.5-1 mm, 99.3 % for 1-1.5 mm, ~94 % for 1.5-3 mm.
+- Open: widen the capture region beyond ~1.5 mm (longer training at ×1.5, search behaviour, chamfered
+  port model if the real port has one); the wrist camera did not help through DAgger (students 3.5-7 %)
+  and needs a PPO-trained or better-distilled visual policy to answer; contact values (plug-port μ
+  0.10-0.20, port solref 3-4 ms) and the 25 µm seating tolerance are choices, not measurements.
 
 ## Order of work
 

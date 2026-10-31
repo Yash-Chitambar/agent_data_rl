@@ -117,6 +117,9 @@ geometric hold with a 25 µm aperture tolerance; n = 2048 per row:
 | **1.0 (Part 2 as measured)** | 1.98 mm | **99.71 %** | [99.36, 99.87] | 3 slip, 3 stuck at mouth | **pass** |
 | 1.5 (requested margin) | ~3.1 mm | 99.17 % | [98.67, 99.48] | 2 slip, 15 stuck at mouth | miss (lower bound 98.7 %) |
 
+**PC fixed** (mass ×30, `mj_setConst`; PC motion p99 0.11 mm) at 1.5: 99.22 % [98.73, 99.52] (n = 2048,
+15 stuck at mouth, 1 slip), the same as with the 25 N hold: the hold is not the limit, the lateral
+capture region is. (×1000 mass without `mj_setConst` went non-finite in every world.)
 Other seeds at 1.5: s1 98.68 % [98.09, 99.09], s2 99.07 % [98.56, 99.41]. At 1.5 (seed 0), by start
 lateral error: ≤ 0.5 mm 100 % (888), 0.5-1 mm 99.86 % (692), 1-1.5 mm 99.27 % (275), 1.5-2 mm 94.8 % (96),
 2-3 mm 93.0 % (71), 3-4.5 mm 87.5 % (24); every failure had an encoder-offset error ≥ 1.09°. Median

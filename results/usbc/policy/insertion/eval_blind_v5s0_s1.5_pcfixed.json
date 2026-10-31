@@ -1,22 +1,24 @@
 {
  "policy": "runs/v5s0_final.pt",
  "n": 2048,
- "seated": 0,
- "rate": 0.0,
+ "seated": 2032,
+ "rate": 0.9921875,
  "wilson95": [
-  0.0,
-  0.0018722692823851506
+  0.9873465530049531,
+  0.9951854319201988
  ],
  "scale": 1.5,
  "seed": 1000,
  "outcomes": {
-  "nonfinite": 2048
+  "seated": 2032,
+  "lateral_miss": 15,
+  "grasp_slip": 1
  },
- "strict_seated_rate": 0.0,
- "seated_or_deep_rate": 0.0,
+ "strict_seated_rate": 0.00341796875,
+ "seated_or_deep_rate": 0.9921875,
  "aperture_tol_m": 2.5e-05,
- "t_seat_s_median": null,
- "t_seat_s_p95": null,
- "pc_max_mm_p99": NaN,
+ "t_seat_s_median": 0.92,
+ "t_seat_s_p95": 2.2689999999999966,
+ "pc_max_mm_p99": 0.1062245374917984,
  "gate_pass": false
 }
