@@ -94,7 +94,7 @@ def train(args):
             ac.load_state_dict(ck0['model'])
         print(f'[{args.name}] initialized from {args.init}', flush=True)
         if env.icfg.mask_left_obs:   # masked (zeroed) left-arm inputs normalize to exactly 0
-            idx = torch.tensor(env.icfg.LEFT_OBS_IDX, device=dev)
+            idx = torch.tensor(env.icfg.left_mask_idx(), device=dev)
             norm = ac.obs_norm
             norm.mean[idx], norm.var[idx] = 0., 1.
     resuming = args.resume and (run / 'last.pt').exists()

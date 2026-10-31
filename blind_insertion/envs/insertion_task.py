@@ -84,9 +84,13 @@ class InsertionCfg:
     # Hide the left arm from the actor (its encoder, velocity, previous-action and target-error entries
     # are zeroed; the critic keeps the privileged state). The left arm is scripted, so its pose carries
     # nothing the insertion needs, and reading it made the policy depend on the hold placement.
-    mask_left_obs: bool = False
+    mask_left_obs: object = False       # False | True/'all' | 'pose' (left joint angles + previous actions only)
 
     LEFT_OBS_IDX = tuple(range(6, 12)) + tuple(range(18, 24)) + tuple(range(31, 38)) + tuple(range(44, 50))
+    LEFT_POSE_IDX = tuple(range(6, 12)) + tuple(range(31, 38))
+
+    def left_mask_idx(self):
+        return () if not self.mask_left_obs else (self.LEFT_POSE_IDX if self.mask_left_obs == 'pose' else self.LEFT_OBS_IDX)
     # 20 mm: arm sag and the +/-1.5 deg encoder-offset error leave only 66 % of worlds touching the
     # PC at 6 mm; at 20 mm all touch and the PC resists ~3-5 N horizontally (n=256, pc mu 0.3-0.9).
     press_m: float = 0.02
@@ -695,7 +699,9 @@ class InsertionTask(BimanualTask):
         if self.icfg.mask_left_obs:
             enc, vel, terr = enc.clone(), vel.clone(), terr.clone()
             prev = prev.clone()
-            enc[:, 6:], vel[:, 6:], terr[:, 6:], prev[:, 7:] = 0, 0, 0, 0
+            enc[:, 6:], prev[:, 7:] = 0, 0
+            if self.icfg.mask_left_obs != 'pose':
+                vel[:, 6:], terr[:, 6:] = 0, 0
         parts = [enc, vel, prev, terr, pos * 10, eul, tw]
         if self.icfg.privileged_actor:     # teacher only: plug pose in the live port frame, reader in the TCP
             p, R = self.runtime.plug_in_port()
