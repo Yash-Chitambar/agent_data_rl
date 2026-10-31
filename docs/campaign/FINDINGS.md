@@ -321,6 +321,14 @@ friction rows of the elliptic cones, resolved in the port frame), sampled at the
   `inhand_extra_rot_deg` 1.3° per axis on top of the measured spread), round 3 × 1.0, n = 2048:** v11 95.36 %
   [94.36, 96.19] (52 mouth, 43 slip; peak push p99 56.9 N); gentle-D 96.44 % [95.54, 97.16] (50 mouth, 23 slip;
   p99 32.0 N). Not robust to it yet: E and F are being fine-tuned with this in-hand noise (E2, F2).
+- **Exported gentle-D as best.pt** (coordinator decision): matches or beats v11 everywhere. The env must use
+  `target_cap_rad` = `pol.meta['target_cap_rad']` (0.05). Backups: `runs/v11_backup.pt`, v10dr, v6s2.
+- **F2** (cap 0.05; 0.5/N > 10 N; 5 per m/s > 10 mm/s within 5 mm; 100 % wide in-hand; 16 M steps): wide in-hand,
+  round 3 × 1.0, n = 2048: 97.07 % [96.25, 97.72] (46 mouth, 14 slip), **peak push p50 7.5 N, p99 18.8 N** (force
+  target met). Training plateaus at ~97 % at scale 1.5 with the wide in-hand error.
+- **Hard TCP speed limit** (G: 15 mm/s commanded via the believed-angle Jacobian): success fell to 29-49 % in
+  training, seat time 4-4.6 s; too slow to search within the episode. Dropped (penalties already reach p99 < 20 N).
+- Running: F2 (scale 1.5) and H (from F2, scale 1.0 only, 100 % wide in-hand).
 
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
