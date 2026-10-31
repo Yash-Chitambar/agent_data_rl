@@ -175,7 +175,9 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   Under the chain's elliptic cones, in the chain context (after the Part 1 pick, right arm at the lift
   pose; n = 1024): 2 cm, 25 N: PC still 100 % at 3 N and 100 % at 5 N, arm-arm 0, left joint 2 <= 8.9 N m;
   3.5 cm: 100 % / 100 % but arm-arm 4/1024 (left forearm vs right link_4, fingertip hulls). The PC sinks
-  0.77 mm into its feet under the press (soft feet contact; settles during the engage). HOLD15PLAN
+  0.77 mm into its feet under the press (soft feet contact; settles during the engage). 2 cm at 10 N: 100 %.
+  15 N at 2 cm: 100 / 100 / 99.9 % at 3 / 5 / 10 N, sink 0.56 mm, left joint 2 <= 5.4 N m (lower-torque option).
+  Script: `scripts/task/diag_chain_hold.py`; results `results/usbc/policy/hold/chain_hold_*.json`.
 - **Status (2026-11-01, round 4, `policy/approach-hold`): 3 N gate met: 25 N press 3.5 cm in front of the
   case centre, 99.86 % still at 3 N (5113/5120, five runs incl. two with a parked/folded left start),
   99.5-99.8 % at 5 N, 97.0 % at 10 N; left joint 2 <= 8.8 N m.** Code: `blind_insertion/envs/left_hold.py`,

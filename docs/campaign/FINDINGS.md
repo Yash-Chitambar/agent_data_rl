@@ -115,7 +115,8 @@ All with elliptic cones + impratio 30 (the chain and Part 4 solver) unless noted
   link_3 capsules) hits the right arm's link_4 and the two fingertip hulls touch, with the right arm at the
   post-pick lift pose. A higher stand-off (+5 cm) made it worse (8/1024, PC still 77 %). Elliptic cones hold
   the PC better than pyramidal (2 cm, 3 N: 100 % vs 99.3 %). **Use the 2 cm press** (= Part 4's training
-  hold): it passes 3 and 5 N with no contact. HOLD15
+  hold): it passes 3 and 5 N with no contact, and 10 N (1024/1024). 15 N at 2 cm: 3 N 100 %, 5 N 100 %, 10 N
+  99.9 %, sink 0.56 mm, left joint 2 <= 5.4 N m -- a lower-torque option if 25 N heats the motor.
 - **PC sink:** with elliptic cones the 25 N press pushes the PC 0.77 mm (p50; p99 0.86) into its feet (3.5 cm:
   0.89 mm). It is soft-contact compression of the 5 mm box feet, settles during the engage (before the
   approach), and is almost all vertical (engage translation p99 0.89 mm vs sink p99 0.86 mm; one world in
