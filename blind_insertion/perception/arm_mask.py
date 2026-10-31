@@ -16,20 +16,22 @@ from blind_insertion.envs import visual_dr as VD
 FILL = 128
 
 
-def arm_geoms(m):
-    """Bool (ngeom,): geoms on the bodies of both arm trees (rooted at 'arm' and 'left_arm')."""
+def arm_geoms(m, keep_bases=True):
+    """Bool (ngeom,): geoms on the moving bodies of both arm trees (rooted at 'arm' and 'left_arm').
+    keep_bases: the fixed base bodies stay visible -- they are fixed landmarks in the robot frame, which the
+    net uses to cancel camera-pose error (masking them moved real estimates by ~10 mm)."""
     roots = {m.body('arm').id, m.body('left_arm').id}
     inside = []
     for b in range(m.nbody):
         x = b
         while x != 0 and x not in roots:
             x = int(m.body_parentid[x])
-        inside.append(x in roots)
+        inside.append(x in roots and not (keep_bases and b in roots))
     return torch.tensor([inside[int(m.geom_bodyid[g])] for g in range(m.ngeom)])
 
 
 class ArmMasker:
-    def __init__(self, rt, camera='top', dilate_px=3):
+    def __init__(self, rt, camera='top', dilate_px=3, keep_bases=True):
         m, c = rt.mjm, rt.cfg
         self.rt, self.dilate = rt, dilate_px
         cid = m.camera(camera).id
@@ -39,7 +41,7 @@ class ArmMasker:
             self.rc = mjw.create_render_context(m, nworld=c.nworld, cam_res=[(res, res)], render_rgb=False, render_seg=True,
                                                 cam_active=active, **VD.render_context_kwargs(getattr(rt, 'visual_dr_cfg', None)))
             self.seg = wp.zeros((c.nworld, res, res), dtype=wp.vec2i)
-        self.arm = arm_geoms(m).to(rt.device)
+        self.arm = arm_geoms(m, keep_bases).to(rt.device)
 
     def __call__(self, shift_px=0, generator=None):
         """(nworld, res, res) bool arm mask at the current state; shift_px: random per-world shift (+/-)."""
