@@ -193,13 +193,30 @@ class PickTask(BimanualTask):
                 'finite': torch.isfinite(self.runtime.q).all(1)}
 
 
+def perturb_reader_pose(p_r, R_r, lay, xy_m, yaw_deg, gen=None):
+    """Reader pose moved by xy_m (random direction) and turned by +/-yaw_deg about the vertical through
+    the body centre (the estimator's error model)."""
+    N, dev = len(p_r), p_r.device
+    bz = float(lay.variants[0].peg_boxes[0][0][2])
+    c = p_r + R_r[:, :, 2] * bz                                   # body centre
+    ang = torch.rand(N, device=dev, generator=gen) * 2 * math.pi
+    c = c + torch.stack([torch.cos(ang), torch.sin(ang), torch.zeros_like(ang)], 1) * xy_m
+    sgn = torch.where(torch.rand(N, device=dev, generator=gen) < .5, -1., 1.)
+    a = torch.deg2rad(torch.full((N,), float(yaw_deg), device=dev)) * sgn
+    z, o = torch.zeros_like(a), torch.ones_like(a)
+    Rz = torch.stack([torch.stack([torch.cos(a), -torch.sin(a), z], -1), torch.stack([torch.sin(a), torch.cos(a), z], -1),
+                      torch.stack([z, z, o], -1)], -2)
+    R = Rz @ R_r
+    return c - R[:, :, 2] * bz, R
+
+
 class PickExpert:
     """Privileged scripted pick with the tipped side grasp (see module docstring)."""
     PHASES = ('to_pregrasp', 'descend', 'settle', 'close', 'lift', 'hold', 'done')
 
     def __init__(self, task: PickTask, v_max=0.10, w_max=1.0, joint_speed=1.2, settle_tol=(6e-4, 0.4),
                  settle_max_s=2.0, close_s=0.6, hold_s=1.0, integral_gain=0.03, integral_cap=0.08,
-                 jitter=None, margin=0.05, lift_tol_deg=1.0, seed=0):
+                 jitter=None, margin=0.05, lift_tol_deg=1.0, pose_err=None, reader_pose_fn=None, seed=0):
         self.t, self.v, self.w, self.js = task, v_max, w_max, joint_speed
         self.settle_tol, self.dt = settle_tol, task.dt
         self.settle_max = round(settle_max_s / task.dt)
@@ -207,6 +224,9 @@ class PickExpert:
         self.ki, self.icap = integral_gain, integral_cap
         # Optional per-episode grasp-point jitter (reader frame, m) to widen demo coverage.
         self.jitter, self.margin, self.lift_tol = jitter, margin, lift_tol_deg
+        # pose_err = (xy_m, yaw_deg): planning pose error of fixed magnitude, random direction/sign per world.
+        # reader_pose_fn: () -> (p (N,3), R (N,3,3)) estimated reader pose (perception); default privileged.
+        self.pose_err, self.reader_pose_fn = pose_err, reader_pose_fn
         self.gen = torch.Generator(device=task.device); self.gen.manual_seed(seed + 101)
 
     def _ik(self, p, R, q0, iters):
@@ -220,7 +240,9 @@ class PickExpert:
         self.done = torch.zeros(N, dtype=torch.bool, device=dev)
         self.integ = torch.zeros(N, 6, device=dev)
         self.q0 = t.q_true().clone()
-        p_r, R_r = t.reader_pose()
+        p_r, R_r = t.reader_pose() if self.reader_pose_fn is None else self.reader_pose_fn()
+        if self.pose_err is not None:     # tolerance study: perturb the reader pose the expert plans with
+            p_r, R_r = perturb_reader_pose(p_r, R_r, t.lay, *self.pose_err, gen=self.gen)
         # Per world: the first tilt (60 deg, then the fallbacks) whose pre-grasp, grasp and lift all
         # solve with >= margin rad inside the joint limits.
         self.tilt = torch.full((N,), float('nan'), device=dev)

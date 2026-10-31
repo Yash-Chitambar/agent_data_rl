@@ -1,0 +1,18 @@
+{
+ "policy": "runs/P1-act-pick-v3/act_060000_traced.pt",
+ "n": 256,
+ "success": 183,
+ "rate": 0.71484375,
+ "wilson95_lo": 0.6566785852737664,
+ "seed": 30000,
+ "execution": "temporal ensembling k=0.01",
+ "failures": {
+  "lift<60mm": 59,
+  "no_lift_closed_on_nothing": 24,
+  "no_lift_opening_ge_20mm": 35,
+  "tilt>=3": 14,
+  "drift": 15,
+  "dropped_or_nonfinite": 0
+ },
+ "retries_used": 49
+}
