@@ -1,0 +1,112 @@
+{
+ "n": 1024,
+ "pass_rate": 0.7998046875,
+ "wilson95_lower": 0.7741953826094387,
+ "gate_met": false,
+ "tolerance": {
+  "translation_mm": 0.5,
+  "rotation_deg": 0.5
+ },
+ "arm_arm_contact_worlds": 0,
+ "left_touches_other_worlds": 0,
+ "nonfinite_worlds": 12,
+ "unlatched_worlds": 0,
+ "plan_failed_worlds": 4,
+ "pc_translation_mm": {
+  "p50": 0.08093597739934921,
+  "p90": 1.327201008796692,
+  "p99": 1000.0,
+  "p99.5": 1000.0,
+  "p100": 1000.0
+ },
+ "pc_rotation_deg": {
+  "p50": 0.04394785314798355,
+  "p90": 0.3375401794910431,
+  "p99": 2.2661657333374023,
+  "p99.5": 116.89546203613281,
+  "p100": 125.51982116699219
+ },
+ "engage_translation_mm": {
+  "p50": NaN,
+  "p99": NaN,
+  "p100": NaN
+ },
+ "engage_rotation_deg": {
+  "p50": 0.0010648805182427168,
+  "p99": 0.22997082769870758,
+  "p100": 124.98086547851562
+ },
+ "left_contact_force_n": {
+  "p1": 33.99097442626953,
+  "p50": 36.01591110229492,
+  "p99": 38.83460235595703
+ },
+ "seated_rate": 0.0419921875,
+ "hold": {
+  "mode": "press",
+  "across_m": -0.0208,
+  "along_m": 0.03,
+  "brace_height_m": 0.02,
+  "force_n": 35.0,
+  "preload_n": 0.0,
+  "down_n": 0.0,
+  "standoff_m": 0.015,
+  "move_s": 1.5,
+  "engage_s": 0.6,
+  "settle_s": 0.5,
+  "yaws_deg": [
+   -90,
+   -75,
+   -60,
+   -45,
+   -30,
+   -15,
+   0,
+   15,
+   30,
+   45,
+   60,
+   75,
+   90
+  ],
+  "tilt_deg": 0.0,
+  "ik_iters": 120,
+  "guarded": true,
+  "guard_speed_m_s": 0.01,
+  "guard_depth_m": 0.025,
+  "guard_force_n": 3.0,
+  "ramp_s": 0.4
+ },
+ "insert": {
+  "preinsert_m": 0.006,
+  "gain": 0.25,
+  "step_clip": 0.004,
+  "cap": 0.1,
+  "align_s": 3.0,
+  "insert_s": 3.0,
+  "lateral_gate_m": 5e-05,
+  "seat_hold_s": 1.0,
+  "overdrive_m": 0.0,
+  "tilt_deg": 60.0,
+  "pad_z_m": 0.058,
+  "inhand_pos_mm": 3.0,
+  "inhand_rot_deg": 8.0
+ },
+ "load": {
+  "type": "insert",
+  "push_n": null,
+  "lateral_frac": 0.15,
+  "push_hold_s": 1.5
+ },
+ "pc_estimate_error": {
+  "sigma_m": 0.002,
+  "sigma_yaw_deg": 1.0
+ },
+ "enc_offset_deg": 1.5,
+ "wall_s": 283.6923716068268,
+ "pass_by_feet_mu": {
+  "0.3-0.5": 0.7478753541076487,
+  "0.5-0.7": 0.8053892215568862,
+  "0.7-0.9": 0.8486646884272997
+ }
+}

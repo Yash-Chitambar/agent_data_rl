@@ -1,0 +1,71 @@
+{
+ "estimator": "zed",
+ "method": "Train the approach estimators on DR renders (policy/v1 visual DR defaults; RGB only) and report\nheld-out errors.\n\n  zed   : PC port pose (x, y, yaw) in the right-base frame from the ZED frame taken before the arms\n          move (crop around the nominal PC). Labels: deviation from the nominal port pose.\n  wrist : plug tip pose relative to port 2 (x across, y up, z gap; rotation vector) from the right\n          wrist frame at an approach pose (left arm holding the PC, reader in the 60-deg grasp).\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/train_approach_estimators.py --which wrist --n 24576\nWrites runs/perception/<which>.pt and results/usbc/policy/approach/estimator_<which>.json",
+ "n_train": 24576,
+ "n_test_dr": 2048,
+ "n_test_nominal_look": 512,
+ "sample_cfg": {
+  "lateral_m": 0.012,
+  "gap_m": [
+   0.003,
+   0.045
+  ],
+  "rot_deg": 6.0,
+  "roll_deg": 3.0
+ },
+ "held_out_dr_abs_error": {
+  "x_mm": {
+   "p50": 0.39342212677001953,
+   "p90": 1.1309826374053955,
+   "p99": 2.2195894718170166,
+   "p99.5": 2.6188933849334717
+  },
+  "y_mm": {
+   "p50": 0.48851633071899414,
+   "p90": 1.4209983348846436,
+   "p99": 2.819430351257324,
+   "p99.5": 3.1244633197784424
+  },
+  "yaw_deg": {
+   "p50": 0.21823930740356445,
+   "p90": 0.6731520891189575,
+   "p99": 1.5608184337615967,
+   "p99.5": 1.7103300094604492
+  },
+  "xy_mm": {
+   "p50": 0.7902671694755554,
+   "p90": 1.746903657913208,
+   "p99": 3.145164966583252,
+   "p99.5": 3.5664913654327393
+  }
+ },
+ "held_out_nominal_look_abs_error": {
+  "x_mm": {
+   "p50": 0.1802520751953125,
+   "p90": 0.4375028610229492,
+   "p99": 0.7537033557891846,
+   "p99.5": 0.869147777557373
+  },
+  "y_mm": {
+   "p50": 0.21786344051361084,
+   "p90": 0.5326330661773682,
+   "p99": 0.8555143475532532,
+   "p99.5": 0.9295302033424377
+  },
+  "yaw_deg": {
+   "p50": 0.14161646366119385,
+   "p90": 0.36144155263900757,
+   "p99": 0.676960825920105,
+   "p99.5": 0.8120131492614746
+  },
+  "xy_mm": {
+   "p50": 0.34535717964172363,
+   "p90": 0.6555953025817871,
+   "p99": 1.0365793704986572,
+   "p99.5": 1.1095305681228638
+  }
+ },
+ "generate_s": 127.05279612541199,
+ "total_s": 694.646773815155,
+ "note": "visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)"
+}

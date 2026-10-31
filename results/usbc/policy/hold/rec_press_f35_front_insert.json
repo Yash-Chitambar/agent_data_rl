@@ -1,0 +1,115 @@
+{
+ "n": 1024,
+ "pass_rate": 0.794921875,
+ "wilson95_lower": 0.7691110310339014,
+ "gate_met": false,
+ "tolerance": {
+  "translation_mm": 0.5,
+  "rotation_deg": 0.5
+ },
+ "arm_arm_contact_worlds": 0,
+ "left_touches_other_worlds": 0,
+ "nonfinite_worlds": 16,
+ "right_touches_pc_worlds": 500,
+ "unlatched_worlds": 0,
+ "plan_failed_worlds": 5,
+ "pc_translation_mm": {
+  "p50": 0.0010137089993804693,
+  "p90": 1.3614320755004883,
+  "p99": 1000.0,
+  "p99.5": 1000.0,
+  "p100": 1000.0
+ },
+ "pc_rotation_deg": {
+  "p50": 0.0003062605974264443,
+  "p90": 0.3030857443809509,
+  "p99": 90.1995620727539,
+  "p99.5": 117.88532257080078,
+  "p100": 124.22087097167969
+ },
+ "engage_translation_mm": {
+  "p50": NaN,
+  "p99": NaN,
+  "p100": NaN
+ },
+ "engage_rotation_deg": {
+  "p50": 0.0006636260659433901,
+  "p99": 0.11768319457769394,
+  "p100": 121.9267349243164
+ },
+ "left_contact_force_n": {
+  "p1": 27.43134307861328,
+  "p50": 35.890830993652344,
+  "p99": 39.1084098815918
+ },
+ "seated_rate": 0.0380859375,
+ "hold": {
+  "mode": "press",
+  "across_m": -0.0208,
+  "along_m": -0.02,
+  "brace_height_m": 0.02,
+  "force_n": 35.0,
+  "preload_n": 0.0,
+  "down_n": 0.0,
+  "standoff_m": 0.015,
+  "move_s": 1.5,
+  "engage_s": 0.6,
+  "settle_s": 0.5,
+  "yaws_deg": [
+   -90,
+   -75,
+   -60,
+   -45,
+   -30,
+   -15,
+   0,
+   15,
+   30,
+   45,
+   60,
+   75,
+   90
+  ],
+  "tilt_deg": 0.0,
+  "ik_iters": 120,
+  "guarded": true,
+  "guard_speed_m_s": 0.01,
+  "guard_depth_m": 0.025,
+  "guard_force_n": 3.0,
+  "ramp_s": 0.4
+ },
+ "insert": {
+  "preinsert_m": 0.006,
+  "gain": 0.25,
+  "step_clip": 0.004,
+  "cap": 0.1,
+  "align_s": 3.0,
+  "insert_s": 3.0,
+  "lateral_gate_m": 5e-05,
+  "seat_hold_s": 1.0,
+  "overdrive_m": 0.0,
+  "tilt_deg": 60.0,
+  "pad_z_m": 0.058,
+  "inhand_pos_mm": 3.0,
+  "inhand_rot_deg": 8.0
+ },
+ "load": {
+  "type": "insert",
+  "push_n": null,
+  "lateral_frac": 0.15,
+  "push_hold_s": 1.5
+ },
+ "pc_estimate_error": {
+  "sigma_m": 0.002,
+  "sigma_yaw_deg": 1.0
+ },
+ "enc_offset_deg": 1.5,
+ "feet_solref": null,
+ "feet_solimp": null,
+ "wall_s": 129.37284970283508,
+ "pass_by_feet_mu": {
+  "0.3-0.5": 0.6940509915014165,
+  "0.5-0.7": 0.8053892215568862,
+  "0.7-0.9": 0.8902077151335311
+ }
+}

@@ -1,0 +1,159 @@
+{
+ "name": "servo_wrist_fc_s2",
+ "method": "Closed-loop approach to the pre-insert pose (policy Part 2) in the GPU runtime, RGB estimators only.\n\nPer episode, all worlds in parallel, full DR (layout, arm dynamics, encoder-offset error +/-1.5 deg on\njoints 2-5, 0-1 step latency, in-hand pose +/-3 mm / +/-8 deg about the closing axis (confirmed 60-deg\ngrasp), policy/v1 visual DR incl. camera pose/intrinsics error at real scale):\n  1. ZED frame with the arms at the reset pose -> PC port pose estimate (x, y, yaw)   [--pc zed|true]\n  2. left press hold planned from that estimate, guarded engage (physics)\n  3. right arm + reader placed where the real arm would be after an IK move to the look pose\n     (reader `look_gap` in front of the estimated port, nominal in-hand pose, believed joint frame;\n     the true joints carry the encoder-offset error, the reader carries the true in-hand pose)\n  4. servo (--servo wrist|oracle|none): each iteration renders the right wrist frame, estimates the\n     plug tip pose relative to port 2, and moves the commanded hand pose by the rigid correction that\n     would bring the reader to the next waypoint (gap schedule ending at --stop mm) -- integrating in\n     command space, which also takes out the joint-friction deadband and gravity sag;\n  5. the plug-tip pose relative to the live port is recorded (privileged) at the end.\n\n    PYTHONPATH=. .venv/bin/python scripts/task/eval_approach.py --nworld 512 --stop 6 --servo wrist\nWrites results/usbc/policy/approach/<name>.json (+ .npz per episode).",
+ "n": 512,
+ "n_finite": 511,
+ "args": {
+  "nworld": 512,
+  "pc": "zed",
+  "servo": "wrist",
+  "stop": 6.0,
+  "look_gap": 30.0,
+  "iters": 6,
+  "final_rot": false,
+  "final_iters": 6,
+  "settle_s": 0.3,
+  "ramp_s": 0.5,
+  "grasp_settle_s": 1.0,
+  "gain": 1.0,
+  "frames": 1,
+  "fine_below_mm": 0.0,
+  "fine_net": "wrist_fine",
+  "fric_comp": true,
+  "enc_offset_deg": 1.5,
+  "seed": 2,
+  "name": "servo_wrist_fc_s2"
+ },
+ "units": "mm and deg; plug tip in the port-2 frame (x across the panel, y up, z out of the panel = gap); tilt = angle between the plug axis and the port axis; roll about the port axis",
+ "lateral_mm": {
+  "p50": 1.0460779666900635,
+  "p90": 2.366259813308716,
+  "p99": 4.410915851593018,
+  "p99.5": 4.921570777893066,
+  "p100": 7.169596195220947
+ },
+ "tilt_deg": {
+  "p50": 1.1215921640396118,
+  "p90": 2.686171531677246,
+  "p99": 5.210029125213623,
+  "p99.5": 6.063185691833496,
+  "p100": 7.282403945922852
+ },
+ "gap_error_mm": {
+  "p50": 0.6771011352539062,
+  "p90": 1.5792818069458008,
+  "p99": 2.9479081630706787,
+  "p99.5": 3.4854259490966797,
+  "p100": 5.794448375701904
+ },
+ "roll_deg_abs": {
+  "p50": 1.3042521476745605,
+  "p90": 5.582883358001709,
+  "p99": 8.208316802978516,
+  "p99.5": 8.89365005493164,
+  "p100": 9.37070369720459
+ },
+ "x_mm": {
+  "mean": -0.0630059465765953,
+  "std": 0.8324949741363525
+ },
+ "y_mm": {
+  "mean": 0.12605403363704681,
+  "std": 1.2968108654022217
+ },
+ "within_1mm_2deg": 0.3953033268101761,
+ "zed_error": {
+  "xy_mm_p50": 0.7872011661529541,
+  "xy_mm_p99": 3.353919744491577,
+  "yaw_deg_p99": 1.3916090726852417
+ },
+ "look_pose_lateral_mm": {
+  "p50": 8.47964096069336,
+  "p99": 20.73652458190918
+ },
+ "pc_moved_since_reset_mm": {
+  "p50": 0.0007256963290274143,
+  "p99": 1.0708786249160767,
+  "p100": 2.3087503910064697
+ },
+ "servo_trace": [
+  {
+   "gap_target_mm": 30.0,
+   "lateral_mm_p50": 2.106005907058716,
+   "lateral_mm_p99": 8.911638259887695,
+   "ik_pos_err_mm_p99": 9.000259160529822e-05,
+   "inhand_rot_change_deg_p99": 8.994535446166992
+  },
+  {
+   "gap_target_mm": 20.06220914929266,
+   "lateral_mm_p50": 1.4324398040771484,
+   "lateral_mm_p99": 5.295297145843506,
+   "ik_pos_err_mm_p99": 8.504259312758222e-05,
+   "inhand_rot_change_deg_p99": 8.994776725769043
+  },
+  {
+   "gap_target_mm": 13.416407864998744,
+   "lateral_mm_p50": 1.3395566940307617,
+   "lateral_mm_p99": 4.775187969207764,
+   "ik_pos_err_mm_p99": 9.46408836171031e-05,
+   "inhand_rot_change_deg_p99": 9.008737564086914
+  },
+  {
+   "gap_target_mm": 8.972092687327327,
+   "lateral_mm_p50": 1.2649295330047607,
+   "lateral_mm_p99": 4.671026229858398,
+   "ik_pos_err_mm_p99": 9.149118704954162e-05,
+   "inhand_rot_change_deg_p99": 9.05675983428955
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 1.433775544166565,
+   "lateral_mm_p99": 4.641576290130615,
+   "ik_pos_err_mm_p99": 8.620206790510565e-05,
+   "inhand_rot_change_deg_p99": 9.1618070602417
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 1.0935038328170776,
+   "lateral_mm_p99": 3.729896068572998,
+   "ik_pos_err_mm_p99": 9.543941996525973e-05,
+   "inhand_rot_change_deg_p99": 9.295587539672852
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 1.0111701488494873,
+   "lateral_mm_p99": 3.9565858840942383,
+   "ik_pos_err_mm_p99": 8.816853369353339e-05,
+   "inhand_rot_change_deg_p99": 9.439480781555176
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 1.0847439765930176,
+   "lateral_mm_p99": 4.0091166496276855,
+   "ik_pos_err_mm_p99": 8.681687904754654e-05,
+   "inhand_rot_change_deg_p99": 9.558293342590332
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 1.041500210762024,
+   "lateral_mm_p99": 4.338199138641357,
+   "ik_pos_err_mm_p99": 8.068299939623103e-05,
+   "inhand_rot_change_deg_p99": 9.646385192871094
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 1.0573954582214355,
+   "lateral_mm_p99": 4.175570487976074,
+   "ik_pos_err_mm_p99": 9.723089897306636e-05,
+   "inhand_rot_change_deg_p99": 9.737098693847656
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 1.0460779666900635,
+   "lateral_mm_p99": 4.410915851593018,
+   "ik_pos_err_mm_p99": 8.703200001036748e-05,
+   "inhand_rot_change_deg_p99": 9.783997535705566
+  }
+ ],
+ "wall_s": 136.5014202594757
+}

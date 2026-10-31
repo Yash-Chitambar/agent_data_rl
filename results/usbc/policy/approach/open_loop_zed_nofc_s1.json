@@ -1,0 +1,80 @@
+{
+ "name": "open_loop_zed_nofc_s1",
+ "method": "Closed-loop approach to the pre-insert pose (policy Part 2) in the GPU runtime, RGB estimators only.\n\nPer episode, all worlds in parallel, full DR (layout, arm dynamics, encoder-offset error +/-1.5 deg on\njoints 2-5, 0-1 step latency, in-hand pose +/-3 mm / +/-8 deg about the closing axis (confirmed 60-deg\ngrasp), policy/v1 visual DR incl. camera pose/intrinsics error at real scale):\n  1. ZED frame with the arms at the reset pose -> PC port pose estimate (x, y, yaw)   [--pc zed|true]\n  2. left press hold planned from that estimate, guarded engage (physics)\n  3. right arm + reader placed where the real arm would be after an IK move to the look pose\n     (reader `look_gap` in front of the estimated port, nominal in-hand pose, believed joint frame;\n     the true joints carry the encoder-offset error, the reader carries the true in-hand pose)\n  4. servo (--servo wrist|oracle|none): each iteration renders the right wrist frame, estimates the\n     plug tip pose relative to port 2, and moves the commanded hand pose by the rigid correction that\n     would bring the reader to the next waypoint (gap schedule ending at --stop mm) -- integrating in\n     command space, which also takes out the joint-friction deadband and gravity sag;\n  5. the plug-tip pose relative to the live port is recorded (privileged) at the end.\n\n    PYTHONPATH=. .venv/bin/python scripts/task/eval_approach.py --nworld 512 --stop 6 --servo wrist\nWrites results/usbc/policy/approach/<name>.json (+ .npz per episode).",
+ "n": 512,
+ "n_finite": 512,
+ "args": {
+  "nworld": 512,
+  "pc": "zed",
+  "servo": "none",
+  "stop": 6.0,
+  "look_gap": 30.0,
+  "iters": 6,
+  "final_rot": false,
+  "final_iters": 6,
+  "settle_s": 0.3,
+  "ramp_s": 0.5,
+  "grasp_settle_s": 1.0,
+  "gain": 1.0,
+  "frames": 1,
+  "fine_below_mm": 0.0,
+  "fric_comp": false,
+  "enc_offset_deg": 1.5,
+  "seed": 1,
+  "name": "open_loop_zed_nofc_s1"
+ },
+ "units": "mm and deg; plug tip in the port-2 frame (x across the panel, y up, z out of the panel = gap); tilt = angle between the plug axis and the port axis; roll about the port axis",
+ "lateral_mm": {
+  "p50": 9.397014617919922,
+  "p90": 16.193984985351562,
+  "p99": 21.22064781188965,
+  "p99.5": 21.561124801635742,
+  "p100": 28.61582374572754
+ },
+ "tilt_deg": {
+  "p50": 4.605103492736816,
+  "p90": 7.425978660583496,
+  "p99": 9.951013565063477,
+  "p99.5": 10.679771423339844,
+  "p100": 17.752668380737305
+ },
+ "gap_error_mm": {
+  "p50": 2.724911689758301,
+  "p90": 6.5755228996276855,
+  "p99": 9.131288528442383,
+  "p99.5": 9.417974472045898,
+  "p100": 10.074579238891602
+ },
+ "roll_deg_abs": {
+  "p50": 2.521075963973999,
+  "p90": 7.924177646636963,
+  "p99": 12.170188903808594,
+  "p99.5": 12.769302368164062,
+  "p100": 15.012147903442383
+ },
+ "x_mm": {
+  "mean": -1.6008317470550537,
+  "std": 6.235377788543701
+ },
+ "y_mm": {
+  "mean": -2.2637462615966797,
+  "std": 8.364574432373047
+ },
+ "within_1mm_2deg": 0.0,
+ "zed_error": {
+  "xy_mm_p50": 0.8553916215896606,
+  "xy_mm_p99": 3.8095057010650635,
+  "yaw_deg_p99": 1.0688332319259644
+ },
+ "look_pose_lateral_mm": {
+  "p50": 9.32182502746582,
+  "p99": 20.967878341674805
+ },
+ "pc_moved_since_reset_mm": {
+  "p50": 0.0007647316670045257,
+  "p99": 0.5368515253067017,
+  "p100": 2.9373676776885986
+ },
+ "servo_trace": [],
+ "wall_s": 64.40896987915039
+}
