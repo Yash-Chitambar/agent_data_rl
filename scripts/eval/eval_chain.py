@@ -97,6 +97,11 @@ def parse(argv=None):
     ap.add_argument('--iters', type=int, default=6)
     ap.add_argument('--final-iters', type=int, default=6)
     ap.add_argument('--final-pos-only', type=int, default=2)
+    ap.add_argument('--final-rot', choices=('roll', 'all'), default='roll',
+                    help="rotation corrected at the stop gap (before the --final-pos-only iterations): roll only (round 5) or tilt + roll")
+    ap.add_argument('--pivot', choices=('nominal', 'estimated'), default='nominal',
+                    help="servo rotation pivot: the plug tip from the nominal (measured-mean) in-hand pose, or the plug tip estimated "
+                         "from the wrist images (estimated tip in the hand frame, averaged over the servo iterations)")
     ap.add_argument('--settle-s', type=float, default=.3)
     ap.add_argument('--ramp-s', type=float, default=.5)
     ap.add_argument('--grasp-settle-s', type=float, default=1.)
@@ -352,6 +357,7 @@ class Chain:
         stop = a.stop * 1e-3
         sched = np.geomspace(a.look_gap * 1e-3, stop, max(a.iters - 1, 1)).tolist() + [stop] * a.final_iters
         ip0, iR0 = self.inhand()
+        tip_in_hand, n_tip = torch.zeros(n, 3, device=dev), 0
         for it, g in enumerate(sched):
             if a.servo == 'wrist':
                 net, scale, mode = self.fine if (self.fine is not None and g * 1e3 <= a.fine_below_mm) else self.wrist
@@ -373,11 +379,20 @@ class Chain:
             final = it >= len(sched) - a.final_iters
             if final and it >= len(sched) - a.final_pos_only:
                 rv = rv * 0
-            elif final:
+            elif final and a.final_rot == 'roll':
                 rv = rv * torch.tensor([0., 0., 1.], device=dev)
             dR_port = K.axis_angle_mat(rv / rv.norm(dim=1, keepdim=True).clamp(min=1e-9), rv.norm(dim=1))
             sp_b, sR_b = ch.fk(cmd)
-            tip_b = sp_b - (sR_b @ (self.R_sr0.transpose(0, 1) @ self.p_sr0)[:, None])[..., 0]
+            if a.pivot == 'estimated':
+                # plug tip in the hand frame from this image: estimated tip (port estimate + wrist estimate) seen from the
+                # hand pose the encoders report; averaged over the iterations (the in-hand pose is fixed)
+                sp_m, sR_m = ch.fk(h.believed('right'))
+                tip_w = ep + (eR @ rel_p_est[..., None])[..., 0]
+                tip_in_hand = (tip_in_hand * n_tip + (sR_m.transpose(1, 2) @ (tip_w - sp_m)[..., None])[..., 0]) / (n_tip + 1)
+                n_tip += 1
+                tip_b = sp_b + (sR_b @ tip_in_hand[..., None])[..., 0]
+            else:
+                tip_b = sp_b - (sR_b @ (self.R_sr0.transpose(0, 1) @ self.p_sr0)[:, None])[..., 0]
             dR_w = eR @ dR_port @ eR.transpose(1, 2)
             dt_w = (eR @ (tgt_p - rel_p_est)[..., None])[..., 0]
             new_R = dR_w @ sR_b
