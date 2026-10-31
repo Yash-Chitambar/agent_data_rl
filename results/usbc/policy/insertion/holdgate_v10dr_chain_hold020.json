@@ -1,0 +1,22 @@
+{
+ "policy": "runs/v10dr_5M.pt",
+ "n": 2048,
+ "seated": 2048,
+ "rate": 1.0,
+ "wilson95": [
+  0.9981277307176147,
+  0.9999999999999999
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 2048
+ },
+ "strict_seated_rate": 0.00146484375,
+ "seated_or_deep_rate": 1.0,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 0.84,
+ "t_seat_s_p95": 1.3729999999999973,
+ "pc_max_mm_p99": 1.2818119835853574,
+ "gate_pass": true
+}
