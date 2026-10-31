@@ -410,6 +410,26 @@ Results: `results/usbc/policy/insertion/`.
   Resets no longer call `mjw.forward` (`runtime.reset(forward=False)`): 250 → 30 ms per reset batch.
 
 
+### 2026-10-31/11-01 (mason, `policy/pick`) — Part 1: ZED-estimate pick passes the sim gate; ACT 78 %
+
+- **Tolerance:** the expert plans with a perturbed reader pose (fixed magnitude, random direction):
+  xy 3 mm and yaw 8° cost nothing (1024/1024), 4 mm 1023/1024, 5 mm 981/1024, 4 mm + 6° 1018/1024.
+- **ZED reader estimator** (RGB 320 px, 128 px strip crop, frame at rest with the gripper open):
+  held-out DR xy p50 1.1 / p99 4.1 mm, yaw p99 1.7°; with the nominal look xy p99 1.3 mm (visual and
+  camera-pose DR dominate). **Estimator-driven expert 2045/2048 and 2047/2048** (two seeds); all
+  failures are estimate outliers of 14-42 mm.
+- **Gates:** the PC-style Mahalanobis gate on pooled features fails for the reader (real frames
+  without the reader 0/24 rejected, no-reader renders 1 % rejected). A presence classifier works:
+  99.2 % / 99.3 % on held-out renders, 24/24 real frames rejected. Real accuracy untested: no real ZED
+  frame has the reader on the strip.
+- **ACT v3** (ZED + wrist + joints, 1280 demos, 80k steps, chunk 50, temporal ensembling): 15 / 45 /
+  42 % at 20k / 40k / 60k (n = 256), 52 % with 20 s episodes at 40k. Failures: hovering 3-18 mm from
+  the grasp with the gripper open (the expert's close waits on a sub-mm settle that is invisible in
+  the images). Eval-time auto-close (encoder FK tip within 8 mm of grasp height, arm still 0.4 s) +
+  regrasp: 72 % at 60k, **78.3 % at 80k (n = 1024)**. Conversion parallelised to 8 shards (35 min for
+  1280 episodes, was ~7 min per 50).
+- Shared GPU 3 was used by other agents' jobs during training (1.4-7 step/s).
+
 ### 2026-10-31 (mason, `policy/pick`) — Part 1 strip in front of the PC: 5 × 10 cm, gate 2048/2048
 
 - User rejected windows beside the PC. With a world-fixed yaw the tipped grasp needs x ≳ 0.30 m; with

@@ -106,9 +106,23 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   Reader tilt after lift p50 0.98°, max 1.58°. Episode 9.3 s (p50).
 - **In-hand pose spread** (grasp_site frame, about the mean, n = 2048): position p50 0.30 mm,
   p99 0.77 mm; rotation p50 0.07°, p99 0.24°; a 10 s hold adds p99 0.16 mm / 0.19°. Sim only.
-- **ACT:** pipeline ready (`gen_pick_demos.py` with visual DR, `pick_to_lerobot.py`,
-  `scripts/act/train_act.sh`, `export_act.py`, `pick_act_eval.py`); demos on the strip wait for the
-  user's approval of the window. ACT v1 (old 60° window, 650 demos, 20k steps): 26.0 % (n = 512).
+- **Main path: perception-based scripted pick** (ZED reader estimate + IK expert; no privileged
+  reader pose). Expert tolerance to planning-pose error (`pose_error_tolerance.json`, n = 1024 each):
+  xy ≤ 3 mm and yaw ≤ 8° → 100 %, 4 mm → 99.9 %, 5 mm → 95.8 %. ZED reader estimator
+  (`scripts/perception/train_reader_zed.py`, `blind_insertion/perception/reader_zed.py`): one ZED frame
+  at the rest pose (gripper open, left arm parked), 128 px crop over the strip, visual DR incl. camera
+  pose error: xy p50 1.1 / p99 4.1 mm, yaw p99 1.7°. **Estimator-driven expert: 2045/2048 (seed 50000)
+  and 2047/2048 (seed 51000), Wilson lower bounds 99.57 % / 99.72 %** (`expert_zedest_*`); the failures
+  are gross estimate outliers (> 14 mm; 0.6 % of estimates exceed 5 mm). Reader presence classifier:
+  sim 99.2 % / 99.3 %, real ZED frames without the reader 24/24 rejected (`reader_presence.json`); the
+  Mahalanobis feature gate does not separate them (`reader_zed_gate.json`). No real frame shows the
+  reader on the strip yet.
+- **ACT (comparison):** v3 ZED + wrist + joints, 1280 demos, 80k steps: 20k 15 %, 40k 45 % (52 % with
+  20 s episodes), 60k 42 %, 60k + auto-close + retry 72 % (n = 256); 80k + auto-close + retry, 20 s:
+  78.3 % (n = 1024). Main failure: hovering a few mm from the grasp without closing. v4 (wrist +
+  joints, close labelled from the arrival at the grasp pose) in training. Tooling: `gen_pick_demos.py`,
+  `pick_to_lerobot.py` (sharded, `--cams`, `--grip_from_phase`), `pick_merge_shards.py`,
+  `scripts/act/train_act.sh`, `export_act.py`, `pick_act_eval.py` (`--auto_close`, `--retry`).
 - **Check:** `scripts/checks/check_pick_part1.py`.
 
 ## Part 2: Approach (IK to pre-insert)
