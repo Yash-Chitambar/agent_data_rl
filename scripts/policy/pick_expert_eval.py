@@ -27,6 +27,7 @@ ap.add_argument('--no_dr', action='store_true', help='nominal physics: no contac
 ap.add_argument('--write_spread', action='store_true')
 ap.add_argument('--impratio', type=float, default=None)
 ap.add_argument('--ki', type=float, default=0.03)
+ap.add_argument('--reader_wrist', default=None, help='wrist refinement net (scripts/perception/train_reader_wrist.py) applied at the pre-grasp hover')
 ap.add_argument('--reader_est', default=None, help='plan with the ZED reader estimator (checkpoint); renders the ZED at reset with visual DR')
 ap.add_argument('--pose_err', type=float, nargs=2, default=None, help='planning pose error: xy (m, random direction), yaw (deg, random sign)')
 ap.add_argument('--settle_max_s', type=float, default=2.0)
@@ -69,7 +70,14 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
     if a.reader_est:
         from blind_insertion.perception.reader_zed import ReaderZedEstimator, reader_pose
         if batch == 0: EST = ReaderZedEstimator(a.reader_est)
+        # reader capture pose: right arm at rest (= ZED capture pose), grippers fully open, left arm parked
+        rt_ = task.runtime; fq_ = task.finger_qadr
+        f_keep = rt_.q[:, fq_].clone(); rt_.q[:, fq_] = .0475
+        import mujoco_warp as _mjw
+        with wp.ScopedDevice(cfg.physics.device): _mjw.kinematics(rt_.m, rt_.d)
         xy_hat, yaw_hat = EST(task.runtime.render()['top'])
+        rt_.q[:, fq_] = f_keep
+        with wp.ScopedDevice(cfg.physics.device): _mjw.forward(rt_.m, rt_.d)
         task.cfg.physics.render_rgb = False      # one ZED frame at the rest pose; no rendering while stepping
         p_hat, R_hat = reader_pose(task, xy_hat, yaw_hat)
         est_fn = lambda: (p_hat, R_hat)   # noqa: E731
@@ -82,9 +90,27 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
     start_hold = {k: torch.zeros(N, *s, device=task.device) for k, s in (('p', (3,)), ('R', (3, 3)), ('tilt', ()))}
     steps = torch.zeros(N, dtype=torch.long, device=task.device)
     final = None
+    if a.reader_wrist:
+        import train_reader_wrist as RW
+        from blind_insertion.perception.nets import PoseNet as _PN
+        if batch == 0:
+            _ck = torch.load(a.reader_wrist, map_location=task.device)
+            WNET = _PN(3, _ck['size'], width=_ck['width']).to(task.device).eval(); WNET.load_state_dict(_ck['net']); WSC = _ck['scale'].to(task.device)
+        wcorr = torch.zeros(N, 3, device=task.device)
     for k in range(task.max_steps - 1):
         prev = ex.phase.clone()
         act = ex.act()
+        if a.reader_wrist:
+            at_hover = (ex.phase == 1) & (prev == 0) & ~ex.refined
+            if at_hover.any():
+                task.cfg.physics.render_rgb = True
+                with torch.no_grad():
+                    fr = task.runtime.render()['wrist_cam']
+                    corr = torch.cat([WNET(fr[i:i + 256]) for i in range(0, N, 256)]) * WSC
+                task.cfg.physics.render_rgb = False
+                p_new, R_new = RW.apply_correction(task, ex.p_est, ex.R_est, corr)
+                ex.replan(at_hover, p_new, R_new)
+                wcorr[at_hover] = corr[at_hover]
         task.step(act)
         m = task.pick_metrics()
         entered = (ex.phase == 5) & (prev == 4)
@@ -114,6 +140,8 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
          'reader_x': pr[:, 0], 'reader_y': pr[:, 1],
          'reader_yaw_deg': torch.rad2deg(torch.atan2(-K.quat_to_mat(pr[:, 3:])[:, 1, 2], -K.quat_to_mat(pr[:, 3:])[:, 0, 2])),
          'latency': task.latency, 'grip_scale': task.runtime.grip_scale if task.runtime.grip_scale is not None else torch.ones(N, device=task.device),
+         'wrist_corr_mm': torch.linalg.norm(wcorr[:, :2], dim=1) * 1e3 if a.reader_wrist else torch.zeros(N, device=task.device),
+         'final_est_xy_err_mm': ((ex.p_est + ex.R_est[:, :, 2] * float(task.lay.variants[0].peg_boxes[0][0][2]))[:, :2] - (task.reader0[:, :3] + K.quat_to_mat(task.reader0[:, 3:])[:, :, 2] * float(task.lay.variants[0].peg_boxes[0][0][2]))[:, :2]).norm(dim=1) * 1e3,
          'est_xy_err_mm': est_err if est_err is not None else torch.zeros(N, device=task.device),
          'est_yaw_err_deg': est_yaw_err if est_err is not None else torch.zeros(N, device=task.device),
          'pad_mu': task.runtime.geom_friction[:, task.pads[0], 0], 'reader_mu': task.runtime.geom_friction[:, task.reader_geoms[0], 0]}

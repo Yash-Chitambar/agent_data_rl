@@ -19,6 +19,42 @@ class ReaderZedEstimator:
         self.net.load_state_dict(ck['net'])
         self.scale, self.crop, self.res = ck['scale'].to(dev), ck['crop'], ck['res']
         self.centre, self.yaw0 = ck['strip_centre'], ck['yaw0']
+        self.envelope = ck.get('arm_envelope')
+        self.presence = None
+        if 'presence' in ck:
+            self.presence = PoseNet(1, self.crop[2], width=ck.get('presence_width', 16)).to(dev).eval()
+            self.presence.load_state_dict(ck['presence']); self.presence_thresh = float(ck.get('presence_thresh', .5))
+
+    def arm_ok(self, q_left, q_right, right_finger_m):
+        """Encoder arm-pose envelope (as ZedEstimator): the net is only valid at its capture pose
+        (left arm parked, right arm at the ZED capture pose, right fingers open >= right_finger_min_m)."""
+        e = self.envelope
+        if e is None:
+            return torch.ones(len(q_left), dtype=torch.bool, device=q_left.device)
+        def near(q, refs):
+            refs = torch.as_tensor(refs, device=q.device, dtype=q.dtype)
+            return ((q[:, None] - refs[None]).abs().max(-1).values <= e['tol_rad']).any(1)
+        return near(q_left, e['left_refs']) & near(q_right, e['right_refs']) & (right_finger_m >= e['right_finger_min_m'])
+
+    @torch.no_grad()
+    def present(self, top):
+        """Reader presence probability on the strip crop (None if the checkpoint has no presence net)."""
+        if self.presence is None:
+            return None
+        x0, y0, s = self.crop
+        return torch.cat([torch.sigmoid(self.presence(top[i:i + 256, y0:y0 + s, x0:x0 + s].contiguous())[:, 0]) for i in range(0, len(top), 256)])
+
+    @torch.no_grad()
+    def estimate(self, top, q_left=None, q_right=None, right_finger_m=None):
+        """(xy, yaw, ok): ok = presence and arm-pose envelope (if the inputs are given)."""
+        xy, yaw = self(top)
+        ok = torch.ones(len(top), dtype=torch.bool, device=top.device)
+        p = self.present(top)
+        if p is not None:
+            ok &= p > self.presence_thresh
+        if q_left is not None:
+            ok &= self.arm_ok(q_left, q_right, right_finger_m)
+        return xy, yaw, ok
 
     @torch.no_grad()
     def __call__(self, top):
