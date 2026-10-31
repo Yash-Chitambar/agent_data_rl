@@ -86,11 +86,13 @@ def draw_layer(img, m, d, cam, polys, z, colour, fill, thick=2):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--out', type=Path, default=Path('results/usbc/bimanual_20261029/layout_views'))
+    ap.add_argument('--layout', type=Path, default=Path(BimanualCfg.task_layout),
+                    help='task layout json (e.g. results/usbc/policy/pick/task_layout.json for the Part 1 region)')
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     spec, fit = R.load(), json.loads(FIT.read_text())
     profile = json.loads((BUNDLE / 'reference/right_arm_20261027/rig_profile_provisional_v0.json').read_text())
-    layout = json.loads(Path(BimanualCfg.task_layout).read_text())
+    layout = json.loads(a.layout.read_text())
     nom, reader = layout['nominal'], layout['reader_region']
     maps = np.load(Path(BimanualCfg.task_layout).parent / 'maps.npz')
     xs, ys, yaws = maps['xs'], maps['ys'], maps['yaws']
@@ -113,7 +115,8 @@ def main():
         ('robust', region_polys(maps['robust'][:, :, k0] > 0, xs, ys, centre_shift), table_top + .002, True),
         ('box', [rect(cx - bx, cx + bx, cy - by, cy + by)], table_top + .003, False),
         ('box', [rect(cx - half[0], cx + half[0], cy - half[1], cy + half[1])], table_top + pc['height_with_feet']['value'], False),
-        ('reader', region_polys(maps['reader_free'], maps['rx'], maps['ry'], (0., 0.)), table_top + .003, False),
+        ('reader', region_polys(maps['reader_free'], maps['rx'], maps['ry'], (0., 0.)) if a.layout == Path(BimanualCfg.task_layout)
+                   else [rect(*reader['x_range_m'], *reader['y_range_m'])], table_top + .003, False),   # --layout: its reader rectangle
     ]
 
     enc = {}
