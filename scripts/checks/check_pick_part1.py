@@ -1,6 +1,6 @@
 """Part 1 (pick) checks: grasp frame, reader region file, and a short GPU expert run.
 
-1. reader_grasp at reader yaw 0: grasp_site y = world y, z = (sin 60, 0, -cos 60); fingertips
+1. reader_grasp at reader yaw 0: grasp_site y = world y, z = (sin t, 0, -cos t), t = TILT_DEG; fingertips
    TIP_CLEARANCE above the table; some pad spheres reach the side face.
 2. results/usbc/policy/pick/reader_region.json has the task_layout reader_region keys, samples
    inside the stated ranges, |yaw| within the stated range; task_layout.json embeds it.

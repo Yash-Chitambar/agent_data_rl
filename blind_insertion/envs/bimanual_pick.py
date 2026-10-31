@@ -34,14 +34,17 @@ class PickTaskCfg(BimanualTaskCfg):
     episode_s: float = 12.
     # Contact DR (per world, on reset). Pads have contact priority, so their friction sets the
     # pad-reader pair; the table is set to the lower bound so the reader value sets reader-table.
-    pad_friction_range: tuple | None = (1.0, 2.0)      # sim nominal 1.68 (pc_bench)
+    # Pad friction and squeeze are unmeasured. Fixed values chosen for the lowest in-hand creep with a
+    # reliable lift (sweep 2026-10-31, n = 1024 each, 10 s hold): higher pad mu creeps more (numerical;
+    # mu 2.0: 70 % within 1 deg over 10 s), mu 1.0-1.2 hold. (lo, hi) per world; None keeps 1.68.
+    pad_friction_range: tuple | None = (1.2, 1.2)
     reader_table_friction_range: tuple | None = (0.4, 1.0)   # <= 0.3 gave non-finite PC states (MJWarp solver) in ~2-8 % of worlds
-    grip_force_scale_range: tuple | None = (0.6, 1.2)  # x the 12 N squeeze (unmeasured)
+    grip_force_scale_range: tuple | None = None        # x the 12 N squeeze; 0.8-1.2 made no difference
     # Contact impedance ratio for this task. The bimanual scene uses 100 (fixes a numerical grasp
     # creep of the top-down grasp); with the side grasp's ~3 mm contact band, 100 makes the pad
     # friction fail outright below mu ~1.3 (CPU and GPU: reader stays on the table) while 1-10 hold
     # (FINDINGS 2026-10-31). None keeps the scene value.
-    impratio: float | None = 10.
+    impratio: float | None = 30.   # 30: least creep (10 s hold rotation p50 0.11 deg vs 0.22 at 10, 0.66 at 3)
 
 
 class PickTask(BimanualTask):

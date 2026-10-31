@@ -104,6 +104,22 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/pick`) — Part 1 final config: tilt 55°, yaw ±10° window, fixed pad μ; gate 2048/2048
+
+- After the "maximize sim success" directive: grasp tilt 55° (no fallback), reader window x
+  0.305-0.405, y 0.055-0.155 m, yaw ±10° (`results/usbc/policy/pick/reader_region.json`), PC box
+  ±1.5 cm / ±5°.
+- **In-hand spread sweep** (n = 1024 each, seed 7000, 10 s hold, success = lift, tilt < 3°, in-hand
+  change < 1 mm / 1° over the hold): random pad μ U(1, 2) + squeeze ×U(0.6, 1.2) 94.3 %; pad μ 1.2
+  99.8 % (squeeze ×0.8 / 1.0 / 1.2 alike); μ 1.6 96.8 %; μ 2.0 70.2 %; μ 1.0 100 %; μ 1.2 with
+  impratio 30 100 % (creep p50 0.11° vs 0.22° at 10, 0.66° at 3); slower lift (5 cm/s) no gain.
+  Creep grows with pad μ: a solver artifact, not slip. Chosen: pad μ 1.2, squeeze ×1, impratio 30.
+- **Gate: 2048/2048 (seed 8000, Wilson lower bound 99.81 %); 10 s hold 1024/1024.** In-hand spread
+  about the mean: position p50 0.45 / p99 2.7 mm, rotation p50 0.11 / p99 0.80°; 10 s creep p99
+  0.47 mm / 0.69°. Tilt after lift max 1.58°. `results/usbc/policy/pick/inhand_spread.json`.
+- **ACT v1** (old config: 60°, yaw -30..+10, 650 demos with visual DR): 20k steps 133/512 = 26.0 % held-out
+  (seed 5000; failures: no lift 225, tilt 105; stopped at the config change). ACT v2 on the final config: see below.
+
 ### 2026-10-31 (mason, `policy/pick`) — Part 1 pick: 60° side grasp, Part 1 reader region, expert gate 2048/2048
 
 - **Grasp (user-confirmed 60° tipped side grasp) as code:** `scenes/reader_grasp.py` (frames,

@@ -28,13 +28,14 @@ ap.add_argument('--yaw', type=float, default=30.)
 ap.add_argument('--yaw_centre', type=float, default=0.)
 ap.add_argument('--side', type=float, default=.12)
 ap.add_argument('--margin', type=float, default=.10)
-ap.add_argument('--tilt', type=float, default=60.)
+ap.add_argument('--tilt', type=float, default=G.TILT_DEG)
 ap.add_argument('--out', default='results/usbc/policy/pick')
 a = ap.parse_args()
 dev = 'cuda:0'
 CELL, BIN = .01, 10.
 READER_BACK, READER_FRONT, READER_HALF_W, READER_MARGIN = .02, .07, .018, .015
-PORT, PC_BOX = (.22, .36, 0.), (.03, .03, 10.)
+from blind_insertion.envs.bimanual_runtime import BimanualCfg as _BC
+PORT, PC_BOX = (.22, .36, 0.), tuple(_BC.pc_pose_range)   # training box of the PC pose (now +/-1.5 cm, +/-5 deg)
 PC_CENTRE = (.2685, .3392)
 from blind_insertion.scenes.measured_support import dimensions
 WALL_X = dimensions()['wall_edge_x_m']

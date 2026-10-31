@@ -26,6 +26,7 @@ ap.add_argument('--out', default='results/usbc/policy/pick/expert')
 ap.add_argument('--no_dr', action='store_true', help='nominal physics: no contact/control DR')
 ap.add_argument('--write_spread', action='store_true')
 ap.add_argument('--impratio', type=float, default=None)
+ap.add_argument('--lift_v', type=float, default=0.10, help='expert Cartesian speed after closing (m/s)')
 ap.add_argument('--hold_s', type=float, default=1.0, help='hold after lift (stability window)')
 ap.add_argument('--grip_range', type=float, nargs=2, default=None)
 ap.add_argument('--pad_mu_range', type=float, nargs=2, default=None)
@@ -53,7 +54,7 @@ print('built', round(time.time() - t0, 1), 's', flush=True)
 torch.manual_seed(a.seed)
 rows = []
 for batch in range(math.ceil(a.episodes / a.nworld)):
-    task.reset(); ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s); ex.reset()
+    task.reset(); ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v); ex.reset()
     N = a.nworld
     start_hold = {k: torch.zeros(N, *s, device=task.device) for k, s in (('p', (3,)), ('R', (3, 3)), ('tilt', ()))}
     steps = torch.zeros(N, dtype=torch.long, device=task.device)
@@ -117,6 +118,14 @@ for c in [c for c in df.columns if c.startswith('inhand_')]:
     v = df[c].values[okm]
     sp[c] = {'mean': float(v.mean()), 'std': float(v.std()), 'p1': float(np.percentile(v, 1)), 'p99': float(np.percentile(v, 99))}
 summ['inhand_spread'] = sp
+if okm.any():
+    dpos = np.sqrt(sum(df[f'inhand_d{c}_mm'].values[okm] ** 2 for c in 'xyz'))
+    drot = np.sqrt(sum(df[f'inhand_r{c}_deg'].values[okm] ** 2 for c in 'xyz'))
+    pc = lambda v: {'p50': float(np.percentile(v, 50)), 'p99': float(np.percentile(v, 99)), 'max': float(v.max())}   # noqa: E731
+    summ['inhand_magnitude'] = {'about': 'mean in-hand pose of the successes', 'pos_mm': pc(np.sqrt(sum((df[f'inhand_d{c}_mm'].values[okm] - df[f'inhand_d{c}_mm'].values[okm].mean()) ** 2 for c in 'xyz'))),
+                                'rot_deg': pc(np.sqrt(sum((df[f'inhand_r{c}_deg'].values[okm] - df[f'inhand_r{c}_deg'].values[okm].mean()) ** 2 for c in 'xyz'))),
+                                'about_nominal_pos_mm': pc(dpos), 'about_nominal_rot_deg': pc(drot),
+                                'hold_drift_mm': pc(df.hold_drift_mm.values[okm]), 'hold_rot_drift_deg': pc(df.hold_rot_drift_deg.values[okm]), 'hold_s': a.hold_s}
 print(json.dumps(summ, indent=1))
 (out.parent / f'{tag}.json').write_text(json.dumps(summ, indent=1) + '\n')
 if a.write_spread:

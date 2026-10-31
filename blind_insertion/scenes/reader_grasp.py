@@ -33,8 +33,8 @@ import numpy as np
 
 from blind_insertion.scenes.pc_bench import R_TOP_TCP
 
-TILT_DEG = 60.0               # tool axis from vertical, tipped towards the plug
-TILT_FALLBACK_DEG = (55.0, 65.0, 50.0)   # tried in order where 60 deg does not reach
+TILT_DEG = 55.0               # tool axis from vertical, tipped towards the plug (60 confirmed by the user; 55 chosen 2026-10-31: reaches all Part 2 port poses, same lift reliability)
+TILT_FALLBACK_DEG = ()        # one tilt everywhere: a single in-hand pose
 AXIAL_BEHIND_NECK = 0.0103    # centre of the touching pad spheres behind the body front (m): over the reader COM (59.5 mm from the plug tip in sim; body front 49.2 mm), so gravity puts no pivot torque on the small contact patch
 TIP_CLEARANCE = 0.001         # lowest fingertip point above the table at the grasp (m)
 APPROACH_BACK = 0.06          # pre-grasp: back off this far along -site z ...
