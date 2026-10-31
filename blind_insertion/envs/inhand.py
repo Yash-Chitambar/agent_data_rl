@@ -47,3 +47,46 @@ def sample_inhand(n, tilt_deg=60., pad_z=.058, pos_mm=3., rot_deg=8., device='cp
     R = Rr.transpose(1, 2) @ R0
     p = (Rr.transpose(1, 2) @ (p0 - pad)[:, None])[..., 0] + pad - dpos
     return R, p, torch.cat([dpos[:, 1:] * 1e3, torch.rad2deg(ang)[:, None]], 1)
+
+
+# --- measured in-hand pose (Part 1, results/usbc/policy/pick/, read through reader_grasp.inhand_pose) ------
+def _measured():
+    import json
+    from pathlib import Path
+    import pandas as pd
+    from blind_insertion.scenes import reader_grasp as G
+    s = G.inhand_pose()
+    spread = json.loads(G.SPREAD_FILE.read_text())
+    src = Path(G.SPREAD_FILE).parent / spread['source']
+    df = pd.read_parquet(src)
+    df = df[df['success'].astype(bool)]
+    cols = ['inhand_dx_mm', 'inhand_dy_mm', 'inhand_dz_mm', 'inhand_rx_deg', 'inhand_ry_deg', 'inhand_rz_deg']
+    return s, df[cols].to_numpy()
+
+
+def measured_mean(device='cpu'):
+    """(R, p): grasp_site in the reader frame at the measured mean in-hand pose (55-deg grasp)."""
+    from blind_insertion.envs import kinematics as K
+    s, _ = _measured()
+    R_rs = K.quat_to_mat(torch.tensor(s['quat_wxyz'], device=device, dtype=torch.float32)[None])[0]
+    p_rs = torch.tensor(s['pos_m'], device=device, dtype=torch.float32)
+    return R_rs.T, -R_rs.T @ p_rs
+
+
+def sample_measured(n, device='cpu', generator=None):
+    """Per-world site-in-reader poses drawn (with replacement) from the n = 2048 measured post-pick
+    in-hand poses (expert gate, about the nominal, grasp_site frame). Returns R (n,3,3), p (n,3),
+    deltas (n,6: dx, dy, dz mm, rx, ry, rz deg)."""
+    from blind_insertion.envs import kinematics as K
+    s, rows = _measured()
+    nom = s['nominal']['55.0']
+    R0 = K.quat_to_mat(torch.tensor(nom['quat_wxyz'], device=device, dtype=torch.float32)[None])[0]
+    p0 = torch.tensor(nom['pos_m'], device=device, dtype=torch.float32)
+    rows = torch.tensor(rows, device=device, dtype=torch.float32)
+    d = rows[torch.randint(len(rows), (n,), device=device, generator=generator)]
+    rv = torch.deg2rad(d[:, 3:])
+    dR = K.axis_angle_mat(rv / rv.norm(dim=1, keepdim=True).clamp(min=1e-9), rv.norm(dim=1))
+    R_rs = dR @ R0                                    # reader in site, rotated about the site frame
+    p_rs = p0 + d[:, :3] * 1e-3
+    R_sr = R_rs.transpose(1, 2)
+    return R_sr, -(R_sr @ p_rs[..., None])[..., 0], d

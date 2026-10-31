@@ -79,6 +79,9 @@ def main():
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position spread (mm)')
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--hold-force', type=float, default=25.)
+    ap.add_argument('--pad-mu', type=float, default=1.2, help='right pad friction (Part 1); <= 0 keeps the scene 1.68')
+    ap.add_argument('--impratio', type=float, default=30., help='task impratio (Part 1); <= 0 keeps the scene 100')
+    ap.add_argument('--inhand', choices=('measured', 'uniform'), default='measured', help='in-hand pose: Part 1 measured spread or uniform +/- --inhand-pos/--inhand-rot')
     ap.add_argument('--save-states', default=None, help='npz path: full qpos at every wrist estimate (DAgger data)')
     ap.add_argument('--final-iters', type=int, default=6, help='extra servo iterations at the stop gap')
     ap.add_argument('--settle-s', type=float, default=.3)
@@ -93,6 +96,7 @@ def main():
     ap.add_argument('--enc-offset-deg', type=float, default=1.5)
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--name', default=None)
+    ap.add_argument('--debug', action='store_true')
     a = ap.parse_args()
     t0 = time.time()
     torch.manual_seed(a.seed)
@@ -100,7 +104,8 @@ def main():
                                      camera_resolution=320, measured_camera_cadence=False,
                                      right_fric_comp=FRIC_COMP if a.fric_comp else None))
     rt.visual.gen.manual_seed(a.seed) if hasattr(rt.visual, 'gen') else None
-    h = Harness(rt, HarnessCfg(enc_offset_deg=a.enc_offset_deg))
+    h = Harness(rt, HarnessCfg(enc_offset_deg=a.enc_offset_deg, pad_mu=a.pad_mu if a.pad_mu > 0 else None,
+                               impratio=a.impratio if a.impratio > 0 else None))
     n, dev = h.n, h.dev
     h.reset()
     p_true, R_true = h.pc_pose()
@@ -130,14 +135,19 @@ def main():
         h.step(qr0, 1., hold.target(k * DT, ql0), -1.)
     q_hold = hold.hold_target()
     # 3. reader in hand, arm where an IK move to the look pose (believed) would put it
-    ins = RightInserter(h, InsertCfg(tilt_deg=a.tilt, inhand_pos_mm=a.inhand_pos, inhand_rot_deg=a.inhand_rot))
-    R_sr0, p_sr0 = site_in_reader(ins.cfg.tilt_deg, ins.cfg.pad_z_m, device=dev)   # believed (nominal) in-hand
+    ins = RightInserter(h, InsertCfg(tilt_deg=a.tilt, inhand_pos_mm=a.inhand_pos, inhand_rot_deg=a.inhand_rot, inhand=a.inhand))
+    if a.inhand == 'measured':                                 # believed in-hand pose: the measured mean
+        from blind_insertion.envs.inhand import measured_mean
+        R_sr0, p_sr0 = measured_mean(device=dev)
+    else:
+        R_sr0, p_sr0 = site_in_reader(ins.cfg.tilt_deg, ins.cfg.pad_z_m, device=dev)   # believed (nominal) in-hand
     ins.place()                                                # samples the true in-hand pose, solves a seed
     look = torch.tensor([0., 0., a.look_gap * 1e-3], device=dev)
     site_p = ep + (eR @ look[:, None].expand(n, 3, 1))[..., 0] + (eR @ p_sr0[:, None].expand(n, 3, 1))[..., 0]
     site_R = eR @ R_sr0
     ch = h.chain['right']
     qb, pe, re = ch.ik(site_p, site_R, ins.target.clone(), iters=150)        # believed joint target
+    print('look IK pos err mm p50/max', float(pe.median() * 1e3), float(pe.max() * 1e3), 'place ik ok', float(ins.ik_ok.float().mean()), flush=True)
     q_phys = qb + h.enc_error[:, 0]
     qa = rt.indices['right'][0]
     rt.q[:, qa] = q_phys
@@ -146,10 +156,17 @@ def main():
     rt.q[:, rt.lay.peg_qadr:rt.lay.peg_qadr + 3] = sp - (reader_R @ ins.p_sr[..., None])[..., 0]
     rt.q[:, rt.lay.peg_qadr + 3:rt.lay.peg_qadr + 7] = K.mat_to_quat(reader_R)
     rt.v[:] = 0
+    h.fresh[:] = True                  # teleported: do not replay the latency-delayed pre-teleport command
     with wp.ScopedDevice(rt.cfg.device):
         mjw.forward(rt.m, rt.d)
     cmd = qb.clone()
+    if a.debug:
+        sp_, sR_ = ch.fk(h.q('right')); tip_, rR_ = h.reader_pose()
+        print('placed: tip-from-site err mm', float(((sR_.transpose(1, 2) @ (tip_ - sp_)[..., None])[..., 0] + (ins.R_sr.transpose(1, 2) @ ins.p_sr[..., None])[..., 0]).norm(dim=1).max() * 1e3), flush=True)
+        c_ = h.contacts(); print('contacts right-pc', int(c_['right_pc'].sum()), 'arm-arm', int(c_['arm_arm'].sum()), flush=True)
     for k in range(int(a.grasp_settle_s / DT)):
+        if a.debug and k in (0, 1, 5, 20, 49):
+            tp_, _ = rel_pose(h); print('settle step', k, 'lateral p50 mm', float(tp_[:, :2].norm(dim=1).median() * 1e3), 'gap p50', float(tp_[:, 2].median() * 1e3), flush=True)
         h.step(cmd, -1., q_hold, -1.)
     p_look, rv_look = rel_pose(h)
     # 4. servo

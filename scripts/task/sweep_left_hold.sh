@@ -24,3 +24,9 @@ if [ "$1" = r2 ]; then
     run r2_press_f${F}_front_push$P --mode press --force $F --along -0.02 --push $P $P --nworld 1024
   done; done
 fi
+# Round 3 (Part 1 grasp contact: pad mu 1.2, impratio 30; latency-history fix at the teleport): `sweep_left_hold.sh r3`
+if [ "$1" = r3 ]; then
+  for F in 35 25 15; do for P in 1 3 5 10; do
+    run r3_press_f${F}_front_push$P --mode press --force $F --along -0.02 --push $P $P --nworld 1024
+  done; done
+fi
