@@ -1,0 +1,25 @@
+{
+ "policy": "runs/P4-insert-best/best.pt",
+ "n": 2048,
+ "seated": 1524,
+ "rate": 0.744140625,
+ "wilson95": [
+  0.7247975460958588,
+  0.7625695099186015
+ ],
+ "scale": 1.5,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 1524,
+  "grasp_slip": 380,
+  "lateral_miss": 143,
+  "tilt": 1
+ },
+ "strict_seated_rate": 0.01953125,
+ "seated_or_deep_rate": 0.744140625,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 0.9,
+ "t_seat_s_p95": 2.2800000000000002,
+ "pc_max_mm_p99": 1.3183654975891113,
+ "gate_pass": false
+}
