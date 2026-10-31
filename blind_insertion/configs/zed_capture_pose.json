@@ -1,0 +1,44 @@
+{
+ "what": "Arm pose for the ZED frame that feeds the v1 ZED PC-pose net (runs/perception/zed.pt) and its gate (zed_v1_gate_arm.pt). It is the recorded reference pose (data/sim_ref/2026-10-25_scene/pointed.json) = BimanualRuntime.initial_q; the net was trained only at it.",
+ "model_frame_rad": {
+  "right": [
+   1.7599374055862427,
+   0.6327584981918335,
+   0.6260706186294556,
+   -1.2663217782974243,
+   0.9840114116668701,
+   1.571107029914856
+  ],
+  "left": [
+   -1.494430422782898,
+   0.8310133218765259,
+   0.29131460189819336,
+   -0.01779443584382534,
+   -0.7293453216552734,
+   -0.7790111899375916
+  ]
+ },
+ "encoder_frame_rad": {
+  "right": [
+   1.75994,
+   0.62009,
+   0.62581,
+   -1.2895,
+   1.00347,
+   1.57111
+  ],
+  "left": [
+   -1.49443,
+   0.81006,
+   0.2985,
+   -0.02441,
+   -0.72889,
+   -0.77901
+  ]
+ },
+ "right_gripper": "fully open (sim finger joint 0.0475 m; real normalized opening 1.0)",
+ "left_gripper": "fully open",
+ "tolerance_rad": 0.05,
+ "evidence": "results/usbc/policy/approach/zed_rest_to_folded.json: v1 xy p50 0.78 mm at this pose; 17.4 mm at 10 % of the way to folded, 8.2 mm folded (sim, n = 512 each); the gate rejects all of those.",
+ "real_caveat": "The only real validation frames (bimanual_stationary_001) were taken folded and v1 was 0.4 mm from the landmark there, unlike sim folded: capture real frames at this pose to confirm (PHYSICAL_TODO section 6)."
+}
