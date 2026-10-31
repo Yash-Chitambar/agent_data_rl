@@ -33,8 +33,9 @@ def set_scale(env: InsertionTask, s: float):
     c = env.icfg
     c.lateral_m = tuple(x * s for x in BASE['lateral_m'])
     c.angle_deg = BASE['angle_deg'] * s
-    c.inhand_pos_m = tuple(x * s for x in BASE['inhand_pos_m'])
-    c.inhand_rot_deg = tuple(x * s for x in BASE['inhand_rot_deg'])
+    if c.grasp != 'part1':   # Part 1's measured in-hand spread is not scaled by the curriculum
+        c.inhand_pos_m = tuple(x * s for x in BASE['inhand_pos_m'])
+        c.inhand_rot_deg = tuple(x * s for x in BASE['inhand_rot_deg'])
     c.gap_m = BASE['gap_m']
     c.npz_scale = s          # used when start_source is Part 2's npz (lateral and angles; gap as sampled)
     env.refresh_pool()

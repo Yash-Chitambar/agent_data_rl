@@ -55,7 +55,7 @@ GRASP_TIP_CLEARANCE = 0.001
 @dataclass
 class InsertionCfg:
     task: BimanualTaskCfg = field(default_factory=lambda: BimanualTaskCfg(
-        episode_s=6., physics=BimanualCfg(contact_dr=dict(DEFAULT_CONTACT_DR), opt_overrides={"cone": 1},
+        episode_s=6., physics=BimanualCfg(contact_dr=dict(DEFAULT_CONTACT_DR), opt_overrides={"impratio": 30.0},
                                                     njmax=2000, nconmax=160)))
     history: int = 30
     # Pre-insert error of the plug relative to the port (port frame): lateral half-ranges (m) for
@@ -103,7 +103,13 @@ class InsertionCfg:
     start_source: str = 'uniform'
     npz_scale: float = 1.0
     privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
-    grasp_p: tuple | None = None        # TCP in the reader frame; None: solved by InsertionTask.grasp_height
+    grasp_p: tuple | None = None        # legacy 60-deg geometric grasp only (grasp='geometric60')
+    # In-hand pose: 'part1' = Part 1's measured pick (scenes/reader_grasp.inhand_pose(): 55-deg grasp,
+    # mean pose about the nominal, per-axis p1..p99 spread of 2048 held-out picks) with the spread x
+    # inhand_spread_scale, uniform; 'geometric60' = the earlier provisional 60-deg grasp with
+    # inhand_pos_m / inhand_rot_deg.
+    grasp: str = 'part1'
+    inhand_spread_scale: float = 1.25
 
 
 # Contact values are unmeasured. User directive (2026-10-31): choose values that let insertion work,
@@ -111,8 +117,9 @@ class InsertionCfg:
 # 3-8 ms, pad mu 0.8-2.0, pad solref 2-6 ms, squeeze x0.6-1.4) cost the privileged teacher 85 -> 71 %
 # at high port friction and more jams with soft ports (n=1024). Current (success-first) ranges:
 DEFAULT_CONTACT_DR = dict(port_friction=(0.10, 0.20), port_timeconst=(0.003, 0.004),
-                          pad_friction=(1.5, 2.0), pad_timeconst=(0.002, 0.003),
-                          grip_gain_scale=(1.0, 1.4), reader_friction=0.5)
+                          pad_friction=(1.2, 1.2), grip_gain_scale=(1.0, 1.0), reader_friction=0.5)
+# Pads match Part 1's pick (pad mu 1.2 fixed, 12 N squeeze, impratio 30, scene pad solref), so the
+# in-hand hold is the one that was measured. Earlier success-first pad ranges: mu 1.5-2.0, 2-3 ms, x1.0-1.4.
 WIDE_CONTACT_DR = dict(port_friction=(0.15, 0.6), port_timeconst=(0.003, 0.008),
                        pad_friction=(0.8, 2.0), pad_timeconst=(0.002, 0.006),
                        grip_gain_scale=(0.6, 1.4), reader_friction=0.5)
@@ -122,16 +129,36 @@ def _rpy(x):
     return K.rpy_mat(x)
 
 
-def inhand_pose(n, cfg: InsertionCfg, device, gen=None):
-    """Reader pose in the right TCP frame for the top-down side-face grasp: (R_rt, p_rt), x_tcp = R_rt x_reader + p_rt.
+def inhand_pose(n, cfg: InsertionCfg, device, gen=None, nominal=False):
+    """Reader pose in the right grasp_site (TCP) frame: (R_rt, p_rt), x_tcp = R_rt x_reader + p_rt.
 
-    Nominal geometric grasp plus uniform error (cfg.inhand_pos_m, cfg.inhand_rot_deg). Replace this
-    function (or its nominal) with the pick policy's measured grasp distribution when it exists.
+    grasp='part1': Part 1's measured in-hand distribution (reader_grasp.inhand_pose): nominal pose plus a
+    per-axis uniform offset over [p1, p99] (about its centre, x inhand_spread_scale) of the measured
+    position (site frame, mm) and rotation vector (site frame, deg). nominal=True returns the nominal.
     """
+    u = lambda *s: torch.rand(*s, device=device, generator=gen) * 2 - 1
+    if cfg.grasp == 'part1':
+        from blind_insertion.scenes.reader_grasp import TILT_DEG, inhand_pose as measured
+        m = measured()
+        nom = m['nominal'][f'{TILT_DEG:.1f}']
+        R0 = K.quat_to_mat(torch.tensor(nom['quat_wxyz'], device=device, dtype=torch.float32)[None])[0]
+        p0 = torch.tensor(nom['pos_m'], device=device, dtype=torch.float32)
+        if nominal:
+            return R0.expand(n, 3, 3).clone(), p0.expand(n, 3).clone()
+        sp = m['spread']
+        lo = lambda keys: torch.tensor([sp[k]['p1'] for k in keys], device=device)
+        hi = lambda keys: torch.tensor([sp[k]['p99'] for k in keys], device=device)
+        sample = lambda keys, f: ((lo(keys) + hi(keys)) / 2 + u(n, 3) * (hi(keys) - lo(keys)) / 2 * cfg.inhand_spread_scale) * f
+        dp = sample(('inhand_dx_mm', 'inhand_dy_mm', 'inhand_dz_mm'), 1e-3)
+        rv = sample(('inhand_rx_deg', 'inhand_ry_deg', 'inhand_rz_deg'), math.pi / 180)
+        ang = rv.norm(dim=1)
+        Rv = K.axis_angle_mat(rv / ang.clamp(min=1e-9)[:, None], ang)
+        return Rv @ R0, p0 + dp
     R_pt = torch.tensor(GRASP_R, device=device)            # tcp axes in the reader frame
     p_pt = torch.tensor(cfg.grasp_p if cfg.grasp_p is not None else (0., -0.0015, 0.049), device=device)
     R_rt0, p_rt0 = R_pt.T, -(R_pt.T @ p_pt)
-    u = lambda *s: torch.rand(*s, device=device, generator=gen) * 2 - 1
+    if nominal:
+        return R_rt0.expand(n, 3, 3).clone(), p_rt0.expand(n, 3).clone()
     rot = _rpy(u(n, 3) * torch.tensor(cfg.inhand_rot_deg, device=device) * math.pi / 180)
     dp = u(n, 3) * torch.tensor(cfg.inhand_pos_m, device=device)
     c = torch.tensor([0., 0., -0.0096], device=device)          # pad centroid (site frame): rotation centre
@@ -177,8 +204,10 @@ class InsertionTask(BimanualTask):
             self.hold = LeftHold(Harness(rt), HoldCfg(mode='press', across_m=-0.0208, along_m=-0.02,
                                                       force_n=self.icfg.hold_force_n, guarded=True))
             self._hold_yaws()
-        if self.icfg.grasp_p is None:
+        if self.icfg.grasp == 'geometric60' and self.icfg.grasp_p is None:
             self.icfg.grasp_p = self.grasp_height()
+        self.grasp_info = {'grasp': self.icfg.grasp, 'spread_scale': self.icfg.inhand_spread_scale} \
+            if self.icfg.grasp == 'part1' else self.grasp_info
         self._init_nominal()
         # buffers
         n = self.N
@@ -257,7 +286,7 @@ class InsertionTask(BimanualTask):
         rt, dev = self.runtime, self.device
         pc0 = self._pc_qpos(torch.zeros(1, device=dev), torch.zeros(1, device=dev), torch.zeros(1, device=dev))
         port_p, port_R = self._port_pose(pc0)
-        R_rt, p_rt = inhand_pose(1, InsertionCfg(inhand_pos_m=(0, 0, 0), inhand_rot_deg=(0, 0, 0), grasp_p=self.icfg.grasp_p), dev)
+        R_rt, p_rt = inhand_pose(1, self.icfg, dev, nominal=True)
         p_tip = port_p + (port_R @ torch.tensor([0., 0., .005], device=dev)[:, None])[..., 0]
         R_tw = port_R @ R_rt.transpose(1, 2)
         p_tw = p_tip - (R_tw @ p_rt[..., None])[..., 0]

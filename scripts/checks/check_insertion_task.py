@@ -39,7 +39,9 @@ def main():
     cp = rt.contact_params
     report['contact_params_min'] = cp.min(0).values.tolist()
     report['contact_params_max'] = cp.max(0).values.tolist()
-    assert (cp.std(0) > 0).all(), 'contact parameters not randomized per world'
+    dr = rt.cfg.contact_dr
+    ranged = [k for k, key in enumerate(rt.CONTACT_DR_KEYS) if key in dr and dr[key][0] < dr[key][1]]
+    assert (cp[:, ranged].std(0) > 0).all(), 'ranged contact parameters not randomized per world'
     # 2. zero action hold
     stats = {'slip': 0, 'pushed': 0, 'far': 0, 'nonfinite': 0, 'success': 0}
     hold_steps = int(2.0 / env.dt)
