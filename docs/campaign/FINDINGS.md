@@ -104,6 +104,43 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/chain`) — Bumpless hand-over, stop bias removed, round-5 approach: 99.61-99.71 % (n = 1024 each); 4096 live insertion starts saved
+
+**Hand-over drift was the feed-forward switch-off, not the controller switch.** From the same saved state at the
+end of the approach (n = 256): holding the approach command for 0.2 s with the right-arm Coulomb feed-forward on moves
+the plug 0.006 mm (p50); with it off 0.46 mm p50 / 1.14 mm p99 (y -0.19 mm, gap +0.17 mm), identical whether the
+harness or InsertionTask's accumulated-target controller drives the arm. Target reset, latency buffer and gravcomp
+contribute nothing. The FF had been holding the arm against its own friction/gravity residual; the policies run
+without it, so the arm sagged by the deadband.
+- **Fix (`--handover torque`, default):** the insertion's initial accumulated target = the approach's last command
+  + tau_ff / kp (the feed-forward torque folded into the PD target: p99 9 mrad), FF off, latency buffer filled with
+  the new target. Joint torque is continuous at the switch: warm-up change p99 0.01 mm (was 0.97 mm), max 0.05 mm.
+- Turning the FF off for the last 1-3 servo iterations instead (the servo then corrects the sag) is also bumpless but
+  the servo stalls in the friction deadband: pre-insert lateral p99 1.7-1.8 mm and a -0.3 mm bias (n = 256 each).
+  Keeping the FF during insertion: 241/256 (the policies were trained without it).
+- **Stop bias:** with round 5 (wrist_v12w / v12ws, offsets x -0.06, y -0.10 mm) the chain's stop mean was
+  (-0.07, -0.24) mm (seed 6000, n = 256; round 5 alone: -0.03 / -0.04). Chain-calibrated offset (0, +0.12) mm on the
+  servo target: eval mean (+0.04, +0.03) mm.
+
+**Result (round-5 approach + ZED arm-pose gate `zed_v1_gate_arm`, hold 2 cm 25 N, torque hand-over, seeds 7000-7001):**
+
+| Insertion | n | End to end | Wilson 95 % | Failures | Arm-arm |
+|---|---|---|---|---|---|
+| v10dr | 1024 | **99.71 %** | [99.14, 99.90] | 3 stuck at the mouth | 0 |
+| v6 s2 | 1024 | 99.61 % | [99.00, 99.85] | 4 stuck at the mouth | 0 |
+
+Stages before insertion 1024/1024 in both (ZED gate incl. arm-pose check accepts 100 %, xy p50 0.77 / p99 2.79 mm).
+Pre-insert at the hand-over = what the policy sees: lateral p50 0.28 / p99 1.1 mm, tilt p99 0.65 deg (before:
+warm-up lateral p99 1.91 mm). The remaining failures start 0.2-1.4 mm off and stall at the mouth (one world, 218,
+fails in every run): insertion-policy failures, not hand-over.
+
+**Live insertion starts for training:** `runs/chain/handover/handover_r5_hold020_n4096.npz` (outside git; seeds
+10000-10007, 4096 worlds, chain stopped at the insertion start). Keys: InsertionTask.reset(ids, starts) keys (pc,
+q_right, reader, fingers, q_left_hover, q_left_press, inhand_R, inhand_p, err_p, err_ang) + exact restore (qpos, qvel,
+ctrl, qacc_warmstart, enc_error, latency, joint_target incl. the torque hand-over offset, sent_history, left_press_q)
++ per-world DR (dof_frictionloss, gravity_scale, geom_friction, geom_solref, actuator_gainprm, contact_params).
+Loader: `eval_chain.load_handover(path)`.
+
 ### 2026-11-01 (mason, `policy/approach-hold`) — Round 5: chain-surfaced issues (elliptic cones, ZED arm poses, hold contact, plug bias)
 
 All with elliptic cones + impratio 30 (the chain and Part 4 solver) unless noted.

@@ -89,15 +89,30 @@ def parse(argv=None):
     ap.add_argument('--settle-s', type=float, default=.3)
     ap.add_argument('--ramp-s', type=float, default=.5)
     ap.add_argument('--grasp-settle-s', type=float, default=1.)
-    ap.add_argument('--wrist-net', default='wrist_v10w')
-    ap.add_argument('--fine-net', default='wrist_v10ws', help='stop-gap specialist used at waypoints <= --fine-below-mm (round 4 final)')
+    ap.add_argument('--wrist-net', default='wrist_v12w', help='round 5 (elliptic DAgger); round 4: wrist_v10w')
+    ap.add_argument('--fine-net', default='wrist_v12ws', help='stop-gap specialist used at waypoints <= --fine-below-mm (round 4 final)')
     ap.add_argument('--fine-below-mm', type=float, default=7., help='0: coarse net only')
     ap.add_argument('--servo', choices=('wrist', 'oracle'), default='wrist', help='oracle: privileged relative pose (diagnostic)')
-    ap.add_argument('--handover', choices=('cmd', 'measured'), default='cmd',
-                    help='insertion start target: the approach command (holds the pose) or the measured angles (as at an InsertionTask reset)')
+    ap.add_argument('--handover', choices=('torque', 'cmd', 'measured'), default='torque',
+                    help="insertion start target. 'torque' (bumpless): the approach command plus the feed-forward torque folded into "
+                         "the PD target (tau_ff / kp), then the feed-forward is off, so the joint torque does not change at the switch; "
+                         "'cmd': the approach command (the feed-forward drop sags the plug); 'measured': encoder angles (InsertionTask reset)")
     ap.add_argument('--insert-reader-mu', type=float, default=-1.,
                     help='reader geom friction from the insertion handover on (Part 4 trained with 0.5; Part 1 samples U(0.4, 1) for '
                          'reader-table). <= 0: keep the per-world pick value')
+    ap.add_argument('--ff-off-final', type=int, default=0,
+                    help='bumpless hand-over: switch the right-arm Coulomb feed-forward off before the last N servo iterations, so the '
+                         'stop pose is measured and corrected under the insertion controller (no FF). 0: FF on until the hand-over '
+                         '(dropping it there sags the plug: lateral +0.46 mm p50 / +1.14 mm p99, y -0.19 mm in 0.2 s, n = 256)')
+    ap.add_argument('--ff-off-settle-s', type=float, default=.6, help='settle time of the servo iterations without FF (s)')
+    ap.add_argument('--stop-offset-mm', type=float, nargs=3, default=(0., .12, 0.),
+                    help='servo target offset in the port frame (x, y mm at every waypoint, gap mm at the stop): corrects a measured mean '
+                         'bias; round 5 alone uses (-0.06, -0.10); the chain (torque hand-over) measured mean (-0.07, -0.24) mm with that on seed 6000 '
+                         '(n = 256), so the chain default is (0, +0.12): mean (+0.03, +0.10) at (0, +0.14)')
+    ap.add_argument('--zed-gate', default='zed_v1_gate_arm', help='presence/OOD gate weights (runs/perception/<name>.pt); zed_v1_gate_arm adds the arm-pose envelope')
+    ap.add_argument('--insert-ff', choices=('off', 'keep'), default='off', help='right-arm feed-forward during the insertion (policies trained without)')
+    ap.add_argument('--save-handover', default='', help='npz path: full sim state at the insertion start (InsertionTask start keys + controller + DR)')
+    ap.add_argument('--stop-at-handover', action='store_true', help='skip the insertion (with --save-handover)')
     ap.add_argument('--policy', default=INSERT_CKPT)
     ap.add_argument('--insert-s', type=float, default=10.)
     ap.add_argument('--visual-dr', type=int, default=1)
@@ -141,7 +156,7 @@ class Chain:
         pcfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device=dev, task_layout=PICK_LAYOUT), episode_s=13.)
         self.pick = PickTask(pcfg, runtime=rt)
         self.h = Harness(rt, HarnessCfg())
-        self.zed = ZedEstimator(dev, pose=str(ROOT / 'runs/perception/zed.pt'), presence=str(ROOT / 'runs/perception/zed_presence.pt'))
+        self.zed = ZedEstimator(dev, pose=str(ROOT / 'runs/perception/zed.pt'), presence=str(ROOT / f'runs/perception/{a.zed_gate}.pt'))
         self.wrist = wrist_loader(a.wrist_net, dev)
         self.fine = wrist_loader(a.fine_net, dev) if a.fine_below_mm > 0 else None
         self.ac, self.ck = load_policy(ROOT / a.policy, dev)
@@ -183,8 +198,13 @@ class Chain:
 
     # ------------------------------------------------------------------ stages
     def zed_estimate(self):
+        """ZED pose + gate; the arm-pose gate reads the encoders (believed angles) and the right finger opening."""
         fr = self.render()['top']
-        return self.zed(fr)
+        rt, ee = self.rt, self.pick.enc_error
+        ql = rt.q[:, rt.indices['left'][0]] - ee[:, 1]
+        qr = rt.q[:, rt.indices['right'][0]] - ee[:, 0]
+        fo = rt.q[:, self.pick.finger_qadr].mean(1)
+        return self.zed(fr, arms=(ql, qr, fo))
 
     def stage_pick(self, log):
         task = self.pick
@@ -329,7 +349,10 @@ class Chain:
                 rel_p_est, rel_rv_est = e[:, :3] * 1e-3, torch.deg2rad(e[:, 3:])
             else:
                 rel_p_est, rel_rv_est = self.rel_pose()
-            tgt_p = torch.tensor([0., 0., g], device=dev).expand(n, 3)
+            if a.ff_off_final and it == len(sched) - a.ff_off_final:
+                self.rt.comp['right'] = None          # insertion controller from here on (bumpless hand-over)
+            ox, oy, og = a.stop_offset_mm
+            tgt_p = torch.tensor([ox * 1e-3, oy * 1e-3, g + og * 1e-3 * (g <= stop + 1e-9)], device=dev).expand(n, 3)
             rv = -rel_rv_est
             final = it >= len(sched) - a.final_iters
             if final and it >= len(sched) - a.final_pos_only:
@@ -349,7 +372,8 @@ class Chain:
             for k in range(nr):
                 u = (k + 1) / nr; u = u * u * (3 - 2 * u)
                 self.hstep(prev + (cmd - prev) * u, q_hold, '4 approach')
-            for k in range(int(a.settle_s / self.dt)):
+            settle = a.settle_s if self.rt.comp['right'] is not None else max(a.settle_s, a.ff_off_settle_s)
+            for k in range(int(settle / self.dt)):
                 self.hstep(cmd, q_hold, '4 approach')
         tp, trv = self.rel_pose()
         ip1, iR1 = self.inhand()
@@ -362,14 +386,24 @@ class Chain:
 
     def stage_insert(self, cmd, q_hold, log):
         env, rt, h, n, dev = self.env, self.rt, self.h, self.n, self.dev
-        rt.comp['right'] = None                       # the insertion policy was trained without the feed-forward
+        self.ff_was_on = rt.comp['right'] is not None
+        rt.comp['right'] = self.fric if self.a.insert_ff == 'keep' else None   # the policies were trained without the feed-forward
         if self.a.insert_reader_mu > 0:
             rt.geom_friction[:, self.pick.reader_geoms, 0] = self.a.insert_reader_mu
-        env.enc_error.copy_(h.enc_error); env.latency.copy_(h.latency); env.sent_history.copy_(h.hist)
+        env.enc_error.copy_(h.enc_error); env.latency.copy_(h.latency)
         meas = env._measured_model_angles()
         env.joint_target.copy_(meas)
-        if self.a.handover == 'cmd':
+        if self.a.handover in ('cmd', 'torque'):
             env.joint_target[:, 0] = cmd
+        if self.a.handover == 'torque' and self.a.insert_ff == 'off' and self.fric is not None:
+            # torque the feed-forward applied at the last step (runtime.step: FF from the latency-delayed physical target)
+            sent = h.hist[h.latency, torch.arange(n, device=dev), :6]
+            tau_ff = FC.feedforward(sent - rt.q[:, rt.indices['right'][0]], *self.fric)
+            if self.ff_was_on:
+                env.joint_target[:, 0] = cmd + tau_ff / h.kp[0]
+                log['handover_ff_dq_mrad'] = (tau_ff / h.kp[0]).abs().max(1).values * 1e3
+            h.hist[:, :, :6] = (env.joint_target[:, 0] + env.enc_error[:, 0])[None]     # no stale command in the latency buffer
+        env.sent_history.copy_(h.hist)
         env.left_press_q.copy_(q_hold)
         env.steps.zero_(); env.seated_steps.zero_(); env.done.zero_(); env.previous_action.zero_()
         env.pc_start.copy_(rt.q[:, rt.pc_qadr:rt.pc_qadr + 7])
@@ -380,6 +414,10 @@ class Chain:
         env.phi.copy_(env._potential())
         o = env._actor_obs()
         env.hist = o[:, None].expand(-1, env.icfg.history, -1).clone()
+        if self.a.save_handover:
+            self.handover = self.handover_state(log)
+        if self.a.stop_at_handover:
+            return
         outcome = [None] * n
         t_seat = torch.full((n,), float('nan'), device=dev)
         final_rec = {}
@@ -407,6 +445,34 @@ class Chain:
         log.update(insert_success=torch.tensor([o_ == 'seated' for o_ in outcome], device=dev), insert_t_s=t_seat, insert_pc_max_mm=pc_max * 1e3,
                    insert_end_z_mm=torch.tensor([final_rec.get(w, (np.nan,) * 4)[2] * 1e3 for w in range(n)], device=dev))
         log['insert_outcome'] = outcome
+
+    def handover_state(self, log):
+        """Full state at the insertion start, per world (before the first insertion step).
+
+        InsertionTask.reset(ids, starts) keys: pc, q_right, reader, fingers, q_left_hover, q_left_press, inhand_R,
+        inhand_p, err_p, err_ang (q_left_press is the force offset such that q_left_hover - enc_error_left +
+        q_left_press = the latched hold target, as in InsertionTask's guarded hold; err_ang is the rotation vector,
+        InsertionTask samples rpy angles: equal to first order). Exact restore (with the same per-world physics):
+        qpos, qvel, ctrl, qacc_warmstart, enc_error, latency, joint_target, sent_history (N, L, 14), left_press_q,
+        and the per-world DR: dof_frictionloss, gravity_scale, geom_friction[:, :, 0], geom_solref[:, :, 0],
+        actuator_gainprm[:, :, 0], contact_params."""
+        env, rt = self.env, self.rt
+        qr, ql = rt.indices['right'][0], rt.indices['left'][0]
+        pa = rt.lay.peg_qadr
+        rel = env._reader_in_tcp()
+        q_left = rt.q[:, ql]
+        tp, trv = self.rel_pose()
+        s = dict(pc=rt.q[:, rt.pc_qadr:rt.pc_qadr + 7], q_right=rt.q[:, qr], reader=rt.q[:, pa:pa + 7],
+                 fingers=rt.q[:, env.finger_q], q_left_hover=q_left,
+                 q_left_press=env.left_press_q - (q_left - env.enc_error[:, 1]),
+                 inhand_R=rel[:, :3, :3], inhand_p=rel[:, :3, 3], err_p=tp, err_ang=trv,
+                 qpos=rt.q, qvel=rt.v, ctrl=rt.ctrl, qacc_warmstart=wp.to_torch(rt.d.qacc_warmstart),
+                 enc_error=env.enc_error, latency=env.latency, joint_target=env.joint_target,
+                 sent_history=env.sent_history.transpose(0, 1), left_press_q=env.left_press_q,
+                 dof_frictionloss=rt.frictionloss, gravity_scale=rt.gravity_scale, geom_friction=rt.geom_friction[..., 0],
+                 geom_solref=rt.geom_solref[..., 0], actuator_gainprm=rt.actuator_gainprm[..., 0],
+                 contact_params=rt.contact_params, seed=torch.full((self.n,), self.seed, device=self.dev))
+        return {k: v.detach().clone() for k, v in s.items()}
 
     # ------------------------------------------------------------------ episode
     def run_batch(self, seed, record_ids=None):
@@ -469,10 +535,28 @@ class Chain:
         q_look = self.stage_transport(qr, q_hold, ep, eR, log)
         cmd = self.stage_approach(q_look, q_hold, ep, eR, log)
         self.stage_insert(cmd, q_hold, log)
+        if a.stop_at_handover:
+            for k in ('insert_success', 'insert_t_s', 'insert_pc_max_mm', 'insert_end_z_mm'):
+                log[k] = torch.full((n,), float('nan'), device=dev)
+            log['insert_outcome'] = ['not_run'] * n
         log['finite_end'] = torch.isfinite(rt.q).all(1)
         out = {k: (v.detach().float().cpu().numpy() if torch.is_tensor(v) else np.asarray(v)) for k, v in log.items()}
         out['seed'] = np.full(n, seed)
         return out
+
+
+START_KEYS = ('pc', 'q_right', 'reader', 'fingers', 'q_left_hover', 'q_left_press', 'inhand_R', 'inhand_p', 'err_p', 'err_ang')
+
+
+def load_handover(path, device='cuda:0', idx=None):
+    """Saved live hand-over states -> (starts, extra). `starts` has the InsertionTask.reset(ids, starts) keys
+    (float32 torch tensors); `extra` the exact-restore arrays (qpos, qvel, ctrl, qacc_warmstart, enc_error, latency,
+    joint_target, sent_history, left_press_q, per-world DR) and labels (seed, outcome, e2e_class)."""
+    z = np.load(path)
+    idx = slice(None) if idx is None else idx
+    starts = {k: torch.as_tensor(z[k][idx], device=device, dtype=torch.float32) for k in START_KEYS}
+    extra = {k: z[k][idx] for k in z.files if k not in START_KEYS}
+    return starts, extra
 
 
 def classify(df):
@@ -557,15 +641,26 @@ def main(argv=None):
     if a.demo:
         from demo_chain import render_demos   # scripts/eval/demo_chain.py
         return render_demos(ch, a)
-    rows = []
+    rows, hand = [], []
     for b in range(a.batches):
         tb = time.time()
         out = ch.run_batch(a.seed + b)
         df = pd.DataFrame(out)
         df['e2e_class'] = classify(df)
         rows.append(df)
+        if a.save_handover:
+            hs = {k: v.cpu().numpy() for k, v in ch.handover.items()}
+            hs['outcome'] = np.array(df.insert_outcome.values, dtype='U16')
+            hs['e2e_class'] = np.array(df.e2e_class.values, dtype='U24')
+            hand.append(hs)
         print(f'batch {b}: e2e {int((df.e2e_class == "success").sum())}/{len(df)} {df.e2e_class.value_counts().to_dict()} ({time.time() - tb:.0f} s)', flush=True)
     df = pd.concat(rows, ignore_index=True)
+    if hand:
+        out = {k: np.concatenate([h_[k] for h_ in hand]) for k in hand[0]}
+        out['qpos_names'] = np.array(['see blind_insertion.envs.bimanual_runtime: runtime.indices / pc_qadr / lay.peg_qadr'])
+        Path(a.save_handover).parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(a.save_handover, **out)
+        print('saved hand-over states', a.save_handover, len(out['qpos']), flush=True)
     rep = summarize(df, a, time.time() - t0)
     OUT.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUT / f'{a.name}.csv', index=False)

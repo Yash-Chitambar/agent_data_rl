@@ -268,6 +268,8 @@ the live state → InsertionTask seated test. Stages before insertion: 1024/1024
 
 | Insertion | Hold | n | End to end |
 |---|---|---|---|
+| **v10dr, round-5 approach, bumpless hand-over** | 2 cm | 1024 | **99.71 %** [99.14, 99.90] |
+| v6 s2, same | 2 cm | 1024 | 99.61 % [99.00, 99.85] |
 | v6 s2 | 2 cm (Part 4 training) | 1024 | **99.80 %** |
 | v6 s2 | 3.5 cm (Part 3 round 4) | 1024 | 96.00 % |
 | v10dr (hold DR) | 2 cm / 3.5 cm | 1024 each | 99.22 % / 99.22 % |
@@ -276,8 +278,9 @@ the live state → InsertionTask seated test. Stages before insertion: 1024/1024
 - The blind policy observes the left encoders: the hold pose (press point, tool yaw) must be the one
   Part 4 trained with. v10dr (trained with the press point randomized) is insensitive to the press point (99.22 % at both) but
   below v6 at 2 cm; with Part 3's 3.5 cm hold use v10dr. Script default: v10dr, 2 cm (`P4_INSERT_BEST` selects v6).
-- Pre-insert error in the chain matches Part 2 (lateral p99 1.48 mm, tilt p99 0.86°); it grows by ~0.3 mm
-  in the insertion warm-up. Remaining failures: stuck at the port mouth from starts ~0.3-0.9 mm low.
+- Hand-over (2026-10-31, later): bumpless (feed-forward torque folded into the first insertion target); stop bias
+  removed; pre-insert at the policy's start lateral p99 1.1 mm. Remaining failures: insertion policy at the mouth from
+  0.2-1.4 mm starts. 4096 live insertion starts saved for training (`runs/chain/handover/`, FINDINGS).
 - Demos: `results/usbc/policy/chain/demos/` (ZED + both wrists + close-up, real time). Details: FINDINGS
   2026-10-31 (`policy/chain`).
 
