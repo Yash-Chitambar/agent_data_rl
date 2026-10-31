@@ -27,7 +27,7 @@ Every training episode and every demo is drawn from this. Seed 0 reproduces the 
 | Arm dynamics | Coulomb friction, gravity scale | ×U(0.5, 1.3), ±0.04 (identified profile) |
 | Control | action delay; encoder offsets | 0–1 control step (measured ~8 ms); ±1.5° on joints 2–5 (done: `BimanualTaskCfg.latency_steps`, `enc_offset_deg`) |
 | Contact | plug–port friction; pad friction and stiffness; PC-feet friction | to set; to set; μ U(0.3, 0.9) |
-| Layout | PC pose; reader pose | nominal ±3 cm, ±10°; reader region 0.20 m², yaw ±90° (placement search) |
+| Layout | PC pose; reader pose | PC nominal ±3 cm, ±10°; reader: a compact window between the right arm base and the PC (user decision 2026-10-31: smaller is fine if it raises success), yaw ±30° to start; defined by the pick agent from reach + lift reliability |
 | Grasp | in-hand reader position and tilt | to set from real grasp captures (new grasp) |
 | **Appearance** (slide 15) | colours of PC case, reader, table, backdrop, arms; flat to glossy; patterns on table and backdrop mixed with the real ones | per episode |
 | **Lighting** (slide 15) | elevation 35–90°, intensity 0.3–1.0, 3200–6500 K, shadows half the time | per episode |
