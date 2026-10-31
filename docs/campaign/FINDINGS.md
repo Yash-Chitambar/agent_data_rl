@@ -121,10 +121,17 @@ Part 4 blind PPO from the live state (InsertionTask success test: 0.2 s seated, 
 |---|---|---|---|---|---|
 | **v6 s2 (Part 4 best)** | **2 cm in front of the case centre (Part 4 training value)** | 1024 | **99.80 %** | [99.29, 99.95] | 2 stuck at the mouth |
 | v6 s2 | 3.5 cm (Part 3 round 4) | 1024 | 96.00 % | [94.61, 97.04] | 41 stuck at the mouth |
+| v10dr (hold DR 1.5-4 cm) | 2 cm | 1024 | 99.22 % | [98.47, 99.60] | 7 mouth, 1 jam; 0 arm-arm |
+| v10dr | 3.5 cm | 1024 | 99.22 % | [98.47, 99.60] | 8 mouth; 5 arm-arm (hold engage) |
 | v5 s0 | 2 cm | 1024 | 98.54 % | [97.60, 99.11] | 14 mouth, 1 slip |
 | v5 s0 | 3.5 cm | 1024 | 97.66 % | [96.54, 98.42] | 23 mouth, 1 slip |
 
-Every stage before the insertion passed 1024/1024 in all four runs (ZED gate, pick, hold latch,
+v10dr (policy/insertion 7e9ef6e, trained with the press point randomized 1.5-4 cm) removes the hold-position
+sensitivity (99.22 % at both points) but is 0.6 points below v6 at 2 cm; its own eval on chain starts gave 100 % /
+99.95 %. Its 16 chain failures again start low (pre-insert y -0.2 to -4 mm, warm-up lateral 0.3-4.6 mm) and stall
+at the mouth: the live hand-over (warm-up drift, true in-hand state) is harder than sampled chain starts.
+Hold yaw for all runs: InsertionTask's rule (best yaw at the nominal PC pose +/- 15 deg, not LeftHold's -90..90).
+Every stage before the insertion passed 1024/1024 in all six runs (ZED gate, pick, hold latch,
 transport, approach). Gate (≥ 98 %, n ≥ 500) passes with v6 + the 2 cm hold.
 
 **Mismatches (most valuable):**
