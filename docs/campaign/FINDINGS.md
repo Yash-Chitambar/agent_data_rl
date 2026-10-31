@@ -131,6 +131,10 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
   tilt p50 1.08°, max 2.40°; in-hand spread (grasp_site frame) std 0.35 / 0.10 / 0.44 mm and
   0.12 / 0.14 / 0.02°. Sim-only: real pad compliance, friction and squeeze are unmeasured, so Part 4
   should randomize the in-hand pose wider until real grasp captures exist.
+- **Longer holds creep (impratio 10):** a 10 s hold after lift (n = 1024, seed 4000) keeps every
+  reader (no drops, tilt max 3.1°) but the in-hand rotation drifts median 0.47°, p99 1.5°, max
+  2.1° (7.3 % exceed 1°); it grows with pad μ, so it is numerical (soft friction), not slip.
+  Part 2/4 carries last several seconds: randomize the in-hand pose for that drift.
 - **Open:** the pad model (rigid spheres, 2 ms) loads one sphere per side; a box pad collides with
   nothing against the reader mesh (CPU, `mj_geomDistance` -0.2 mm but no contact). A pull test on
   the real gripper (μ, squeeze, slip) is the measurement this grasp depends on.

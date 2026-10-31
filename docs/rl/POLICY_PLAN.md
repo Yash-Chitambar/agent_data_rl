@@ -99,7 +99,8 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   after lift p50 1.08°, p99 1.78°, max 2.40°. Episode 7.6 s (p50).
 - **In-hand pose spread** (grasp_site frame, about the nominal; n = 2048): position mean/std
   x -0.70/0.35, y -0.07/0.10, z -0.21/0.44 mm (p1-p99 x -1.36..0.21, z -1.87..0.34); rotation
-  vector std 0.12, 0.14, 0.02°. This is the sim spread only: Part 4 should randomize at least
+  vector std 0.12, 0.14, 0.02°. A 10 s hold adds in-hand rotation creep (median 0.47°, max 2.1°,
+  n = 1024; numerical, grows with pad μ). This is the sim spread only: Part 4 should randomize at least
   ±2 mm / ±3° until real grasp captures exist.
 - **ACT:** demos `scripts/policy/gen_pick_demos.py` (visual DR moderate defaults, RGB only, DART
   on 50 %), `scripts/policy/pick_to_lerobot.py`, `scripts/act/train_act.sh`,
