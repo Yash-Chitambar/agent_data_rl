@@ -29,9 +29,12 @@ REF = json.loads(Path('results/usbc/bimanual_20261029/overlays/manifest.json').r
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser(); ap.add_argument('--net', default='zed'); ap.add_argument('--out', default='results/usbc/policy/approach/real_zed_check.json')
+    a = ap.parse_args()
     dev = torch.device('cuda:0')
-    ck = torch.load('runs/perception/zed.pt', map_location=dev)
-    net = PoseNet(len(ck['scale']), ck['size']).to(dev); net.load_state_dict(ck['net']); net.eval()
+    ck = torch.load(f'runs/perception/{a.net}.pt', map_location=dev)
+    net = PoseNet(ck.get('n_out', len(ck['scale'])), ck['size'], width=ck.get('width', 32)).to(dev); net.load_state_dict(ck['net']); net.eval()
     sc = ck['scale'].to(dev)
     out = {'method': __doc__.strip(), 'reference': REF, 'sessions': {}}
     crops = []
@@ -42,7 +45,7 @@ def main():
         imgs = np.stack([real_top_policy_image(cv2.imread(f), 320) for f in files])
         x = zed_crop(torch.tensor(imgs, device=dev))
         with torch.no_grad():
-            e = torch.cat([net(x[i:i + 64]) for i in range(0, len(x), 64)]) * sc
+            e = torch.cat([net(x[i:i + 64])[:, :len(sc)] for i in range(0, len(x), 64)]) * sc
         e = e.cpu().numpy()
         port = np.array(NOMINAL['port_xy']) + e[:, :2] * 1e-3
         s = {'n_frames': len(files), 'port_xy_m_mean': port.mean(0).tolist(), 'port_xy_mm_std': (port.std(0) * 1e3).tolist(),
@@ -54,9 +57,10 @@ def main():
                                     'mean_dist': float(np.linalg.norm(d.mean(0))), 'yaw_vs_reference_deg': float(e[:, 2].mean() - REF['pc_yaw_deg'])}
         out['sessions'][sess] = s
         crops.append(x[0].cpu().numpy())
-        print(sess, json.dumps(s))
-    Path('results/usbc/policy/approach/real_zed_check.json').write_text(json.dumps(out, indent=1) + '\n')
-    cv2.imwrite('results/usbc/policy/approach/views/real_zed_crops.png',
+        if sess == REF['trial']:
+            print(sess, json.dumps(s))
+    Path(a.out).write_text(json.dumps(out, indent=1) + '\n')
+    if a.net == 'zed': cv2.imwrite('results/usbc/policy/approach/views/real_zed_crops.png',
                 cv2.cvtColor(np.concatenate([np.concatenate(crops[i:i + 6], 1) for i in range(0, len(crops) - len(crops) % 6, 6)], 0), cv2.COLOR_RGB2BGR))
 
 
