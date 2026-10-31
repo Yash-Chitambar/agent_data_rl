@@ -127,6 +127,7 @@ one V100), n = 2048 per row:
 
 | Scale | Eval seed | Seated | Wilson 95 % | Failures |
 |---|---|---|---|---|
+| 0.5 | 1000 | 99.95 % | [99.72, 99.99] | 1 slip |
 | 1.0 | 1000 | 99.95 % | [99.72, 99.99] | 1 stuck at mouth |
 | **1.5** | 1000 | **99.76 %** | [99.43, 99.90] | 4 stuck at mouth, 1 slip |
 | **1.5** | 2000 (independent) | **99.85 %** | [99.57, 99.95] | 2 stuck at mouth, 1 slip |
