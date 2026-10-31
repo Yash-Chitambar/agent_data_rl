@@ -104,6 +104,34 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 3: hold 25 N; approach with the measured grasp and DAgger
+
+Current DR (policy/v1 3829c31 + e94a268): PC +/-1.5 cm / +/-5 deg, PC feet mu U(0.8, 1.0); Part 1 grasp:
+55 deg, pad mu 1.2, impratio 30, measured in-hand poses (bootstrap of the n = 2048 post-pick poses).
+
+- **Bug (fixed):** after teleporting the right arm (Part 2/3 harness), the latency buffer replayed the
+  pre-teleport command for one step: a jerk towards the home pose. With the measured grasp it threw
+  the reader out (look-pose error 40-90 mm); with the old grasp it made the reader slip (the "~10 deg
+  in-hand rotation" of round 1 was this artifact). All round-1/2 approach numbers carry it. Fix:
+  `Harness.fresh` set at every teleport.
+- **Hold (n = 1024 per cell, PC still < 0.5 mm / < 0.5 deg over 2 s, axial push at the port):**
+  15 N: 1 N 100 %, 3 N 98.1 %, 5 N 97.2 %, 10 N 91.2 %; **25 N: 100 / 99.3 / 98.3 / 95.5 %**; 35 N: 100 / 99.0 /
+  98.1 / 95.9 %. 25 N matches 35 N with left joint 2 at ~8.5 N m instead of ~12 N m: recommended. impratio 30
+  helps the feet too (35 N, 3 N: 99.0 % vs 97.0 % at impratio 100). No arm-arm contact, no non-finite world.
+- **Approach floor** (servo with a perfect estimate, roll corrected at the stop gap): lateral p99 0.11 mm,
+  tilt p99 0.31 deg, roll p99 0.12 deg (n = 1024). The estimator is the whole error.
+- **DAgger:** re-rendering the states the servo visits (fresh visual DR each time) and fine-tuning:
+  v5 (old in-hand, no in-loop data at this grasp) lateral p50 1.21 / p99 4.9 mm -> v6 (one round) 0.52 / 2.08 ->
+  v7 (two rounds) 0.43 / 2.21, tilt p99 1.27 deg, roll p99 < 1.1 deg (n = 1024 each).
+  **v8 (three rounds, 32,768 in-loop renders): lateral p50 0.37 / p99 1.98 / p99.5 2.21 mm, tilt p99 1.12 deg,
+  roll p99 0.68 deg, gap error p99 1.22 mm, 90.5 % inside 1 mm / 2 deg (n = 1024, all finite).** Tilt and roll
+  meet the <= 3 deg target; lateral p99 misses 1.5 mm by ~0.5 mm. Ensemble v7+v6: p99 1.96 mm (no gain).
+  Deliverable: `results/usbc/policy/approach/preinsert_error.json` (+ `preinsert_error_samples.npz`).
+- Did not help: a full-resolution centre crop "fine" net for the last 12 mm (in loop 0.91 / 4.3 mm); multi-frame
+  averaging (round 1). The residual is a per-episode bias, mostly vertical (y p99 2.0 mm vs x 1.2 mm): the wrist
+  camera looks along the plug. A second RGB view from the side (e.g. a small camera on the table or on the
+  left gripper looking across the panel) is the next lever; not added (needs a rig mount and a scene change).
+
 ### 2026-10-31 (mason, `policy/pick`) — Part 1 final config: tilt 55°, yaw ±10° window, fixed pad μ; gate 2048/2048
 
 - After the "maximize sim success" directive: grasp tilt 55° (no fallback), reader window x

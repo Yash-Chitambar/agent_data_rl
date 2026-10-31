@@ -170,7 +170,11 @@ def main():
         h.step(cmd, -1., q_hold, -1.)
     p_look, rv_look = rel_pose(h)
     # 4. servo
-    wrist = load(a.coarse_net, dev) if a.servo == 'wrist' else None
+    wrist = None
+    if a.servo == 'wrist':                       # comma-separated names: ensemble (mean of the estimates)
+        nets = [load(nm, dev) for nm in a.coarse_net.split(',')]
+        wrist = (lambda x: torch.stack([n_(x) * s_ for n_, s_ in nets]).mean(0), torch.ones(1, device=dev))
+        a.coarse_net = a.coarse_net.split(',')[0]
     fine = load(a.fine_net, dev) if a.servo == 'wrist' and a.fine_below_mm > 0 else None
     two = a.fine_net.startswith('wrist2')
     stop = a.stop * 1e-3
