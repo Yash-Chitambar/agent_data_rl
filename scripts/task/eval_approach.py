@@ -49,7 +49,7 @@ FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005
 def load(which, dev):
     ck = torch.load(f'runs/perception/{which}.pt', map_location=dev)
     load.mode[which] = ck.get('wrist_mode', 'resize')
-    net = (TwoViewPoseNet if ck['which'] == 'wrist2' else PoseNet)(len(ck['scale']), ck['size']).to(dev)
+    net = (TwoViewPoseNet if ck['which'] == 'wrist2' else PoseNet)(len(ck['scale']), ck['size'], width=ck.get('width', 32)).to(dev)
     net.load_state_dict(ck['net']); net.eval()
     return net, ck['scale'].to(dev)
 
@@ -79,6 +79,11 @@ def main():
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position spread (mm)')
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--hold-force', type=float, default=25.)
+    ap.add_argument('--elliptic', action='store_true', help='elliptic friction cones + impratio 30 (as the chain and Part 4)')
+    ap.add_argument('--task-layout', default=None, help='BimanualCfg.task_layout (results/usbc/policy/pick/task_layout.json: reader on the Part 1 strip)')
+    ap.add_argument('--x-offset-mm', type=float, default=0., help='servo target offset along port x (mm)')
+    ap.add_argument('--y-offset-mm', type=float, default=0., help='servo target offset along port y (mm): removes a measured mean bias')
+    ap.add_argument('--hold-along', type=float, default=-.02, help='press point from the case centre toward the rear (m); -0.035 = round-4 hold')
     ap.add_argument('--pad-mu', type=float, default=1.2, help='right pad friction (Part 1); <= 0 keeps the scene 1.68')
     ap.add_argument('--impratio', type=float, default=30., help='task impratio (Part 1); <= 0 keeps the scene 100')
     ap.add_argument('--inhand', choices=('measured', 'uniform'), default='measured', help='in-hand pose: Part 1 measured spread or uniform +/- --inhand-pos/--inhand-rot')
@@ -102,7 +107,9 @@ def main():
     torch.manual_seed(a.seed)
     rt = BimanualRuntime(BimanualCfg(nworld=a.nworld, device='cuda:0', render_rgb=True, visual_dr=True,
                                      camera_resolution=320, measured_camera_cadence=False,
-                                     right_fric_comp=FRIC_COMP if a.fric_comp else None))
+                                     right_fric_comp=FRIC_COMP if a.fric_comp else None,
+                                     opt_overrides={'cone': 1, 'impratio': 30.} if a.elliptic else None,
+                                     **({'task_layout': a.task_layout} if a.task_layout else {})))
     rt.visual.gen.manual_seed(a.seed) if hasattr(rt.visual, 'gen') else None
     h = Harness(rt, HarnessCfg(enc_offset_deg=a.enc_offset_deg, pad_mu=a.pad_mu if a.pad_mu > 0 else None,
                                impratio=a.impratio if a.impratio > 0 else None))
@@ -111,14 +118,12 @@ def main():
     p_true, R_true = h.pc_pose()
     yaw_true = torch.atan2(-R_true[:, 1, 2], -R_true[:, 0, 2])
     # 1. ZED estimate (arms at reset)
+    zed_ok = torch.ones(n, dtype=torch.bool, device=dev)
     if a.pc == 'zed':
-        zed, zs = load('zed', dev)
+        from blind_insertion.perception.zed_estimator import ZedEstimator
         with wp.ScopedDevice(rt.cfg.device):
             mjw.forward(rt.m, rt.d)
-        with torch.no_grad():
-            est = zed(zed_crop(rt.render()['top'])) * zs
-        ex = torch.tensor(NOMINAL['port_xy'], device=dev) + est[:, :2] * 1e-3
-        eyaw = torch.deg2rad(est[:, 2])
+        ex, eyaw, zed_ok, _ = ZedEstimator(dev)(rt.render()['top'])   # zed_ok False: no pose (presence/validity gate)
     else:
         ex, eyaw = p_true[:, :2].clone(), yaw_true.clone()
     zed_err = torch.cat([(ex - p_true[:, :2]) * 1e3, torch.rad2deg(torch.atan2(torch.sin(eyaw - yaw_true), torch.cos(eyaw - yaw_true)))[:, None]], 1)
@@ -128,7 +133,7 @@ def main():
     eR = Rz @ R_true                       # yaw error only (the PC sits flat on the table)
     ep = torch.cat([ex, p_true[:, 2:]], 1)  # height known from the table and the case
     # 2. left hold from the estimate
-    hold = LeftHold(h, HoldCfg(mode='press', force_n=a.hold_force, across_m=-.0208, along_m=-.02))
+    hold = LeftHold(h, HoldCfg(mode='press', force_n=a.hold_force, across_m=-.0208, along_m=a.hold_along))
     plan = hold.solve(ep, eR)
     ql0, qr0 = h.believed('left').clone(), h.believed('right').clone()
     for k in range(int(round(hold.duration / DT))):
@@ -211,7 +216,7 @@ def main():
             rel_p_est, rel_rv_est = rel_pose(h)
         # rigid correction of the reader, expressed in the (estimated) port frame: current -> waypoint
         cur_R = K.axis_angle_mat(rel_rv_est / rel_rv_est.norm(dim=1, keepdim=True).clamp(min=1e-9), rel_rv_est.norm(dim=1))
-        tgt_p = torch.tensor([0., 0., g], device=dev).expand(n, 3)
+        tgt_p = torch.tensor([a.x_offset_mm * 1e-3, a.y_offset_mm * 1e-3, g], device=dev).expand(n, 3)
         rv = -rel_rv_est * a.gain                                # rotate the reader back onto the axis (port frame)
         final = it >= len(sched) - a.final_iters
         if final and (a.final_rot == 'none' or it >= len(sched) - a.final_pos_only):
@@ -257,7 +262,9 @@ def main():
          'rx_deg': torch.rad2deg(trv[:, 0]), 'ry_deg': torch.rad2deg(trv[:, 1]), 'roll_deg': torch.rad2deg(trv[:, 2]),
          'tilt_deg': tilt, 'zed_err': zed_err, 'look_lateral_mm': p_look[:, :2].norm(dim=1) * 1e3,
          'inhand': ins.inhand, 'pc_moved_mm': (pc_final - p_true).norm(dim=1) * 1e3, 'finite': fin,
-         'left_latched': hold.latched}
+         'left_latched': hold.latched, 'zed_ok': zed_ok,
+         'wrist_cam_pos_err_mm': rt.visual.params['cam_pos_err_mm'][:, rt.visual.camera_names.index('wrist_cam')].clone(),
+         'wrist_cam_rot_err_deg': rt.visual.params['cam_rot_err_deg'][:, rt.visual.camera_names.index('wrist_cam')].clone()}
     if per_world:
         w['servo_per_world'] = torch.stack(per_world, 1)     # (n, iters, [x, y, gap, ik_err, inhand_rot_change])
     w = {k: v.detach().cpu().numpy() for k, v in w.items()}
@@ -278,6 +285,7 @@ def main():
            'zed_error': {'xy_mm_p50': q(np.linalg.norm(w['zed_err'][:, :2], axis=1), 50),
                          'xy_mm_p99': q(np.linalg.norm(w['zed_err'][:, :2], axis=1), 99),
                          'yaw_deg_p99': q(np.abs(w['zed_err'][:, 2]), 99)},
+           'zed_gate_accept_rate': float(w['zed_ok'].mean()),
            'look_pose_lateral_mm': {f'p{p}': q(w['look_lateral_mm'], p) for p in (50, 99)},
            'pc_moved_since_reset_mm': {f'p{p}': q(w['pc_moved_mm'], p) for p in (50, 99, 100)},
            'servo_trace': trace, 'wall_s': time.time() - t0}

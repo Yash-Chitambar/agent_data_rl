@@ -1,0 +1,26 @@
+{
+ "policy": "runs/v3ep10_it10.pt",
+ "n": 2048,
+ "seated": 1912,
+ "rate": 0.93359375,
+ "wilson95": [
+  0.9219776367043186,
+  0.9435862547773628
+ ],
+ "scale": 0.25,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 1912,
+  "deep_unseated": 77,
+  "lateral_miss": 43,
+  "grasp_slip": 14,
+  "tilt": 2
+ },
+ "strict_seated_rate": 0.0390625,
+ "seated_or_deep_rate": 0.97119140625,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 1.04,
+ "t_seat_s_p95": 2.7600000000000002,
+ "pc_max_mm_p99": 1.738802067041397,
+ "gate_pass": false
+}

@@ -59,7 +59,7 @@ def run(a, rt=None, seed=0):
     h.reset()
     hc = HoldCfg(mode=a.mode, force_n=a.force, preload_n=a.preload, across_m=a.across, along_m=a.along,
                  brace_height_m=a.brace_height, down_n=a.down, tilt_deg=a.tilt, engage_s=a.engage_s,
-                 settle_s=a.settle_s, guarded=not a.open_loop)
+                 settle_s=a.settle_s, guarded=not a.open_loop, guard_force_n=a.guard_force)
     hold = LeftHold(h, hc)
     ic = InsertCfg(overdrive_m=a.overdrive)
     ins = RightInserter(h, ic)
@@ -70,6 +70,13 @@ def run(a, rt=None, seed=0):
     yaw_err = torch.randn(n, device=dev) * math.radians(a.pc_est_sigma_deg)
     Rz = K.axis_angle_mat(torch.tensor([0., 0., 1.], device=dev).expand(n, 3), yaw_err)
     plan = hold.solve(est_p, Rz @ R_reset) if a.mode != 'none' else {'ok': torch.ones(n, dtype=torch.bool, device=dev)}
+    if a.left_start == 'folded':                    # parked: all left joints at 0 (out of the pick workspace)
+        la = rt.indices['left'][0]
+        rt.q[:, la] = 0.
+        rt.ctrl[:, rt.indices['left'][2]] = 0.
+        with wp.ScopedDevice(rt.cfg.device):
+            import mujoco_warp as mjw
+            mjw.forward(rt.m, rt.d)
     q_home_l, q_home_r = h.believed('left').clone(), h.believed('right').clone()
     flags = {k: torch.zeros(n, dtype=torch.bool, device=dev) for k in ('arm_arm', 'left_other', 'nonfinite', 'right_pc')}
     T = int(round(hold.duration / DT))
@@ -127,6 +134,7 @@ def run(a, rt=None, seed=0):
     w = {'dp_mm': dp_max * 1e3, 'ang_deg': torch.rad2deg(ang_max), 'engage_dp_mm': engage_dp * 1e3,
          'engage_ang_deg': torch.rad2deg(engage_ang), 'push_n': push, 'left_force_n': fmean.norm(dim=1),
          'left_force_down_n': -fmean[:, 2], 'left_force_xy_n': fmean[:, :2].norm(dim=1), 'feet_mu': feet_mu, 'passed': passed, 'arm_arm': flags['arm_arm'],
+         'j2_cmd_torque_nm': (plan['dq_force'][:, 1] * h.kp[1, 1]).abs() if a.mode != 'none' else torch.zeros(n, device=dev),
          'left_other': flags['left_other'], 'latched': hold.latched if a.mode != 'none' and hc.guarded else torch.ones(n, dtype=torch.bool, device=dev), 'nonfinite': flags['nonfinite'], 'right_pc': flags['right_pc'], 'plan_ok': ok, 'seated': seated}
     return {k: v.detach().cpu().numpy() for k, v in w.items()}, hc, ic
 
@@ -138,6 +146,7 @@ def summarize(w, a, hc, ic, seconds):
            'tolerance': {'translation_mm': a.tol_mm, 'rotation_deg': a.tol_deg},
            'arm_arm_contact_worlds': int(w['arm_arm'].sum()), 'left_touches_other_worlds': int(w['left_other'].sum()),
            'nonfinite_worlds': int(w['nonfinite'].sum()), 'right_touches_pc_worlds': int(w['right_pc'].sum()), 'unlatched_worlds': int((~w['latched']).sum()), 'plan_failed_worlds': int((~w['plan_ok']).sum()),
+           'left_j2_cmd_torque_nm': {'p50': q(w['j2_cmd_torque_nm'], 50), 'max': float(np.nanmax(w['j2_cmd_torque_nm']))},
            'pc_translation_mm': {f'p{p}': q(w['dp_mm'], p) for p in (50, 90, 99, 99.5, 100)},
            'pc_rotation_deg': {f'p{p}': q(w['ang_deg'], p) for p in (50, 90, 99, 99.5, 100)},
            'engage_translation_mm': {f'p{p}': q(w['engage_dp_mm'], p) for p in (50, 99, 100)},
@@ -172,6 +181,8 @@ def parser():
     ap.add_argument('--tilt', type=float, default=0.)
     ap.add_argument('--engage-s', type=float, default=.6)
     ap.add_argument('--settle-s', type=float, default=.5)
+    ap.add_argument('--guard-force', type=float, default=3.)
+    ap.add_argument('--left-start', choices=('reset', 'folded'), default='reset', help='left arm pose before the hold: reset (reference) or folded (all joints 0, parked)')
     ap.add_argument('--open-loop', action='store_true', help='no guarded engage: absolute IK target + force offset')
     ap.add_argument('--load', default='push', choices=('push', 'insert'))
     ap.add_argument('--push', type=float, nargs=2, default=(0., 10.))

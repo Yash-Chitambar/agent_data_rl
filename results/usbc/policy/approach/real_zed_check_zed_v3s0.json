@@ -1,0 +1,438 @@
+{
+ "method": "ZED PC-pose estimator on real frames (duchamp3, 2026-10-28 curated session).\n\n  bimanual_stationary_001: PC still; reference pose from the manual lid landmark\n      (results/usbc/bimanual_20261029/overlays/scene_annotation.json: port (0.2142, 0.3308) m, yaw ~0,\n      +/-4 px at 640 px, i.e. roughly +/-5 mm; yaw 'approximate, not fitted'). Reports agreement and the\n      frame-to-frame spread.\n  pc_manual_motion_001, other sessions: no reference; estimate spread and trajectories only.\nReal frames go through scenes.physical_rig.real_top_policy_image (same crop as the sim camera).\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/check_real_zed.py",
+ "reference": {
+  "trial": "bimanual_stationary_001",
+  "frame": "zed/raw_001220.png",
+  "coordinate_system": "640x640 calibrated top policy crop, excludes comparison title bar",
+  "pc_lid_center_px": [
+   342.0,
+   365.0
+  ],
+  "pixel_uncertainty": 4.0,
+  "pc_yaw_deg": 0.0,
+  "yaw_status": "approximate, not fitted",
+  "reader_visible": false,
+  "method": "manual visual landmark on measured-height lid plane; comparison initialization only",
+  "not_for": "connector metrology or policy reset distribution",
+  "derived_port_xy_m": [
+   0.2142402188549658,
+   0.3307582745939665
+  ]
+ },
+ "sessions": {
+  "bimanual_stationary_001": {
+   "n_frames": 123,
+   "port_xy_m_mean": [
+    0.21314172290326108,
+    0.3458022852672063
+   ],
+   "port_xy_mm_std": [
+    0.18975392735676455,
+    0.16729951882183033
+   ],
+   "yaw_deg_mean": 0.5359621047973633,
+   "yaw_deg_std": 0.05551539734005928,
+   "port_xy_mm_range": [
+    1.1159791611135006,
+    0.8593611419200897
+   ],
+   "vs_reference_mm": {
+    "mean_dx": -1.098495951704462,
+    "mean_dy": 15.044010673240194,
+    "mean_dist": 15.08406279794927,
+    "yaw_vs_reference_deg": 0.5359621047973633
+   }
+  },
+  "board_rgb_001": {
+   "n_frames": 9,
+   "port_xy_m_mean": [
+    0.22116789465149245,
+    0.35973334047252936
+   ],
+   "port_xy_mm_std": [
+    0.06673108323064506,
+    0.28415864600396895
+   ],
+   "yaw_deg_mean": -0.488244891166687,
+   "yaw_deg_std": 0.04798657074570656,
+   "port_xy_mm_range": [
+    0.18623704090714455,
+    0.8577758198953234
+   ]
+  },
+  "contact_approach_001": {
+   "n_frames": 36,
+   "port_xy_m_mean": [
+    0.21536342751505588,
+    0.34660180145978087
+   ],
+   "port_xy_mm_std": [
+    2.8267183957748374,
+    1.519040094417821
+   ],
+   "yaw_deg_mean": 0.33731865882873535,
+   "yaw_deg_std": 0.350008487701416,
+   "port_xy_mm_range": [
+    8.450440829619765,
+    5.883483216166496
+   ]
+  },
+  "contact_final_001": {
+   "n_frames": 8,
+   "port_xy_m_mean": [
+    0.21790623919398058,
+    0.3534793530846945
+   ],
+   "port_xy_mm_std": [
+    0.20493324688440562,
+    0.19351836252806337
+   ],
+   "yaw_deg_mean": -0.4885854721069336,
+   "yaw_deg_std": 0.0696328729391098,
+   "port_xy_mm_range": [
+    0.5953384097665548,
+    0.6193490698933601
+   ]
+  },
+  "contact_final_002": {
+   "n_frames": 65,
+   "port_xy_m_mean": [
+    0.21947834155175164,
+    0.3556619859422339
+   ],
+   "port_xy_mm_std": [
+    2.0552637611706412,
+    2.6500488114106853
+   ],
+   "yaw_deg_mean": -0.3118973672389984,
+   "yaw_deg_std": 0.6353887319564819,
+   "port_xy_mm_range": [
+    7.277980213984847,
+    9.990190155804157
+   ]
+  },
+  "contact_interactive_001": {
+   "n_frames": 72,
+   "port_xy_m_mean": [
+    0.217313797544242,
+    0.3480844596902733
+   ],
+   "port_xy_mm_std": [
+    2.499769555649185,
+    1.490263953125465
+   ],
+   "yaw_deg_mean": 0.5996314287185669,
+   "yaw_deg_std": 0.15443961322307587,
+   "port_xy_mm_range": [
+    8.598429150879383,
+    4.5378683134913445
+   ]
+  },
+  "contact_interactive_002": {
+   "n_frames": 168,
+   "port_xy_m_mean": [
+    0.21668190243089885,
+    0.34814741802024834
+   ],
+   "port_xy_mm_std": [
+    2.9776275974365505,
+    2.2091373340888407
+   ],
+   "yaw_deg_mean": 0.6670021414756775,
+   "yaw_deg_std": 0.304912805557251,
+   "port_xy_mm_range": [
+    9.548824978992343,
+    10.872209444642067
+   ]
+  },
+  "initial_rgb_001": {
+   "n_frames": 15,
+   "port_xy_m_mean": [
+    0.22256343903020032,
+    0.36246001021005214
+   ],
+   "port_xy_mm_std": [
+    0.17218840025961207,
+    0.2801171539711609
+   ],
+   "yaw_deg_mean": -0.8356102108955383,
+   "yaw_deg_std": 0.02714419737458229,
+   "port_xy_mm_range": [
+    0.7523179519921541,
+    0.813125865533948
+   ]
+  },
+  "left_elevated_j3_001": {
+   "n_frames": 28,
+   "port_xy_m_mean": [
+    0.222023387769181,
+    0.3651413916251996
+   ],
+   "port_xy_mm_std": [
+    0.48724575570655465,
+    3.2859550132682878
+   ],
+   "yaw_deg_mean": -0.6980865597724915,
+   "yaw_deg_std": 0.324143648147583,
+   "port_xy_mm_range": [
+    2.465129531628918,
+    8.433589115156792
+   ]
+  },
+  "left_free_settle_001": {
+   "n_frames": 25,
+   "port_xy_m_mean": [
+    0.2196894260146655,
+    0.3662935737334192
+   ],
+   "port_xy_mm_std": [
+    2.2104966456593376,
+    1.1445269263781122
+   ],
+   "yaw_deg_mean": 0.14553815126419067,
+   "yaw_deg_std": 0.15965968370437622,
+   "port_xy_mm_range": [
+    6.119443802163005,
+    4.156819079071283
+   ]
+  },
+  "left_free_settle_002": {
+   "n_frames": 29,
+   "port_xy_m_mean": [
+    0.2195491605960555,
+    0.3666486759320029
+   ],
+   "port_xy_mm_std": [
+    1.9610918321255588,
+    1.3770814548596746
+   ],
+   "yaw_deg_mean": 0.23124128580093384,
+   "yaw_deg_std": 0.30382072925567627,
+   "port_xy_mm_range": [
+    6.80731562897563,
+    7.017668103799224
+   ]
+  },
+  "left_free_settle_003": {
+   "n_frames": 29,
+   "port_xy_m_mean": [
+    0.21962510536515134,
+    0.36651216843358136
+   ],
+   "port_xy_mm_std": [
+    1.7547820105041212,
+    1.444071566564407
+   ],
+   "yaw_deg_mean": 0.26741543412208557,
+   "yaw_deg_std": 0.2676422595977783,
+   "port_xy_mm_range": [
+    5.200212588533759,
+    6.518617970868945
+   ]
+  },
+  "left_pc_view_001": {
+   "n_frames": 13,
+   "port_xy_m_mean": [
+    0.22283778080036154,
+    0.36956835930880444
+   ],
+   "port_xy_mm_std": [
+    0.63028148429259,
+    2.075216490593626
+   ],
+   "yaw_deg_mean": 0.7768195867538452,
+   "yaw_deg_std": 0.13231965899467468,
+   "port_xy_mm_range": [
+    2.5630927411839366,
+    7.693018298596144
+   ]
+  },
+  "left_reader_002": {
+   "n_frames": 164,
+   "port_xy_m_mean": [
+    0.2216123577249629,
+    0.3677718502370545
+   ],
+   "port_xy_mm_std": [
+    0.23891934747969798,
+    0.31508287803401797
+   ],
+   "yaw_deg_mean": -0.7943798303604126,
+   "yaw_deg_std": 0.08397872745990753,
+   "port_xy_mm_range": [
+    1.1709622340276837,
+    1.7237910069525242
+   ]
+  },
+  "left_rest_sweep_001": {
+   "n_frames": 57,
+   "port_xy_m_mean": [
+    0.2217419241209467,
+    0.3683449009413779
+   ],
+   "port_xy_mm_std": [
+    0.35460702696533514,
+    0.5717550986774869
+   ],
+   "yaw_deg_mean": -0.9254974126815796,
+   "yaw_deg_std": 0.06939061731100082,
+   "port_xy_mm_range": [
+    1.3843622291460633,
+    2.096152864396572
+   ]
+  },
+  "left_standoff_001": {
+   "n_frames": 20,
+   "port_xy_m_mean": [
+    0.21758153925649829,
+    0.3471315634343774
+   ],
+   "port_xy_mm_std": [
+    0.13526508467914228,
+    0.1067260656710335
+   ],
+   "yaw_deg_mean": 0.010650101117789745,
+   "yaw_deg_std": 0.03418514505028725,
+   "port_xy_mm_range": [
+    0.4964147228747606,
+    0.5257604643702507
+   ]
+  },
+  "left_standoff_002": {
+   "n_frames": 13,
+   "port_xy_m_mean": [
+    0.21735071399034223,
+    0.34696484918204634
+   ],
+   "port_xy_mm_std": [
+    0.2162674172711538,
+    0.1225264842149495
+   ],
+   "yaw_deg_mean": 0.024400902912020683,
+   "yaw_deg_std": 0.03136288747191429,
+   "port_xy_mm_range": [
+    0.8962547872215509,
+    0.35744626075029373
+   ]
+  },
+  "left_standoff_003": {
+   "n_frames": 13,
+   "port_xy_m_mean": [
+    0.2183414853430497,
+    0.3471467732322904
+   ],
+   "port_xy_mm_std": [
+    1.3312017610927382,
+    0.5062779659949389
+   ],
+   "yaw_deg_mean": 0.03281421214342117,
+   "yaw_deg_std": 0.09383170306682587,
+   "port_xy_mm_range": [
+    4.427163978107274,
+    2.3077018558979034
+   ]
+  },
+  "pc_contact_survey_001": {
+   "n_frames": 9,
+   "port_xy_m_mean": [
+    0.2200047888844266,
+    0.36763802023397546
+   ],
+   "port_xy_mm_std": [
+    0.2174239341714232,
+    0.5952336422681977
+   ],
+   "yaw_deg_mean": 0.48087140917778015,
+   "yaw_deg_std": 0.05227256938815117,
+   "port_xy_mm_range": [
+    0.7259746198542416,
+    1.7150761559605598
+   ]
+  },
+  "pc_manual_motion_001": {
+   "n_frames": 613,
+   "port_xy_m_mean": [
+    0.2187778931430989,
+    0.3591383762757893
+   ],
+   "port_xy_mm_std": [
+    2.913140364879172,
+    4.757860924373989
+   ],
+   "yaw_deg_mean": -0.020768431946635246,
+   "yaw_deg_std": 0.7868428826332092,
+   "port_xy_mm_range": [
+    11.870360933244228,
+    16.866182442754507
+   ]
+  },
+  "pc_stickers_001": {
+   "n_frames": 3,
+   "port_xy_m_mean": [
+    0.21191012357672057,
+    0.35984996388472307
+   ],
+   "port_xy_mm_std": [
+    0.4179060988865229,
+    0.20755327834555776
+   ],
+   "yaw_deg_mean": 0.3098292648792267,
+   "yaw_deg_std": 0.05751931294798851,
+   "port_xy_mm_range": [
+    1.008555293083191,
+    0.487113677081652
+   ]
+  },
+  "pc_stickers_002": {
+   "n_frames": 2,
+   "port_xy_m_mean": [
+    0.2128524773567915,
+    0.34723836336284875
+   ],
+   "port_xy_mm_std": [
+    0.10234024375677109,
+    0.14084205031394958
+   ],
+   "yaw_deg_mean": 0.6903186440467834,
+   "yaw_deg_std": 0.03587937355041504,
+   "port_xy_mm_range": [
+    0.20468048751354218,
+    0.28168410062789917
+   ]
+  },
+  "pc_stickers_003": {
+   "n_frames": 2,
+   "port_xy_m_mean": [
+    0.21567431956529617,
+    0.3625154867907986
+   ],
+   "port_xy_mm_std": [
+    0.0600120984017849,
+    0.2332964213564992
+   ],
+   "yaw_deg_mean": -1.3144092559814453,
+   "yaw_deg_std": 0.0017295479774475098,
+   "port_xy_mm_range": [
+    0.1200241968035698,
+    0.4665928427129984
+   ]
+  },
+  "rear_brace_patch_001": {
+   "n_frames": 17,
+   "port_xy_m_mean": [
+    0.2268431445123519,
+    0.3503716964866309
+   ],
+   "port_xy_mm_std": [
+    0.12368440821315407,
+    0.10602329139468677
+   ],
+   "yaw_deg_mean": 1.2910346984863281,
+   "yaw_deg_std": 0.03548919036984444,
+   "port_xy_mm_range": [
+    0.4120767116546631,
+    0.3324691206216812
+   ]
+  }
+ }
+}

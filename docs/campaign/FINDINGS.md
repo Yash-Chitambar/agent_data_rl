@@ -104,6 +104,312 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 5: chain-surfaced issues (elliptic cones, ZED arm poses, hold contact, plug bias)
+
+All with elliptic cones + impratio 30 (the chain and Part 4 solver) unless noted.
+
+- **Hold in the chain context** (`scripts/task/diag_chain_hold.py`: reset -> Part 1 expert pick -> guarded 25 N press,
+  right arm holding the reader at the lift pose; n = 1024 = 2 x 512, seeds 7100-7101):
+  2 cm press: arm-arm 0/1024, PC still 1024/1024 at 3 N and 1024/1024 at 5 N, left joint 2 <= 8.9 N m.
+  3.5 cm press: still 1024/1024 at 3 and 5 N, but **arm-arm 4/1024** (chain: 5/1024): the left forearm (link_5 /
+  link_3 capsules) hits the right arm's link_4 and the two fingertip hulls touch, with the right arm at the
+  post-pick lift pose. A higher stand-off (+5 cm) made it worse (8/1024, PC still 77 %). Elliptic cones hold
+  the PC better than pyramidal (2 cm, 3 N: 100 % vs 99.3 %). **Use the 2 cm press** (= Part 4's training
+  hold): it passes 3 and 5 N with no contact, and 10 N (1024/1024). 15 N at 2 cm: 3 N 100 %, 5 N 100 %, 10 N
+  99.9 %, sink 0.56 mm, left joint 2 <= 5.4 N m -- a lower-torque option if 25 N heats the motor.
+- **PC sink:** with elliptic cones the 25 N press pushes the PC 0.77 mm (p50; p99 0.86) into its feet (3.5 cm:
+  0.89 mm). It is soft-contact compression of the 5 mm box feet, settles during the engage (before the
+  approach), and is almost all vertical (engage translation p99 0.89 mm vs sink p99 0.86 mm; one world in
+  1024 moved 6.1 mm): no effect on the PC-still result; the approach servo measures the live port.
+- **ZED vs arm pose:** v1 (trained at rest, right fingers open) by condition (n = 512 each): rest 0.79 / 2.63 mm,
+  right fingers at 24 mm 2.95 / 5.71, left parked 7.10 / 20.1, left pressing 8.58 / 21.9. Retrained with varied arm
+  poses and openings (`render_data.vary_arms`: right rest/perturbed, fingers closed..open; left rest / parked /
+  pressing; reader in the strip / elsewhere / out of view; PC box widened to +/-3 cm / +/-10 deg): v4 two-net
+  ensemble rest 0.95 / 4.27, parked 1.70 / 5.47, pressing 1.69 / 5.17 mm (accepted, n = 671-703) -- robust in sim
+  but **real frames regress**: 8.7 / 14.1 mm from the manual landmark (v1: 0.41 mm), and the two nets disagree
+  there, so the ensemble gate rejects 122/123 real stationary frames (it knows it cannot handle them).
+  A heteroscedastic (predicted-std) variant was no better (sim p50 1.45 mm, real 15.8 mm).
+- **Gate that rejects what it cannot handle:** the arm configuration is known from the encoders, so the
+  gate now checks it (`ZedEstimator(frames, arms=(q_left, q_right, right_finger))`, envelope in the gate
+  checkpoint). v1 + presence/OOD + arm-pose gate (`runs/perception/zed_v1_gate_arm.pt`, +/-0.05 rad of the rest
+  pose, right fingers >= 40 mm): rest accepted 100 % (0.79 / 2.63 mm), 24 mm / parked / pressing rejected 100 %,
+  arms beyond training (x2.5) 97.7 % rejected. Recommendation: take the ZED frame at the rest pose with the right
+  gripper fully open (as the chain does) with this gate; the v4 ensemble is the fallback when the arms cannot be
+  at rest, not yet for real frames.
+- **Approach under elliptic cones** (2 cm hold, chain layout): v10w + v10ws lateral p50 0.39 / p99 1.67 mm,
+  plug low by 0.20 mm on average (chain: 0.36). One DAgger round on elliptic in-loop states (both holds) ->
+  v12w + v12ws: p50 0.30 / p99 1.41 mm, mean (x, y) = (+0.06, +0.10) mm. **Bias removed** by a servo target
+  offset (-0.06, -0.10) mm calibrated on seeds 1-2, tested on seeds 3-4: **lateral p50 0.27 / p99 1.24 /
+  p99.5 1.63 mm, tilt p99 0.69 deg, roll p99 0.50 deg, mean (x, y) = (-0.03, -0.04) mm, 96.8 % inside 1 mm / 2 deg
+  (n = 1024)**. Deliverable updated (`preinsert_error.json`). 3.5 cm hold: p99 1.49 mm.
+
+### 2026-10-31 (mason, `policy/chain`) — End to end: pick → hold → approach → insertion in one simulation, 99.80 % (n = 1024)
+
+`scripts/eval/eval_chain.py` runs all four parts in one continuous MuJoCo Warp simulation per world:
+no teleports between stages. Each world draws one layout (PC box ±1 cm / ±1.5 cm / ±5°, reader on the
+Part 1 strip) and full DR at reset (arm dynamics, latency 0-1 step, encoder offsets ±1.5° kept through
+all stages, PC feet μ U(0.8, 1), reader-table μ U(0.4, 1), plug-port μ U(0.1, 0.2), port solref 3-4 ms,
+visual DR moderate defaults, RGB only). Stages: ZED CNN + gate (frame at the rest pose) → Part 1
+scripted expert pick → Part 3 guarded 25 N press (planned from the ZED estimate) → new Cartesian
+transport to the look pose → Part 2 wrist servo (wrist_v10w + wrist_v10ws below 7 mm, 6 mm stop) →
+Part 4 blind PPO from the live state (InsertionTask success test: 0.2 s seated, 25 µm aperture tolerance).
+
+**Result (held-out seeds 7000-7001, 2 × 512 worlds):**
+
+| Insertion policy | Hold press point | n | End to end | Wilson 95 % | Failures |
+|---|---|---|---|---|---|
+| **v6 s2 (Part 4 best)** | **2 cm in front of the case centre (Part 4 training value)** | 1024 | **99.80 %** | [99.29, 99.95] | 2 stuck at the mouth |
+| v6 s2 | 3.5 cm (Part 3 round 4) | 1024 | 96.00 % | [94.61, 97.04] | 41 stuck at the mouth |
+| v10dr (hold DR 1.5-4 cm) | 2 cm | 1024 | 99.22 % | [98.47, 99.60] | 7 mouth, 1 jam; 0 arm-arm |
+| v10dr | 3.5 cm | 1024 | 99.22 % | [98.47, 99.60] | 8 mouth; 5 arm-arm (hold engage) |
+| v5 s0 | 2 cm | 1024 | 98.54 % | [97.60, 99.11] | 14 mouth, 1 slip |
+| v5 s0 | 3.5 cm | 1024 | 97.66 % | [96.54, 98.42] | 23 mouth, 1 slip |
+
+v10dr (policy/insertion 7e9ef6e, trained with the press point randomized 1.5-4 cm) removes the hold-position
+sensitivity (99.22 % at both points) but is 0.6 points below v6 at 2 cm; its own eval on chain starts gave 100 % /
+99.95 %. Its 16 chain failures again start low (pre-insert y -0.2 to -4 mm, warm-up lateral 0.3-4.6 mm) and stall
+at the mouth: the live hand-over (warm-up drift, true in-hand state) is harder than sampled chain starts.
+Hold yaw for all runs: InsertionTask's rule (best yaw at the nominal PC pose +/- 15 deg, not LeftHold's -90..90).
+Every stage before the insertion passed 1024/1024 in all six runs (ZED gate, pick, hold latch,
+transport, approach). Gate (≥ 98 %, n ≥ 500) passes with v6 + the 2 cm hold.
+
+**Mismatches (most valuable):**
+- **The blind insertion policy reads the left arm.** Its observation has all 12 encoder angles. With
+  LeftHold's default tool-yaw search (-90..90°) the left wrist (joint 6) sat 0.29 rad from the training
+  value and the policy seated 5/128, against 128/128 from teleported InsertionTask starts in the same
+  runtime. Restricting the yaw to the training set (nominal best ± 15°) fixed it. Moving the press point
+  from 2 to 3.5 cm (Part 3's round-4 hold) costs 3.8 points with v6 (99.80 → 96.00 %) and 0.9 with v5.
+  The failures start well inside the capture region (pre-insert lateral 0.2-1 mm) and stall at the
+  port mouth. Part 3 and Part 4 each pass alone; together the hold must be the one Part 4 trained with,
+  or Part 4 must train with the 3.5 cm hold (or mask the left arm from the actor).
+- **ZED estimate depends on the right gripper opening.** The pick task sets the approach opening (24 mm)
+  in the reset pose. With it in view the ZED CNN is biased: xy p50 3.0 vs 0.8 mm (n = 256). The chain
+  takes the ZED frame with the gripper fully open (the training condition), then closes it. With the left
+  arm parked (Part 1's start) the estimate is xy p50 8.0 / p99 20.6 mm and **the presence/OOD gate still
+  accepts 100 %** of those frames: the gate does not catch this arm-pose shift. Frame at the rest pose:
+  p50 0.77 / p99 2.79 mm, yaw p99 1.49° (Part 2: 0.79 / 3.3 mm).
+- **No transport existed.** Part 2 teleports to the look pose. A joint-space move from the lift pose to
+  the look pose swung the plug 3 cm into the table (in-hand rotation p50 16°, n = 16). A Cartesian path
+  (turn the reader at lift height → via pose 40 mm further out and 30 mm up → look pose; IK each step)
+  keeps the reader: in-hand change p99 0.35 mm / 0.12°, no hand-PC contact (n = 1024). Arrival at the
+  look pose: lateral p50 7.6 / p99 18 mm (Part 2's teleported look pose: 7.5-7.8 / 19.6-20.4 mm).
+- **Pre-insert error matches Part 2.** Chain: lateral p50 0.46 / p99 1.48 mm, tilt p99 0.86°, roll p99
+  0.72°, gap 5.76 mm p50 (Part 2 deliverable: p99 1.64 mm / 0.87°). The plug sits 0.36 mm low on average
+  (y mean -0.36, std 0.45 mm). In the 0.2 s insertion warm-up (feed-forward off, zero action) the error
+  grows by 0.3 mm (p50 0.46 → 0.76, p99 1.48 → 1.91 mm): the policy starts from that, not from Part 2's
+  numbers. Both v6 failures started low (y -0.9 and -0.3 mm).
+- **Solver cones.** Part 4 needs elliptic cones (pyramidal goes non-finite under insertion); Parts 1-3
+  were validated with pyramidal. The chain runs elliptic throughout. The pick still passes 1024/1024, but
+  the in-hand spread about the mean is wider (position p99 0.91 vs 0.77 mm, rotation p99 0.54 vs 0.24°;
+  rotation about the tool axis p99 0.55 vs 0.01°) and the PC sinks 0.77 mm (p50) into its feet when the
+  press engages (Part 2 reports 0.01 mm PC motion with pyramidal).
+- **Hold at 3.5 cm:** 5/1024 worlds had arm-arm contact during the engage (0 at 2 cm); PC moved
+  ≤ 1.1 mm (p99), one world 6.7 mm.
+- Insertion time to seat p50 1.0 / p99 2.5 s; PC motion during insertion p99 1.4 mm.
+
+**Shared-file change:** `BimanualTask(cfg, runtime=None)` and `PickTask(cfg, runtime=None)` can share an
+existing runtime (default unchanged). Weights outside git: `runs/perception/{zed,zed_presence,wrist_v10w,
+wrist_v10ws}.pt`, `runs/chain/P4-insert-best_v6s2.pt` (= policy-insertion `runs/P4-insert-best/best.pt`;
+`P4_INSERT_BEST` overrides). Results `results/usbc/policy/chain/` (`chain_p4v6_hold020.*` = headline);
+demo videos `results/usbc/policy/chain/demos/`. Smoke test `scripts/checks/check_chain.py`.
+Narrowed for success: the hold press point (2 cm, not 3.5 cm), the left tool yaw (training set), the
+ZED frame pose (rest pose, gripper open). Layout and DR ranges are the parts' own.
+
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 4: hold 3 N gate met; ZED presence gate; approach DAgger/specialist
+
+- **Hold:** pressing 3.5 cm in front of the case centre (instead of 2 cm) passes 3 N: 5113/5120 PC still (99.86 %,
+  five runs of n = 1024, two starting from the folded/parked left pose), 5 N 99.5-99.8 %, 10 N 97.0 %, 25 N, left
+  joint 2 <= 8.8 N m. 4.5 cm in front: 98.2 %; longer settle, earlier latch, centred press: no gain.
+- **ZED gate** (`perception/zed_estimator.py`): presence CNN + Mahalanobis OOD on the pose CNN's features
+  (1.25 x sim p99.9). Sim: accepts 100 % with a PC, 0 % without (n = 1024 each). Real first frames of the 24
+  curated sessions: rejects 7/7 without a PC, accepts 14/17 with one (rejected: tape reel, hand, sticky notes on
+  the PC). The 1.25 margin is set from those real distances. Reader in the new strip: no change (xy p99 2.9 mm).
+- **Approach** (lateral p50 / p99 mm, n = 1024, press 2 cm): v9 DAgger 0.37 / 1.84; wider CNN v9w 0.37 / 1.74;
+  v9 + stop-gap specialist v9s 0.34 / 1.68 (93.8 % inside 1 mm / 2 deg); 12-iteration dwell 0.43 / 1.81.
+  Error grows with the DR wrist-camera pose error: with that error inside the real calibration (<= 5.1 mm,
+  <= 1.2 deg; n = 331) v9 + v9s gives p99 1.02 mm, tilt p99 0.72 deg. The DR samples up to 2x real.
+- The 3.5 cm press puts the left fingers next to the port in the wrist image: the round-3/4 nets fail there
+  (v9w p99 11 mm). DAgger at the new hold: v10w 0.42 / 2.04 mm; **v10w + stop-gap specialist v10ws (current deliverable):
+  lateral p50 0.32 / p99 1.64 / p99.5 1.88 mm (x p99 0.93, y p99 1.49), tilt p99 0.87 deg, roll p99 0.57 deg,
+  gap error p99 0.83 mm, 95.3 % inside 1 mm / 2 deg (n = 1024, all finite, ZED gate accepted all)**; with the wrist
+  camera error inside the real calibration (n = 331): lateral p99 1.13 mm, tilt p99 0.70 deg. One more round
+  (v11w + v10ws): p99 1.62 mm, 94.3 %: plateau.
+### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
+
+**Result (blind PPO v5 seed 0, `runs/P4-insert-proprio-v5-s0`, ~19 M steps):** held-out seed 1000,
+Part 2 round-3 pre-insert errors (`preinsert_error_samples.npz`, n = 1024 episodes) × scale, Part 1
+grasp (in-hand spread ×1.25), Part 3 guarded 25 N hold, full DR, 10 s episodes, seated = 0.2 s
+geometric hold with a 25 µm aperture tolerance; n = 2048 per row:
+
+| Scale | Lateral p99 | Seated | Wilson 95 % | Failures | Part 4 gate |
+|---|---|---|---|---|---|
+| 0.5 | ~1.0 mm | 99.90 % | [99.64, 99.97] | 2 slip | pass |
+| **1.0 (Part 2 as measured)** | 1.98 mm | **99.71 %** | [99.36, 99.87] | 3 slip, 3 stuck at mouth | **pass** |
+| 1.5 (requested margin) | ~3.1 mm | 99.17 % | [98.67, 99.48] | 2 slip, 15 stuck at mouth | miss (lower bound 98.7 %) |
+
+**PC fixed** (mass ×30, `mj_setConst`; PC motion p99 0.11 mm) at 1.5: 99.22 % [98.73, 99.52] (n = 2048,
+15 stuck at mouth, 1 slip), the same as with the 25 N hold: the hold is not the limit, the lateral
+capture region is. (×1000 mass without `mj_setConst` went non-finite in every world.)
+Other seeds at 1.5: s1 98.68 % [98.09, 99.09], s2 99.07 % [98.56, 99.41].
+**Round 2 result (2026-11-01): gate passed at scale 1.5.** Blind PPO v6 seed 2 (continued from v5 seed 2
+with curriculum 1.5 → 2.0 and 30 % of starts drawn at 1.5-3.5 mm lateral, `hard_frac`; 10 M steps, ~1 h on
+one V100), n = 2048 per row:
+
+| Scale | Eval seed | Seated | Wilson 95 % | Failures |
+|---|---|---|---|---|
+| 0.5 | 1000 | 99.95 % | [99.72, 99.99] | 1 slip |
+| 1.0 | 1000 | 99.95 % | [99.72, 99.99] | 1 stuck at mouth |
+| **1.5** | 1000 | **99.76 %** | [99.43, 99.90] | 4 stuck at mouth, 1 slip |
+| **1.5** | 2000 (independent) | **99.85 %** | [99.57, 99.95] | 2 stuck at mouth, 1 slip |
+
+At 1.5 (seed 1000) by start lateral error: ≤ 1.5 mm 100 % (1855), 1.5-2 mm 99.0 % (96), 2-3 mm 95.8 % (71),
+> 3 mm 100 % (24). Seated plugs 5.63-5.80 mm deep, tilt ≤ 1.92°, aperture violation median 15.7 µm.
+Median time to seat 0.88 s; PC motion p99 1.3 mm. v6 seed 0 at 10 M: 99.27 % [98.80, 99.56] (misses).
+Exported as `runs/P4-insert-best/best.pt`.
+
+**Left-arm dependence (chain feedback, 2026-11-01).** v6s2 reads the left arm (12 encoders etc.): in this
+env, scale 1.5, n = 2048: hold at 2 cm 99.76 %, at 3.5 cm **82.76 %** [81.07, 84.34] (349 stuck at the mouth).
+A 0.26 rad change of left joint 6 alone (tool yaw choice) dropped it to 0.2 % (n = 1024). Diagnosis:
+- Press point drawn in 1.5-4 cm (v6s2, no retraining): 93.5 %, no slips, so the hold is physically fine and
+  the loss is observation dependence.
+- Masking the left arm from the actor (all left features, or only joint angles + previous actions) and
+  fine-tuning makes grasp slips appear and grow (to 30 % in training): the left arm is the actor's insertion
+  **force sensor** (the plug pushes the PC, the PC pushes the left hand, its encoders move). Without it the
+  policy pushes harder and the reader slips.
+- Fix used: keep the left observations and randomize the hold per start (press point 1.5-4 cm in front of the
+  case centre; optional tool yaw ±15°) and train on Part 2 round-3 + the chain's 1024 actual starts
+  (`results/usbc/policy/insertion/aux/starts_round3_plus_chain.npz`; chain starts sit 0.36 mm low).
+
+**Round 3 (2026-11-01): robustness of the exported policy (v6s2, no retraining).** One change at a time
+against the baseline (scale 1.5, seed 1000: 99.76 %), n = 2048 each:
+
+| Change | Seated | Wilson 95 % | Failures |
+|---|---|---|---|
+| ×2.0 start errors | 99.51 % | [99.10, 99.73] | 9 mouth, 1 slip |
+| Encoder offset ±2° (was ±1.5°) | 99.85 % | [99.57, 99.95] | 3 mouth |
+| PC box ±3 cm / ±10° (was ±1/1.5 cm, ±5°) | 99.61 % | [99.23, 99.80] | 7 mouth, 1 slip |
+| Latency 0-2 steps (was 0-1; measured ~0.4) | 94.24 % | [93.14, 95.17] | 70 mouth, 47 slip |
+| Plug-port μ U(0.10, 0.30) (was 0.10-0.20) | 94.43 % | [93.35, 95.35] | 114 mouth |
+| Wide contact DR (port μ 0.15-0.6, 3-8 ms; pad μ 0.8-2.0, 2-6 ms; squeeze ×0.6-1.4) | 69.53 % | [67.50, 71.49] | 421 slip, 202 mouth |
+
+Margins: start error, encoder offsets and PC placement have margin; latency beyond 1 step, plug-port
+friction above 0.2 and pad friction/squeeze below the Part 1 values do not. The contact values are the
+first thing to measure on the rig (or to train over once measured ranges exist).
+
+**Round 3 (2026-11-01): why the DAgger students looked good in training.** The distiller updates the
+student every control step on a replay buffer that holds the current episode's teacher labels, so the
+privileged teacher steers the student mid-episode through the gradient steps. Same student (wrist,
+1.02 M steps), same env, β = 0, 256 worlds: with updates (lr 3e-4) 100 % / 90.5 % seated (n = 320, 359);
+frozen (lr 0) 3.1 % / 0.0 % (n = 258, 243). The training logs measured online teacher leakage, not the
+student; the held-out evals (≤ 7 %) were right. Not an env mismatch (memorization was also ruled out:
+the wrist student scores 0.6 % on its own training start pool vs 0.4 % on seed 1000). Frozen-policy
+evals, as the chain uses, are unaffected.
+
+**Round 2 checks (2026-11-01):**
+- *Seated means fully inserted:* seed 0 at 1.5, re-run (99.07 %, n = 2048): the 2029 seated plugs are
+  5.63-5.80 mm deep (median 5.72; seat 5.8 mm at the neck stop), tip centre within 0.08 mm of the
+  axis, tilt median 1.03°, max 1.74°; aperture violation median 13.4 µm, p99 23.6 µm (cap 25). No
+  seated plug is near the rim; failures end at +0.3 mm (outside the panel) with mm-scale violations.
+- *Encoder offsets are not the cause:* the max offset is ≥ 1.13° in 90 % of all episodes; success by
+  bin 99.4 / 98.8 / 99.3 / 99.1 % (flat), latency 0 vs 1: 99.1 vs 99.0 %. The driver is the start
+  lateral error.
+- *Seed ensemble* (mean action of s0-s2): 98.78 % [98.20, 99.17], worse than seed 0 alone.
+- *Export:* `runs/P4-insert-best/best.pt` (+ README.json) and `eval_insertion.load_insertion_policy()`
+  (`InsertionPolicy`, env var `P4_INSERT_BEST` from other worktrees). At 1.5 (seed 0), by start
+lateral error: ≤ 0.5 mm 100 % (888), 0.5-1 mm 99.86 % (692), 1-1.5 mm 99.27 % (275), 1.5-2 mm 94.8 % (96),
+2-3 mm 93.0 % (71), 3-4.5 mm 87.5 % (24); every failure had an encoder-offset error ≥ 1.09°. Median
+time to seat 0.6 / 0.84 / 0.9 s; PC motion p99 ≤ 1.3 mm. Strict (0 µm) aperture test: ≤ 0.25 % at
+every level (soft-contact penetration; see below). Results: `results/usbc/policy/insertion/eval_blind_v5s0_*`.
+
+Branch `policy/insertion`. Code: `envs/insertion_task.py`, `train_bimanual.py`, `eval_insertion.py`,
+`distill_insertion.py`; checks `scripts/checks/check_insertion_task.py`, `check_insertion_clearance.py`.
+Results: `results/usbc/policy/insertion/`.
+
+- **Episode:** reader in the right hand at a pre-insert pose 2-8 mm in front of port 2 (GPU IK start
+  pool), PC pose nominal ±3 cm / ±10°, left arm pressing on the PC top (scripted), full physics DR
+  (arm friction/gravity, latency 0-1 step, encoder offset ±1.5°, PC feet μ, new contact DR).
+  Start errors (scale 1): plug lateral ±2 mm per axis, ±2° per axis, in-hand ±3 mm (plug axis, grasp
+  height) and ±8° about the closing axis (±1.5° on the other two; the coupled fingers centre the reader).
+- **Grasp (confirmed 60° grasp):** TCP in the reader frame (0, +1.75, 48.9) mm, solved so the lowest
+  finger point is 1 mm below the reader bottom; pad sphere rows cover 6.1 mm of the 8.8 mm side face.
+  At port 2, seated, randomized in-hand pose (n=64 PC poses): fingers ≥ 35 mm from the PC case and
+  ≥ 13.7 mm above the table, gripper housing ≥ 27 mm above the table. **No tilt change is needed near
+  the port** (30-60° all clear).
+- **Bug fixed:** in-hand rotation noise rotated the reader about its plug tip (57 mm from the pads): an
+  8° pitch moved the body 8 mm out of the fingers and the reader fell. Now about the pad centroid.
+- **Grasp creep is a solver artifact:** pyramidal cones (scene default; `impratio` acts on elliptic
+  cones only) let the 17 g reader creep in the pads: 0.5 mm median / 7 mm max in 4 s, 5-9 % slip
+  terminations in a 2 s zero-action hold (n=512), worst at low pad μ. **Elliptic cones** (`cone=1`, new
+  `BimanualCfg.opt_overrides`): 0.09 mm median / 0.4 mm max in 4 s, no slips for pad μ 0.8-2.0.
+  Needs `njmax` 2000 (1400 overflowed once under random actions).
+- **Contact DR** (`BimanualCfg.contact_dr`, batched `geom_friction`/`geom_solref`/`actuator_gainprm`):
+  plug-port μ U(0.15, 0.6) (port geoms have contact priority), port solref 3-8 ms, pad μ U(0.8, 2.0)
+  (reader geoms lowered to 0.5 so the pad sets the pair), pad solref 2-6 ms, squeeze ×U(0.6, 1.4).
+- **Left press holds only ~3-5 N:** at 6 mm press depth only 66 % of worlds touch the PC (arm sag +
+  encoder offset error); at 20 mm all touch, and a horizontal force along the insertion axis moves the
+  PC > 1 mm at 5 N (median 0.85 mm, max 16 mm) and tens of mm at 8 N (n=32 per force). The insertion
+  policy must stay under a few N or Part 3's hold must be stronger (brace on the far face).
+- **Relative actions are unusable on this arm model:** zero action = zero stiffness; in a 2 s
+  zero-action hold the plug drifts 23 mm median (71 mm max) and tilts 8° (accumulated targets:
+  2.1 mm, 1.7°; n=64). A relative-action teacher ended episodes with the reader tilted 35° on the panel.
+  Accumulated targets need a low initial action std (0.2; 0.5 random-walks the targets into the PC).
+- **Reward bug fixed:** potential shaping γφ' − φ with φ < 0 pays (γ − 1)φ > 0 per step for staying far
+  from the port; PPO learned to hover. Now φ' − φ.
+- **Scripted privileged controller** (Jacobian, true reader/port state): 26.2 % seated (n=512, Wilson
+  [22.6, 30.1] %), feasibility only: it is slow (median seat 4.9 s of 6 s) and many "jams" sit
+  at −5.78 mm when time runs out. Clearance per side: 45 µm (width), 80 µm (height).
+- **Starts from Part 2** (`preinsert_error_samples.npz`, 1021 episodes; 6 approach failures with lateral
+  > 8 mm or gap outside 0.5-15 mm dropped): each start draws a row, the curriculum scales lateral and
+  angles (0.5 → 1.25), the gap is kept (median 5.9 mm). In-hand ±3 mm/±8° is sampled on top (it
+  changes the arm configuration, not the plug-port error).
+- **Left hold = Part 3's guarded 35 N press** (end state: latched at the true contact as the encoders
+  read it, plus Kp⁻¹JᵀF, not capped by the policy's 0.1 rad tracking cap): touches in 100 % of worlds;
+  a 1 s axial push at the port moves the PC ≤ 0.3 mm (max) up to 8 N, ≤ 0.85 mm at 12 N, 9 mm at 16 N
+  (n = 32 per force). The PC sinks 0.9 mm into its feet under the press.
+- **Seating test too strict for soft contacts:** a privileged teacher left 90 of 119 fully inserted
+  plugs (5.5-5.8 mm deep, roll 0.2-0.4°, tilt < 1°) failing the aperture test by 3 µm median, 14 µm max
+  (contact penetration in a 45 µm-clearance slot). `insertion_metrics(aperture_tol_m=...)` (default 0,
+  unchanged); the insertion task uses 25 µm and every eval also reports the strict rate.
+- **Scripted privileged controller with Part 2 starts and the guarded hold: 41.4 % seated** (n = 512,
+  Wilson [37.2, 45.7] %; 234 stuck at the mouth, 38 jams, 28 slips): real seating happens in this env.
+  (26.2 % earlier with uniform starts, simple press and the strict test.)
+- **Training success is biased high right after a synchronized reset** (the first episodes to finish
+  are the quick successes): a teacher logged 98.8 % that settled to ~80-88 % at steady state. Use the
+  held-out evals below, not the training curves.
+- **Bug (eval bias):** resets skip `mjw.forward` for speed; after `reset_all` the first step used the
+  gravity compensation of the runtime's folded reference pose. First episodes seated 0.8 % vs 14 % for
+  later ones (blind student, n = 256 each); fixed (forward after resets of > N/8 worlds), equal after.
+  Evals with one episode per world before this fix are biased low and were re-run.
+- **Success-first contact DR** (user directive: maximize sim success): the privileged teacher lost
+  85 → 71 % at high plug-port μ and jammed more with soft ports (wide DR, n = 1024). Now plug-port μ
+  U(0.10, 0.20), port solref 3-4 ms. The same blind PPO policy: 23.6 % (wide DR) → 42.8 % (new DR + new
+  PC ranges ±1.5 cm / ±5°, feet μ 0.8-1.0), scale 1.0, n = 1024 each (first-episode evals, biased low).
+- **Pads now match Part 1** (55° grasp, measured in-hand pose ±(p1..p99)×1.25, pad μ 1.2, 12 N squeeze,
+  impratio 30). Part 1's pyramidal cones go non-finite under insertion actions (197 of 256 worlds in
+  60 steps at impratio 30); elliptic cones + impratio 30: 0. The insertion env uses elliptic.
+- **Episode length:** at the smallest error level a 10 s episode trained to 99.9 % vs 83.5 % at 6 s
+  (training success, same policy init): failures are mostly time spent searching at the mouth.
+- **Reward hacking (fixed):** the per-step seated reward (+1 while geometrically seated, success after
+  10 consecutive steps) was exploited: policies hovered just short of the hold and collected it every
+  step. Training reward rose 4 → 17 per rollout while success fell 100 → 50 %; held-out at scale 0.25
+  the degraded checkpoint seated 49.0 % with 438/1024 plugs fully inserted but never holding (vs 93.4 %,
+  n = 2048, for its earlier checkpoint). Longer episodes made it worse. Now a one-time success bonus (10).
+- **Blind PPO v5 (round-3 Part 2 starts, 25 N hold, Part 1 grasp, 10 s episodes, curriculum 0.5 → 1.0
+  → 1.5 × Part 2 errors, 3 seeds):** seed 2 mid-training (stage 1.0, ~8 M steps) held-out at scale 1.0:
+  **98.2 % [97.6, 98.7] (2012/2048)**; failures are 35 stuck at the mouth (1 jam). Success by start
+  lateral error: ≤ 0.5 mm 99.9 % (n = 1276), 0.5-1 mm 98.1 % (579), 1-1.5 mm 95.8 % (119), 1.5-2 mm
+  79 % (48), 2-3 mm 67 % (24); starts > 1 mm below the port are worst (80 %). The blind capture region
+  is ~1 mm: **the approach must be within ~1 mm laterally for ≥ 99 %**. Final per-level numbers below.
+- **Slip termination** relaxed to a drop (10 mm / 15° in the hand); a few mm of in-hand slip that still
+  seats is not a failure.
+- **What the wrist camera adds (DAgger from the privileged teacher, n = 1024 each, scale 1.0, in the
+  students' training conditions: 60° grasp, wide DR):** see the table in the status below. DAgger
+  needs a replay buffer longer than an episode: with 2.4 s per world it forgot earlier phases and
+  collapsed as soon as the teacher stopped acting.
+- Throughput (V100, elliptic cones, 4096 worlds): ~6.3k env-steps/s alone, ~4k with two runs per GPU.
+  Resets no longer call `mjw.forward` (`runtime.reset(forward=False)`): 250 → 30 ms per reset batch.
+
+
 ### 2026-10-31 (mason, `policy/pick`) — Part 1 strip in front of the PC: 5 × 10 cm, gate 2048/2048
 
 - User rejected windows beside the PC. With a world-fixed yaw the tipped grasp needs x ≳ 0.30 m; with

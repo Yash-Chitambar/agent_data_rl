@@ -32,7 +32,7 @@ class BimanualTaskCfg:
 
 
 class BimanualTask:
-    def __init__(self, cfg=None):
+    def __init__(self, cfg=None, runtime=None):
         self.cfg=cfg or BimanualTaskCfg()
         c=self.cfg
         if any(not math.isfinite(x) or x<=0 for x in (c.episode_s,c.success_hold_s,c.action_scale_rad)):
@@ -41,7 +41,8 @@ class BimanualTask:
             raise ValueError("action_mode must be relative or accumulate")
         if not math.isfinite(c.target_cap_rad) or c.target_cap_rad <= 0:
             raise ValueError("target_cap_rad must be positive and finite")
-        self.runtime=BimanualRuntime(c.physics)
+        # runtime: share an existing BimanualRuntime (chained stages in one simulation, scripts/eval/eval_chain.py)
+        self.runtime=runtime if runtime is not None else BimanualRuntime(c.physics)
         self.device=self.runtime.device
         self.dt=self.runtime.mjm.opt.timestep*c.physics.substeps
         self.max_steps=math.ceil(c.episode_s/self.dt)

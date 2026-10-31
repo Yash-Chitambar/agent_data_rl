@@ -61,11 +61,11 @@ class PickTaskCfg(BimanualTaskCfg):
 
 
 class PickTask(BimanualTask):
-    def __init__(self, cfg=None):
+    def __init__(self, cfg=None, runtime=None):
         cfg = cfg or PickTaskCfg()
         if cfg.pc_pose_range is not None:
             cfg.physics.pc_pose_range = tuple(cfg.pc_pose_range)
-        super().__init__(cfg)
+        super().__init__(cfg, runtime=runtime)
         rt, m = self.runtime, self.runtime.mjm
         dev = self.device
         self.qadr = rt.indices['right'][0]

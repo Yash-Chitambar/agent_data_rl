@@ -76,6 +76,22 @@ class BimanualCfg:
     # and 90 rows per world; the margin is for contact-rich insertion. Check buffer_usage().
     nconmax: int = 128
     njmax: int = 800
+    # Contact randomization (Part 4), per world, resampled on reset; None keeps the scene values.
+    # Keys (each optional, uniform (lo, hi)): port_friction (plug-port sliding mu: the port geoms
+    # have contact priority, so their value alone sets the pair), port_timeconst (port solref time
+    # constant, s), pad_friction (pad-reader mu; the reader geoms are lowered to reader_friction so
+    # the pad value sets the pair), pad_timeconst (pad solref time constant, s; MuJoCo averages it
+    # with the reader's 2 ms), grip_gain_scale (squeeze force scale on both right-gripper motors).
+    # Values are bounds chosen around the scene defaults, not measurements (see POLICY_PLAN Part 4).
+    contact_dr: dict | None = None
+    # MjModel.opt overrides applied before the GPU model is built, e.g. {"cone": 1} (elliptic
+    # friction cones; impratio only acts on those). None keeps the scene's solver options.
+    opt_overrides: dict | None = None
+    # Cameras to render (subset of top, wrist_cam, left_wrist_cam); fewer cameras = cheaper renders.
+    camera_names: tuple = ('top', 'wrist_cam', 'left_wrist_cam')
+    # PC mass and inertia scale (1 = measured 284 g). A large value (e.g. 1e3) pins the PC through
+    # its feet friction: the "PC fixed" reference condition for insertion evaluations.
+    pc_mass_scale: float = 1.0
 
 
 class BimanualRuntime:
@@ -123,6 +139,17 @@ class BimanualRuntime:
                     assert g.jntnum[0] == 0 and g.parentid[0] == cam.bodyid[0]
                     rot = np.zeros(9); mujoco.mju_quat2Mat(rot, g.quat)
                     m.cam_pos[cam.id] -= rot.reshape(3, 3) @ off
+        if c.pc_mass_scale != 1.0:
+            if not 0 < c.pc_mass_scale < 1e6:
+                raise ValueError('pc_mass_scale must be positive')
+            b = m.body('fixture').id
+            m.body_mass[b] *= c.pc_mass_scale
+            m.body_inertia[b] *= c.pc_mass_scale
+            mujoco.mj_setConst(m, mujoco.MjData(m))   # derived constants (invweight0 ...) follow the new mass
+        for key, value in (c.opt_overrides or {}).items():
+            if not hasattr(m.opt, key):
+                raise ValueError(f'unknown MjOption field {key}')
+            setattr(m.opt, key, value)
         d = mujoco.MjData(m)
         self.layout = None
         if c.task_layout is not None:
@@ -164,6 +191,8 @@ class BimanualRuntime:
         with wp.ScopedDevice(c.device):
             batched = ({'dof_frictionloss': c.nworld} if self.profile else {}) | \
                       ({'geom_friction': c.nworld} if c.pc_friction_range else {}) | \
+                      ({'geom_friction': c.nworld, 'geom_solref': c.nworld, 'actuator_gainprm': c.nworld}
+                       if c.contact_dr else {}) | \
                       {k: c.nworld for k in VD.batch_fields(self.visual_dr_cfg)}
             self.m = mjw.put_model(m, batch_sizes=batched or None)
             self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=c.nconmax,njmax=c.njmax)
@@ -176,7 +205,9 @@ class BimanualRuntime:
         self.force = wp.to_torch(self.d.qfrc_applied)
         self.sensor_time = 0.0
         self.camera_sensor = None
-        self.camera_names = ('top','wrist_cam','left_wrist_cam')
+        self.camera_names = tuple(c.camera_names)
+        if not self.camera_names or not set(self.camera_names) <= {'top','wrist_cam','left_wrist_cam'}:
+            raise ValueError('camera_names must be a non-empty subset of top, wrist_cam, left_wrist_cam')
         calibration = R.load()
         self.encoder_offsets = torch.tensor(
             [calibration['arms'][side]['joint_offsets_rad'] for side in ('right','left')],
@@ -190,6 +221,7 @@ class BimanualRuntime:
                 raise ValueError('scene has no pc_pad_ feet geoms to randomize')
             self.geom_friction = wp.to_torch(self.m.geom_friction)
             self._sample_pc_friction(torch.arange(c.nworld,device=self.device))
+        if c.contact_dr: self._init_contact_dr(m)
         if self.profile:
             arms = [self.profile['arms'][side] for side in ('right','left')]
             f = lambda key: torch.tensor([arm[key] for arm in arms],device=self.device,dtype=self.q.dtype)
@@ -215,12 +247,16 @@ class BimanualRuntime:
             self.visual = VD.VisualDR(m,self.m,self.visual_dr_cfg,self.look,self.camera_names,c.nworld,self.device,centre)
             if c.measured_camera_cadence:
                 from blind_insertion.envs.camera_cadence import CameraCadence
-                self.camera_sensor=CameraCadence(self.render,c.nworld,self.device)
+                self.camera_sensor=CameraCadence(self.render,c.nworld,self.device,cameras=self.camera_names)
                 self.camera_sensor.reset(torch.arange(c.nworld,device=self.device),self.sensor_time)
 
 
-    def reset(self, ids=None):
-        """Reset selected worlds; randomization and task-specific reset poses are separate."""
+    def reset(self, ids=None, forward=True):
+        """Reset selected worlds; randomization and task-specific reset poses are separate.
+
+        forward=False skips the full-batch mjw.forward (~120 ms at 4096 worlds): derived quantities
+        (xpos, gravcomp) of the reset worlds stay stale until the next step, which recomputes them.
+        """
         if ids is None: ids = torch.arange(self.cfg.nworld,device=self.device)
         self.q[ids] = self.initial_q
         self.v[ids] = 0
@@ -230,9 +266,11 @@ class BimanualRuntime:
             wp.to_torch(getattr(self.d,name))[ids] = 0
         if self.profile: self._sample_dynamics(ids)
         if self.cfg.pc_friction_range: self._sample_pc_friction(ids)
+        if self.cfg.contact_dr: self._sample_contact(ids)
         if self.layout: self._sample_layout(ids)
         if self.cfg.render_rgb: self.visual.sample(ids)
-        with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
+        if forward:
+            with wp.ScopedDevice(self.cfg.device): mjw.forward(self.m,self.d)
         if self.camera_sensor is not None:self.camera_sensor.reset(ids,self.sensor_time)
         return self.state()
 
@@ -307,6 +345,56 @@ class BimanualRuntime:
         mu = torch.rand(len(ids),1,device=self.device)*(hi-lo)+lo
         self.geom_friction[ids[:,None],self.pc_feet,0] = mu.expand(-1,len(self.pc_feet))
 
+    CONTACT_DR_KEYS = ('port_friction','port_timeconst','pad_friction','pad_timeconst','grip_gain_scale')
+
+    def _init_contact_dr(self, m):
+        """Geom/actuator index sets and nominal values for the contact randomization."""
+        unknown = set(self.cfg.contact_dr) - set(self.CONTACT_DR_KEYS) - {'reader_friction'}
+        if unknown:
+            raise ValueError(f'unknown contact_dr keys: {sorted(unknown)}')
+        for key in self.CONTACT_DR_KEYS:
+            if key in self.cfg.contact_dr:
+                lo, hi = self.cfg.contact_dr[key]
+                if not 0 < lo <= hi or not np.isfinite(hi):
+                    raise ValueError(f'contact_dr[{key}] must satisfy 0 < lo <= hi')
+        tt = lambda x: torch.tensor(x, device=self.device, dtype=torch.long)
+        self.port_geoms = tt(list(self.lay.fixture_slots))
+        self.reader_geoms = tt(list(self.lay.peg_slots))
+        self.pad_geoms = tt([g for g in range(m.ngeom) if m.geom(g).name.startswith(('left_pad_s', 'right_pad_s'))])
+        self.grip_acts = tt(list(self.indices['right'][3]))
+        if not len(self.pad_geoms) or not len(self.port_geoms):
+            raise ValueError('scene lacks right pad spheres or port geoms for contact_dr')
+        if (m.geom_priority[self.lay.fixture_slots] <= m.geom_priority[self.lay.peg_slots].max()).any():
+            raise ValueError('port geoms must have contact priority over the reader')
+        self.geom_friction = wp.to_torch(self.m.geom_friction)
+        self.geom_solref = wp.to_torch(self.m.geom_solref)
+        self.actuator_gainprm = wp.to_torch(self.m.actuator_gainprm)
+        self._grip_gain0 = self.actuator_gainprm[0, self.grip_acts, 0].clone()
+        if 'reader_friction' in self.cfg.contact_dr:
+            self.geom_friction[:, self.reader_geoms, 0] = float(self.cfg.contact_dr['reader_friction'])
+        self.contact_params = torch.ones((self.cfg.nworld, len(self.CONTACT_DR_KEYS)), device=self.device)
+        self._sample_contact(torch.arange(self.cfg.nworld, device=self.device))
+
+    def _sample_contact(self, ids):
+        """Per-world plug-port and pad contact parameters; contact_params holds the drawn values."""
+        dr, n = self.cfg.contact_dr, len(ids)
+        for k, key in enumerate(self.CONTACT_DR_KEYS):
+            if key not in dr:
+                continue
+            lo, hi = dr[key]
+            x = torch.rand(n, 1, device=self.device) * (hi - lo) + lo
+            self.contact_params[ids, k] = x[:, 0]
+            if key == 'port_friction':
+                self.geom_friction[ids[:, None], self.port_geoms, 0] = x.expand(-1, len(self.port_geoms))
+            elif key == 'port_timeconst':
+                self.geom_solref[ids[:, None], self.port_geoms, 0] = x.expand(-1, len(self.port_geoms))
+            elif key == 'pad_friction':
+                self.geom_friction[ids[:, None], self.pad_geoms, 0] = x.expand(-1, len(self.pad_geoms))
+            elif key == 'pad_timeconst':
+                self.geom_solref[ids[:, None], self.pad_geoms, 0] = x.expand(-1, len(self.pad_geoms))
+            elif key == 'grip_gain_scale':
+                self.actuator_gainprm[ids[:, None], self.grip_acts, 0] = x * self._grip_gain0
+
     def _sample_dynamics(self, ids):
         """Per-world Coulomb friction and gravity scales around the identified profile."""
         lo,hi = self.cfg.friction_scale_range
@@ -368,7 +456,7 @@ class BimanualRuntime:
                 frames[name]=self.visual.image(name,wp.to_torch(self.rgb_buffer))
         return frames
 
-    def insertion_metrics(self, seat_tolerance_m=.00025, tilt_limit_deg=2.):
+    def insertion_metrics(self, seat_tolerance_m=.00025, tilt_limit_deg=2., aperture_tol_m=0.):
         """Geometric insertion checks in the live port frame, not electrical continuity.
 
         Every sampled plug-edge point must fit the aperture. Both depth bounds
@@ -386,7 +474,10 @@ class BimanualRuntime:
         edge=torch.roll(polygon,-1,0)-polygon
         delta=points[:,:,:2,None].transpose(2,3)-polygon[None,None]
         cross=edge[None,None,:,0]*delta[:,:,:,1]-edge[None,None,:,1]*delta[:,:,:,0]
-        inside=(cross>=-1e-9).all(dim=2).all(dim=1)
+        if aperture_tol_m:   # signed distance outside each edge <= tol (soft-contact penetration allowance)
+            inside=(cross/edge.norm(dim=1)[None,None]>=-aperture_tol_m).all(dim=2).all(dim=1)
+        else:
+            inside=(cross>=-1e-9).all(dim=2).all(dim=1)
         depth=float((self.lay.seating_depth if self.lay.seating_depth is not None else self.lay.depth)[0])
         axial=points[:,:,2]
         tilt=torch.rad2deg(torch.acos(rotation[:,2,2].clamp(-1,1)))
