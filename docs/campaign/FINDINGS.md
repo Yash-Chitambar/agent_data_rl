@@ -137,6 +137,15 @@ At 1.5 (seed 1000) by start lateral error: ≤ 1.5 mm 100 % (1855), 1.5-2 mm 99.
 Median time to seat 0.88 s; PC motion p99 1.3 mm. v6 seed 0 at 10 M: 99.27 % [98.80, 99.56] (misses).
 Exported as `runs/P4-insert-best/best.pt`.
 
+**Round 3 (2026-11-01): why the DAgger students looked good in training.** The distiller updates the
+student every control step on a replay buffer that holds the current episode's teacher labels, so the
+privileged teacher steers the student mid-episode through the gradient steps. Same student (wrist,
+1.02 M steps), same env, β = 0, 256 worlds: with updates (lr 3e-4) 100 % / 90.5 % seated (n = 320, 359);
+frozen (lr 0) 3.1 % / 0.0 % (n = 258, 243). The training logs measured online teacher leakage, not the
+student; the held-out evals (≤ 7 %) were right. Not an env mismatch (memorization was also ruled out:
+the wrist student scores 0.6 % on its own training start pool vs 0.4 % on seed 1000). Frozen-policy
+evals, as the chain uses, are unaffected.
+
 **Round 2 checks (2026-11-01):**
 - *Seated means fully inserted:* seed 0 at 1.5, re-run (99.07 %, n = 2048): the 2029 seated plugs are
   5.63-5.80 mm deep (median 5.72; seat 5.8 mm at the neck stop), tip centre within 0.08 mm of the

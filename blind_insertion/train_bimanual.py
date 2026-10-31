@@ -53,6 +53,9 @@ def make_env(args, nworld=None, seed=None):
             setattr(cfg.task, k, tuple(v) if isinstance(v, list) else v)
         else:
             setattr(cfg.task.physics, k, tuple(v) if isinstance(v, list) else v)
+    if getattr(args, 'camera', ''):
+        p = cfg.task.physics
+        p.render_rgb, p.visual_dr, p.camera_resolution, p.camera_names = True, True, args.res, ('wrist_cam',)
     return InsertionTask(cfg, seed=args.seed if seed is None else seed)
 
 
@@ -72,11 +75,23 @@ def train(args):
     pc.ent = args.ent
     ac = ActorCritic(env.obs_dim, env.act_dim, env.critic_dim, history=env.icfg.history,
                      n_points=env.n_labels, init_std=args.init_std).to(dev)
-    opt = torch.optim.Adam(ac.parameters(), lr=pc.lr)
+    vis = bool(args.camera)
+    if vis:
+        from blind_insertion.policies.visual_insertion import VisualAC
+        ac = VisualAC(ac, args.res).to(dev)
+        rt = env.runtime
+
+        def frames():
+            fr, age = rt.camera_sensor.observation(rt.sensor_time)
+            return fr['wrist_cam'], age['wrist_cam']
+    opt = torch.optim.Adam(ac.parameters(), lr=args.lr or pc.lr)
     it, total, t_stage = 0, 0, 0
     if args.init:
         ck0 = torch.load(args.init, map_location=dev, weights_only=False)
-        ac.load_state_dict(ck0['model'])
+        if vis and 'visual' not in ck0:      # proprio trunk from a blind checkpoint; camera head starts at 0
+            ac.base.load_state_dict(ck0['model'])
+        else:
+            ac.load_state_dict(ck0['model'])
         print(f'[{args.name}] initialized from {args.init}', flush=True)
     resuming = args.resume and (run / 'last.pt').exists()
     if resuming:
@@ -95,6 +110,9 @@ def train(args):
                done=torch.zeros(T, N, device=dev), tout=torch.zeros(T, N, device=dev),
                valid=torch.zeros(T, N, device=dev),
                lab=torch.zeros(T, N, env.n_labels, dtype=torch.long, device=dev))
+    if vis:
+        buf['frames'] = torch.zeros(T, N, args.res, args.res, 3, dtype=torch.uint8, device=dev)
+        buf['age'] = torch.zeros(T, N, device=dev)
     hist, crit = env.observe()
     cw = torch.tensor(pc.class_w, device=dev)
     log_f = open(run / 'train_log.csv', 'a' if resuming else 'w', newline='')
@@ -107,7 +125,8 @@ def train(args):
         return {'model': ac.state_dict(), 'opt': opt.state_dict(), 'iter': it, 'steps': total, 'stage': stage,
                 't_stage': t_stage, 'scale': stages[stage], 'obs_dim': D, 'act_dim': A, 'critic_dim': C,
                 'n_points': env.n_labels, 'history': H, 'action_mode': args.action_mode,
-                'env_json': args.env_json, 'wall': time.time() - t0}
+                'env_json': args.env_json, 'wall': time.time() - t0,
+                **({'visual': {'res': args.res, 'cams': ['wrist_cam']}} if vis else {})}
 
     while total < args.steps:
         it += 1
@@ -118,7 +137,12 @@ def train(args):
             for t in range(T):
                 ac.obs_norm.update(hist[:, -1])
                 ac.crit_norm.update(crit)
-                d, _ = ac.dist(hist)
+                if vis:
+                    fr, age = frames()
+                    buf['frames'][t], buf['age'][t] = fr, age
+                    d, _ = ac.dist(hist, fr, age)
+                else:
+                    d, _ = ac.dist(hist)
                 a = d.sample()
                 buf['hist'][t] = hist
                 buf['crit'][t] = crit
@@ -160,12 +184,14 @@ def train(args):
         fadv, fret = adv.reshape(nb), ret.reshape(nb)
         st = {'pg': 0., 'vf': 0., 'ent': 0., 'ce': 0., 'acc': 0., 'kl': 0.}
         nupd = 0
-        for _ in range(pc.epochs):
+        for _ep in range(pc.epochs):
+            if args.target_kl and nupd and st['kl'] / nupd > args.target_kl:
+                break      # KL early stop (fine-tuning a low-std policy)
             perm = torch.randperm(nb, device=dev)
             for i in range(pc.minibatches):
                 j = perm[i * mb:(i + 1) * mb]
                 h = flat['hist'][j]
-                dist, z = ac.dist(h)
+                dist, z = ac.dist(h, flat['frames'][j], flat['age'][j]) if vis else ac.dist(h)
                 logp = dist.log_prob(flat['act'][j]).sum(-1)
                 ratio = torch.exp(logp - flat['logp'][j])
                 w = flat['valid'][j]
@@ -251,6 +277,10 @@ def parser():
     ap.add_argument('--print_every', type=int, default=5)
     ap.add_argument('--ckpt_every', type=int, default=10)
     ap.add_argument('--resume', action='store_true')
+    ap.add_argument('--camera', default='', help="'wrist': proprio + right-wrist RGB actor (VisualAC)")
+    ap.add_argument('--res', type=int, default=64)
+    ap.add_argument('--lr', type=float, default=0.0, help='0: PPOCfg.lr (3e-4)')
+    ap.add_argument('--target_kl', type=float, default=0.0, help='>0: stop the update epochs once mean KL exceeds this')
     ap.add_argument('--init', default='', help='start from this checkpoint (weights + normalizers), fresh optimizer')
     return ap
 

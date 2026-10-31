@@ -36,6 +36,9 @@ def wilson(k, n, z=1.96):
 def load_policy(path, dev):
     ck = torch.load(path, map_location=dev, weights_only=False)
     ac = ActorCritic(ck['obs_dim'], ck['act_dim'], ck['critic_dim'], history=ck['history'], n_points=ck['n_points']).to(dev)
+    if 'visual' in ck:     # proprio + wrist RGB (policies/visual_insertion.py)
+        from blind_insertion.policies.visual_insertion import VisualAC
+        ac = VisualAC(ac, ck['visual']['res']).to(dev)
     ac.load_state_dict(ck['model'])
     ac.eval()
     ac.obs_norm.freeze(); ac.crit_norm.freeze()
@@ -65,10 +68,18 @@ class InsertionPolicy:
         self.meta = dict(paths=[str(q) for q in paths], env_json=ej, action_mode=ck.get('action_mode', 'accumulate'),
                          history=ck['history'], episode_s=ej.get('episode_s', 6.0), obs_dim=self.obs_dim)
 
+        self.visual = 'visual' in ck
+        if self.visual:   # the env must render the wrist camera at this resolution (env_json in meta)
+            self.meta['visual'] = ck['visual']
+            self.meta['env_json'] = dict(ej, render_rgb=True, visual_dr=True, camera_resolution=ck['visual']['res'],
+                                         camera_names=list(ck['visual']['cams']))
+
     @torch.no_grad()
-    def __call__(self, hist):
+    def __call__(self, hist, frames=None, age=None):
+        """frames/age: the latest right-wrist RGB frame (N, res, res, 3) uint8 and its age (s), visual only."""
         h = hist[..., :self.obs_dim]
-        return torch.stack([ac.act_mean(h)[0] for ac, _ in self.members]).mean(0).clamp(-1, 1)
+        acts = [ac.act_mean(h, frames, age)[0] if 'visual' in ck else ac.act_mean(h)[0] for ac, ck in self.members]
+        return torch.stack(acts).mean(0).clamp(-1, 1)
 
 
 def load_insertion_policy(path=None, device='cuda:0'):
@@ -140,7 +151,11 @@ def main():
             elif ac is None:
                 act = env.scripted_action(gain=0.1)
             else:
-                act = ens(hist) if not a.stochastic else ac.dist(hist)[0].sample()
+                if ens.visual:
+                    fr, ag = env.runtime.camera_sensor.observation(env.runtime.sensor_time)
+                    act = ens(hist, fr['wrist_cam'], ag['wrist_cam'])
+                else:
+                    act = ens(hist) if not a.stochastic else ac.dist(hist)[0].sample()
         hist, _, _, done, info = env.step(act)
         pc_max = torch.maximum(pc_max, info['pc_d'])
         if 'final' in info:

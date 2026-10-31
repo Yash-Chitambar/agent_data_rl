@@ -77,6 +77,8 @@ def main():
     ap.add_argument('--lr', type=float, default=3e-4)
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--no_visual_dr', action='store_true')
+    ap.add_argument('--init', default='', help='start the student from this checkpoint (diagnostics: --lr 0 freezes it)')
+    ap.add_argument('--refresh_every', type=int, default=0, help='>0: env.refresh_pool() every this many steps')
     a = ap.parse_args()
     torch.manual_seed(a.seed)
     dev = torch.device('cuda:0')
@@ -95,7 +97,9 @@ def main():
     run.mkdir(parents=True, exist_ok=True)
     json.dump(dict(args=vars(a), env_json=env_json, git=git_hash(), cams=cams), open(run / 'config.json', 'w'), indent=1)
     st = Student(cams, a.res, history=env.icfg.history, n_points=env.n_labels).to(dev)
-    opt = torch.optim.Adam(st.parameters(), lr=a.lr)
+    if a.init:
+        st.load_state_dict(torch.load(a.init, map_location=dev, weights_only=False)['model'])
+    opt = torch.optim.Adam(st.parameters(), lr=max(a.lr, 1e-12))
     N, L, H = env.N, a.buffer, env.icfg.history
     B = {'hist': torch.zeros(L, N, H, PROPRIO, device=dev), 'act': torch.zeros(L, N, 6, device=dev),
          'lab': torch.zeros(L, N, env.n_labels, dtype=torch.long, device=dev), 'mask': torch.zeros(L, N, device=dev)}
@@ -131,11 +135,13 @@ def main():
             k += 1; filled = min(filled + 1, L)
             hist, _, _, done, info = env.step(act)
             total += N
+            if a.refresh_every and it % a.refresh_every == 0:
+                env.refresh_pool()
             if 'final' in info:
                 f = info['final']
                 stud = ~use_t[info['final_ids']]       # outcome of an episode whose last step the student acted
                 succ_n += int(f['success'][stud].sum()); ep_n += int(stud.sum())
-        if filled >= 8:
+        if filled >= 8 and a.lr > 0:
             st.train()
             for _ in range(a.updates_per_step):
                 ti = torch.randint(filled, (a.batch,), device=dev)
