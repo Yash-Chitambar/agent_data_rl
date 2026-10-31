@@ -55,7 +55,8 @@ GRASP_TIP_CLEARANCE = 0.001
 @dataclass
 class InsertionCfg:
     task: BimanualTaskCfg = field(default_factory=lambda: BimanualTaskCfg(
-        episode_s=6., physics=BimanualCfg(contact_dr=dict(DEFAULT_CONTACT_DR), opt_overrides={"cone": 1})))
+        episode_s=6., physics=BimanualCfg(contact_dr=dict(DEFAULT_CONTACT_DR), opt_overrides={"cone": 1},
+                                                    njmax=1400, nconmax=160)))
     history: int = 30
     # Pre-insert error of the plug relative to the port (port frame): lateral half-ranges (m) for
     # the tip across the aperture (x: long side, y: short side), gap of the tip in front of the
@@ -74,7 +75,9 @@ class InsertionCfg:
     # Left arm: press on the PC top at the reachability search's pose (pads `press_m` below the
     # surface as a target; the episode starts with the pads 3 mm above it).
     left_hold: str = 'press'
-    press_m: float = 0.006
+    # 20 mm: arm sag and the +/-1.5 deg encoder-offset error leave only 66 % of worlds touching the
+    # PC at 6 mm; at 20 mm all touch and the PC resists ~3-5 N horizontally (n=256, pc mu 0.3-0.9).
+    press_m: float = 0.02
     warmup_steps: int = 10              # actions ignored while the grasp and the press settle
     # termination (failure) thresholds
     far_m: float = 0.02                 # tip further than this from the port centre
@@ -84,6 +87,7 @@ class InsertionCfg:
     pc_tilt_deg: float = 5.0
     # reward: sparse capture + seated (Bronars et al.) + potential shaping on tip error
     shaping: float = 1.0
+    fail_penalty: float = 1.0           # subtracted at a failure termination (slip, PC pushed, far)
     shaping_scale_m: float = 0.01
     free_height: float = 0.001          # contact labels: point above the panel by this is free
     pool_per_world: int = 4
@@ -449,7 +453,9 @@ class InsertionTask(BimanualTask):
         self.captured |= all_inside
         phi2 = self._potential()
         gamma = 0.98
-        reward = new_capture.float() + L['seated'].float() + c.shaping * (gamma * phi2 - self.phi)
+        failed = L['slip'] | L['pushed'] | L['far']
+        reward = new_capture.float() + L['seated'].float() + c.shaping * (gamma * phi2 - self.phi) \
+            - c.fail_penalty * (failed & ~L['success']).float()
         reward = torch.where(L['bad'], torch.zeros_like(reward), reward)
         reward = torch.nan_to_num(reward, 0., 0., 0.)
         self.phi = phi2
