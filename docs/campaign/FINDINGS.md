@@ -143,6 +143,24 @@ Results: `results/usbc/policy/insertion/`.
 - **Scripted privileged controller** (Jacobian, true reader/port state): 26.2 % seated (n=512, Wilson
   [22.6, 30.1] %), feasibility only: it is slow (median seat 4.9 s of 6 s) and many "jams" sit
   at −5.78 mm when time runs out. Clearance per side: 45 µm (width), 80 µm (height).
+- **Starts from Part 2** (`preinsert_error_samples.npz`, 1021 episodes; 6 approach failures with lateral
+  > 8 mm or gap outside 0.5-15 mm dropped): each start draws a row, the curriculum scales lateral and
+  angles (0.5 → 1.25), the gap is kept (median 5.9 mm). In-hand ±3 mm/±8° is sampled on top (it
+  changes the arm configuration, not the plug-port error).
+- **Left hold = Part 3's guarded 35 N press** (end state: latched at the true contact as the encoders
+  read it, plus Kp⁻¹JᵀF, not capped by the policy's 0.1 rad tracking cap): touches in 100 % of worlds;
+  a 1 s axial push at the port moves the PC ≤ 0.3 mm (max) up to 8 N, ≤ 0.85 mm at 12 N, 9 mm at 16 N
+  (n = 32 per force). The PC sinks 0.9 mm into its feet under the press.
+- **Seating test too strict for soft contacts:** a privileged teacher left 90 of 119 fully inserted
+  plugs (5.5-5.8 mm deep, roll 0.2-0.4°, tilt < 1°) failing the aperture test by 3 µm median, 14 µm max
+  (contact penetration in a 45 µm-clearance slot). `insertion_metrics(aperture_tol_m=...)` (default 0,
+  unchanged); the insertion task uses 25 µm and every eval also reports the strict rate.
+- **Scripted privileged controller with Part 2 starts and the guarded hold: 41.4 % seated** (n = 512,
+  Wilson [37.2, 45.7] %; 234 stuck at the mouth, 38 jams, 28 slips): real seating happens in this env.
+  (26.2 % earlier with uniform starts, simple press and the strict test.)
+- **Training success is biased high right after a synchronized reset** (the first episodes to finish
+  are the quick successes): a teacher logged 98.8 % that settled to ~80-88 % at steady state. Use the
+  held-out evals below, not the training curves.
 - Throughput (V100, elliptic cones, 4096 worlds): ~6.3k env-steps/s alone, ~4k with two runs per GPU.
   Resets no longer call `mjw.forward` (`runtime.reset(forward=False)`): 250 → 30 ms per reset batch.
 

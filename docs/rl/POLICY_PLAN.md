@@ -151,6 +151,20 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   and robustness to larger start errors and camera pose errors.
 - **Metrics:** seated rate (0.2 s hold), time to seat, PC motion, peak contact force, failure classes.
 
+**Status (2026-10-31, branch `policy/insertion`; details and numbers in FINDINGS 2026-10-31):**
+
+- Built: `envs/insertion_task.py` (episode: reader in the right hand at a pre-insert pose, starts
+  from Part 2's measured pre-insert errors `results/usbc/policy/approach/preinsert_error_samples.npz`
+  scaled by a curriculum, in-hand ±3 mm/±8° around the confirmed 60° grasp (`inhand_pose`), Part 3's
+  guarded 35 N press as the left hold, full physics DR + contact DR), `train_bimanual.py` (PPO,
+  TCN actor, contact head, privileged critic), `distill_insertion.py` (DAgger from a privileged
+  teacher into blind / wrist / wrist-approach / wrist+ZED students), `eval_insertion.py` (held-out
+  seeds, Wilson CI, failure classes, strict and tolerant seating).
+- Decisions forced by the sim: accumulated joint targets (relative targets drift 23 mm in 2 s),
+  elliptic friction cones (grasp creep), seating with a 25 µm aperture tolerance (soft-contact
+  penetration of fully inserted plugs is up to 14 µm), action std 0.2.
+- Results: see the table in FINDINGS (updated as runs finish).
+
 ## Order of work
 
 1. Shared DR (control, contact, appearance, lighting, camera) in the bimanual runtime.
