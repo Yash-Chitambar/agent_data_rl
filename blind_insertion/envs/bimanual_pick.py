@@ -1,0 +1,272 @@
+"""Part 1 (pick) on the GPU bimanual runtime: task layer with grasp DR, and a privileged scripted
+expert for the top-down side grasp (`scenes.reader_grasp`).
+
+PickTask = BimanualTask (arm dynamics, PC/reader layout, latency, encoder-offset DR) plus contact
+DR resampled per world on reset: pad friction, reader-table friction, gripper force. The left arm
+holds its reset pose. `pick_metrics()` measures lift, reader tilt and the in-hand pose.
+
+PickExpert uses privileged state (true joint angles and the reader pose): joint-space move to the
+pre-grasp (IK solved at reset), Cartesian descent, settle-before-close (joint integral until the
+true TCP is within tolerance), close, lift, hold. Its actions go through the task's normalized
+accumulate interface (`BimanualTask.step`), so recorded actions are valid policy actions.
+
+    task = PickTask(PickTaskCfg(physics=BimanualCfg(nworld=1024, device='cuda:0')))
+    ex = PickExpert(task); task.reset(); ex.reset()
+    while not ex.done.all(): task.step(ex.act())
+"""
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+
+import torch
+
+from blind_insertion.envs import kinematics as K
+from blind_insertion.envs.bimanual_runtime import BimanualCfg
+from blind_insertion.envs.bimanual_task import BimanualTask, BimanualTaskCfg
+from blind_insertion.scenes import reader_grasp as G
+
+
+@dataclass
+class PickTaskCfg(BimanualTaskCfg):
+    physics: BimanualCfg = field(default_factory=BimanualCfg)
+    episode_s: float = 12.
+    # Contact DR (per world, on reset). Pads have contact priority, so their friction sets the
+    # pad-reader pair; the table is set to the lower bound so the reader value sets reader-table.
+    pad_friction_range: tuple | None = (1.0, 2.0)      # sim nominal 1.68 (pc_bench)
+    reader_table_friction_range: tuple | None = (0.4, 1.0)   # <= 0.3 gave non-finite PC states (MJWarp solver) in ~2-8 % of worlds
+    grip_force_scale_range: tuple | None = (0.6, 1.2)  # x the 12 N squeeze (unmeasured)
+
+
+class PickTask(BimanualTask):
+    def __init__(self, cfg=None):
+        cfg = cfg or PickTaskCfg()
+        super().__init__(cfg)
+        rt, m = self.runtime, self.runtime.mjm
+        dev = self.device
+        self.qadr = rt.indices['right'][0]
+        self.lay = rt.lay
+        self.chain = K.Chain(m, rt.lay.tcp_site, list(self.qadr), device=dev)
+        self.pads = torch.tensor([g for g in range(m.ngeom) if m.geom(g).name.startswith(('left_pad_s', 'right_pad_s'))], device=dev)
+        self.reader_geoms = torch.tensor(list(rt.lay.peg_slots), device=dev)
+        self.table = m.geom('table').id
+        self.table_top = float(m.geom('table').pos[2] + m.geom('table').size[2])
+        if (cfg.pad_friction_range or cfg.reader_table_friction_range) and not hasattr(rt, 'geom_friction'):
+            raise ValueError('contact DR needs batched geom_friction (BimanualCfg.pc_friction_range)')
+        if cfg.reader_table_friction_range:
+            rt.geom_friction[:, self.table, 0] = cfg.reader_table_friction_range[0]
+        if cfg.grip_force_scale_range:
+            rt.grip_scale = torch.ones(cfg.physics.nworld, device=dev)
+        self.reader0 = torch.zeros(cfg.physics.nworld, 7, device=dev)
+        import mujoco
+        from blind_insertion.scenes import physical_rig as Rig
+        d = mujoco.MjData(m); Rig.reference_pose(m, d, rt.lay); mujoco.mj_forward(m, d)
+        self.hand = G.hand_geometry(m, d)
+        self.offsets, self.pad_contact_height = {}, {}
+        for tilt in (G.TILT_DEG, *G.TILT_FALLBACK_DEG):
+            self.offsets[tilt], self.pad_contact_height[tilt] = G.grasp_offset(rt.lay, self.hand, tilt)
+
+    def reset(self, ids=None):
+        if ids is None: ids = torch.arange(self.cfg.physics.nworld, device=self.device)
+        obs = super().reset(ids)
+        c, rt, n = self.cfg, self.runtime, len(ids)
+        u = lambda r, *s: torch.rand(*s, device=self.device) * (r[1] - r[0]) + r[0]   # noqa: E731
+        if c.pad_friction_range:
+            rt.geom_friction[ids[:, None], self.pads, 0] = u(c.pad_friction_range, n, 1).expand(-1, len(self.pads))
+        if c.reader_table_friction_range:
+            rt.geom_friction[ids[:, None], self.reader_geoms, 0] = u(c.reader_table_friction_range, n, 1).expand(-1, len(self.reader_geoms))
+        if c.grip_force_scale_range:
+            rt.grip_scale[ids] = u(c.grip_force_scale_range, n)
+        self.reader0[ids] = self.reader_pose_q()[ids]
+        if not hasattr(self, 'failed'): self.failed = torch.zeros(self.cfg.physics.nworld, dtype=torch.bool, device=self.device)
+        self.failed[ids] = False
+        return obs
+
+    def step(self, action):
+        """BimanualTask.step without its insertion-episode termination: the pick episode length and
+        outcome are managed by the caller (see pick_metrics); failures are recorded in `self.failed`."""
+        self.done[:] = False
+        out = super().step(action)
+        info = out[4]
+        self.failed |= info['nonfinite'] | info['dropped']
+        self.done[:] = False
+        return out
+
+    # --- privileged state -----------------------------------------------------------------------
+    def reader_pose_q(self):
+        pa = self.lay.peg_qadr
+        return self.runtime.q[:, pa:pa + 7].clone()
+
+    def reader_pose(self):
+        q = self.reader_pose_q()
+        return q[:, :3], K.quat_to_mat(q[:, 3:])
+
+    def q_true(self):
+        return self.runtime.q[:, self.qadr]
+
+    def tcp_pose(self):
+        return self.chain.fk(self.q_true())
+
+    def inhand(self):
+        """Reader pose in the grasp_site frame: p (N,3), R (N,3,3)."""
+        p_r, R_r = self.reader_pose()
+        p_t, R_t = self.tcp_pose()
+        Rt = R_t.transpose(1, 2)
+        return (Rt @ (p_r - p_t)[..., None])[..., 0], Rt @ R_r
+
+    def pick_metrics(self):
+        p_r, R_r = self.reader_pose()
+        lift = p_r[:, 2] - self.reader0[:, 2]
+        tilt = torch.rad2deg(torch.acos(R_r[:, 2, 1].clamp(-1, 1)))     # reader thickness axis vs world up
+        p_i, R_i = self.inhand()
+        pc = self.runtime.q[:, self.runtime.pc_qadr:self.runtime.pc_qadr + 3]
+        return {'lift_m': lift, 'tilt_deg': tilt, 'inhand_p': p_i, 'inhand_R': R_i, 'pc_pos': pc,
+                'finite': torch.isfinite(self.runtime.q).all(1)}
+
+
+class PickExpert:
+    """Privileged scripted pick with the tipped side grasp (see module docstring)."""
+    PHASES = ('to_pregrasp', 'descend', 'settle', 'close', 'lift', 'hold', 'done')
+
+    def __init__(self, task: PickTask, v_max=0.10, w_max=1.0, joint_speed=1.2, settle_tol=(6e-4, 0.4),
+                 settle_max_s=2.0, close_s=0.6, hold_s=1.0, integral_gain=0.25, integral_cap=0.08,
+                 jitter=None, margin=0.05, seed=0):
+        self.t, self.v, self.w, self.js = task, v_max, w_max, joint_speed
+        self.settle_tol, self.dt = settle_tol, task.dt
+        self.settle_max = round(settle_max_s / task.dt)
+        self.close_n, self.hold_n = round(close_s / task.dt), round(hold_s / task.dt)
+        self.ki, self.icap = integral_gain, integral_cap
+        # Optional per-episode grasp-point jitter (reader frame, m) to widen demo coverage.
+        self.jitter, self.margin = jitter, margin
+        self.gen = torch.Generator(device=task.device); self.gen.manual_seed(seed + 101)
+
+    def _ik(self, p, R, q0, iters):
+        return self.t.chain.ik(p, R, q0, iters=iters)
+
+    def reset(self):
+        t, dev = self.t, self.t.device
+        N = t.cfg.physics.nworld
+        self.phase = torch.zeros(N, dtype=torch.long, device=dev)
+        self.timer = torch.zeros(N, dtype=torch.long, device=dev)
+        self.done = torch.zeros(N, dtype=torch.bool, device=dev)
+        self.integ = torch.zeros(N, 6, device=dev)
+        self.q0 = t.q_true().clone()
+        p_r, R_r = t.reader_pose()
+        # Per world: the first tilt (60 deg, then the fallbacks) whose pre-grasp, grasp and lift all
+        # solve with >= margin rad inside the joint limits.
+        self.tilt = torch.full((N,), float('nan'), device=dev)
+        self.offset = torch.zeros(N, 3, device=dev)
+        self.p_g = torch.zeros(N, 3, device=dev); self.R_g = torch.zeros(N, 3, 3, device=dev)
+        self.p_pre = torch.zeros(N, 3, device=dev); self.p_lift = torch.zeros(N, 3, device=dev)
+        best_q = self.q0.clone()
+        aim = torch.atan2(p_r[:, 1], p_r[:, 0])
+        lo, hi = t.chain.lo + self.margin, t.chain.hi - self.margin
+        for tilt in (G.TILT_DEG, *G.TILT_FALLBACK_DEG):
+            todo = torch.isnan(self.tilt)
+            if not todo.any(): break
+            off = torch.as_tensor(t.offsets[tilt], device=dev, dtype=torch.float32).expand(N, 3).clone()
+            if self.jitter is not None:
+                off = off + (torch.rand(N, 3, device=dev, generator=self.gen) * 2 - 1) * torch.as_tensor(self.jitter, device=dev, dtype=torch.float32)
+            W = G.grasp_poses(p_r, R_r, off, tilt)
+            q_pre, e_pre = None, None
+            for sd in ([1.0, 1.0, -.5, 0, 0], [1.6, 1.3, -.9, 0, 0], [2.2, 1.8, -1.2, 0, 0], [.6, .5, -.3, 0, 0]):
+                seed = torch.cat([aim[:, None], torch.tensor(sd, device=dev).expand(N, 5)], 1)
+                seed = torch.max(torch.min(seed, t.chain.hi - .05), t.chain.lo + .05)
+                q, pe, re = self._ik(*W['pregrasp'], seed, 80)
+                e = pe + .05 * re
+                if q_pre is None: q_pre, e_pre = q, e
+                else:
+                    better = e < e_pre
+                    q_pre = torch.where(better[:, None], q, q_pre); e_pre = torch.where(better, e, e_pre)
+            q_g, pe_g, re_g = self._ik(*W['grasp'], q_pre, 80)
+            q_l, pe_l, re_l = self._ik(*W['lift'], q_g, 80)
+            inside = lambda q: ((q >= lo) & (q <= hi)).all(1)   # noqa: E731
+            ok = todo & (e_pre < 1e-3) & (pe_g + .05 * re_g < 1e-3) & (pe_l + .05 * re_l < 1e-3) & inside(q_pre) & inside(q_g) & inside(q_l)
+            self.tilt[ok] = tilt; self.offset[ok] = off[ok]
+            self.p_pre[ok], self.p_g[ok], self.p_lift[ok], self.R_g[ok] = W['pregrasp'][0][ok], W['grasp'][0][ok], W['lift'][0][ok], W['grasp'][1][ok]
+            best_q[ok] = q_pre[ok]
+        bad = torch.isnan(self.tilt)       # unreachable: keep the 60 deg poses (episode will fail)
+        if bad.any():
+            off = torch.as_tensor(t.offsets[G.TILT_DEG], device=dev, dtype=torch.float32).expand(N, 3)
+            W = G.grasp_poses(p_r, R_r, off, G.TILT_DEG)
+            self.offset[bad] = off[bad]
+            self.p_pre[bad], self.p_g[bad], self.p_lift[bad], self.R_g[bad] = W['pregrasp'][0][bad], W['grasp'][0][bad], W['lift'][0][bad], W['grasp'][1][bad]
+        self.q_pre = best_q
+        self.ik_ok = ~bad
+        dq = (self.q_pre - self.q0).abs().max(1).values
+        self.move_n = torch.clamp((dq / self.js / self.dt).ceil(), min=10).long()
+        self.q_cmd = self.q0.clone()
+        self.p_cmd, self.R_cmd = t.chain.fk(self.q_cmd)
+        self.grip = torch.ones(N, device=dev)
+
+    def _cart_step(self, p_wp, R_wp, v):
+        dp = p_wp - self.p_cmd
+        dist = dp.norm(dim=1, keepdim=True)
+        self.p_cmd = self.p_cmd + dp * torch.clamp(v * self.dt / dist.clamp(min=1e-9), max=1.)
+        w = K.rot_log(R_wp @ self.R_cmd.transpose(1, 2))
+        ang = w.norm(dim=1, keepdim=True)
+        w = w * torch.clamp(self.w * self.dt / ang.clamp(min=1e-9), max=1.)
+        self.R_cmd = K.axis_angle_mat(w / w.norm(dim=1, keepdim=True).clamp(min=1e-9), w.norm(dim=1)) @ self.R_cmd
+        return dist[:, 0], ang[:, 0]
+
+    def act(self):
+        """Normalized 14-d action for BimanualTask.step (left arm and gripper hold)."""
+        t, ph = self.t, self.phase
+        N = len(ph)
+        # phase 0: joint-space min-jerk to the pre-grasp
+        s = (self.timer.float() + 1) / self.move_n.float()
+        b = s.clamp(max=1); b = b * b * (3 - 2 * b)
+        q_joint = self.q0 + (self.q_pre - self.q0) * b[:, None]
+        p_c, R_c = t.chain.fk(q_joint)
+        m0 = ph == 0
+        self.p_cmd = torch.where(m0[:, None], p_c, self.p_cmd)
+        self.R_cmd = torch.where(m0[:, None, None], R_c, self.R_cmd)
+        # Cartesian targets for later phases
+        p_wp = torch.where((ph == 4)[:, None] | (ph >= 5)[:, None], self.p_lift, self.p_g)
+        v = torch.where(ph >= 4, torch.full((N,), self.v, device=t.device), torch.full((N,), .05, device=t.device))
+        dist, ang = self._cart_step(p_wp, self.R_g, v[:, None])
+        self.p_cmd = torch.where(m0[:, None], p_c, self.p_cmd)
+        self.R_cmd = torch.where(m0[:, None, None], R_c, self.R_cmd)
+        q_ik, _, _ = self._ik(self.p_cmd, self.R_cmd, self.q_cmd, 12)
+        self.q_cmd = torch.where(m0[:, None], q_joint, q_ik)
+        # settle-before-close: integral on the true joint error once the command has arrived
+        q = t.q_true()
+        p_a, R_a = t.chain.fk(q)
+        e_p = (self.p_g - p_a).norm(dim=1)
+        e_r = torch.rad2deg(K.rot_log(self.R_g @ R_a.transpose(1, 2)).norm(dim=1))
+        # Cartesian integral (true TCP vs its waypoint) mapped through the Jacobian: removes servo
+        # sag and IK residuals alike. Active from the settle phase on.
+        integrate = (ph >= 2)
+        _, _, J = t.chain.fk(q, with_jac=True)
+        p_tgt = torch.where((ph >= 4)[:, None], self.p_cmd, self.p_g)
+        e6 = torch.cat([p_tgt - p_a, .5 * K.rot_log(self.R_g @ R_a.transpose(1, 2))], 1)
+        JJt = J @ J.transpose(1, 2) + 1e-4 * torch.eye(6, device=t.device)
+        dq = (J.transpose(1, 2) @ torch.linalg.solve(JJt, e6[..., None]))[..., 0]
+        self.integ = torch.where(integrate[:, None], (self.integ + self.ki * dq).clamp(-self.icap, self.icap), self.integ)
+        q_phys = self.q_cmd + self.integ
+        q_phys = torch.where(self.ik_ok[:, None], q_phys, self.q0)     # unreachable worlds hold (counted as failures)
+        # phase logic
+        self.timer += 1
+        adv = torch.zeros_like(self.done)
+        adv |= (ph == 0) & (self.timer >= self.move_n + 5) & self.ik_ok
+        adv |= (ph == 1) & (dist < 2e-4) & (ang < 5e-3)
+        settled = (e_p < self.settle_tol[0]) & (e_r < self.settle_tol[1])
+        adv |= (ph == 2) & ((settled & (self.timer >= 5)) | (self.timer >= self.settle_max))
+        adv |= (ph == 3) & (self.timer >= self.close_n)
+        adv |= (ph == 4) & (dist < 5e-4) & (self.timer >= 10)
+        adv |= (ph == 5) & (self.timer >= self.hold_n)
+        if not hasattr(self, 'settle_err'):
+            self.settle_err = torch.zeros(N, 2, device=t.device)
+        rec = (ph == 2) & adv
+        self.settle_err[rec] = torch.stack([e_p, e_r], 1)[rec]
+        self.phase = torch.where(adv & (ph < 6), ph + 1, ph)
+        self.timer = torch.where(adv, torch.zeros_like(self.timer), self.timer)
+        self.done = self.phase >= 6
+        self.grip = torch.where(self.phase >= 3, -torch.ones_like(self.grip), torch.ones_like(self.grip))
+        # absolute physical target -> believed-frame target -> normalized accumulate increment
+        believed = q_phys - t.enc_error[:, 0]
+        a = torch.zeros(N, 14, device=t.device)
+        a[:, :6] = ((believed - t.joint_target[:, 0]) / t.cfg.action_scale_rad).clamp(-1, 1)
+        a[:, 6] = self.grip
+        a[:, 13] = 1.
+        return a
