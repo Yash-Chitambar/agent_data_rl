@@ -127,7 +127,9 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   --fine-net wrist_v12ws --fine-below-mm 7 --x-offset-mm -0.06 --y-offset-mm -0.10` (offsets calibrated on
   seeds 1-2, measured on 3-4). ZED: v1 net with the presence/OOD + **arm-pose gate** (`zed_v1_gate_arm.pt`),
   frame at the rest pose with the right gripper fully open; any other arm configuration is rejected.
-  Details: FINDINGS 2026-11-01 round 5.
+  Details: FINDINGS 2026-11-01 round 5. Round 6: the arm-robust ZED nets miss real frames because of the
+  arm-pose variation itself (ablation: DR, layout and reader placement do not; masking the arms does not
+  help); v1 + gate stays; real frames with known PC poses under varied arm poses are needed (FINDINGS round 6).
 - **Status (2026-11-01, round 4, `policy/approach-hold`): tilt/roll targets met; lateral p99 1.64 mm (target
   1.5 mm; 1.13 mm when the wrist-camera error is inside the real calibration).** Deliverable for Part 4:
   `results/usbc/policy/approach/preinsert_error.json` (+ `preinsert_error_samples.npz`).

@@ -1,0 +1,47 @@
+{
+ "method": "ZED PC-pose estimator on real frames (duchamp3, 2026-10-28 curated session).\n\n  bimanual_stationary_001: PC still; reference pose from the manual lid landmark\n      (results/usbc/bimanual_20261029/overlays/scene_annotation.json: port (0.2142, 0.3308) m, yaw ~0,\n      +/-4 px at 640 px, i.e. roughly +/-5 mm; yaw 'approximate, not fitted'). Reports agreement and the\n      frame-to-frame spread.\n  pc_manual_motion_001, other sessions: no reference; estimate spread and trajectories only.\nReal frames go through scenes.physical_rig.real_top_policy_image (same crop as the sim camera).\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/check_real_zed.py",
+ "reference": {
+  "trial": "bimanual_stationary_001",
+  "frame": "zed/raw_001220.png",
+  "coordinate_system": "640x640 calibrated top policy crop, excludes comparison title bar",
+  "pc_lid_center_px": [
+   342.0,
+   365.0
+  ],
+  "pixel_uncertainty": 4.0,
+  "pc_yaw_deg": 0.0,
+  "yaw_status": "approximate, not fitted",
+  "reader_visible": false,
+  "method": "manual visual landmark on measured-height lid plane; comparison initialization only",
+  "not_for": "connector metrology or policy reset distribution",
+  "derived_port_xy_m": [
+   0.2142402188549658,
+   0.3307582745939665
+  ]
+ },
+ "sessions": {
+  "bimanual_stationary_001": {
+   "n_frames": 123,
+   "port_xy_m_mean": [
+    0.2095232240328699,
+    0.3373032299235338
+   ],
+   "port_xy_mm_std": [
+    0.1147889815715709,
+    0.2426384224617978
+   ],
+   "yaw_deg_mean": 1.108292818069458,
+   "yaw_deg_std": 0.03954700008034706,
+   "port_xy_mm_range": [
+    0.7508760318160057,
+    1.2757889926433563
+   ],
+   "vs_reference_mm": {
+    "mean_dx": -4.716994822095648,
+    "mean_dy": 6.544955329567682,
+    "mean_dist": 8.067619253392774,
+    "yaw_vs_reference_deg": 1.108292818069458
+   }
+  }
+ }
+}

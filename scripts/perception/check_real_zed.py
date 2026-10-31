@@ -43,6 +43,11 @@ def main():
         if not files:
             continue
         imgs = np.stack([real_top_policy_image(cv2.imread(f), 320) for f in files])
+        if ck.get('mask_arms'):            # the net needs the arm mask from the encoders: only logged sessions
+            mf = Path(f'runs/perception/real_masks/{sess}.npz')
+            if not mf.exists():
+                continue
+            imgs[:, np.load(mf)['mask']] = 128
         x = zed_crop(torch.tensor(imgs, device=dev))
         with torch.no_grad():
             e = torch.cat([net(x[i:i + 64])[:, :len(sc)] for i in range(0, len(x), 64)]) * sc
