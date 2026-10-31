@@ -79,6 +79,7 @@ def main():
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position spread (mm)')
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--hold-force', type=float, default=25.)
+    ap.add_argument('--hold-along', type=float, default=-.02, help='press point from the case centre toward the rear (m); -0.035 = round-4 hold')
     ap.add_argument('--pad-mu', type=float, default=1.2, help='right pad friction (Part 1); <= 0 keeps the scene 1.68')
     ap.add_argument('--impratio', type=float, default=30., help='task impratio (Part 1); <= 0 keeps the scene 100')
     ap.add_argument('--inhand', choices=('measured', 'uniform'), default='measured', help='in-hand pose: Part 1 measured spread or uniform +/- --inhand-pos/--inhand-rot')
@@ -126,7 +127,7 @@ def main():
     eR = Rz @ R_true                       # yaw error only (the PC sits flat on the table)
     ep = torch.cat([ex, p_true[:, 2:]], 1)  # height known from the table and the case
     # 2. left hold from the estimate
-    hold = LeftHold(h, HoldCfg(mode='press', force_n=a.hold_force, across_m=-.0208, along_m=-.02))
+    hold = LeftHold(h, HoldCfg(mode='press', force_n=a.hold_force, across_m=-.0208, along_m=a.hold_along))
     plan = hold.solve(ep, eR)
     ql0, qr0 = h.believed('left').clone(), h.believed('right').clone()
     for k in range(int(round(hold.duration / DT))):
