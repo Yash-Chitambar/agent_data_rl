@@ -57,7 +57,19 @@ def main():
     torch.manual_seed(a.seed)
     np.random.seed(a.seed)
     dev = torch.device('cuda:0')
-    ac, ck = (None, {}) if a.policy == 'scripted' else load_policy(a.policy, dev)
+    student = None
+    if a.policy == 'scripted':
+        ac, ck = None, {}
+    else:
+        ck = torch.load(a.policy, map_location=dev, weights_only=False)
+        if 'variant' in ck:          # DAgger student (distill_insertion.py)
+            from blind_insertion.distill_insertion import Student
+            student = Student(ck['cams'], ck['res'], history=ck['history'], n_points=ck['n_points']).to(dev)
+            student.load_state_dict(ck['model']); student.eval(); student.obs_norm.freeze()
+            ac = None
+            ck = dict(ck, env_json=json.dumps(ck['env_json']))
+        else:
+            ac, ck = load_policy(a.policy, dev)
     args = argparse.Namespace(nworld=a.nworld, seed=a.seed,
                               action_mode=a.action_mode or ck.get('action_mode', 'accumulate'),
                               env_json=a.env_json if a.env_json is not None else ck.get('env_json', ''))
@@ -74,7 +86,13 @@ def main():
     pc_max = torch.zeros(N, device=dev)
     for t in range(env.max_steps * a.per_world + 10):
         with torch.no_grad():
-            if ac is None:
+            if student is not None:
+                rt = env.runtime
+                frames, ages = rt.camera_sensor.observation(rt.sensor_time) if student.cams else ({}, {})
+                mask = (env.steps.float() * env.dt < ck['vis_s']).float() if ck['variant'] == 'wrist_approach' \
+                    else torch.ones(N, device=dev)
+                act, _ = student(hist[..., :62], frames, ages, mask)
+            elif ac is None:
                 act = env.scripted_action(gain=0.1)
             else:
                 mu, _ = ac.act_mean(hist)

@@ -91,6 +91,7 @@ class InsertionCfg:
     shaping_scale_m: float = 0.01
     free_height: float = 0.001          # contact labels: point above the panel by this is free
     pool_per_world: int = 4
+    privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
     grasp_p: tuple | None = None        # TCP in the reader frame; None: solved by InsertionTask.grasp_height
 
 
@@ -349,7 +350,9 @@ class InsertionTask(BimanualTask):
         if len(ids) == 0:
             return
         st = starts if starts is not None else self._take(ids)
+        cam, rt.camera_sensor = rt.camera_sensor, None     # its reset render happens after placement
         rt.reset(ids, forward=False)   # dynamics, PC feet friction, contact DR, visual DR, layout (overwritten below)
+        rt.camera_sensor = cam
         q = rt.q
         qr, ql = rt.indices['right'][0], rt.indices['left'][0]
         q[ids[:, None], torch.tensor(qr, device=self.device)] = st['q_right']
@@ -452,9 +455,10 @@ class InsertionTask(BimanualTask):
         new_capture = all_inside & ~self.captured
         self.captured |= all_inside
         phi2 = self._potential()
-        gamma = 0.98
+        # Undiscounted difference: with phi < 0, gamma * phi' - phi adds (gamma - 1) * phi > 0 every step,
+        # a bonus for staying far from the port (observed: PPO learned to hover without seating).
         failed = L['slip'] | L['pushed'] | L['far']
-        reward = new_capture.float() + L['seated'].float() + c.shaping * (gamma * phi2 - self.phi) \
+        reward = new_capture.float() + L['seated'].float() + c.shaping * (phi2 - self.phi) \
             - c.fail_penalty * (failed & ~L['success']).float()
         reward = torch.where(L['bad'], torch.zeros_like(reward), reward)
         reward = torch.nan_to_num(reward, 0., 0., 0.)
@@ -513,7 +517,7 @@ class InsertionTask(BimanualTask):
 
     @property
     def obs_dim(self):
-        return 62
+        return 62 + (18 if self.icfg.privileged_actor else 0)
 
     def _actor_obs(self):
         o = self.observation()
@@ -524,8 +528,15 @@ class InsertionTask(BimanualTask):
         R0 = self._R_obs
         eul = K.euler_xyz(R0.T @ R)
         pos = p - self._p_obs
-        return torch.cat([o['encoder_rad'], o['encoder_velocity_rad_s'], o['previous_action'],
-                          o['target_error_rad'], pos * 10, eul, tw], 1)
+        self._last_obs = o
+        parts = [o['encoder_rad'], o['encoder_velocity_rad_s'], o['previous_action'], o['target_error_rad'],
+                 pos * 10, eul, tw]
+        if self.icfg.privileged_actor:     # teacher only: plug pose in the live port frame, reader in the TCP
+            p, R = self.runtime.plug_in_port()
+            rel = self._reader_in_tcp()
+            parts += [p * 100, R[:, :, :2].transpose(1, 2).reshape(self.N, 6), rel[:, :3, 3] * 100,
+                      rel[:, :3, :2].transpose(1, 2).reshape(self.N, 6)]
+        return torch.nan_to_num(torch.cat(parts, 1), 0., 0., 0.)
 
     @property
     def _R_obs(self):
