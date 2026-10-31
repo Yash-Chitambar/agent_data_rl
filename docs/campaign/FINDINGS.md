@@ -104,6 +104,49 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason, `policy/chain`) — Final chain at n = 4096: 99.85 %; perception-driven pick in the chain: 99.71 %; servo vs in-hand error
+
+**Final config** (v11 insertion, round-5 approach, ZED arm-pose gate, hold 2 cm / 25 N, bumpless torque hand-over,
+chain stop offset), fresh seeds 8000-8007, 8 × 512 worlds: **4090/4096 = 99.85 % [99.68, 99.93]**. Every stage
+before insertion 4096/4096; 0 arm-arm contacts; 0 non-finite. Pre-insert lateral p50 0.29 / p99 1.19 mm, tilt p99
+0.74 deg, mean (+0.04, +0.03) mm. Failures: 4 stuck at the port mouth and 2 grasp slips, all from small starts
+(lateral 0.03-0.55 mm, tilt <= 0.3 deg): insertion-policy cases. Videos of all 4 failures + 6 successes:
+`results/usbc/policy/chain/demos/` (full-res copies in `runs/chain/demos_full/final/`).
+(A first attempt crashed in batch 6 on a non-finite insertion command after 3072/3072 successes: non-finite worlds
+are now recorded as `nonfinite` and parked instead of aborting the batch; partial results are written per batch.)
+
+**Pluggable pick** (`blind_insertion/pipeline/pick_stage.py`, `eval_chain.py --pick expert_privileged |
+expert_estimated | act`). `expert_estimated` = Part 1 expert planned from `--reader-estimator` (`zed:<ckpt>`: Part 1 ZED
+reader estimator + optional presence/OOD gate; `module:factory`; `noisy_oracle:<mm>,<deg>`). Two ZED frames
+(`--reader-frame cap_parked`): the PC frame at the capture pose, then the reader frame with the left arm parked, the
+right arm at the capture pose and both grippers open (the left gripper hides the reader at the capture pose).
+- **With `reader_zed_cap.pt` (seeds 7000-7001, n = 1024): 1021/1024 = 99.71 % [99.14, 99.90]**, same layouts as the
+  privileged-pick run (99.80 %). Reader estimate error p50 1.05 / p99 4.80 mm, yaw p50 0.30 / p99 1.70 deg. Failures:
+  2 approach misses after picks planned from bad estimates (8.6 mm; 38.6 mm / 10.7 deg: the reader was taken off
+  centre, the in-hand offset left the approach 6-25 mm off), 1 at the mouth. This checkpoint has no gate statistics
+  yet (`feat_mean`/presence): every estimate was accepted; a gate would turn the two outliers into rejections.
+- With the earlier `reader_zed_r320` (trained with the left arm parked and the right at its reset pose) on the
+  capture-pose frame: estimate error p50 40 mm, 1/128 end to end, and its gate accepted most frames (n = 128); on its
+  own frame (`--reader-frame parked`): p50 1.14 mm, 127/128.
+
+**Does Part 2's servo absorb in-hand error?** Mostly. Chain with the expert planned from a noisy reader pose (uniform
+xy / yaw noise, seed 6100, n = 256 each; successful picks only):
+
+| Planning noise | In-hand error about the mean (pos p99 / rot p99) | Pre-insert lateral p50 / p99 | Tilt p99 | Roll p99 | End to end (picked) |
+|---|---|---|---|---|---|
+| none (n = 1024) | 0.91 mm / 0.53 deg | 0.28 / 1.13 mm | 0.62 deg | 0.54 deg | 99.8 % |
+| ±1 mm / ±1.5 deg | 1.91 mm / 1.66 deg | 0.33 / 1.22 mm | 0.83 deg | 0.68 deg | 100 % |
+| ±2 mm / ±3 deg | 4.04 mm / 3.30 deg | 0.49 / 1.86 mm | 1.39 deg | 1.17 deg | 99.6 % |
+| ±4 mm / ±5 deg | 5.96 mm / 4.84 deg | 0.76 / 3.51 mm | 2.11 deg | 1.29 deg | 99.5 % |
+
+In-hand position error is removed (the servo closes the loop on the plug in the wrist image); the in-hand rotation
+leaks into tilt and roll (correlation 0.5-0.7 at ±1-2 mm noise, ~0.4-0.6 of it remains): at the stop gap the servo
+corrects roll only and its last iterations are position-only, and every rigid correction rotates the hand about the
+plug tip computed from the *nominal* in-hand pose (`tip_b` from the measured mean `R_sr0, p_sr0` in
+`eval_approach.py` / `eval_chain.py`), so a rotation step also shifts the plug when the true in-hand pose differs.
+The insertion absorbs these (99.5-100 % of picked episodes); the pick itself is the limit at larger planning errors
+(98.4 % at ±2 mm / ±3 deg, 86.7 % at ±4 mm / ±5 deg).
+
 ### 2026-10-31 (mason, `policy/chain`) — Bumpless hand-over, stop bias removed, round-5 approach: 99.61-99.80 % (n = 1024 each); 4096 live insertion starts saved
 
 **Hand-over drift was the feed-forward switch-off, not the controller switch.** From the same saved state at the

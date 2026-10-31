@@ -23,7 +23,8 @@ Stages here:
                      as PickTask.reader_pose). Loaded from --reader-estimator 'module:factory' (factory(chain) ->
                      estimator); 'noisy_oracle:<pos_mm>,<yaw_deg>' is a built-in test estimator (true pose +
                      uniform noise) for the interface and for error-budget sweeps. Worlds with ok False are
-                     reported as pick failures (no grasp attempt).
+                     reported as pick failures (no grasp attempt). 'zed:<ckpt>': the Part 1 ZED reader estimator
+                     (perception/reader_zed.py) + presence/OOD gate on the chain's single start ZED frame.
   act                ACT pick policy (wrist + ZED RGB + encoders). Not wired yet: the policy runs in the separate
                      LeRobot venv (scripts/act/); plug a TorchScript export in ActPick.run.
 """
@@ -109,12 +110,55 @@ def noisy_oracle(spec):
     return est
 
 
+class ZedReader:
+    """Part 1 ZED reader estimator (perception/reader_zed.py) on the chain's single start frame (chain.start_top:
+    the capture-pose ZED frame that also feeds the PC estimator), with its gate: presence classifier (p >= thresh)
+    and the Mahalanobis feature distance (<= ood_thresh x 1.25). Rejected worlds do not attempt a grasp."""
+
+    OOD_SCALE = 1.25
+
+    def __init__(self, ckpt, dev):
+        from blind_insertion.perception.nets import PoseNet
+        from blind_insertion.perception.reader_zed import ReaderZedEstimator
+        self.est = ReaderZedEstimator(ckpt, dev)
+        ck = torch.load(ckpt, map_location=dev)
+        self.presence = None
+        if 'presence' in ck:
+            self.presence = PoseNet(1, ck['size'], width=ck.get('presence_width', 16)).to(dev).eval()
+            self.presence.load_state_dict(ck['presence'])
+            self.p_thresh = float(ck.get('presence_thresh', .5))
+        self.gate = 'feat_mean' in ck
+        if self.gate:
+            self.mu, self.prec, self.ood = ck['feat_mean'].to(dev), ck['feat_prec'].to(dev), float(ck['ood_thresh'])
+
+    @torch.no_grad()
+    def __call__(self, chain):
+        from blind_insertion.perception.reader_zed import reader_pose
+        from blind_insertion.perception.zed_estimator import pooled_features
+        top = chain.start_top
+        xy, yaw = self.est(top)
+        p, R = reader_pose(chain.pick, xy, yaw)
+        x0, y0, s_ = self.est.crop
+        crop = top[:, y0:y0 + s_, x0:x0 + s_].contiguous()
+        ok = torch.ones(len(xy), dtype=torch.bool, device=xy.device)
+        info = {}
+        if self.presence is not None:
+            pr = torch.sigmoid(self.presence(crop)[:, 0]); ok &= pr >= self.p_thresh; info['presence'] = pr
+        if self.gate:
+            f = pooled_features(self.est.net, crop) - self.mu
+            d = ((f @ self.prec) * f).sum(1).clamp(min=0).sqrt(); ok &= d <= self.ood * self.OOD_SCALE; info['mahalanobis'] = d
+        chain.reader_est_info = info
+        return p, R, ok
+
+
 def make_pick_stage(kind, reader_estimator='', chain=None):
     if kind in ('expert', 'expert_privileged'):
         return ExpertPick()
     if kind == 'expert_estimated':
         if not reader_estimator:
             raise ValueError("--pick expert_estimated needs --reader-estimator 'module:factory' or 'noisy_oracle:<mm>,<deg>'")
+        if reader_estimator.startswith('zed:'):
+            return ExpertPick(ZedReader(reader_estimator.split(':', 1)[1], chain.dev))
         if reader_estimator.startswith('noisy_oracle:'):
             return ExpertPick(noisy_oracle(reader_estimator.split(':', 1)[1]))
         mod, fn = reader_estimator.split(':')

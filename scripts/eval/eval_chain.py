@@ -75,8 +75,13 @@ def parse(argv=None):
     ap.add_argument('--pick', default='expert_privileged', choices=('expert_privileged', 'expert', 'expert_estimated', 'act'),
                     help='pick stage (blind_insertion/pipeline/pick_stage.py): Part 1 scripted expert planned from the true '
                          '(privileged) or an estimated reader pose, or ACT (not wired yet)')
-    ap.add_argument('--reader-estimator', default='',
-                    help="expert_estimated: 'module:factory' (factory(chain) -> est(chain) -> (p, R, ok)) or 'noisy_oracle:<mm>,<deg>'")
+    ap.add_argument('--reader-estimator', default='zed:runs/perception/reader_zed_cap.pt',
+                    help="expert_estimated: 'zed:<ckpt>' (Part 1 ZED reader estimator + gate on the start frame), "
+                         "'module:factory' (factory(chain) -> est(chain) -> (p, R, ok)) or 'noisy_oracle:<mm>,<deg>'")
+    ap.add_argument('--reader-frame', choices=('cap_parked', 'start', 'parked'), default='cap_parked',
+                    help="ZED frame for the reader estimator: 'cap_parked' (left arm parked, right arm at the capture pose, both "
+                         "grippers open: reader_zed_cap.pt), 'start' (the capture-pose PC frame; the left gripper hides the reader) or "
+                         "'parked' (left parked, right at reset, pick opening: the condition reader_zed_r320 was trained at)")
     ap.add_argument('--render-failures', default='', help='directory: record every world and render the failures of each batch (demo format)')
     ap.add_argument('--render-failures-max', type=int, default=4)
     ap.add_argument('--zed-at', choices=('start', 'parked', 'after_hold'), default='start')
@@ -211,9 +216,14 @@ class Chain:
         self.tick(label)
 
     # ------------------------------------------------------------------ stages
+    def render_top_only(self):
+        self.last_top = self.render()['top']
+        return self.last_top
+
     def zed_estimate(self):
         """ZED pose + gate; the arm-pose gate reads the encoders (believed angles) and the right finger opening."""
         fr = self.render()['top']
+        self.last_top = fr
         rt, ee = self.rt, self.pick.enc_error      # the harness has not taken the control DR yet at the capture
         ql = rt.q[:, rt.indices['left'][0]] - ee[:, 1]
         qr = rt.q[:, rt.indices['right'][0]] - ee[:, 0]
@@ -430,7 +440,18 @@ class Chain:
         pc_max = torch.zeros(n, device=dev)
         for t in range(env.max_steps):
             with torch.no_grad():
-                act = self.pol(env.hist)
+                act = torch.nan_to_num(self.pol(env.hist))
+            # Non-finite worlds (solver blow-up) would make the accumulated targets NaN and abort the batch
+            # (BimanualTask.step rejects non-finite commands): record them and park them at the reset pose.
+            bad = ~(torch.isfinite(rt.q).all(1) & torch.isfinite(rt.v).all(1) & torch.isfinite(env.joint_target).flatten(1).all(1))
+            if bad.any():
+                for w in bad.nonzero()[:, 0].tolist():
+                    if outcome[w] is None:
+                        outcome[w] = 'nonfinite'; t_seat[w] = t * self.dt
+                rt.q[bad] = rt.initial_q; rt.v[bad] = 0
+                env.joint_target[bad] = env._measured_model_angles()[bad]
+                env.sent_history[:, bad] = 0
+                env.hist[bad] = torch.nan_to_num(env.hist[bad])
             _, _, _, done, info = env.step(act)
             self.tick('5 insert')
             pc_max = torch.maximum(pc_max, info['pc_d'])
@@ -508,11 +529,26 @@ class Chain:
         rt.q[:, fq] = .0475
         self.forward()
         est = {'start': self.zed_estimate()}
+        self.start_top = self.last_top                    # one start frame for the PC and the reader estimators
+        if a.reader_frame == 'cap_parked':
+            # reader frame (pick agent's sequence): left arm parked (it hides the reader at the capture pose),
+            # right arm still at the capture pose, both grippers fully open
+            lf = self.env.left_finger_q
+            q_lf = rt.q[:, lf].clone()
+            rt.q[:, la] = q_park
+            rt.q[:, lf] = .0475
+            self.forward()
+            self.render_top_only()
+            self.start_top = self.last_top
+            rt.q[:, lf] = q_lf
         rt.q[:, la] = q_park
         rt.q[:, ra] = q_r
         rt.q[:, fq] = q_f
         self.forward()
         est['parked'] = self.zed_estimate()
+        self.parked_top = self.last_top                   # Part 1 pick condition (left parked, 24 mm opening)
+        if a.reader_frame == 'parked':
+            self.start_top = self.parked_top
         self.tick('0 ZED')
 
         def zerr(e):
@@ -574,6 +610,8 @@ def classify(df):
     for r in df.itertuples():
         if not r.zed_ok:
             cls.append('zed_rejected')
+        elif hasattr(r, 'pick_est_ok') and not r.pick_est_ok:
+            cls.append('reader_rejected')
         elif not r.pick_ok:
             cls.append('pick_failed')
         elif not (r.hold_plan_ok and r.hold_latched):
@@ -659,6 +697,8 @@ def main(argv=None):
         df = pd.DataFrame(out)
         df['e2e_class'] = classify(df)
         rows.append(df)
+        OUT.mkdir(parents=True, exist_ok=True)
+        pd.concat(rows, ignore_index=True).to_csv(OUT / f'{a.name}.partial.csv', index=False)   # survives a crash
         if rec:
             fails = [i for i in range(len(df)) if df.e2e_class[i] != 'success'][:a.render_failures_max - n_rendered]
             if fails:
