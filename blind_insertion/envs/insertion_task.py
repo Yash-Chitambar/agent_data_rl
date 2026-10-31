@@ -130,6 +130,8 @@ class InsertionCfg:
     # buffer, hold target and the per-world DR values); the rest use the start pool.
     live_states: str = ''
     live_frac: float = 0.0
+    live_split: str = 'all'             # 'eval': first live_holdout valid states; 'train': the rest; 'all'
+    live_holdout: int = 1024
     privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
     grasp_p: tuple | None = None        # legacy 60-deg geometric grasp only (grasp='geometric60')
     # In-hand pose: 'part1' = Part 1's measured pick (scenes/reader_grasp.inhand_pose(): 55-deg grasp,
@@ -564,9 +566,20 @@ class InsertionTask(BimanualTask):
             if 'err_p' in z.files:      # approach failures are not insertion starts (as the chain counts them)
                 ep = z['err_p'] * 1e3
                 keep &= (np.hypot(ep[:, 0], ep[:, 1]) <= 8) & (ep[:, 2] >= .5) & (ep[:, 2] <= 15)
-            self._live_data = {k: torch.as_tensor(z[k][keep], device=self.device) for k in z.files
+            rows = np.nonzero(keep)[0]
+            h = self.icfg.live_holdout
+            rows = rows[:h] if self.icfg.live_split == 'eval' else rows[h:] if self.icfg.live_split == 'train' else rows
+            self._live_data = {k: torch.as_tensor(z[k][rows], device=self.device) for k in z.files
                                if z[k].dtype.kind in 'fiub' and len(z[k]) == len(keep)}
-            self.live_n = int(keep.sum())
+            ng = self.runtime.mjm.ngeom
+            for k in ('geom_friction', 'geom_solref'):
+                if k in self._live_data and self._live_data[k].shape[1] != ng:
+                    # the chain renders: visual DR adds 2 visual-only decal geoms (aux/geom_map_vdr387_to_385.json)
+                    gm = json.loads((ROOT / 'results/usbc/policy/insertion/aux/geom_map_vdr387_to_385.json').read_text())
+                    if self._live_data[k].shape[1] != gm['n_with_visual_dr'] or ng != gm['n_without']:
+                        raise ValueError(f'{k}: {self._live_data[k].shape[1]} columns, model has {ng} geoms')
+                    self._live_data[k] = self._live_data[k][:, torch.tensor(gm['cols_for_no_visual_dr_model'], device=self.device)]
+            self.live_n = len(rows)
         return self._live_data
 
     def _restore_live(self, ids):
