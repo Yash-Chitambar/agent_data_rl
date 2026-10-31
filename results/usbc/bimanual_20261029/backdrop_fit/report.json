@@ -24,7 +24,7 @@
  ],
  "tau_px": 10.0,
  "res": 320,
- "groups": {
+ "pass1_all_groups": {
   "raceway": [
    {
     "round": 0,
@@ -98,20 +98,49 @@
    }
   ]
  },
+ "pass2_raceway_plugs": {
+  "groups": {
+   "raceway": [
+    {
+     "round": 0,
+     "edge_px_before": 1.94,
+     "edge_px_after": 1.93
+    },
+    {
+     "round": 1,
+     "edge_px_before": 1.91,
+     "edge_px_after": 1.91
+    }
+   ],
+   "plugs": [
+    {
+     "round": 0,
+     "edge_px_before": 1.24,
+     "edge_px_after": 1.21
+    },
+    {
+     "round": 1,
+     "edge_px_before": 1.21,
+     "edge_px_after": 1.19
+    }
+   ]
+  },
+  "note": "raceway front pinned to the measured table edge (0.515 m) and its top kept >= 2.5 cm above the plugs; pass 1 had converged to a low, deep shelf (top 2 cm above the table, 3 cm behind the edge) that showed a white wall line through the gap. Vertical face: 1.9 px vs shelf 1.1 px, but physically consistent (plugs point straight out of a vertical face). before.jpg / after.jpg are from pass 2."
+ },
  "params": {
   "_note": "Fitted by scripts/tools/fit_backdrop.py; right arm base frame, metres/radians.",
-  "wall_x": 0.5803,
-  "raceway_front_x": 0.5444,
-  "raceway_top_z": -0.0122,
+  "wall_x": 0.5275,
+  "raceway_front_x": 0.515,
+  "raceway_top_z": 0.0479,
   "plug_y": [
-   0.588,
-   0.0173,
-   -0.5151
+   0.5817,
+   0.0196,
+   -0.4955
   ],
-  "plug_z": -0.0161,
-  "plug_spacing": 0.0322,
+  "plug_z": 0.0045,
+  "plug_spacing": 0.0239,
   "plug_radius": 0.0085,
-  "plug_length": 0.0318,
+  "plug_length": 0.0196,
   "strip_x": 0.4937,
   "strip_y": -0.2139,
   "strip_yaw": 0.0361,
@@ -147,27 +176,27 @@
   ],
   "colors": {
    "wall": [
+    0.985,
     0.99,
-    0.995,
-    0.995,
+    0.99,
     1
    ],
    "raceway": [
-    0.516,
-    0.522,
-    0.52,
+    0.533,
+    0.54,
+    0.539,
     1
    ],
    "plate": [
-    0.85,
-    0.85,
-    0.85,
+    0.578,
+    0.585,
+    0.582,
     1
    ],
    "black": [
-    0.135,
-    0.129,
-    0.136,
+    0.114,
+    0.11,
+    0.114,
     1
    ],
    "switch": [
@@ -177,9 +206,15 @@
     1
    ],
    "ryobi": [
-    0.837,
-    0.945,
-    0.355,
+    0.779,
+    0.882,
+    0.411,
+    1
+   ],
+   "gap": [
+    0.02,
+    0.02,
+    0.022,
     1
    ]
   },

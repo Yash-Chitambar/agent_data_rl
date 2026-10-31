@@ -113,7 +113,7 @@ def main():
         ('robust', region_polys(maps['robust'][:, :, k0] > 0, xs, ys, centre_shift), table_top + .002, True),
         ('box', [rect(cx - bx, cx + bx, cy - by, cy + by)], table_top + .003, False),
         ('box', [rect(cx - half[0], cx + half[0], cy - half[1], cy + half[1])], table_top + pc['height_with_feet']['value'], False),
-        ('reader', [rect(*reader['x_range_m'], *reader['y_range_m'])], table_top + .003, False),
+        ('reader', region_polys(maps['reader_free'], maps['rx'], maps['ry'], (0., 0.)), table_top + .003, False),
     ]
 
     enc = {}

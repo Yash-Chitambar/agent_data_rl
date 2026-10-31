@@ -235,12 +235,17 @@ the **worst** score over the per-episode randomization box (+/-3 cm, +/-10 deg).
 - The legacy runtime pose (`PORT_XY` = 0.321, 0.237) is **infeasible** (the left arm cannot
   hold the PC). The real 2026-10-28 session placement (0.214, 0.331) is feasible but sits 1 cm
   from the edge of the feasible region, so its +/-3 cm box is not.
-- Reader (SD/USB-C adapter) pick region: x 0.12-0.46 m,
-  y -0.17-0.17 m, yaw +/-60 deg: largest rectangle where a
-  top-down pick (80 mm approach) works for every yaw, >= 6 cm clear of the whole PC box, on the right arm's side.
-- `BimanualCfg.task_layout` reads `placement/report.json`. Each reset samples, per world, the PC
+- Reader (SD/USB-C adapter) region, revised: every (2 cm cell, 20 deg yaw bin) pair, yaw -90..90 deg,
+  where a top-down pick (80 mm approach) works, the reader footprint (plug included, +1.5 cm) stays
+  clear of every PC pose of the training box and >= 1 cm inside the table's back edge, and it does not
+  touch an arm at the reset pose. Cells need >= 3 feasible yaw bins: 490 cells, 0.20 m^2 (was one
+  0.12 m^2 rectangle), including the middle of the table and a strip in front of the PC (only
+  ~8-14 cm deep there: the PC front is 19 cm from the right base). The runtime samples uniformly
+  over the feasible pairs (jittered within the cell and the bin).
   port at the nominal +/- `pc_pose_range` (3 cm, 3 cm, 10 deg) and the reader uniformly in its
-  region. On 256 worlds both settle within 0.2 mm in 1 s of hold. `task_layout=None` gives the legacy fixed poses.
+  region. On 6 x 2048 worlds both settle within 0.2 mm in 1 s of hold, none non-finite.
+- PC feet are now boxes (5 mm square, same height) instead of cylinders: MuJoCo Warp collided
+  cylinder-box through single-contact CCD, which returned NaN for ~0.1% of worlds with a yawed PC. `task_layout=None` gives the legacy fixed poses.
 - Not checked: paths between poses, the pick-to-insert carry, and the new grasp (in-hand pose
   only through the +/-8 deg tilt). Physical setup: put the port at the nominal, port panel facing the arm bases.
 
@@ -260,6 +265,11 @@ masked), then its colour to the real median colour. Mean edge distance at 320 px
 fit: raceway 4.9 -> 1.2, plugs 5.4 -> 1.2, power strip 4.5 -> 0.9, device 7.0 -> 1.6, cables 1.6 -> 0.7,
 Ryobi 1.8 -> 0.6 px (`backdrop_fit/report.json`, `before.jpg`/`after.jpg`). Before/after overlays:
 `alignment_20261030/` (OLD = procedural backdrop). Used by every `measured_support` detailed scene.
+Second pass: pass 1 had put the raceway 3 cm behind the table edge and only 2 cm tall (a shelf,
+which a top-down camera cannot tell from a vertical face); the sim then showed a white wall line in
+the gap. The raceway front is now pinned to the measured table edge, its top kept above the plugs,
+and raceway + plugs refitted: an 8 cm vertical face, edges within 1.9 px (plugs 1.2 px). A dark
+block (`bd_gap`) also fills any table-raceway gap.
 Limits: cables differ between sessions (fitted as an average); wall texture, the sign and the
 far-left cable are not modelled; lighting is matched only through per-object colour.
 

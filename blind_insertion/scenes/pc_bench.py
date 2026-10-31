@@ -148,9 +148,11 @@ def _free_pc_spec(spec, profile):
             geom.contype |= support_bit
     for ix, x in enumerate((-port_x + radius, w - port_x - radius)):
         for iz, z in enumerate((-radius, -depth + radius)):
-            fix.add_geom(name=f'pc_pad_{ix}_{iz}', type=mujoco.mjtGeom.mjGEOM_CYLINDER,
+            # Square feet (side = pad diameter): MuJoCo Warp collides cylinder-box through CCD with a
+            # single contact, which returned NaN for a few yawed PCs (~0.1% of worlds); box-box is analytic.
+            fix.add_geom(name=f'pc_pad_{ix}_{iz}', type=mujoco.mjtGeom.mjGEOM_BOX,
                          pos=[x, -port_h + foot_h / 2, z],
-                         quat=[math.sqrt(.5), math.sqrt(.5), 0, 0], size=[radius, foot_h / 2, 0],
+                         quat=[math.sqrt(.5), math.sqrt(.5), 0, 0], size=[radius, radius, foot_h / 2],
                          rgba=[.1, .1, .1, 1], mass=0, contype=support_bit, conaffinity=1,
                          priority=2, friction=[.6, .01, .001], condim=4)
 

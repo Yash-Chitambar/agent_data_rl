@@ -33,7 +33,9 @@ from render_sim_real_alignment import FIT, shift_cameras
 RES, TAU = 320, 10.0
 CAMS = (('zed', 'top', None), ('wrist_right', 'wrist_cam', 'right'), ('wrist_left', 'left_wrist_cam', 'left'))
 GROUPS = {   # parameter group -> (scalar parameter paths, step, geom-name prefixes scored)
-    'raceway': ([('wall_x',), ('raceway_front_x',), ('raceway_top_z',)], .01, ('bd_raceway',)),
+    # The raceway front sits on the measured table back edge (ZED junction ray: 0.517 m vs measured
+    # 0.515 m); fitting it too let the top-down ZED trade depth for height (3 cm back, 2 cm tall).
+    'raceway': ([('wall_x',), ('raceway_top_z',)], .01, ('bd_raceway',)),
     'plugs': ([('plug_y', 0), ('plug_y', 1), ('plug_y', 2), ('plug_z',), ('plug_spacing',), ('plug_length',)], .006,
               ('bd_plug', 'bd_plate')),
     'strip': ([('strip_x',), ('strip_y',), ('strip_yaw',), ('strip_size', 0), ('strip_size', 1), ('strip_size', 2)], .01,
@@ -170,6 +172,10 @@ class Fitter:
         def f(x):
             for pth, val in zip(paths, x0 + x * step):
                 put(self.p, pth, val)
+            # Physical prior: the plugs sit in outlets on the raceway's vertical face. Without it the
+            # top-down ZED prefers a low, deep shelf whose two edges land on the real face's edges.
+            if self.p['raceway_top_z'] < self.p['plug_z'] + .025 or self.p['wall_x'] < self.p['raceway_front_x'] + .005:
+                return TAU
             return self.boundary_cost(prefixes)
         c0 = f(np.zeros(len(paths)))
         res = minimize(f, np.zeros(len(paths)), method='Nelder-Mead',
@@ -222,14 +228,17 @@ def main():
     ap.add_argument('--out', type=Path, default=Path('results/usbc/bimanual_20261029/backdrop_fit'))
     ap.add_argument('--iters', type=int, default=250)
     ap.add_argument('--rounds', type=int, default=2)
+    ap.add_argument('--groups', nargs='+', default=list(GROUPS), choices=list(GROUPS))
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
-    fz = Fitter(BD.load())
+    params = BD.load()
+    params['raceway_front_x'] = round(dimensions()['wall_edge_x_m'], 4)
+    fz = Fitter(params)
     print(f'{len(fz.views)} views: ' + ', '.join(v['label'] for v in fz.views), flush=True)
     fz.overlays(a.out / 'before.jpg')
     report = {'views': [v['label'] for v in fz.views], 'tau_px': TAU, 'res': RES, 'groups': {}}
     for rnd in range(a.rounds):
-        for name in GROUPS:
+        for name in a.groups:
             c0, c1 = fz.fit_group(name, a.iters)
             report['groups'].setdefault(name, []).append({'round': rnd, 'edge_px_before': round(c0, 2), 'edge_px_after': round(c1, 2)})
             print(f'round {rnd} {name}: mean edge distance {c0:.2f} -> {c1:.2f} px (of {RES})', flush=True)

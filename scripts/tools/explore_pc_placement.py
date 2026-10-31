@@ -16,9 +16,10 @@ x joint-margin factor. The recommended nominal maximises the WORST score over a 
 +/-`--box-cm` and +/-`--box-deg` around it (all of it feasible), so the per-episode
 randomization stays inside the good region.
 
-Then, for that PC box, it maps where a top-down reader pick (approach 80 mm above, reader
-yaw -60..60 deg) is reachable and clear of the PC randomization box, and proposes the
-largest reader rectangle.
+Then, for that PC box, it maps the (cell, yaw) pairs where a top-down reader pick (approach 80 mm
+above; yaw -90..90 deg in 20 deg bins) is reachable, the reader clears every PC pose of the
+training box and does not touch an arm at the reset pose. Cells with >= 3 feasible yaw bins form
+the reader region; the runtime samples uniformly over the feasible (cell, yaw bin) pairs.
 
     PYTHONPATH=. .venv/bin/python scripts/tools/explore_pc_placement.py
 Writes results/usbc/bimanual_20261029/placement/{report.json, maps.png}.
@@ -30,6 +31,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+import cv2
 import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -42,6 +44,9 @@ TILTS_DEG = ((8, 0), (-8, 0), (0, 8), (0, -8))
 MARGIN_RAD, CONTACT_MARGIN = .05, .005
 PAD_BELOW_TCP = -.0096                   # pad centroid along grasp_site +z (+z points out of the hand)
 PAD_TIP = -.0032                         # pad point furthest along +z
+READER_BACK, READER_FRONT, READER_HALF_W = .02, .07, .018   # reader extent about its body centre (plug +x)
+READER_MARGIN = .015
+YAW_BIN, MIN_YAW_BINS = 20., 3            # reader yaw bins (deg); a cell needs >= 3 feasible bins
 _W = {}
 
 
@@ -267,7 +272,15 @@ class World:
     def reader_pick(self, xy, yaw):
         S.place_reader(self.m, self.d, self.lay, xy=xy, yaw_deg=yaw)
         pa = self.lay.peg_qadr
-        mujoco.mj_kinematics(self.m, self.d)
+        self.d.qpos[:pa] = self.rest[:pa]                 # arms at the reset (reference) pose
+        self.d.qpos[pa + 7:] = self.rest[pa + 7:]
+        self.place_pc((5., 5.), 0.)                       # PC clearance is checked separately
+        mujoco.mj_forward(self.m, self.d)
+        for c in self.d.contact[:self.d.ncon]:            # reader must not touch an arm or the mounting plate
+            b = {int(self.m.geom_bodyid[int(c.geom1)]), int(self.m.geom_bodyid[int(c.geom2)])}
+            if self.reader_body in b and c.dist < .003 and (int(c.geom1) in self.robot['right'] | self.robot['left'] or int(c.geom2) in self.robot['right'] | self.robot['left']
+                                                             or self.m.geom(int(c.geom1)).name == 'shared_mounting_plate' or self.m.geom(int(c.geom2)).name == 'shared_mounting_plate'):
+                return 0.
         rp, rR = self.d.qpos[pa:pa + 3].copy(), _rot(self.d.qpos[pa + 3:pa + 7])
         g = rp + rR @ self.offset
         R_t = rR @ np.asarray(S.R_TOP_TCP)
@@ -348,42 +361,53 @@ def main():
                'robust_score_by_yaw': {f'{t:.0f}': float(robust[:, :, kk].max()) for kk, t in enumerate(yaws)}}
     print('nominal', json.dumps(nominal), flush=True)
 
-    # reader pick map, excluding the PC randomization box (+ 6 cm clearance)
+    # reader pick map: (cell, yaw bin) pairs where a top-down pick works and the reader is clear of the PC
     rx = np.round(np.arange(.08, wall - .03 + 1e-9, .02), 3)
     ry = np.round(np.arange(-.25, .60 + 1e-9, .02), 3)
-    ryaw = np.arange(-60, 60 + 1e-9, 20)
+    ryaw = np.arange(-90, 90 + 1e-9, 20)
     with mp.Pool(a.workers, initializer=_init) as pool:
         rr = np.array(pool.map(_reader, [(x, y, t) for x in rx for y in ry for t in ryaw], chunksize=32)).reshape(len(rx), len(ry), len(ryaw))
-    pick = rr.min(-1)                                  # every yaw in -60..60 must work
-    corners = []
+    pick = rr.max(-1)
+    # Everywhere the PC can be during training: convex hull of its footprint over the box extremes.
+    dep, wid = w.pc['depth']['value'], w.pc['width']['value']
+    hull = []
     for dx in (-a.box_cm, a.box_cm):
         for dy in (-a.box_cm, a.box_cm):
-            for dt in (-a.box_deg, a.box_deg):
-                corners.append(w.pc_centre((xs[i] + dx / 100, ys[j] + dy / 100), yaws[k] + dt))
-    corners = np.array(corners)
-    half = np.hypot(w.pc['depth']['value'], w.pc['width']['value']) / 2 + .06
-    lo_pc, hi_pc = corners.min(0) - half, corners.max(0) + half
-    free = (pick > 0) & ~((rx[:, None] > lo_pc[0]) & (rx[:, None] < hi_pc[0]) & (ry[None] > lo_pc[1]) & (ry[None] < hi_pc[1]))
-    # left arm hold region: keep the reader on the right arm's side of the PC (y below the PC box)
-    free &= ry[None] < lo_pc[1] + 1e-9
-    # largest axis-aligned rectangle of free cells
-    bestrect, (nx, ny) = None, free.shape
-    for i0 in range(nx):
-        for i1 in range(i0, nx):
-            col = free[i0:i1 + 1].all(0)
-            run = 0
-            for j1 in range(ny):
-                run = run + 1 if col[j1] else 0
-                if run:
-                    area = (i1 - i0 + 1) * run
-                    if bestrect is None or area > bestrect[0]:
-                        bestrect = (area, i0, i1, j1 - run + 1, j1)
+            for dt in (-a.box_deg, 0, a.box_deg):
+                c, t = w.pc_centre((xs[i] + dx / 100, ys[j] + dy / 100), yaws[k] + dt), np.radians(yaws[k] + dt)
+                Rz = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
+                hull += [c + Rz @ [sx * dep / 2, sy * wid / 2] for sx in (-1, 1) for sy in (-1, 1)]
+    hull = cv2.convexHull(np.array(hull, np.float32))
+    # Reader footprint (body centre at xy, plug along +x rotated by yaw) + READER_MARGIN must stay
+    # outside the hull, checked at each yaw bin's centre and edges (+/-YAW_BIN/2).
+    u, v = np.meshgrid(np.linspace(-READER_BACK, READER_FRONT, 9), np.linspace(-READER_HALF_W, READER_HALF_W, 5))
+    foot = np.stack([u.ravel(), v.ravel()], -1)
+    ok = rr > 0
+    for ii, x in enumerate(rx):
+        for jj, y in enumerate(ry):
+            for kk, t0 in enumerate(ryaw):
+                if not ok[ii, jj, kk]:
+                    continue
+                for t in np.radians([t0 - YAW_BIN / 2, t0, t0 + YAW_BIN / 2]):
+                    pts = np.array([x, y]) + foot @ np.array([[np.cos(t), np.sin(t)], [-np.sin(t), np.cos(t)]])
+                    if pts[:, 0].max() > wall - .01 or \
+                       max(cv2.pointPolygonTest(hull, (float(px), float(py)), True) for px, py in pts) > -READER_MARGIN:
+                        ok[ii, jj, kk] = False
+                        break
+    free = ok.sum(-1) >= MIN_YAW_BINS
+    samples = [[float(rx[ii]), float(ry[jj]), float(ryaw[kk])] for ii, jj, kk in zip(*np.nonzero(ok)) if free[ii, jj]]
     reader = None
-    if bestrect:
-        _, i0, i1, j0, j1 = bestrect
-        reader = {'x_range_m': [float(rx[i0]), float(rx[i1])], 'y_range_m': [float(ry[j0]), float(ry[j1])], 'yaw_range_deg': [-60., 60.],
-                  'centre_xy_m': [float((rx[i0] + rx[i1]) / 2), float((ry[j0] + ry[j1]) / 2)],
-                  'min_pick_score': float(pick[i0:i1 + 1, j0:j1 + 1].min())}
+    if samples:
+        cells = np.array([s_[:2] for s_ in samples])
+        centre = cells[np.argmin(np.linalg.norm(cells - cells.mean(0), axis=1))]
+        reader = {'samples_xy_yaw': samples, 'cell_m': float(rx[1] - rx[0]), 'yaw_bin_deg': YAW_BIN,
+                  'x_range_m': [float(cells[:, 0].min()), float(cells[:, 0].max())],
+                  'y_range_m': [float(cells[:, 1].min()), float(cells[:, 1].max())],
+                  'yaw_range_deg': [float(ryaw[0] - YAW_BIN / 2), float(ryaw[-1] + YAW_BIN / 2)],
+                  'centre_xy_m': centre.tolist(), 'area_m2': round(int(free.sum()) * float(rx[1] - rx[0]) ** 2, 4),
+                  'n_cells': int(free.sum()), 'mean_yaw_bins_per_cell': round(len(samples) / int(free.sum()), 2),
+                  'clearance': f'reader footprint (+{READER_MARGIN * 100:.1f} cm) outside the PC hull for the whole yaw bin, '
+                               '>= 1 cm inside the table back edge; no contact with the arms at the reset pose'}
     print('reader', json.dumps(reader), flush=True)
 
     report = {'method': __doc__.strip(), 'grid': {'port_x_m': xs.tolist(), 'port_y_m': ys.tolist(), 'yaw_deg': yaws.tolist()},
@@ -392,7 +416,8 @@ def main():
               'legacy_runtime_port_xy_m': list(S.PORT_XY),
               'legacy_runtime_pose_ok': w.evaluate(S.PORT_XY, 0.)}
     (a.out / 'report.json').write_text(json.dumps(report, indent=1) + '\n')
-    np.savez_compressed(a.out / 'maps.npz', xs=xs, ys=ys, yaws=yaws, score=score, robust=robust, rx=rx, ry=ry, ryaw=ryaw, pick=rr)
+    np.savez_compressed(a.out / 'maps.npz', xs=xs, ys=ys, yaws=yaws, score=score, robust=robust, rx=rx, ry=ry, ryaw=ryaw, pick=rr,
+                        reader_free=free, pc_hull=hull[:, 0])
 
     import matplotlib
     matplotlib.use('Agg')
@@ -411,11 +436,12 @@ def main():
     ext2 = [ry[0] * 100, ry[-1] * 100, rx[0] * 100, rx[-1] * 100]
     im = ax[2].imshow(np.where(pick > 0, pick, np.nan), origin='lower', extent=ext2, cmap='magma', aspect='equal')
     if reader:
-        (x0, x1), (y0, y1) = reader['x_range_m'], reader['y_range_m']
-        ax[2].add_patch(plt.Rectangle((y0 * 100, x0 * 100), (y1 - y0) * 100, (x1 - x0) * 100, fill=False, ec='c', lw=2, label='reader region'))
-    ax[2].add_patch(plt.Rectangle((lo_pc[1] * 100, lo_pc[0] * 100), (hi_pc[1] - lo_pc[1]) * 100, (hi_pc[0] - lo_pc[0]) * 100,
-                                  fill=False, ec='r', ls='--', label='PC box + clearance'))
-    ax[2].set(title='reader top-down pick, worst over yaw -60..60 deg', xlabel='y (cm)', ylabel='x (cm)'); ax[2].invert_xaxis()
+        ax[2].contourf(ry * 100, rx * 100, free.astype(float), levels=[.5, 1.5], colors='c', alpha=.35)
+        ax[2].contour(ry * 100, rx * 100, free.astype(float), levels=[.5], colors='c', linewidths=2)
+        ax[2].fill([], [], 'c', alpha=.35, label='reader region (>= 3 yaw bins)')
+    h = np.vstack([hull[:, 0], hull[:1, 0]])
+    ax[2].plot(h[:, 1] * 100, h[:, 0] * 100, 'r--', label='PC (whole training box)')
+    ax[2].set(title='reader top-down pick, best over yaw -90..90 deg', xlabel='y (cm)', ylabel='x (cm)'); ax[2].invert_xaxis()
     ax[2].legend(fontsize=7, loc='lower left'); fig.colorbar(im, ax=ax[2])
     fig.tight_layout(); fig.savefig(a.out / 'maps.png', dpi=110)
     print(json.dumps({k: report[k] for k in ('feasible_fraction', 'failure_counts', 'legacy_runtime_pose_ok')}, indent=1))

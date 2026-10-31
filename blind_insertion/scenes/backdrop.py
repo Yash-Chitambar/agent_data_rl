@@ -4,7 +4,8 @@ Replaces the procedural workbench dressing (pegboard, tools, monitors, generic r
 power strip) with the objects the real ZED and wrist cameras see: the wall, the silver
 raceway along the table's back edge, the plugs in its outlets, the power strip with its
 cables, the black clip-on device on the wall and the Ryobi bit case. Visual only (no
-collision). Positions are in the right arm base frame (+x toward the wall, z up). The
+collision). A dark block fills the shadowed gap between the table's back edge and the raceway.
+Positions are in the right arm base frame (+x toward the wall, z up). The
 parameters in `configs/backdrop_duchamp3.json` come from `scripts/tools/fit_backdrop.py`.
 """
 import json
@@ -48,6 +49,10 @@ def geoms(p, table_top):
     wall_x, front = p['wall_x'], p['raceway_front_x']
     out.append(('bd_wall', B, (wall_x + .025, .31, .5), (.025, 3., 1.3), (1, 0, 0, 0), col['wall']))
     bottom = table_top - .02
+    # Dark gap between the table's back edge and the raceway (the real junction is in shadow):
+    # its top sits just under the table surface, so only the gap shows, as a dark line.
+    out.append(('bd_gap', B, ((front - .08 + wall_x) / 2, .31, table_top - .1505), ((wall_x - front + .08) / 2, 1.2, .15),
+                (1, 0, 0, 0), col['gap']))
     out.append(('bd_raceway', B, ((wall_x + front) / 2, .31, (p['raceway_top_z'] + bottom) / 2),
                 ((wall_x - front) / 2, 1.2, (p['raceway_top_z'] - bottom) / 2), (1, 0, 0, 0), col['raceway']))
     for i, y in enumerate(p['plug_y']):

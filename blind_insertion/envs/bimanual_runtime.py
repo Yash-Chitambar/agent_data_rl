@@ -131,6 +131,8 @@ class BimanualRuntime:
         fa0,pa0 = int(m.joint('pc_free_joint').qposadr[0]),self.lay.peg_qadr
         self._pc0 = torch.tensor(d0.qpos[fa0:fa0+7],device=self.device,dtype=torch.float32)
         self._reader0 = torch.tensor(d0.qpos[pa0:pa0+7],device=self.device,dtype=torch.float32)
+        if self.layout:   # feasible reader (x, y, yaw bin) samples: top-down pick works, clear of every PC pose
+            self._reader_samples = torch.tensor(self.layout['reader']['samples_xy_yaw'],device=self.device,dtype=torch.float32)
         self.indices = {}
         for side, prefix in (('right',''),('left','left_')):
             q = [int(m.joint(prefix+f'joint{i}').qposadr[0]) for i in range(1,7)]
@@ -262,8 +264,11 @@ class BimanualRuntime:
         dx,dy,dyaw = self.cfg.pc_pose_range
         (px,py),yaw = self.layout['port_xy'],self.layout['yaw']
         rd = self.layout['reader']
+        smp = self._reader_samples[torch.randint(len(self._reader_samples),(n,),device=dev)]
+        h,hb = rd['cell_m']/2,rd['yaw_bin_deg']/2
+        rx,ry,ryaw = smp[:,0]+u(-h,h),smp[:,1]+u(-h,h),smp[:,2]+u(-hb,hb)
         for qadr,ref,(x,y,t) in ((self.pc_qadr,self._pc0,(u(px-dx,px+dx),u(py-dy,py+dy),u(yaw-dyaw,yaw+dyaw))),
-                                 (self.lay.peg_qadr,self._reader0,(u(*rd['x_range_m']),u(*rd['y_range_m']),u(*rd['yaw_range_deg'])))):
+                                 (self.lay.peg_qadr,self._reader0,(rx,ry,ryaw))):
             a = torch.deg2rad(t)
             c,s_ = torch.cos(a),torch.sin(a)
             p0 = ref[:3]

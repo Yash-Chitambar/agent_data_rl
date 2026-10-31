@@ -104,6 +104,14 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-10-31 (mason) — Reader region around the PC; PC feet NaN; raceway refit
+
+Reader start region is now every (cell, yaw bin) pair where a top-down pick works and the reader
+clears every PC pose (0.20 m^2, yaw +/-90 deg, incl. the middle of the table and in front of the PC).
+Yawed PCs went NaN in ~0.1% of GPU worlds: cylinder feet vs box table go through MuJoCo Warp's
+single-contact CCD; box feet fix it (0 / 12,288). The backdrop raceway had fitted as a low shelf
+(top-down ambiguity) and showed a white line; pinned to the table edge it is an 8 cm vertical face.
+
 ### 2026-10-30 (mason) — PC placement search, reader region, fitted backdrop
 
 Reachability search (25,688 PC poses): the legacy runtime PC pose is infeasible for the bimanual
