@@ -174,6 +174,11 @@ Results: `results/usbc/policy/insertion/`.
   60 steps at impratio 30); elliptic cones + impratio 30: 0. The insertion env uses elliptic.
 - **Episode length:** at the smallest error level a 10 s episode trained to 99.9 % vs 83.5 % at 6 s
   (training success, same policy init): failures are mostly time spent searching at the mouth.
+- **Reward hacking (fixed):** the per-step seated reward (+1 while geometrically seated, success after
+  10 consecutive steps) was exploited: policies hovered just short of the hold and collected it every
+  step. Training reward rose 4 → 17 per rollout while success fell 100 → 50 %; held-out at scale 0.25
+  the degraded checkpoint seated 49.0 % with 438/1024 plugs fully inserted but never holding (vs 93.4 %,
+  n = 2048, for its earlier checkpoint). Longer episodes made it worse. Now a one-time success bonus (10).
 - **Slip termination** relaxed to a drop (10 mm / 15° in the hand); a few mm of in-hand slip that still
   seats is not a failure.
 - **What the wrist camera adds (DAgger from the privileged teacher, n = 1024 each, scale 1.0, in the
