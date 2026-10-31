@@ -44,6 +44,8 @@ ap.add_argument('--n_action_steps', type=int, default=10)
 ap.add_argument('--layout', default='results/usbc/policy/pick/task_layout.json')
 ap.add_argument('--no_visual_dr', action='store_true')
 ap.add_argument('--out', default='results/usbc/policy/pick/act_eval')
+ap.add_argument('--retry', type=int, default=0, help='max regrasps: if the gripper has been commanded closed for 1 s and the '
+                'finger opening (gripper encoder) is < 20 mm (closed on nothing), force it open for 0.6 s and let the policy go on')
 a = ap.parse_args()
 
 pol = torch.jit.load(a.policy).eval().cuda()
@@ -58,6 +60,8 @@ for b in range(math.ceil(a.episodes / N)):
     torch.manual_seed(a.seed + b)
     obs = task.reset()
     chunk = None
+    closed_t = torch.zeros(N, dtype=torch.long, device=dev); open_force = torch.zeros(N, dtype=torch.long, device=dev)
+    retries = torch.zeros(N, dtype=torch.long, device=dev)
     for t in range(T):
         enc = obs['encoder_rad'][:, :6] + task.runtime.encoder_offsets[0]
         state = torch.cat([enc, task.runtime.q[:, task.finger_qadr].sum(1, keepdim=True)], 1).float()
@@ -81,6 +85,13 @@ for b in range(math.ceil(a.episodes / N)):
         act = torch.zeros(N, 14, device=dev)
         act[:, :6] = ((act8[:, :6] - task.joint_target[:, 0]) / task.cfg.action_scale_rad).clamp(-1, 1)
         act[:, 6] = torch.where(act8[:, 6] > 0, 1., -1.); act[:, 13] = 1.
+        if a.retry:
+            opening = task.runtime.q[:, task.finger_qadr].sum(1)
+            closed_t = torch.where(act[:, 6] < 0, closed_t + 1, torch.zeros_like(closed_t))
+            missed = (closed_t >= round(1.0 / task.dt)) & (opening < .020) & (retries < a.retry) & (open_force == 0)
+            open_force = torch.where(missed, torch.full_like(open_force, round(.6 / task.dt)), (open_force - 1).clamp(min=0))
+            retries += missed.long()
+            act[:, 6] = torch.where(open_force > 0, torch.ones_like(act[:, 6]), act[:, 6])
         obs = task.step(act)[0]
         if t == T - hold - 1:
             m0 = task.pick_metrics(); p0, R0, tilt0 = m0['inhand_p'].clone(), m0['inhand_R'].clone(), m0['tilt_deg'].clone()
@@ -89,15 +100,19 @@ for b in range(math.ceil(a.episodes / N)):
     ok = ~task.failed & (m['lift_m'] > .06) & (m['tilt_deg'] < 3) & (tilt0 < 3) & (dp < 1e-3) & (dR < 1.)
     for i in range(min(N, a.episodes - b * N)):
         rows.append(dict(success=bool(ok[i]), lift_mm=float(m['lift_m'][i] * 1e3), tilt_deg=float(m['tilt_deg'][i]),
-                         hold_drift_mm=float(dp[i] * 1e3), hold_rot_drift_deg=float(dR[i]), latency=int(task.latency[i])))
+                         hold_drift_mm=float(dp[i] * 1e3), hold_rot_drift_deg=float(dR[i]), latency=int(task.latency[i]), retries=int(retries[i]) if a.retry else 0,
+                         failed=bool(task.failed[i]), finger_opening_mm=float(task.runtime.q[i, task.finger_qadr].sum() * 1e3)))
     print(f'batch {b}: {np.mean([r["success"] for r in rows]):.4f} ({len(rows)}) {time.time() - t0:.0f}s', flush=True)
 import pandas as pd
 df = pd.DataFrame(rows); n, k = len(df), int(df.success.sum())
 out = Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
-tag = f'{out.name}_{Path(a.policy).parent.name}_s{a.seed}' + ('_ens' if a.ens_k >= 0 else f'_chunk{a.n_action_steps}')
+tag = f'{out.name}_{Path(a.policy).parent.name}_s{a.seed}' + ('_ens' if a.ens_k >= 0 else f'_chunk{a.n_action_steps}') + (f'_retry{a.retry}' if a.retry else '')
 df.to_parquet(out.parent / f'{tag}.parquet')
 summ = {'policy': a.policy, 'n': n, 'success': k, 'rate': k / n, 'wilson95_lo': wilson_lo(k, n), 'seed': a.seed,
         'execution': f'temporal ensembling k={a.ens_k}' if a.ens_k >= 0 else f'chunks of {a.n_action_steps}',
-        'failures': {'lift<60mm': int((df.lift_mm <= 60).sum()), 'tilt>=3': int((df.tilt_deg >= 3).sum()), 'drift': int((df.hold_drift_mm >= 1).sum())}}
+        'failures': {'lift<60mm': int((df.lift_mm <= 60).sum()), 'no_lift_closed_on_nothing': int(((df.lift_mm <= 60) & (df.finger_opening_mm < 20)).sum()),
+                     'no_lift_opening_ge_20mm': int(((df.lift_mm <= 60) & (df.finger_opening_mm >= 20)).sum()),
+                     'tilt>=3': int((df.tilt_deg >= 3).sum()), 'drift': int((df.hold_drift_mm >= 1).sum()), 'dropped_or_nonfinite': int(df.failed.sum())},
+        'retries_used': int(df.retries.sum())}
 (out.parent / f'{tag}.json').write_text(json.dumps(summ, indent=1) + '\n')
 print(json.dumps(summ, indent=1))
