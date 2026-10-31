@@ -75,7 +75,7 @@ class InsertionCfg:
     # Left arm: press on the PC top at the reachability search's pose (pads `press_m` below the
     # surface as a target; the episode starts with the pads 3 mm above it).
     left_hold: str = 'guarded'          # 'guarded': Part 3's recommended hold (left_hold.py); 'press': simple
-    hold_force_n: float = 35.0
+    hold_force_n: float = 25.0          # Part 3 recommendation (round 3)
     # 20 mm: arm sag and the +/-1.5 deg encoder-offset error leave only 66 % of worlds touching the
     # PC at 6 mm; at 20 mm all touch and the PC resists ~3-5 N horizontally (n=256, pc mu 0.3-0.9).
     press_m: float = 0.02
