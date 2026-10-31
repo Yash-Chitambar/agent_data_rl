@@ -1,0 +1,4 @@
+# staged model files (python -m deploy.models stage); only the manifest is tracked
+*
+!.gitignore
+!MANIFEST.json

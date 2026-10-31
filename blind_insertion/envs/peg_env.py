@@ -17,7 +17,8 @@ import torch
 import warp as wp
 
 from blind_insertion.assets import builder as B
-from blind_insertion.envs import kinematics as K
+from blind_insertion.envs import friction_comp as FC, kinematics as K
+from blind_insertion.scenes import pc_bench as S
 
 FREE, CONTACT, INSIDE = 0, 1, 2
 
@@ -74,6 +75,10 @@ class EnvCfg:
     grasp_mode: str = "axial"
     inhand_yaw_deg: float = 0.0         # in-hand rotation about the gripper axis (top grasp)
     grasp_y: tuple = (0.0, 0.0)         # top grasp: tcp above the part's centre plane (part y), uniform
+    # top grasp tilted about the closing axis (deg, uniform [lo, hi], replaces +-inhand_tilt_deg): the
+    # pick's tilted grasp (pc_bench.GRASP_TILT_DEG). grasp_y then holds at the lowest tip point: the
+    # tcp rises by pc_bench.tip_rise, as the pick expert grasps
+    inhand_tilt_range_deg: tuple | None = None
     fix_rpy_range_deg: tuple | None = None  # per-axis fixture rpy range (fixture frame); else fix_tilt_deg
     fixture_boxes: list | None = None   # extra colliding boxes on the fixture (builder.build)
     # contact (log-uniform ranges)
@@ -89,6 +94,9 @@ class EnvCfg:
     arm_kp_scale: tuple | None = None
     arm_kd_scale: tuple | None = None
     arm_frictionloss: tuple | list | None = None
+    # Coulomb friction feed-forward of the real arm's servo (envs/friction_comp.py): {"tau": [6 N m]
+    # or "scale": x measured, "ramp": rad}; None = off
+    fric_comp: dict | None = None
     # encoder offset error (deg, half-range, one per arm joint or one for all): per world, uniform at
     # every reset, added to the observed joints only (q and the FK in the observation). The command
     # q_meas + scale * a uses the encoder frame the motors servo in, so it does not shift the arm.
@@ -97,6 +105,7 @@ class EnvCfg:
     pad_timeconst: float = 0.004           # pad contact solref time constant (x finger scale)
     pad_solimp: tuple | None = None        # e.g. (0.99, 0.999, 0.001) for light parts
     pad_spheres: int = 0                   # >0: n x n sphere grid per pad face (robust grasp contacts)
+    pad_torsion: float | None = None       # pad torsional friction (m); pc_bench.PAD_TORSION for a tilted grasp
     mj_opt: dict | None = None             # MjModel.opt overrides, e.g. {"cone": 1, "impratio": 10,
                                            # "iterations": 100, "ls_iterations": 50} (cone 1 = elliptic)
     # labels / success / termination
@@ -189,6 +198,8 @@ class PegEnv:
         lay = self.lay
         if cfg.pad_solimp is not None:
             self.mjm.geom_solimp[lay.pad_geoms, :3] = cfg.pad_solimp
+        if cfg.pad_torsion is not None:
+            self.mjm.geom_friction[lay.pad_geoms, 1] = cfg.pad_torsion
         for k_, v_ in (cfg.mj_opt or {}).items():
             setattr(self.mjm.opt, k_, v_)
         if cfg.cam_spec:
@@ -228,6 +239,8 @@ class PegEnv:
         self.overflow_counts = torch.zeros(16, dtype=torch.long, device=dev)
         t = wp.to_torch
         self.t_qpos, self.t_qvel, self.t_ctrl = t(self.d.qpos), t(self.d.qvel), t(self.d.ctrl)
+        self.t_qfrc = t(self.d.qfrc_applied)
+        self.fric_comp = FC.parse(cfg.fric_comp)
         self.t_warm = t(self.d.qacc_warmstart)
         self.t_qacc = t(self.d.qacc)
         self.t_act = None
@@ -249,6 +262,7 @@ class PegEnv:
         self.peg_len = tt(lay.peg_length)
         self.half_short = tt(lay.peg_half_short)
         self.grasp_z = tt(lay.grasp_z)
+        self.tip_pts = torch.as_tensor(B.tip_points_tcp(self.mjm, lay), dtype=torch.float32, device=dev)
         self.plate_half = tt([v.plate_size / 2 for v in variants])
         self.hole_r = tt([np.abs(p).max() for p in lay.hole_polys])
         self.fix_corners = tt(lay.fix_corners)                       # (K,8,3)
@@ -391,6 +405,15 @@ class PegEnv:
                 _uniform(-cfg.grip_rot_deg, cfg.grip_rot_deg, (m_, 3), gen, dev) * deg)
             # peg in tcp frame: peg z = -tcp z, tilted about the closing axis (tcp y)
             tilt = _uniform(-cfg.inhand_tilt_deg, cfg.inhand_tilt_deg, m_, gen, dev) * deg
+            g_tilt = torch.zeros_like(tilt)
+            if cfg.inhand_tilt_range_deg is not None:
+                # tilted grasp: the GRIPPER is tilted (the pick lines the part up with the port), so
+                # the tcp turns by -g_tilt about its closing axis and the part keeps only the in-hand
+                # error +-inhand_tilt_deg against the fixture (not the whole 25-45 deg)
+                g_tilt = _uniform(*cfg.inhand_tilt_range_deg, m_, gen, dev) * deg
+                tilt = g_tilt + tilt
+                z0 = torch.zeros_like(g_tilt)
+                R_tf = self.R_nom @ K.rpy_mat(torch.stack([z0, -g_tilt, z0], 1)) @ self.R_nom.T @ R_tf
             if cfg.grasp_mode == "top":    # tilt about the closing axis, yaw about the tcp axis
                 yaw = _uniform(-cfg.inhand_yaw_deg, cfg.inhand_yaw_deg, m_, gen, dev) * deg
                 Rpg = K.rpy_mat(torch.stack([torch.zeros_like(tilt), tilt, yaw], 1)) @ self.R_nom.T
@@ -399,6 +422,8 @@ class PegEnv:
             gx = _uniform(-cfg.grasp_along, cfg.grasp_along, m_, gen, dev)
             if cfg.grasp_mode == "top":    # pads close along part x: offset along the part axis
                 gy = _uniform(*cfg.grasp_y, m_, gen, dev)
+                if cfg.inhand_tilt_range_deg is not None:
+                    gy = gy + S.tip_rise(self.tip_pts, g_tilt)
                 gp = torch.stack([torch.zeros_like(gx), gy, self.grasp_z[kk] + gx], 1)
             else:
                 gp = torch.stack([gx, torch.zeros_like(gx), self.grasp_z[kk]], 1)
@@ -755,6 +780,8 @@ class PegEnv:
         else:
             q_t = self._q_meas + self.scale * a_apply
         self.t_ctrl[:, torch.as_tensor(lay.arm_act, device=dev)] = q_t
+        if self.fric_comp:
+            self.t_qfrc[:, torch.as_tensor(lay.arm_dofadr, device=dev)] = FC.feedforward(self.scale * a_apply, *self.fric_comp)
         torch.cuda.synchronize(dev)
         self._physics()
         wp.synchronize_device(cfg.device)

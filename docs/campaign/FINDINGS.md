@@ -145,6 +145,156 @@ arm (IoU 0.5-0.7 -> 0.77-0.91 held-out), opt-in until a caliper check separates 
 geometry from hand-eye error. Runtime speed (~335 env-steps/s) is the next blocker.
 Details: `results/usbc/bimanual_20261029/README.md`.
 
+### 2026-10-28 (night, mason) — Task H: ACT v5 100k chosen; deploy/ runner; release needs a timer
+
+- **Finalist comparison** (v5 80k vs 100k only), same 256 episodes (seed 300), fixed gate, uncomp
+  500M insertion, enc +-0.3 deg, feed-forward 0.5 / 20 mrad (`results/H/act_v5/*_n256*`):
+
+  | ACT | Success | Seated after release | Held | Handoff lateral (median / p90) |
+  |---|---|---|---|---|
+  | v5 80k | 92.2% [88.2, 94.9] | 87.1% | 94% | 2.6 / 6.6 mm |
+  | v5 100k | **96.9% [94.0, 98.4]** | **91.4%** | 98% | 3.1 / 5.7 mm |
+
+  v5 100k goes to the real arm (staged in `deploy/models`, MANIFEST with sha256). At n=128
+  (seed 100) 100k gave 96.9% too.
+- **The insertion policy never stops pushing after the plug seats.** Training episodes end at
+  success, so it has not seen those states. The hand slides along the reader: tcp travel since the
+  handoff is 11-23 mm at first seating (it also slides before seating) and 55 mm median, 189 mm p90
+  after 10 s. Neither a speed stall nor a travel threshold detects seating (travel >= 4-10 mm fires
+  on 0/64 seated plugs). Seated fraction against time after the handoff (64 worlds, v5 60k): 2 s 48%,
+  3 s 79%, 5 s 90%, 10 s 88% (ever seated 89%). So the real arm releases at 5 s, or at 60 mm of tcp
+  travel (`handoff.ReleaseTrigger`). Same 256 episodes, v5 80k: seated after release 89.8% with the
+  trigger vs 87.1% with the sim-truth release. The timed release costs nothing.
+- **deploy/** (5b3cc98): one 50 Hz runner mirroring `pick_insert.run`. Handoff gate, ACT
+  ensembling and the release trigger are one module (`pipeline/handoff.py`) for sim and real;
+  `deploy/checks/handoff_equiv.py` shows it equals the code behind all earlier numbers.
+  `checks/conventions.py` matches the deploy kinematics, ready pose, pre-insert point, insertion
+  observation, offsets and gripper map to the sim. `scripts/real/deploy.py`'s ObsBuilder uses the linear
+  gripper tcp: wrong for this task (FlexPoint), not used.
+- **Dry run** (`deploy.runner sim`, the real runner code on one PickEnv world, encoder-frame
+  observations, v5 60k): 12/16 seated after release; all 16 handoffs within 7 mm lateral; the 4
+  failures are insertion misses (plug ends 17-21 mm off in y). Every target was replayed through
+  SafeArm's rules: 0 violations with the task clearances.
+- **Safety clearances.** ACT's grasp targets put the fingertips up to 9 mm below the table (the PD
+  error presses the fingers down; true sim fingertips reach -0.6 mm). safety.Checker (linear gripper,
+  tips >= 20 mm, raw motor angles) would stop every grasp. Task checker: FlexPoint model, model frame,
+  fingertips >= -15 mm, gripper >= 15 mm, link_6 >= 20 mm. Demo joint states replayed through FK
+  showed fingers at -17 mm: that was the demos' encoder offset error (+-1.5 deg), not the sim.
+- **ACT inference**: 22 ms (model) / 41 ms (full step) on a busy V100, tick 20 ms. Must be measured
+  on duchamp3 (RTX 4090) before the first run (`deploy/checks/timing.py`).
+
+### 2026-10-27 (late, mason) — Task H: the ACT gap was a handoff bug; ACT v5 40k 93%
+
+- **Bug** (fixed 2e5c599): `ActPick._settled` (the handoff when ACT does not raise `done`) fired
+  while the gripper closed on the reader on the table. The grasp spot is within `near` = 6 cm of the
+  nominal pre-insert pose, so the insertion policy took over at ~2 s with the reader still on the
+  table. `done_run` was 0 in all traced early handoffs. Fix: the tcp must also be within 10 mm of
+  the pre-insert height (22.9 mm; grasp ~5 mm), and the grasp must hold 0.5 s. **All earlier ACT
+  pipeline numbers have this bug**, including v4 61% and the 30%-friction 82.8%. The earlier
+  conclusion "the ACT gap is joint friction, not data" is wrong.
+- Pipeline, fixed gate, measured friction, enc +-0.3 deg, insert uncomp 500M, n=128
+  (`results/H/act_v5`):
+
+  | ACT | Feed-forward | Success | Held | Handoff lateral (median) |
+  |---|---|---|---|---|
+  | v4 40k | off | 80.5% [72.8, 86.4] | 84% | 4.9 mm |
+  | v4 100k | off | 90.6% [84.3, 94.6] | 91% | 3.5 mm |
+  | v4 100k | 0.5 / 20 mrad | **96.1% [91.2, 98.3]** | 97% | 3.2 mm |
+  | v5 20k (old gate) | 0.5 / 20 mrad | 55.5% | 58% | 6.7 mm |
+  | v5 20k | 0.5 / 20 mrad | 76.6% [68.5, 83.1] | 81% | 5.0 mm |
+  | v5 40k | 0.5 / 20 mrad | 93.0% [87.2, 96.3] | 94% | 3.0 mm |
+  | v5 60k | 0.5 / 20 mrad | **97.7% [93.3, 99.2]** | 98% | 2.6 mm |
+
+  Expert pick + uncomp 500M + feed-forward: 93.0% [89.2, 95.5]. ACT now matches the expert.
+  v5 learns faster (40k: 93.0% vs v4 80.5%, but v4 has no feed-forward there). v5 at 100k+ will
+  tell whether recovery demos and `cmd_err` add anything over v4 + feed-forward. Sim demo videos
+  (8 episodes, same seed; 7/8 each): `results/H/demos_v4ff`, `results/H/demos_v5`.
+
+### 2026-10-27 (midday, mason) — Task H: feed-forward fine-tune, v5 ACT data
+
+- **Feed-forward fine-tune** `H-reader-tilt-ff-s1` (comp 500M + 150M steps, measured friction,
+  feed-forward 0.5 / 20 mrad; `results/H/fric_comp/ff_final`). Measured friction, feed-forward on:
+
+  | Policy | PegEnv 3 mm | PegEnv 6 mm | enc +-1.5 deg | Pipeline, FF on (n=256) | Pipeline, FF off |
+  |---|---|---|---|---|---|
+  | ff-s1 | 89.8% | 85.0% | 48.9% | 77.7% [72.2, 82.4], held 83% | 46.9% [40.9, 53.0] |
+  | uncomp 500M | 86.4% | | | 93.0% [89.2, 95.5], held 93% | 92.6% [88.7, 95.2] |
+
+  The fine-tune recovers PegEnv success (79.0% -> 89.8%) but does not transfer to the pick
+  pipeline: the reader leaves the hand in 17% of episodes. The uncomp policy is unaffected by the
+  feed-forward (93.0% vs 92.6%), so the feed-forward itself does not break the pick or carry.
+  **Use uncomp 500M for insertion on the real arm**, with or without the feed-forward. The ACT v5
+  evals use uncomp 500M + feed-forward.
+- **ACT v5 data** (bf65b1f; `data/act/raw_v5_*`): 3,072 episodes with feed-forward 0.5 / 20 mrad,
+  25% recovery (first grasp closes 30-45 mm high; privileged lift check -> reopen, regrasp; frames
+  recorded from the detected miss), `cmd_err` state (13 dims). Expert success 91.8% (v4: 97%);
+  749 of the 2,821 kept episodes are recoveries.
+
+### 2026-10-27 (morning, mason) — Task H: 500M insertion, ACT v4 final, friction feed-forward
+
+- **500M** (resumed from 300M; `results/H/tilt_final/500M`, n=1,024 / pipeline n=256):
+
+  | Policy | Own, 3 mm | Own, 6 mm | Full friction, 3 mm | enc +-1.5 deg | Pipeline (expert pick) |
+  |---|---|---|---|---|---|
+  | comp | 95.2% | 92.9% | 68.1% | 56.8% | 98.8% [96.6, 99.6] |
+  | uncomp | 90.2% | 80.4% | (own) | 47.9% | 92.6% [88.7, 95.2] |
+
+- **ACT v4** (pipeline, uncomp final_300M, enc +-0.3 deg, measured friction, n=128):
+
+  | Steps | Success | Held at handoff | Success if held |
+  |---|---|---|---|
+  | 20k | 23.4% | 48% | |
+  | 40k | 60.9% [52.3, 69.0] | 68% | 90% |
+  | 60k | 58.6% | 62% | 95% |
+  | 80k | 60.9% | 66% | |
+  | 100k | 61.7% [53.1, 69.7] | 66% | |
+
+  ACT 80k with 30% of the measured friction (comp policy): **82.8% [75.3, 88.4]**, held 87%, handoff
+  lateral 3.3 mm (vs 6.1 mm). The ACT gap is joint friction, not data: the loss still falls at 100k
+  (5.7 epochs, 0.069 -> 0.063), and the expert beats friction with a joint integral (hidden state in
+  its actions) that ACT cannot infer. ACT also signals done after a missed grasp (no recovery demos).
+- **Friction feed-forward** (`envs/friction_comp.py`, b151281): tau = c * tau_measured *
+  clip((q_target - q_meas) / ramp, -1, 1), sent with each command (i2rt `torques` field; PegEnv /
+  PickEnv `fric_comp`). comp 500M policy, measured friction, n=1,024 (`results/H/fric_comp`):
+
+  | c \ ramp | 5 mrad | 10 mrad | 20 mrad | 40 mrad |
+  |---|---|---|---|---|
+  | off | 65.7% | | | |
+  | 0.5 | | 75.9% | 79.0% | 80.7% |
+  | 0.7 | 68.4% | 71.8% | 77.2% | |
+  | 1.0 | 52.0% | 56.5% | 66.9% | |
+
+  Stronger feed-forward makes the part slip (slipped 111 at 0.5/20 mrad, 339 at 1.0/5 mrad): the
+  policy never saw the push. Fine-tune with it in the loop: `H-reader-tilt-ff-s1` (measured friction,
+  feed-forward 0.5 / 20 mrad, from comp 500M). `deploy.py check` step test on SimArm with the measured
+  friction (MuJoCo's soft frictionloss moves more than the real arm: 47% vs real 0% at 0.01 rad, j2):
+  0.01 rad steps reach 47-51% off, 75-83% at 0.7x, 87-93% at 1.0x.
+
+### 2026-10-27 (night, duchamp3) — Task H real-rig insertion: final 300M results, ACT v4 early
+
+Two runs from the tilted-geometry policy (init `H-reader-tilt-enc03ft-s1/init_25M.pt`), enc offset +-0.3 deg,
+spec parts, offsets to 6 mm, 300M steps. **comp**: 30% of the measured joint friction, clip 3 (the arm with
+friction compensation). **uncomp**: measured friction, clip 6. PegEnv eval n=1,024 unseen geometries
+(`results/H/tilt_final/300M`); pipeline = expert pick -> policy, n=256, `pick_insert --phys_json` with the same
+encoder offset and friction (before: always +-1.5 deg).
+
+| Policy | Own, 3 mm | Own, 6 mm | Full friction, 3 mm | enc +-1.5 deg, 3 mm | Pipeline (expert pick) |
+|---|---|---|---|---|---|
+| comp | 90.0% | 89.0% | 65.1% | 51.8% | 97.7% [95.0, 98.9] |
+| uncomp | 83.0% | 72.4% | (own) | 40.4% | 86.3% [81.6, 90.0] |
+
+- Failures are mostly `slipped` and `never_found` (comp own: 47 / 28 of 1,024; uncomp own: 111 / 52).
+- Friction compensation is worth 7-17 points (and makes 6 mm starts as good as 3 mm). The comp policy
+  without compensation drops to 65%: it needs compensation on the real arm.
+- Encoder offset accuracy matters more: +-1.5 deg costs 38-43 points. The joint offsets must be known to
+  ~0.3 deg (re-measure `rig.joint_offsets` after each re-zero).
+- Pipeline handoff: lateral 0.55-0.61 mm median, gap 6.1 mm; pipeline success is above PegEnv because the
+  expert handoff is tighter than the PegEnv start distribution. seated_after_release 85.5% / 75.4% (the
+  released reader sags ~2 deg; the metric is strict).
+- Both runs continue to 500M (`--resume`; `final_300M.pt` kept).
+- ACT v4 (2 GPUs, AMP) at 20k steps, pipeline with the uncomp policy, n=128: 23.4% [16.9, 31.5], held at
+  handoff 48%, handoff lateral 5.5 mm median (v3 60k: 1.6%, held 19%).
+
 ### 2026-10-26 (22:30 UTC, duchamp3) — ZED pose refit from 3 board positions; held-out check passes
 
 Follow-up to the entry below. `scripts/real/fit_zed.py`: one PnP over 168 corners from three board
@@ -278,6 +428,58 @@ Data `data/real_yam/left_*.csv`, fit `results/real/step_fit_left.json`.
 - Joint 1 friction 0.1 N m (right 0.01); joints 5-6 gain scales swap (1.5/0.5 vs 1.0/1.5): wrist gains
   are poorly identified at these friction levels. Both inside the config's kp range except joint 6 at
   0.5 (range 0.6-1.6).
+### 2026-10-26 (evening, duchamp3) — Task H on the real rig: insertion retraining, what blocks it, ACT v4 data
+
+- **PegEnv tilt bug (fixed, 05106fd..)**: `inhand_tilt_range_deg` first rotated the PART 25-45 deg against the
+  port (the in-hand tilt is meant for small grasp errors). Now the gripper takes the tilt and the part keeps
+  +-inhand_tilt_deg. Runs before the fix (`H-reader-proprio-tilt*`, `-tiltfix*`) are invalid.
+- **Old insertion policies do not transfer**: v2 (98.2% in its own config) gets 0.4% on `task_h_reader_real.json`
+  even without the tilt (actions are joint deltas; the real PC position puts the arm in another configuration).
+  Fine-tunes from v2 drove the part away (left_fixture).
+- **From scratch, every change delays the first captures** (usbc curriculum, low friction; base 16M steps):
+  pads 10x10 ~8M, real PC position ~10M, FlexPoint ~20M, tilt ~30M, PC position + FlexPoint ~35M, all
+  combined + real friction: none in 35-86M. No bug: three seeds on the real tilted geometry (low friction, no
+  sensor randomization) all learn; `H-reader-tilt-geo-s1` reaches the final stage at 128M, 95.4% at 184M.
+- **Fine-tunes from that policy (spec parts, offsets to 6 mm)**, training success:
+
+  | Added | Success | Note |
+  |---|---|---|
+  | enc offset +-1.5 deg, noise_rand, kp 0.6-1.6 (low friction) | 46% at 218M | slow |
+  | same, enc offset +-0.3 deg | 40% at 25M | ~4x faster: +-1.5 deg corrupts the tcp orientation obs by several deg |
+  | 30% of the measured friction (+ enc +-1.5) | 36% at 162M | |
+  | measured friction, action clip 3 | 2.5% at 107M | joint 3 cannot move: kp*0.01*3 = 1.4-2.4 N m vs up to 3 N m |
+  | measured friction, action clip 6 | 8.5% at 120M | |
+
+- **Real joint friction is the blocker for blind insertion.** A command closer than friction/kp does not
+  move joints 2-3 (12-19 mrad dead band, 1.2-1.9 action units); the paper's action scheme has no integral.
+  Options on the real side: Coulomb friction compensation (feed-forward +-tau_c in the commanded direction;
+  i2rt's 0.3 N m x sign(velocity) does nothing at rest), check joint 3's cable drag, or a larger action clip.
+- **Pick expert stalled in the descent** under joint friction (median 2.95 s, up to 6.2 s hovering a few mm
+  above the reader): ACT v3 (trained on that data) hovered and grasped 44%. Fixed with the joint integral in
+  the descent: expert 98% under full DR. v4 demos: 1,536 episodes, 97% ok -> `data/act/reader_pick_v4`, ACT v4.
+- Camera timing in demos and pipeline: 30 fps frame clock, frame age 30-100 ms per episode and camera.
+
+### 2026-10-26 (duchamp3) — Task H pick: tilted grasp so the wrist camera sees the PC; expert under the measured real-arm physics
+
+- **Why**: the wrist camera sits on the PC side of the gripper and looks back at the tips; with a vertical grasp
+  it saw only the reader's plug. The expert now tilts the grasp 25-45 deg about the closing axis (uniform per
+  episode, `pc_bench.GRASP_TILT_DEG`), wrist leaning back toward the robot: the camera keeps the PC's rear panel
+  and port in view during carry and alignment. The tcp rises with the tilt so the low tip corner keeps the
+  untilted table clearance (`pc_bench.tip_rise`, `builder.tip_points_tcp`).
+- **Contact fixes**: 4x4 pad spheres left 1-2 contacts per pad on the tilted grasp and the reader pivoted
+  (0% ok) -> 10x10 (`pc_bench.PAD_SPHERES`). With the pyramidal cone the tilted grasp still crept about the
+  closing axis at a steady rate, faster at higher pad friction (up to 67 deg in 12 s at 1.6x) -> pad torsional
+  friction 0.05 (`PAD_TORSION`, <= 1 deg).
+- **Expert under joint friction**: per-joint integral correction at the port (was Cartesian; the stuck joint is
+  not the one the tcp error points along), handoff (`done`) only when back within 0.5 mm (the hold drifted
+  0.4-2 mm), episodes 15 s (done median 9.4 s).
+- **Real-arm DR in the pick** (`PickCfg.phys`): kp x 0.6-1.6 (real fit), kd x 0.7-1.4, measured per-joint
+  frictionloss, latency 0-1 step, encoder noise, 14-bit resolution, encoder offset error +-1.5 deg on joints
+  2-5. State and action labels are in the encoder frame (`PickEnv.step` subtracts the offset).
+- **Result** (256 worlds, all DR, `rand` on): expert ok 87.5%; every done + held episode is within 1 mm at the
+  handoff; failures: 6% stalled at the port, 4% dropped. Demo batch (64, DART on half): 93.8% ok, checks clean.
+- Insertion env: `EnvCfg.inhand_tilt_range_deg`, `pad_torsion`; config `configs/task_h_reader_real_tilt.json`
+  (real config + tilt 23-47 deg, 10x10 spheres). The old insertion policies were trained at +-5 deg: retrain.
 
 ### 2026-10-26 (00:20 UTC, duchamp3) — Encoder offset randomization: `EnvCfg.enc_offset_deg`
 

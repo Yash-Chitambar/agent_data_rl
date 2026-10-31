@@ -19,6 +19,13 @@ Update the status column when a gap closes. Record the result in `docs/campaign/
 | 8 | ZED not in the sim | Top-camera policies only | open (the ZED pose is verified to ~2 px / 2 mm: refit 2026-10-26, `scripts/real/fit_zed.py`) | Code only |
 | - | Camera poses in one frame (model side asked) | All camera-based work | **done** 2026-10-26: `scripts/real/verify_cameras.py` (ZED + both wrists on one board, nothing fitted) and the ZED refit; wrists agree to 1-3 mm, ZED within ~2 px held out | - |
 | - | CAN interfaces do not come up after reboot | Setup | **done** 2026-10-26: udev rule `/etc/udev/rules.d/80-yam-can.rules` (`scripts/real/setup_can_autostart.sh`); not yet seen through a reboot | - |
+| 9 | **Tabletop ~30 mm below the arm base frame's z = 0** (YAMs on ~23 mm mount plates + base mesh 10 mm below its origin); the Task H sim puts the tabletop at z = 0 | **Blocks Task H**: ACT descends 3 cm short of the reader (pick1 stopped on the fingertip limit), port 3 cm below the handoff point and the insertion policy's fixed port height | **open, next physical session**: raise the workspace to base level | A flat rigid board ~30 mm thick (28-35 mm; matte dark), ~35 x 25 cm, under the PC and reader (x 12-45 cm, centred on the reader/PC line). Then `deploy.checks.placement`, `deploy.checks.table_probe` (hover gaps should read ~15 mm), rerun pick1. Alternative without a board: sim table at -0.033 + mount plates, retrain ACT and insertion |
+
+**Gap 9 detail (2026-10-28).** Evidence: `data/task_h/table_probe_002.json` (fingertips hovering at model z
++17 mm, ruler gaps 45/51/49 mm -> table at -28/-34/-30 mm); calibration board on the table fitted at
+z -22/-23/-20 mm (top face, `data/calib/verify_lab_20261027*/summary.json`); operator: mount plates ~23 mm.
+Until the board is in, `deploy.runner real` grasps fail: do not rerun pick1 on the bare table. See
+`deploy/DUCHAMP3_COMMISSIONING.md` (2026-10-28 sections).
 
 ## Order
 

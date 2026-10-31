@@ -1,7 +1,7 @@
 # Applying the key-box lessons to the USB-C rig
 
 Reviewed `docs/research/keybox_sim2real.pptx` (29 slides) against
-`origin/codex/bimanual-contact-20261028:docs/LEFT_CONTACT_COMMISSIONING.md`
+`origin/codex/bimanual-contact-20261028:docs/real/LEFT_CONTACT_COMMISSIONING.md`
 and the immutable `left_bimanual_session_20261028_curated_v2` bundle.
 The deck is evidence from a different task, not USB-C metrology.
 

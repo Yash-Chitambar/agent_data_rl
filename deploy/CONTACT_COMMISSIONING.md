@@ -1,0 +1,11 @@
+# Bimanual contact approach commissioning
+
+This isolated checkout prepares geometry and data collection; it does not replace the working ACT policy checkout. Both arms' collision proxies are present. The historical training scene's visual-only, noncolliding left arm is not a bimanual safety model.
+
+Completed offline: explicit link capsule/housing/fingertip geometry, cross-arm distance regression including deliberate overlapping arms; case-relative above-and-beyond / descend-clear previews; native reach checks; recording of the 10-second two-arm stationary trial in the external session. PC tracking on a non-contact recording detected 299/299 sampled frames, with 0.464 mm maximum apparent stationary displacement. This is not absolute metrology or a safety sensor.
+
+`python -m deploy.contact_preview --session SESSION --out NEW_PLAN` never connects hardware. The no-contact approach runner requires explicit `--run`, a fresh three-camera readiness marker, a current case image, folded rest and operator presence. It initializes both arms with the native gain profile, closes the empty left gripper, checks the complete segments and observed poses against table/raised-plane clearance, case distance, parked-arm distance and native reach bounds. It logs both arms and retreats before returning to rest. Any failure retains power for operator-supported shutdown. No force or contact stiffness is measured or claimed.
+
+The contact-specific preview uses a conservative global model-z=0 floor, above the measured table (-28 to -34 mm) and the mounting-interface estimate (-10 mm). Calibration and policy safety defaults are not edited. The PC proxy and closed-finger opening are approximate; camera and controller residuals remain explicit limitations. The camera check monitors recording progress, not exposure time. Actual consumed raw image identities are retained for the PC preflight; cameras and robot clocks remain separately labeled where applicable.
+
+This runner contains no normal push or lateral slide. Those remain disabled until the no-contact descent and retreat are commissioned. The pure bounded-step protocol on the lab-handoff branch requires separate first-contact confirmation and disengagement before reset. Do not enable it by silently reducing case clearance. A failed hardware trial is not a passed commissioning gate.

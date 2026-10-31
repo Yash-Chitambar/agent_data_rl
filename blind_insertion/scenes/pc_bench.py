@@ -37,6 +37,21 @@ FINGER_DAMPING = 200.0            # N s/m per finger in the pick scene (see buil
 LEFT_BASE_Y = 0.62                # idle left arm base (bimanual mount, arms at y = +-0.31)
 LEFT_HOME = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)   # folded rest (out of the top camera)
 READER_XY = (0.203937, 0.220908)           # nominal reader centre (body) on the table
+# --- Single-arm task H on the real rig (real/duchamp3 deploy path; the bimanual scene ignores these) ---
+# Real tabletop in the right arm base frame on duchamp3: the YAMs stand on ~23 mm mount plates and the
+# Menagerie base mesh reaches 10 mm below the base origin (-33 mm); measured -28/-34/-30 mm with the
+# fingertips (deploy/checks/table_probe.py) and -20..-23 mm on the calibration board's top face (2026-10-28).
+REAL_TABLE_Z = -0.030
+BASE_MESH_LOW = -0.010             # lowest point of the YAM base mesh in its own frame
+PAD_SPHERES = 10                   # contact spheres per pad side; 10: a tilted grasp keeps 4+ contacts per pad
+PAD_TORSION = 0.05                 # torsional pad friction (m), stands in for the rubber patch
+# yaw about the vertical from the calibrated ZED (rays onto the table, 2026-10-26)
+PC_YAW_DEG = 2.3
+READER_YAW_DEG = -0.7
+# top grasp height: tcp above the reader body centre, per gripper (flexpoint: the tcp is the tip ends)
+GRASP_Y = {"linear": (0.0048, 0.0060), "flexpoint": (-0.0029, -0.0014)}
+# grasp tilt about the closing axis (deg, uniform per episode): the wrist camera looks toward the PC
+GRASP_TILT_DEG = (25.0, 45.0)
 # fixed top camera: on a mount midway between the two arm bases (y = LEFT_BASE_Y / 2), above the
 # bench behind the arm bases, looking down the whole bench (as the lab photo); image up = back wall. Pose is a placeholder
 # until measured (PickCfg.rand jitters it).
@@ -159,8 +174,14 @@ def _free_pc_spec(spec, profile):
 
 def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                 support_mode='fixed', profile=None, bimanual=False, table_top=0.0, measured_support=False,
-                controller_profile=None):
-    """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode."""
+                controller_profile=None, table_z=None):
+    """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode.
+
+    table_z (single-arm rig deploy path): tabletop height in the arm base frame (REAL_TABLE_Z on
+    duchamp3); sets table_top, adds mount plates under the bases, 10-sphere pads and pad torsion."""
+    legacy_rig = table_z is not None and not bimanual
+    if table_z is not None:
+        table_top = table_z
     from blind_insertion.assets import builder as B   # noqa: PLC0415
     if controller_profile is not None and not bimanual:
         raise ValueError('controller_profile requires the opt-in bimanual scene')
@@ -187,6 +208,11 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         variant = variant or B.reader_variant()
     def decorate(sp):
         add_scene(sp, top_cam, physical=physical, bimanual=bimanual)
+        if legacy_rig and table_z < BASE_MESH_LOW and not measured_support:
+            h = (BASE_MESH_LOW - table_z) / 2
+            for name, y in (("mount_plate_right", 0.0), ("mount_plate_left", LEFT_BASE_Y)):
+                sp.worldbody.add_geom(name=name, type=mujoco.mjtGeom.mjGEOM_BOX, size=[0.07, 0.07, h],
+                                      pos=[0.0, y, table_z + h], rgba=[0.6, 0.6, 0.62, 1], contype=0, conaffinity=0)
         if detailed:
             from blind_insertion.scenes.bench_details import add_details
             add_details(sp, variant, pc_profile=profile if support_mode == "free" else None)
@@ -208,7 +234,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
             from blind_insertion.scenes.bimanual_collision import configure_spec
             configure_spec(sp)
 
-    m, lay = B.build("yam", [variant], pad_spheres=4, table_top=table_top, fixture_boxes=boxes,
+    m, lay = B.build("yam", [variant], pad_spheres=PAD_SPHERES if legacy_rig else 4, table_top=table_top, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")
     if bimanual and measured_support:
         # Separate tangential impedance from normal softness: the default ratio
@@ -221,6 +247,8 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
     m.geom_solref[lay.pad_geoms, 0] = cfg["pad_timeconst"]
     m.geom_solimp[lay.pad_geoms, :3] = cfg["pad_solimp"]
     m.geom_friction[lay.pad_geoms, 0] = 1.0 * 1.68   # mid of finger_friction_scale (1.41, 2.0)
+    if legacy_rig:
+        m.geom_friction[lay.pad_geoms, 1] = PAD_TORSION
     # The fingers are constant-force motors; undamped they slam shut and throw a 27 g part. The real
     # gripper is speed limited: damping gives ~6 cm/s closing at 12 N (static grip force unchanged).
     for j in lay.robot.finger_joints:

@@ -8,8 +8,9 @@ insertion policy sees exactly PegEnv's actor observation (joints, velocities, tc
 previous action) and commands q_target = q_meas + scale * a.
 
 Release: once the plug is seated, the arm holds its joints, opens the gripper for `open_s`, then
-lifts the tcp straight up by `lift` (IK, fixed orientation). `seated_after` checks that the plug
-is still seated when the hand is clear.
+backs the tcp out along its approach axis by `lift` (IK, fixed orientation). `seated_after` checks that
+the plug is still seated when the hand is clear (strict: tilt <= 2 deg; a released reader sags ~1.7-2.3
+deg in the port under its weight, so a few fully inserted plugs, z ~ -6.27 mm, fail it).
 
     CUDA_VISIBLE_DEVICES=3 PYTHONPATH=$PWD MUJOCO_GL=egl .venv/bin/python -m blind_insertion.pipeline.pick_insert \
         --pick expert --insert runs/H-reader-proprio-top-s0/last.pt --episodes 256 --out results/H/pipe_expert.json
@@ -29,6 +30,7 @@ from blind_insertion.analysis.stats import wilson
 from blind_insertion.assets import builder as B
 from blind_insertion.envs import kinematics as K
 from blind_insertion.envs.pick_env import Expert, PickCfg, PickEnv
+from blind_insertion.pipeline import handoff as H
 from blind_insertion.policies.tcn_actor_critic import ActorCritic
 from blind_insertion.scenes import pc_bench as S
 
@@ -40,62 +42,82 @@ class ActPick:
     otherwise execute `n_exec` actions of each chunk open loop."""
 
     def __init__(self, path, device, n_exec=10, ensemble=0.01, settle=True, rest_qd=0.03, rest_s=0.3,
-                 near=0.06, min_finger=0.005):
+                 near=0.06, min_finger=0.005, cam_fps=30.0, cam_age_ms=(30.0, 100.0), seed=0, gate=True, grasp_s=0.5, near_z=0.010):
         """settle: also hand off when the arm has rested `rest_s` (all |qd| < rest_qd rad/s) with the
         gripper closed on the reader (finger opening > min_finger) and the tcp within `near` of
-        the nominal pre-insert pose (configured PC position, not the randomized one), for when ACT
+        the nominal pre-insert pose (configured PC position, not the randomized one) and within `near_z`
+        of its height (the grasp spot on the table is within `near` of it), for when ACT
         does not raise `done`. Uses only joint encoders, so it runs on the real arm unchanged."""
         self.m = torch.jit.load(path, map_location=device).eval()
+        # state = joints + finger (7), or + last sent command - joints (13; gen_demos --cmd_err)
+        self.cmd_err = self.m.s_mean.shape[0] == 13
         self.n_exec, self.ens = n_exec, ensemble
-        self.settle, self.rest_qd, self.rest_s, self.near, self.min_finger = settle, rest_qd, rest_s, near, min_finger
+        self.ensemble = H.TemporalEnsemble(ensemble)
+        self.gate_kw = dict(settle=settle, rest_qd=rest_qd, rest_s=rest_s, near=near, near_z=near_z,
+                            min_finger=min_finger, gate=gate, grasp_s=grasp_s)
+        self.handoff = None
+        # camera timing as in the demos (scripts/act/gen_demos.py): 30 fps frame clock, frame age per
+        # episode and camera; cam_fps 0 = a fresh frame every step
+        self.cam_fps, self.cam_age, self.rng = cam_fps, cam_age_ms, np.random.default_rng(seed)
 
     def reset(self, n, device):
         self.chunk, self.k, self.t = None, 0, 0
-        self.buf = None
-        self.done_run = torch.zeros(n, dtype=torch.long, device=device)
-        self.rest_run = torch.zeros(n, dtype=torch.long, device=device)
+        self.ensemble.reset()
+        self.handoff = None                   # built on the first act (needs the env's port and part)
+        self.n_dev = (n, device)
+        self.hist, self.step = [], 0
+        self.last_cmd = None
+        period = 1 / self.cam_fps if self.cam_fps > 0 else 0.0
+        self.age = {c: torch.as_tensor(self.rng.uniform(*self.cam_age, n) / 1e3, device=device) for c in ("top", "wrist_cam")}
+        self.phase = {c: torch.as_tensor(self.rng.uniform(0, period, n), device=device) for c in ("top", "wrist_cam")}
 
-    def _settled(self, env, closed):
-        qd = env.t_qvel[:, torch.as_tensor(env.lay.arm_dofadr, device=env.device)]
-        p_nom = torch.tensor([env.cfg.port_xy[0] - env.body_z - 0.006, env.cfg.port_xy[1],
-                              S.PORT_HEIGHT + 0.0054], device=env.device)
-        rest = ((qd.abs().max(1).values < self.rest_qd) & closed & (env.state()[:, 6] > self.min_finger)
-                & ((env.tcp_pose()[0] - p_nom).norm(dim=1) < self.near))
-        self.rest_run = torch.where(rest, self.rest_run + 1, torch.zeros_like(self.rest_run))
-        return self.rest_run >= int(self.rest_s / env.control_dt)
+    def _frames(self, env):
+        """Latest frame captured at or before now - age on each camera's frame clock (per world)."""
+        fr = env.render()
+        dt = env.control_dt
+        K = int(np.ceil((self.cam_age[1] / 1e3 + (1 / self.cam_fps if self.cam_fps else 0)) / dt)) + 2
+        self.hist = (self.hist + [fr])[-K:]
+        t, self.step = self.step, self.step + 1
+        if self.cam_fps <= 0:
+            return fr
+        period, out = 1 / self.cam_fps, {}
+        idx = torch.arange(env.N, device=env.device)
+        for c in ("top", "wrist_cam"):
+            tau = t * dt - self.age[c]
+            cap = torch.floor((tau - self.phase[c]) / period) * period + self.phase[c]
+            back = (t - torch.floor(cap.clamp(min=0) / dt + 1e-6).long()).clamp(0, len(self.hist) - 1)
+            stack = torch.stack([h[c] for h in self.hist])            # (K, N, H, W, 3), oldest first
+            out[c] = stack[len(self.hist) - 1 - back, idx]
+        return out
 
     def _query(self, env):
-        fr = env.render()
+        fr = self._frames(env)
         top = fr["top"].permute(0, 3, 1, 2).float() / 255
         wrist = fr["wrist_cam"].permute(0, 3, 1, 2).float() / 255
+        st = env.state()
+        if self.cmd_err:
+            last = st[:, :6] if self.last_cmd is None else self.last_cmd
+            st = torch.cat([st, last - st[:, :6]], 1)
         with torch.no_grad():
-            return self.m(env.state(), top, wrist)                  # (N, C, 8)
+            return self.m(st, top, wrist)                           # (N, C, 8)
 
     def act(self, env: PickEnv):
+        if self.handoff is None:
+            p_nom = H.nominal_preinsert(env.cfg.port_xy, env.body_z, env.gripper)
+            self.handoff = H.HandoffGate(p_nom, env.control_dt, **self.gate_kw)
+            self.handoff.reset(*self.n_dev)
         if self.ens > 0:
-            c = self._query(env)
-            N, C, D = c.shape
-            if self.buf is None:
-                self.buf = torch.zeros(N, C, C, D, device=c.device)    # [age, offset] predictions
-                self.valid = torch.zeros(C, dtype=torch.bool, device=c.device)
-            self.buf = torch.roll(self.buf, 1, dims=1)
-            self.buf[:, 0] = c
-            self.valid = torch.roll(self.valid, 1)
-            self.valid[0] = True
-            ages = torch.arange(C, device=c.device)
-            preds = self.buf[:, ages, ages]                             # chunk of age i, entry i = now
-            w = torch.exp(-self.ens * ages.float()) * self.valid
-            a = (preds * w[None, :, None]).sum(1) / w.sum()
+            a = self.ensemble(self._query(env))
         else:
             if self.chunk is None or self.k >= self.n_exec:
                 self.chunk, self.k = self._query(env), 0
             a = self.chunk[:, self.k]
             self.k += 1
         cmd = torch.cat([a[:, :6], torch.where(a[:, 6:7] > 0, 1.0, -1.0)], 1)
-        self.done_run = torch.where(a[:, 7] > 0.5, self.done_run + 1, torch.zeros_like(self.done_run))
-        done = self.done_run >= 5
-        if self.settle:
-            done |= self._settled(env, cmd[:, 6] < 0)
+        self.last_cmd = cmd[:, :6].clone()
+        # handoff gate (pipeline/handoff.py, shared with the real runner)
+        qd = env.t_qvel[:, torch.as_tensor(env.lay.arm_dofadr, device=env.device)]
+        done = self.handoff(a[:, 7], cmd[:, 6] < 0, env.state()[:, 6], qd, env.tcp_pose()[0])
         return cmd, done
 
 
@@ -121,6 +143,8 @@ class Inserter:
         self.ac.eval()
         self.ac.obs_norm.freeze()
         self.env, self.H, self.scale = env, history, scale
+        cfg = Path(path).parent / "config.json"            # the run's training config: action clip
+        self.clip = float(json.loads(cfg.read_text())["env"].get("action_clip", 3.0)) if cfg.exists() else 3.0
         R_nom = torch.tensor(S.R_TOP_TCP, device=env.device)
         self.R_obs = K.rpy_mat(torch.tensor(S.PORT_BASE_RPY_DEG, device=env.device) * math.pi / 180) @ R_nom
         self.prev = torch.zeros(env.N, 6, device=env.device)
@@ -147,7 +171,7 @@ class Inserter:
     def act(self):
         with torch.no_grad():
             a, _ = self.ac.act_mean(self.hist)
-        a = a.clamp(-3, 3)
+        a = a.clamp(-self.clip, self.clip)
         q = self.env.t_qpos[:, self.env.arm_q]
         return a, q + self.scale * a
 
@@ -178,15 +202,19 @@ class Release:
     def act(self, active):
         env = self.env
         h = ((self.t - self.n_open).clamp(min=0).float() * self.v * env.control_dt).clamp(max=self.lift)
-        p = self.p0.clone()
-        p[:, 2] += h
+        # back out along the tcp approach axis (tcp -z): straight up dragged the part out of the port with
+        # the tilted grasp (seated after release 68% vs 76% inserted)
+        p = self.p0 - h[:, None] * self.R0[:, :, 2]
         q, _, _ = env.chain.ik(p, self.R0, self.q, iters=6, q_rest=env.home)
         self.q = torch.where((active & (self.t >= self.n_open))[:, None], q, self.q)
         self.t += active.long()
         return self.q, self.t >= self.T
 
 
-def run(env: PickEnv, picker, inserter: Inserter, pick_s=12.0, insert_s=10.0, video=None, release=True):
+def run(env: PickEnv, picker, inserter: Inserter, pick_s=15.0, insert_s=10.0, video=None, release=True,
+        release_on="truth"):
+    """release_on: "truth" releases when the plug is seated (sim ground truth); "proprio" when
+    handoff.ReleaseTrigger fires, as the real runner does (success then means seated_after)."""
     N, dev = env.N, env.device
     env.reset_all()
     picker.reset(N, dev)
@@ -202,6 +230,11 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=12.0, insert_s=10.0, vi
     hand_tilt = torch.zeros(N, device=dev)
     success = torch.zeros(N, dtype=torch.bool, device=dev)
     t_ins = torch.zeros(N, dtype=torch.long, device=dev)
+    seat = H.ReleaseTrigger(env.control_dt) if release_on == "proprio" else None
+    if seat is not None:
+        seat.reset(N, dev)
+    rel_seated = torch.zeros(N, dtype=torch.bool, device=dev)     # seated (truth) when the release started
+    t_rel = torch.full((N,), -1, device=dev)
     frames = []
     for t in range(T_pick + T_ins + T_rel):
         a_pick, done = picker.act(env) if (phase == 0).any() else (None, None)
@@ -213,18 +246,22 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=12.0, insert_s=10.0, vi
             hand_tilt[go] = torch.rad2deg(torch.acos(R[go][:, 2, 2].clamp(-1, 1)))
             t_hand[go] = t
             inserter.start(go.nonzero()[:, 0])
+            if seat is not None:
+                seat.start(go.nonzero()[:, 0], env.tcp_pose()[0])
             phase[go] = 1
         a_ins, q_ins = inserter.act() if inserter.hist is not None else (None, None)
-        cmd = env.t_ctrl[:, env.arm_act].clone()
+        # env.step takes encoder-frame targets (PickCfg.phys enc_offset_deg); the insertion policy and
+        # the release work on the true joints here, so their targets get the offset added
+        cmd = env.t_ctrl[:, env.arm_act] + env.enc_off
         grip = torch.where(phase == 0, a_pick[:, 6] if a_pick is not None else -1.0, torch.full((N,), -1.0, device=dev))
         grip = torch.where(phase >= 2, torch.ones_like(grip), grip)
         if a_pick is not None:
             cmd[phase == 0] = a_pick[phase == 0, :6]
         if q_ins is not None:
-            cmd[phase == 1] = q_ins[phase == 1]
+            cmd[phase == 1] = (q_ins + env.enc_off)[phase == 1]
         if (phase == 2).any():
             q_rel, rel_done = rel.act(phase == 2)
-            cmd[phase == 2] = q_rel[phase == 2]
+            cmd[phase == 2] = (q_rel + env.enc_off)[phase == 2]
             phase = torch.where((phase == 2) & rel_done, torch.full_like(phase, 3), phase)
         env.step(torch.cat([cmd, grip[:, None]], 1))
         if q_ins is not None:
@@ -235,9 +272,15 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=12.0, insert_s=10.0, vi
         seated = (p[:, 2] < -(depth - tol)) & (tilt <= 2.0)
         new = (phase == 1) & seated
         success |= new
-        if release and new.any():
-            rel.start(new.nonzero()[:, 0])
-        phase = torch.where(new, torch.full_like(phase, 2 if release else 3), phase)
+        if seat is None:
+            trig = new
+        else:
+            trig = seat(phase == 1, env.tcp_pose()[0]) | ((phase == 1) & (t_ins >= T_ins))
+        rel_seated |= trig & seated
+        t_rel = torch.where(trig, t, t_rel)
+        if release and trig.any():
+            rel.start(trig.nonzero()[:, 0])
+        phase = torch.where(trig, torch.full_like(phase, 2 if release else 3), phase)
         phase = torch.where((phase == 1) & (t_ins >= T_ins), torch.full_like(phase, 3), phase)
         if video is not None and t % 2 == 0:
             frames.append({k: x[:video].cpu().numpy() for k, x in env.render().items()})
@@ -251,7 +294,8 @@ def run(env: PickEnv, picker, inserter: Inserter, pick_s=12.0, insert_s=10.0, vi
     seated_after = success & (p[:, 2] < -(depth - tol)) & (tilt <= 2.0) & (released if release else True)
     return dict(success=success, handoff=t_hand >= 0, hand_err_mm=hand_err, hand_tilt=hand_tilt,
                 t_hand_s=t_hand * env.control_dt, t_insert_s=t_ins * env.control_dt, held=held,
-                released=released, seated_after=seated_after), frames
+                released=released, seated_after=seated_after, rel_seated=rel_seated,
+                t_release_s=t_rel * env.control_dt), frames
 
 
 def main():
@@ -260,20 +304,30 @@ def main():
     ap.add_argument("--act", default="")
     ap.add_argument("--ensemble", type=float, default=0.01, help="ACT temporal ensembling weight; 0 = chunks of 10")
     ap.add_argument("--no_settle", action="store_true", help="hand off on ACT's done flag only")
+    ap.add_argument("--no_gate", action="store_true", help="hand off on done even with an empty gripper")
     ap.add_argument("--insert", required=True)
     ap.add_argument("--episodes", type=int, default=256)
     ap.add_argument("--nworld", type=int, default=128)
     ap.add_argument("--seed", type=int, default=100)
     ap.add_argument("--spec_parts", action="store_true", help="draw a USB-C part within tolerance per batch")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--cam_fps", type=float, default=30.0, help="ACT camera frame clock (0: fresh frames)")
+    ap.add_argument("--phys_json", default="{}", help="override PickCfg.phys entries, e.g. enc_offset_deg")
+    ap.add_argument("--fric_comp", default="", help='friction feed-forward, e.g. {"scale":0.7,"ramp":0.01}')
+    ap.add_argument("--release_on", default="truth", choices=["truth", "proprio"],
+                    help="release when seated (sim truth) or on handoff.ReleaseTrigger (as on the real arm)")
     a = ap.parse_args()
+    phys = {**PickCfg().phys, **json.loads(a.phys_json)}
     res = []
     for b in range((a.episodes + a.nworld - 1) // a.nworld):
         v = B.sample_reader(1, a.seed + b)[0] if a.spec_parts else None
-        env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed + b, render=a.pick == "act"), variant=v)
-        picker = ActPick(a.act, env.device, ensemble=a.ensemble, settle=not a.no_settle) if a.pick == "act" else ExpertPick(env)
+        env = PickEnv(PickCfg(nworld=a.nworld, seed=a.seed + b, render=a.pick == "act", phys=phys,
+                                fric_comp=json.loads(a.fric_comp) if a.fric_comp else None), variant=v)
+        picker = (ActPick(a.act, env.device, ensemble=a.ensemble, settle=not a.no_settle, cam_fps=a.cam_fps, seed=a.seed + b,
+                          gate=not a.no_gate)
+                  if a.pick == "act" else ExpertPick(env))
         ins = Inserter(a.insert, env)
-        r, _ = run(env, picker, ins)
+        r, _ = run(env, picker, ins, release_on=a.release_on)
         res.append({k: x.cpu().numpy() for k, x in r.items()})
         print(f"batch {b}: success {r['success'].float().mean():.3f}", flush=True)
         del env
@@ -282,9 +336,10 @@ def main():
     k = int(R["success"].sum())
     lo, hi = wilson(k, n)
     he = R["hand_err_mm"]
-    out = dict(pick=a.pick, insert=a.insert, act=a.act, n=n, success=k / n, ci=[lo, hi],
+    out = dict(pick=a.pick, insert=a.insert, act=a.act, phys=json.loads(a.phys_json), fric_comp=a.fric_comp, n=n, success=k / n, ci=[lo, hi],
                released=float(R["released"].mean()), seated_after_release=float(R["seated_after"].mean()),
-               handoff=float(R["handoff"].mean()), held=float(R["held"].mean()),
+               handoff=float(R["handoff"].mean()), held=float(R["held"].mean()), release_on=a.release_on,
+               seated_at_release=float(R["rel_seated"].mean()),
                hand_lat_mm=dict(median=float(np.median(np.linalg.norm(he[:, :2], axis=1))),
                                 p90=float(np.quantile(np.linalg.norm(he[:, :2], axis=1), 0.9))),
                hand_gap_mm=dict(median=float(np.median(he[:, 2])), p10=float(np.quantile(he[:, 2], 0.1)),
