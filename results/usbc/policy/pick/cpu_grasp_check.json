@@ -1,6 +1,6 @@
 {
  "grasp": {
-  "axial_behind_neck_m": 0.007,
+  "axial_behind_neck_m": 0.0103,
   "tip_clearance_m": 0.001,
   "body_half_thickness_m": 0.004415
  },
@@ -17,29 +17,29 @@
    ],
    "yaw_deg": 0.0,
    "ik_err_mm": [
-    2.445477764026263e-10,
-    7.687223536855272e-07,
-    3.9310070453406205e-11
+    1.7321688494367466e-10,
+    1.1762304424126164e-06,
+    8.407692329547408e-11
    ],
-   "tip_table_clearance_mm": 1.0310264672843683,
-   "tcp_pos_err_mm": 0.12223258397636784,
-   "tool_axis_tilt_deg": 60.01125340961457,
+   "tip_table_clearance_mm": 1.0284033138457245,
+   "tcp_pos_err_mm": 0.12195024774101948,
+   "tool_axis_tilt_deg": 60.01086717443816,
    "pad_normal_force_N": [
-    3.52,
-    8.38,
-    8.48,
-    3.62
+    3.82,
+    8.09,
+    8.18,
+    3.91
    ],
    "other_reader_contacts": [
     [
      "table",
      "peg_34",
-     0.224
+     0.2
     ],
     [
      "table",
      "peg_34",
-     0.073
+     0.079
     ]
    ],
    "pad_rows_in_contact": [
@@ -49,16 +49,16 @@
     "right:row10"
    ],
    "pad_contact_height_mm": [
-    5.906786077460355,
-    8.506072275669741
+    5.913919455847849,
+    8.512917739257706
    ],
    "n_pad_contacts": 4,
-   "finger_gap_mm": 37.98454579678391,
-   "reader_shift_on_close_mm": 0.16156230049031065,
-   "lift_mm": 79.37145445328098,
-   "reader_tilt_deg": 0.043007694689925095,
-   "inhand_drift_mm": 0.10537763003454753,
-   "inhand_rot_drift_deg": 0.11458903091412709,
+   "finger_gap_mm": 37.98454777249126,
+   "reader_shift_on_close_mm": 0.17985256525877893,
+   "lift_mm": 79.34072676017706,
+   "reader_tilt_deg": 0.06363914029683482,
+   "inhand_drift_mm": 0.042839121946634126,
+   "inhand_rot_drift_deg": 0.04287837561147778,
    "success": true
   },
   {
@@ -68,29 +68,29 @@
    ],
    "yaw_deg": 25.0,
    "ik_err_mm": [
-    5.26233377417333e-07,
-    2.6347088666124783e-09,
-    3.554472248947337e-07
+    1.3991227314968408e-06,
+    5.651670272022947e-09,
+    7.397190519015496e-07
    ],
-   "tip_table_clearance_mm": 1.0060689088430412,
-   "tcp_pos_err_mm": 0.10625886412669223,
-   "tool_axis_tilt_deg": 60.00709884663605,
+   "tip_table_clearance_mm": 1.0071538962759252,
+   "tcp_pos_err_mm": 0.1059016317447716,
+   "tool_axis_tilt_deg": 60.007328597986366,
    "pad_normal_force_N": [
-    8.48,
-    3.59,
-    3.52,
-    8.41
+    7.95,
+    4.13,
+    4.05,
+    7.87
    ],
    "other_reader_contacts": [
     [
      "table",
      "peg_34",
-     0.069
+     0.068
     ],
     [
      "table",
      "peg_34",
-     0.085
+     0.134
     ]
    ],
    "pad_rows_in_contact": [
@@ -100,16 +100,16 @@
     "right:row10"
    ],
    "pad_contact_height_mm": [
-    5.900465278290273,
-    8.503516650102675
+    5.899859191758165,
+    8.503625505807452
    ],
    "n_pad_contacts": 4,
-   "finger_gap_mm": 37.98454567953947,
-   "reader_shift_on_close_mm": 0.14575355782138405,
-   "lift_mm": 79.78631912881723,
-   "reader_tilt_deg": 0.08321156279486315,
-   "inhand_drift_mm": 0.10497045015160444,
-   "inhand_rot_drift_deg": 0.1152705607650761,
+   "finger_gap_mm": 37.98454792018706,
+   "reader_shift_on_close_mm": 0.15569789746943555,
+   "lift_mm": 79.74034173874135,
+   "reader_tilt_deg": 0.025856679449312175,
+   "inhand_drift_mm": 0.04127218015339829,
+   "inhand_rot_drift_deg": 0.042651454506363144,
    "success": true
   },
   {
@@ -119,18 +119,18 @@
    ],
    "yaw_deg": -25.0,
    "ik_err_mm": [
-    1.393537784797072e-08,
-    1.388476277894645e-06,
-    2.530897444829832e-07
+    3.759596564235178e-09,
+    1.4801677664607774e-06,
+    2.670969654797729e-07
    ],
-   "tip_table_clearance_mm": 1.0157746588379952,
-   "tcp_pos_err_mm": 0.0999422699988345,
-   "tool_axis_tilt_deg": 60.01640090424926,
+   "tip_table_clearance_mm": 0.9959223756226474,
+   "tcp_pos_err_mm": 0.11033842040166818,
+   "tool_axis_tilt_deg": 60.01495733991799,
    "pad_normal_force_N": [
-    8.88,
-    3.12,
-    3.12,
-    8.88
+    8.96,
+    3.04,
+    3.04,
+    8.96
    ],
    "other_reader_contacts": [],
    "pad_rows_in_contact": [
@@ -140,16 +140,16 @@
     "right:row10"
    ],
    "pad_contact_height_mm": [
-    5.7533598719081045,
-    8.366634949448343
+    5.765263097230543,
+    8.378512843679644
    ],
    "n_pad_contacts": 4,
-   "finger_gap_mm": 37.98454711885338,
-   "reader_shift_on_close_mm": 0.24175901858929652,
-   "lift_mm": 80.19524853163627,
-   "reader_tilt_deg": 0.1384249587674455,
-   "inhand_drift_mm": 0.09679571117934656,
-   "inhand_rot_drift_deg": 0.10707909948305368,
+   "finger_gap_mm": 37.98454695664996,
+   "reader_shift_on_close_mm": 0.28340992035529516,
+   "lift_mm": 80.10767123864635,
+   "reader_tilt_deg": 0.057899640839099306,
+   "inhand_drift_mm": 0.027324793745892115,
+   "inhand_rot_drift_deg": 0.03328103566250278,
    "success": true
   },
   {
@@ -159,29 +159,29 @@
    ],
    "yaw_deg": 10.0,
    "ik_err_mm": [
-    1.1111149710743512e-08,
-    1.3678571863174188e-06,
-    5.470586944960936e-10
+    9.853913400490304e-09,
+    2.265106732896198e-06,
+    8.109102471918177e-10
    ],
-   "tip_table_clearance_mm": 1.0234327723763479,
-   "tcp_pos_err_mm": 0.05712321248373703,
-   "tool_axis_tilt_deg": 60.00461796103541,
+   "tip_table_clearance_mm": 1.0217833524402697,
+   "tcp_pos_err_mm": 0.05662419097722713,
+   "tool_axis_tilt_deg": 60.004370020551804,
    "pad_normal_force_N": [
-    3.08,
-    8.76,
-    8.91,
-    3.24
+    5.67,
+    6.34,
+    6.33,
+    5.67
    ],
    "other_reader_contacts": [
     [
      "table",
      "peg_34",
-     0.236
+     0.161
     ],
     [
      "table",
      "peg_34",
-     0.091
+     0.047
     ]
    ],
    "pad_rows_in_contact": [
@@ -191,16 +191,16 @@
     "right:row10"
    ],
    "pad_contact_height_mm": [
-    5.908827652392649,
-    8.520414593817994
+    5.884703014248142,
+    8.483271954733304
    ],
    "n_pad_contacts": 4,
-   "finger_gap_mm": 37.98454644985647,
-   "reader_shift_on_close_mm": 0.23728218224831563,
-   "lift_mm": 79.312650668442,
-   "reader_tilt_deg": 0.016912944650004647,
-   "inhand_drift_mm": 0.10682475692882673,
-   "inhand_rot_drift_deg": 0.1139760020337022,
+   "finger_gap_mm": 37.984545243184236,
+   "reader_shift_on_close_mm": 0.10068301180021631,
+   "lift_mm": 79.19799862370621,
+   "reader_tilt_deg": 0.06834101000963672,
+   "inhand_drift_mm": 0.037616234240265084,
+   "inhand_rot_drift_deg": 0.040279728094808134,
    "success": true
   },
   {
@@ -210,24 +210,24 @@
    ],
    "yaw_deg": -10.0,
    "ik_err_mm": [
-    3.3736983109250975e-08,
-    9.311799602058962e-09,
-    2.100651249981799e-05
+    1.5986169937400645e-08,
+    9.968208917082569e-09,
+    2.172506449103902e-05
    ],
-   "tip_table_clearance_mm": 1.0442292660913925,
-   "tcp_pos_err_mm": 0.11770994431054722,
-   "tool_axis_tilt_deg": 60.019644627208,
+   "tip_table_clearance_mm": 1.0457480669862906,
+   "tcp_pos_err_mm": 0.1174421275168489,
+   "tool_axis_tilt_deg": 60.020112334025264,
    "pad_normal_force_N": [
-    7.63,
-    4.28,
-    4.37,
-    7.72
+    7.66,
+    4.26,
+    4.34,
+    7.74
    ],
    "other_reader_contacts": [
     [
      "table",
      "peg_34",
-     0.169
+     0.164
     ]
    ],
    "pad_rows_in_contact": [
@@ -237,16 +237,16 @@
     "right:row10"
    ],
    "pad_contact_height_mm": [
-    5.845577870238171,
-    8.448585593753416
+    5.844397955130046,
+    8.448649669904887
    ],
    "n_pad_contacts": 4,
-   "finger_gap_mm": 37.984545165655675,
-   "reader_shift_on_close_mm": 0.1041912676697482,
-   "lift_mm": 80.05348827215265,
-   "reader_tilt_deg": 0.11730359560880407,
-   "inhand_drift_mm": 0.09981466751541428,
-   "inhand_rot_drift_deg": 0.10971807265080367,
+   "finger_gap_mm": 37.98454511749513,
+   "reader_shift_on_close_mm": 0.11195514366379698,
+   "lift_mm": 79.99251940790654,
+   "reader_tilt_deg": 0.04314221776462484,
+   "inhand_drift_mm": 0.033349766672452194,
+   "inhand_rot_drift_deg": 0.03546561635883916,
    "success": true
   },
   {
@@ -256,29 +256,24 @@
    ],
    "yaw_deg": 20.0,
    "ik_err_mm": [
-    5.517044527990233e-08,
-    6.686580560179785e-09,
-    7.952969869612159e-06
+    4.751535634478418e-08,
+    1.1324243447374443e-08,
+    9.732434238392104e-06
    ],
-   "tip_table_clearance_mm": 1.0160983449556822,
-   "tcp_pos_err_mm": 0.08830533792478559,
-   "tool_axis_tilt_deg": 60.00425060609512,
+   "tip_table_clearance_mm": 1.0220254297665239,
+   "tcp_pos_err_mm": 0.08710588561299705,
+   "tool_axis_tilt_deg": 60.00523709384996,
    "pad_normal_force_N": [
-    5.23,
-    6.78,
-    6.77,
-    5.22
+    4.92,
+    7.09,
+    7.08,
+    4.91
    ],
    "other_reader_contacts": [
     [
      "table",
      "peg_34",
-     0.093
-    ],
-    [
-     "table",
-     "peg_34",
-     0.036
+     0.101
     ]
    ],
    "pad_rows_in_contact": [
@@ -288,16 +283,16 @@
     "right:row10"
    ],
    "pad_contact_height_mm": [
-    5.85938170205267,
-    8.459977457585872
+    5.858839175918382,
+    8.459608680842146
    ],
    "n_pad_contacts": 4,
-   "finger_gap_mm": 37.984545303061736,
-   "reader_shift_on_close_mm": 0.09944259420821615,
-   "lift_mm": 79.64813365868557,
-   "reader_tilt_deg": 0.06333960507193623,
-   "inhand_drift_mm": 0.10042088755551698,
-   "inhand_rot_drift_deg": 0.11000306859243075,
+   "finger_gap_mm": 37.98454561540041,
+   "reader_shift_on_close_mm": 0.09870942486756708,
+   "lift_mm": 79.52954750381295,
+   "reader_tilt_deg": 0.01990650606054766,
+   "inhand_drift_mm": 0.03357652554709037,
+   "inhand_rot_drift_deg": 0.036532307001648806,
    "success": true
   }
  ],
