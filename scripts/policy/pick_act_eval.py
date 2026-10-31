@@ -44,6 +44,8 @@ ap.add_argument('--n_action_steps', type=int, default=10)
 ap.add_argument('--layout', default='results/usbc/policy/pick/task_layout.json')
 ap.add_argument('--no_visual_dr', action='store_true')
 ap.add_argument('--out', default='results/usbc/policy/pick/act_eval')
+ap.add_argument('--auto_close', action='store_true', help='latch the gripper closed once the encoder-FK tool tip is within 8 mm '
+                'above the grasp height and the right arm has been still (< 0.03 rad/s) for 0.4 s (no privileged state)')
 ap.add_argument('--retry', type=int, default=0, help='max regrasps: if the gripper has been commanded closed for 1 s and the '
                 'finger opening (gripper encoder) is < 20 mm (closed on nothing), force it open for 0.6 s and let the policy go on')
 a = ap.parse_args()
@@ -62,6 +64,9 @@ for b in range(math.ceil(a.episodes / N)):
     chunk = None
     closed_t = torch.zeros(N, dtype=torch.long, device=dev); open_force = torch.zeros(N, dtype=torch.long, device=dev)
     retries = torch.zeros(N, dtype=torch.long, device=dev)
+    still = torch.zeros(N, dtype=torch.long, device=dev); latched = torch.zeros(N, dtype=torch.bool, device=dev)
+    from blind_insertion.scenes import reader_grasp as G
+    grasp_z = float(task.table_top + task.offsets[(G.TILT_DEG, False)][1] + task.lay.variants[0].peg_boxes[0][1][1] + G.SUPPORT_GAP)
     for t in range(T):
         enc = obs['encoder_rad'][:, :6] + task.runtime.encoder_offsets[0]
         state = torch.cat([enc, task.runtime.q[:, task.finger_qadr].sum(1, keepdim=True)], 1).float()
@@ -85,6 +90,12 @@ for b in range(math.ceil(a.episodes / N)):
         act = torch.zeros(N, 14, device=dev)
         act[:, :6] = ((act8[:, :6] - task.joint_target[:, 0]) / task.cfg.action_scale_rad).clamp(-1, 1)
         act[:, 6] = torch.where(act8[:, 6] > 0, 1., -1.); act[:, 13] = 1.
+        if a.auto_close:
+            tip_z = task.chain.fk(enc)[0][:, 2]
+            speed = obs['encoder_velocity_rad_s'][:, :6].abs().max(1).values
+            still = torch.where((tip_z < grasp_z + .008) & (speed < .03), still + 1, torch.zeros_like(still))
+            latched |= still >= round(.4 / task.dt)
+            act[:, 6] = torch.where(latched, -torch.ones_like(act[:, 6]), act[:, 6])
         if a.retry:
             opening = task.runtime.q[:, task.finger_qadr].sum(1)
             closed_t = torch.where(act[:, 6] < 0, closed_t + 1, torch.zeros_like(closed_t))
@@ -96,17 +107,20 @@ for b in range(math.ceil(a.episodes / N)):
         if t == T - hold - 1:
             m0 = task.pick_metrics(); p0, R0, tilt0 = m0['inhand_p'].clone(), m0['inhand_R'].clone(), m0['tilt_deg'].clone()
     m = task.pick_metrics()
+    from blind_insertion.scenes import reader_grasp as G
+    _np, _ = G.nominal_inhand(task.offsets[(G.TILT_DEG, False)], G.TILT_DEG, False)
+    gerr = (m['inhand_p'] - torch.tensor(_np, dtype=torch.float32, device=dev)).norm(dim=1) * 1e3
     dp = (m['inhand_p'] - p0).norm(dim=1); dR = torch.rad2deg(K.rot_log(m['inhand_R'] @ R0.transpose(1, 2)).norm(dim=1))
     ok = ~task.failed & (m['lift_m'] > .06) & (m['tilt_deg'] < 3) & (tilt0 < 3) & (dp < 1e-3) & (dR < 1.)
     for i in range(min(N, a.episodes - b * N)):
         rows.append(dict(success=bool(ok[i]), lift_mm=float(m['lift_m'][i] * 1e3), tilt_deg=float(m['tilt_deg'][i]),
                          hold_drift_mm=float(dp[i] * 1e3), hold_rot_drift_deg=float(dR[i]), latency=int(task.latency[i]), retries=int(retries[i]) if a.retry else 0,
-                         failed=bool(task.failed[i]), finger_opening_mm=float(task.runtime.q[i, task.finger_qadr].sum() * 1e3)))
+                         failed=bool(task.failed[i]), finger_opening_mm=float(task.runtime.q[i, task.finger_qadr].sum() * 1e3), tcp_to_grasp_mm=float(gerr[i])))
     print(f'batch {b}: {np.mean([r["success"] for r in rows]):.4f} ({len(rows)}) {time.time() - t0:.0f}s', flush=True)
 import pandas as pd
 df = pd.DataFrame(rows); n, k = len(df), int(df.success.sum())
 out = Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
-tag = f'{out.name}_{Path(a.policy).parent.name}_s{a.seed}' + ('_ens' if a.ens_k >= 0 else f'_chunk{a.n_action_steps}') + (f'_retry{a.retry}' if a.retry else '')
+tag = f'{out.name}_{Path(a.policy).parent.name}_s{a.seed}' + ('_ens' if a.ens_k >= 0 else f'_chunk{a.n_action_steps}') + (f'_retry{a.retry}' if a.retry else '') + ('_autoclose' if a.auto_close else '') + (f'_ep{a.episode_s:g}' if a.episode_s != 13 else '')
 df.to_parquet(out.parent / f'{tag}.parquet')
 summ = {'policy': a.policy, 'n': n, 'success': k, 'rate': k / n, 'wilson95_lo': wilson_lo(k, n), 'seed': a.seed,
         'execution': f'temporal ensembling k={a.ens_k}' if a.ens_k >= 0 else f'chunks of {a.n_action_steps}',
