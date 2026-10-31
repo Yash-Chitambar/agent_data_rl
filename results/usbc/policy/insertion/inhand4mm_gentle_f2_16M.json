@@ -1,0 +1,34 @@
+{
+ "policy": "runs/gentle_f2_16M.pt",
+ "n": 2048,
+ "seated": 1988,
+ "rate": 0.970703125,
+ "wilson95": [
+  0.9624719224577752,
+  0.9771717615381043
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 1988,
+  "lateral_miss": 46,
+  "grasp_slip": 14
+ },
+ "strict_seated_rate": 0.00146484375,
+ "seated_or_deep_rate": 0.970703125,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 0.98,
+ "t_seat_s_p95": 1.3929999999999974,
+ "pc_max_mm_p99": 1.100855802297592,
+ "peak_axial_force_N": {
+  "p50": 7.536490440368652,
+  "p99": 18.821446380615225,
+  "max": 27.599992752075195
+ },
+ "contact_speed_mm_s": {
+  "p50": 10.867659568786621,
+  "p99": 23.75525255203247,
+  "max": 39.15513610839844
+ },
+ "gate_pass": false
+}
