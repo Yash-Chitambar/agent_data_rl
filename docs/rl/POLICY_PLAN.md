@@ -299,6 +299,9 @@ the live state → InsertionTask seated test. Stages before insertion: 1024/1024
 | Insertion | Hold | n | End to end |
 |---|---|---|---|
 | **v11, round-5 approach, bumpless hand-over (final)** | 2 cm | **4096** | **99.85 %** [99.68, 99.93] |
+| **final: perception-driven pick, round-8 approach, insertion I** (push p99 13.5 N) | 2 cm | 2048 | **99.66 %** [99.30, 99.83] |
+| same with gentle-D (push p99 31.1 N) | 2 cm | 2048 | 99.56 % [99.17, 99.77] |
+| believed frame (encoder-FK pick), offsets ±0.5 / ±1.5 deg (privileged pose, gentle-D) | 2 cm | 1024 each | 82.9 % / 51.4 % (pick 89 / 54 %) |
 | same, perception-driven pick (ZED reader estimator + gate + one re-take, `--pick expert_estimated`) | 2 cm | 2048 | 99.46 % [99.04, 99.70] |
 | **v11, round-5 approach, bumpless hand-over** | 2 cm | 1024 | **99.80 %** [99.29, 99.95] |
 | v10dr, same | 2 cm | 1024 | 99.71 % [99.14, 99.90] |

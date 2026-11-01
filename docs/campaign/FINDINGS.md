@@ -104,6 +104,38 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/chain`) — Final perception-driven chain with insertion I: 99.66 % (n = 2048), push p99 13.5 N; believed-frame (encoder-FK) chain: 82.9 % / 51.4 %
+
+**Final config** (`eval_chain.py` defaults): `--pick expert_estimated` (ZED reader estimator `reader_zed_cap.pt` +
+presence/arm-envelope gate, one re-take, no wrist refinement), round-8 approach (`wrist_v14w` + `wrist_v15ws`, stop offset
+(0, 0.12, 0) mm), hold 2 cm / 25 N, torque hand-over, insertion I (target cap 0.05 rad, checked against `pol.meta`).
+Seeds 7000-7003: **2041/2048 = 99.66 % [99.30, 99.83]**. Stages: pick 2042/2048 (5 reader rejected after the re-take,
+1 pick from a 7.7 mm estimate), hold / transport / approach 2042/2042, insertion 2041/2042 (1 stuck at the mouth,
+world 218 again). Pre-insert lateral p50 0.33 / p99 1.43 mm, tilt p99 0.88 deg. **Peak axial plug-port push**
+(insertion_contact.py method: reader-port contact forces, port +z): p50 6.7 / p90 8.9 / p99 13.5 / p99.9 18.1 / max
+19.1 N; 0 episodes above 20 N (gentle-D: p99 31.1 N, max 50.9 N, 321 above 20 N; 99.56 %). Time to seat p50 0.86 /
+p99 1.74 s. Demos (6 successes, the 2 failures): `results/usbc/policy/chain/demos/`.
+
+**Live insertion starts from the perception-driven chain:** `runs/chain/handover/handover_pickest_n4096.npz`
+(+ `.README.json`; seeds 11000-11007; rows with `e2e_class != insert_not_run` (~1 %) are failed picks). Gentle-D from
+the restored states: 4073/4096 (including those rows).
+
+**Believed frame (`--believed-frame`, real-robot convention).** Audit: only the pick expert commanded joints in the true
+frame (it removed the encoder-offset error); the capture/park poses were teleports to true angles (now commanded poses).
+Transport (Cartesian path on encoder FK), hold IK + guarded engage, approach servo and insertion already plan and
+command on encoder angles. Chain with the privileged-pose expert on encoder FK (gentle-D insertion, round-5 approach,
+seeds 7000-7001, n = 1024 each):
+
+| Offset DR | End to end | Pick | Transport | Approach | Insertion |
+|---|---|---|---|---|---|
+| ±0.5 deg | 82.9 % [80.5, 85.1] | 911/1024 | 879/911 | 851/879 | 849/851 |
+| ±1.5 deg | 51.4 % [48.3, 54.4] | 548/1024 | 537/548 | 529/537 | 526/529 |
+
+Downstream failures come from marginal picks: the reader falls out during the transport (in-hand change 30-165 mm), or
+the grasp sits so far off that the wrist servo locks onto the neighbouring port (approach misses at a constant
+18.6 mm lateral = the port pitch). Everything after a good grasp works (insertion >= 99.4 %). The pick under real
+encoder offsets is the open problem (pick agent: DAgger takeover / ACT).
+
 ### 2026-11-01 (mason, `policy/approach-hold`) — Round 8: wrist nets for wide in-hand poses; in-hand estimate for Part 4 J
 
 - **ZED capture pose (round 7):** v1 is valid only at the reference pose: 10 % of the way to folded already gives

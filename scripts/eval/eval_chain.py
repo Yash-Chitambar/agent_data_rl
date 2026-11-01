@@ -60,7 +60,7 @@ from blind_insertion.scenes import reader_grasp as G  # noqa: E402
 PICK_LAYOUT = 'results/usbc/policy/pick/task_layout.json'
 import os  # noqa: E402
 # Part 4 best (blind PPO v6 seed 2; copy of policy-insertion runs/P4-insert-best/best.pt, outside git). Override: P4_INSERT_BEST.
-INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_gentleD.pt')   # gentle-D (target cap 0.05 from its env_json); earlier: P4-insert-best_v11.pt   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
+INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_I.pt')   # gentle-D (target cap 0.05 from its env_json); earlier: P4-insert-best_v11.pt   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
 INSERT_V5 = 'runs/chain/P4-insert-proprio-v5-s0_last.pt'    # earlier: policy-insertion runs/P4-insert-proprio-v5-s0/last.pt
 FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005}   # eval_approach.py
 OUT = ROOT / 'results/usbc/policy/chain'
@@ -72,7 +72,7 @@ def parse(argv=None):
     ap.add_argument('--batches', type=int, default=1)
     ap.add_argument('--seed', type=int, default=7000, help='held-out (Part 1 gate 20000, Part 4 1000, Part 2 1-2)')
     ap.add_argument('--name', default='chain')
-    ap.add_argument('--pick', default='expert_privileged', choices=('expert_privileged', 'expert', 'expert_estimated', 'act'),
+    ap.add_argument('--pick', default='expert_estimated', choices=('expert_privileged', 'expert', 'expert_estimated', 'act'),
                     help='pick stage (blind_insertion/pipeline/pick_stage.py): Part 1 scripted expert planned from the true '
                          '(privileged) or an estimated reader pose, or ACT (not wired yet)')
     ap.add_argument('--reader-estimator', default='zed:runs/perception/reader_zed_cap.pt',
@@ -109,8 +109,8 @@ def parse(argv=None):
     ap.add_argument('--settle-s', type=float, default=.3)
     ap.add_argument('--ramp-s', type=float, default=.5)
     ap.add_argument('--grasp-settle-s', type=float, default=1.)
-    ap.add_argument('--wrist-net', default='wrist_v12w', help='round 5 (elliptic DAgger); round 4: wrist_v10w')
-    ap.add_argument('--fine-net', default='wrist_v12ws', help='stop-gap specialist used at waypoints <= --fine-below-mm (round 4 final)')
+    ap.add_argument('--wrist-net', default='wrist_v14w', help='round 8 (wide in-hand); round 5: wrist_v12w; round 4: wrist_v10w')
+    ap.add_argument('--fine-net', default='wrist_v15ws', help='stop-gap specialist used at waypoints <= --fine-below-mm (round 4 final)')
     ap.add_argument('--fine-below-mm', type=float, default=7., help='0: coarse net only')
     ap.add_argument('--servo', choices=('wrist', 'oracle'), default='wrist', help='oracle: privileged relative pose (diagnostic)')
     ap.add_argument('--handover', choices=('torque', 'cmd', 'measured'), default='torque',
