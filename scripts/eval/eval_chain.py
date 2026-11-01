@@ -133,6 +133,11 @@ def parse(argv=None):
     ap.add_argument('--insert-ff', choices=('off', 'keep'), default='off', help='right-arm feed-forward during the insertion (policies trained without)')
     ap.add_argument('--save-handover', default='', help='npz path: full sim state at the insertion start (InsertionTask start keys + controller + DR)')
     ap.add_argument('--stop-at-handover', action='store_true', help='skip the insertion (with --save-handover)')
+    ap.add_argument('--enc-offset-deg', type=float, default=1.5, help='encoder-offset error DR (+/- deg, joints 2-5, both arms; one draw per world for all stages)')
+    ap.add_argument('--believed-frame', action='store_true',
+                    help='real-robot convention for every scripted stage: the pick expert plans and servos on encoder FK '
+                         '(PickExpert.believed_frame) and the teleported capture / park poses are commanded poses (true = '
+                         'believed + encoder-offset error). Transport, hold, approach and insertion already use encoder angles.')
     ap.add_argument('--policy', default=INSERT_CKPT)
     ap.add_argument('--insert-s', type=float, default=10.)
     ap.add_argument('--visual-dr', type=int, default=1)
@@ -173,7 +178,8 @@ class Chain:
         rt.cfg.render_rgb = False                 # task observations must not render every step
         env.reset = lambda *args, **kw: None      # no auto-reset: one continuous episode per world
         self.dev, self.n, self.dt = rt.device, a.nworld, env.dt
-        pcfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device=dev, task_layout=PICK_LAYOUT), episode_s=13.)
+        pcfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device=dev, task_layout=PICK_LAYOUT), episode_s=13.,
+                           enc_offset_deg=a.enc_offset_deg)
         self.pick = PickTask(pcfg, runtime=rt)
         from blind_insertion.pipeline.pick_stage import make_pick_stage
         self.pick_stage = make_pick_stage(a.pick, a.reader_estimator, self)
@@ -236,7 +242,7 @@ class Chain:
         rt, ee = self.rt, self.pick.enc_error
         ra, fq = rt.indices['right'][0], self.pick.finger_qadr
         q_r, q_f = rt.q[:, ra].clone(), rt.q[:, fq].clone()
-        rt.q[:, ra] = self.zed_q['right']
+        rt.q[:, ra] = self.zed_q['right'] + (ee[:, 0] if self.a.believed_frame else 0.)
         rt.q[:, fq] = .0475
         self.forward()
         top = self.render()['top']
@@ -597,6 +603,11 @@ class Chain:
         self.rec = None if record_ids is None else {'ids': torch.as_tensor(record_ids, device=dev), 'q': [], 'label': []}
         rt.comp['right'] = None
         self.pick.reset()                                  # layout, physics/contact/visual DR, control DR, left arm parked
+        if a.believed_frame:                               # the park pose is a commanded (encoder-frame) pose
+            lq = rt.indices['left'][0]
+            rt.q[:, lq] = rt.q[:, lq] + self.pick.enc_error[:, 1]
+            self.forward()
+            self.pick.joint_target.copy_(self.pick._measured_model_angles())
         log = {}
         p_true, R_true = h.pc_pose()
         yaw_true = torch.atan2(-R_true[:, 1, 2], -R_true[:, 0, 2])
@@ -609,8 +620,9 @@ class Chain:
         # ~3 mm (p50 3.0 vs 0.8 mm, n = 256): the frame is taken before the fingers close to it.
         la, ra, fq = rt.indices['left'][0], rt.indices['right'][0], self.pick.finger_qadr
         q_park, q_r, q_f = rt.q[:, la].clone(), rt.q[:, ra].clone(), rt.q[:, fq].clone()
-        rt.q[:, la] = self.zed_q['left']                  # configs/zed_capture_pose.json (= reference pose)
-        rt.q[:, ra] = self.zed_q['right']
+        ee = self.pick.enc_error if a.believed_frame else torch.zeros_like(self.pick.enc_error)
+        rt.q[:, la] = self.zed_q['left'] + ee[:, 1]       # configs/zed_capture_pose.json (= reference pose), as commanded
+        rt.q[:, ra] = self.zed_q['right'] + ee[:, 0]
         rt.q[:, fq] = .0475
         self.forward()
         est = {'start': self.zed_estimate()}

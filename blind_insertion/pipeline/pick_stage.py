@@ -64,6 +64,7 @@ class ExpertPick:
                 extra['est_' + k_] = v_
             fn = lambda: (p_est.clone(), R_est.clone())       # noqa: E731
         ex = PickExpert(task, seed=chain.seed, reader_pose_fn=fn)
+        ex.believed_frame = bool(getattr(chain.a, 'believed_frame', False))   # plan/servo on encoder FK (real-robot convention)
         ex.reset()
         ex.ik_ok &= ok                    # rejected estimate: hold (counted as a pick failure)
         self.expert = ex
@@ -87,13 +88,16 @@ class ExpertPick:
                             break
                         # keep commanding the expert's current joint command (accumulate increments toward it)
                         a0 = torch.zeros(n, 14, device=dev); a0[:, 6] = ex.grip; a0[:, 13] = 1.
-                        tgt = ex.q_cmd + ex.integ - task.enc_error[:, 0]
+                        tgt = ex.q_cmd + ex.integ - (0 if ex.believed_frame else task.enc_error[:, 0])
                         a0[:, :6] = ((tgt - task.joint_target[:, 0]) / task.cfg.action_scale_rad).clamp(-1, 1)
                         task.step(a0)
                         chain.tick('1 pick')
                     hover_lag[at_hover] = lag[at_hover]
                     p_new, R_new = self.wrist(chain, ex)
-                    ex.replan(at_hover, p_new, R_new, hover_relative=self.hover_relative)
+                    try:
+                        ex.replan(at_hover, p_new, R_new, hover_relative=self.hover_relative)
+                    except TypeError:          # newer PickExpert.replan (policy/pick a177cc3): camera-ray rebase, no flag
+                        ex.replan(at_hover, p_new, R_new)
                     p_t, R_t = task.reader_pose()      # reader still on the table: refined-estimate error
                     ref_err[at_hover] = (ex.p_est - p_t).norm(dim=1)[at_hover]
                     ref_rot[at_hover] = torch.rad2deg(K.rot_log(ex.R_est @ R_t.transpose(1, 2)).norm(dim=1))[at_hover]
