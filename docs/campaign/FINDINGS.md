@@ -104,6 +104,57 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 9: in-hand and wrist nets on the servo-pick in-hand distribution; chain 1022/1024, gate not met
+
+- **Distribution:** `inhand.sample_servo_pick` (`InsertCfg(inhand='servo_pick')`). It uses the true in-hand poses of the
+  realistic chain `chain_real_servo_bf1.5_n2048` (`inhand_true_*`, 2043 picks; copy in
+  `results/usbc/policy/approach/inhand_servo_pick.csv`). Deviations from the mean are scaled by U(0.8, 1.4) (eval, about x1.3)
+  or U(0.8, 2.0) (training: more weight on the tails). Teleported grasps at x2 slide <= 0.04 mm in 1 s.
+- **Training:** DAgger at the stop as in round 8 (states with gap <= 7.5 mm, 6 seeds of closed-loop states, encoder
+  offsets +/-1.5 deg in the loop). Labels are the true reader-in-TCP pose (`inhand_error6`).
+  `inhand_ih2 -> ih3 -> ih4` (81k renders) `-> ih5` (130k, x2 tails, host-memory data). Wrist stop nets: `v16ws -> v17ws -> v18ws`.
+- **Closed loop at the stop** (`eval_approach`, elliptic, 2 cm hold, n = 512 per seed; norms of the in-hand error = chain
+  gate metrics; `results/usbc/policy/approach/round9_summary.json`):
+
+| Nets (in-hand + wrist stop) | n | lateral / tilt p99 (mm / deg) | in-hand error p99 (mm / deg) | rot err > 1.5 deg |
+|---|---|---|---|---|
+| ih1 + v15ws (round 8) | 1024 | 2.14 / 2.85 | 2.73 / 3.25 | 12.7 % |
+| ih2 + v16ws | 1024 | 1.62 / 1.91 | 2.17 / 2.42 | 6.1 % |
+| ih3 + v17ws | 1024 | 1.59 / 1.84 | 1.90 / 2.17 | 3.2 % |
+| **ih5 + v18ws** | 2048 | 1.72 / 1.49 | 1.39 / 1.82 | 2.0 % |
+| ih5 + v19f (320 px input) | 1024 | 1.75 / 1.87 | 1.46 / 1.83 | 1.7 % |
+| ih4,ih5 + v18ws,v17ws ensembles | 1024 | 1.80 / 1.55 | 1.45 / 1.90 | 2.3 % |
+| ih5 + v18ws, camera mount error <= real calibration | 1024 | 1.22 / 1.32 | 1.16 / 1.39 | 0.8 % |
+
+- **Chain** (`eval_chain.py` with the `chain_real_servo_bf1.5_n2048` args, seeds 7000-7001, n = 1024; CSV/JSON in
+  `results/usbc/policy/approach/chain/`):
+
+| Config | success | insertion failures | in-hand error p99 (mm / deg) | rot err > 1.5 deg | pre-insert lateral / tilt p99 |
+|---|---|---|---|---|---|
+| base (ih1 + v15ws, same seeds) | 1019/1024 | 3 | 2.50 / 2.67 | 11.3 % | 1.75 / 2.30 |
+| ih5 + v15ws | 1019/1024 | 3 | 1.79 / 1.93 | 2.4 % | 1.84 / 2.59 |
+| **ih5 + v18ws** | **1022/1024 = 99.80 % [99.29, 99.95]** | **0** | 1.78 / 1.84 | 3.3 % | **1.47 / 1.63** |
+
+  The 2 failures are reader rejections at the pick (the same worlds fail in the base run).
+  A better in-hand estimate alone does not remove the insertion misses. The misses also need the pre-insert tilt (v18ws):
+  in the base chain, pre-insert tilt correlates 0.88 with |true in-hand ry|.
+- **Gate (1.1 mm / 0.8 deg in-hand, 1.5 mm / 1 deg approach): not met.** Met: lateral 1.47 mm in the chain. Not met:
+  tilt 1.5-1.6 deg, in-hand 1.4-1.8 mm / 1.8 deg.
+- **Why it stops there** (ih4/ih5 on held-out in-loop renders):
+  - The error is concentrated in ry (pivot about the pinch axis) and the correlated dx/dz. In the right-wrist view
+    the reader is a bar from the fingers to the port, and the pivot tilts the bar toward or away from the camera.
+    2 deg of pivot changes the image less than 1 mm of translation (mean |pixel change| 0.17 vs 0.41).
+  - The left wrist camera does not see the reader at the stop (zero pixel change), so a two-view net cannot help.
+  - Other levers do not move the floor: 320 px input instead of 192 px, ensembles, 2x more data.
+  - The camera mount DR is part of the floor. With zero mount error, ry p99 is 1.2 deg instead of 1.7 deg. The
+    default DR draws up to 2x the real calibration error (10 mm / 2.4 deg); within the real error the closed loop
+    gives 1.16 / 1.39.
+  - The closed-loop tilt is estimate-limited. At the end, the wrist net's own tilt error (p99 1.39 deg) equals the
+    true tilt (1.37 deg): the servo converges to where its estimate reads zero.
+- **To reach the gate:** a view in which the pivot is an in-plane rotation (for example, a camera looking at the
+  gripper from the side, or a "show" pose of the hand to a fixed camera before the approach), or a tighter pick.
+  Also: a measured wrist-camera calibration error smaller than the DR assumes.
+
 ### 2026-11-01 (mason, `policy/chain`) — Real-robot-realistic chain (encoder-FK everywhere, servo-descent pick, K-J with in-hand net): 99.32 % at ±1.5 deg (n = 2048) and ±0.5 deg (n = 1024)
 
 Config: `--believed-frame --enc-offset-deg 1.5|0.5 --pick expert_servo` (Part 1 servo descent, policy/pick 49067ed: ZED reader

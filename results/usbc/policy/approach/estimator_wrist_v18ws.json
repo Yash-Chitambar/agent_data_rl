@@ -1,0 +1,166 @@
+{
+ "estimator": "wrist_v18ws",
+ "method": "Train the approach estimators on DR renders (policy/v1 visual DR defaults; RGB only) and report\nheld-out errors.\n\n  zed   : PC port pose (x, y, yaw) in the right-base frame from the ZED frame taken before the arms\n          move (crop around the nominal PC). Labels: deviation from the nominal port pose.\n  wrist : plug tip pose relative to port 2 (x across, y up, z gap; rotation vector) from the right\n          wrist frame at an approach pose (left arm holding the PC, reader in the 60-deg grasp).\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/train_approach_estimators.py --which wrist --n 24576\nWrites runs/perception/<which>.pt and results/usbc/policy/approach/estimator_<which>.json",
+ "n_train": 98304,
+ "n_test_dr": 2048,
+ "n_test_nominal_look": 512,
+ "sample_cfg": {
+  "lateral_m": 0.003,
+  "gap_m": [
+   0.003,
+   0.01
+  ],
+  "rot_deg": 3.0,
+  "roll_deg": 3.0
+ },
+ "args": {
+  "which": "wrist",
+  "cpu_data": true,
+  "servo_stretch": [
+   0.8,
+   2.0
+  ],
+  "two_view": false,
+  "n": 32768,
+  "n_test": 2048,
+  "epochs": 25,
+  "nworld": 256,
+  "lateral": 0.003,
+  "gap": [
+   0.003,
+   0.01
+  ],
+  "rot": 3.0,
+  "inhand_rot": 8.0,
+  "inhand_pos": 3.0,
+  "inhand_mode": "servo_pick",
+  "tilt": 55.0,
+  "states": [
+   "runs/perception/states/r9sp_s1.npz",
+   "runs/perception/states/r9sp_s2.npz",
+   "runs/perception/states/r9sp2_s3.npz",
+   "runs/perception/states/r9sp2_s4.npz",
+   "runs/perception/states/r9sp3_s5.npz",
+   "runs/perception/states/r9sp3_s6.npz"
+  ],
+  "n_states": 65536,
+  "states_max_gap": 0.0075,
+  "init": "runs/perception/wrist_v17ws.pt",
+  "lr": 0.0003,
+  "width": 48,
+  "vary_arms": 0.0,
+  "seed": 0,
+  "pc_range": null,
+  "mask_arms": false,
+  "vary_what": "both",
+  "visual_dr_preset": "default",
+  "hetero": false,
+  "task_layout": "results/usbc/policy/pick/task_layout.json",
+  "wrist_mode": "resize",
+  "tag": "_v18ws"
+ },
+ "test_set": "held-out in-loop states",
+ "held_out_dr_abs_error": {
+  "x_mm": {
+   "p50": 0.05789110064506531,
+   "p90": 0.1519993245601654,
+   "p99": 0.29338422417640686,
+   "p99.5": 0.32303279638290405
+  },
+  "y_mm": {
+   "p50": 0.17772921919822693,
+   "p90": 0.5073158144950867,
+   "p99": 0.8954172134399414,
+   "p99.5": 0.9797722697257996
+  },
+  "gap_mm": {
+   "p50": 0.10371923446655273,
+   "p90": 0.2722945809364319,
+   "p99": 0.5226181745529175,
+   "p99.5": 0.6097184419631958
+  },
+  "rx_deg": {
+   "p50": 0.18278782069683075,
+   "p90": 0.5229804515838623,
+   "p99": 1.0365407466888428,
+   "p99.5": 1.2461936473846436
+  },
+  "ry_deg": {
+   "p50": 0.04920116439461708,
+   "p90": 0.1295333206653595,
+   "p99": 0.23637498915195465,
+   "p99.5": 0.26987481117248535
+  },
+  "rz_deg": {
+   "p50": 0.08516951650381088,
+   "p90": 0.27730682492256165,
+   "p99": 1.1759885549545288,
+   "p99.5": 1.3919963836669922
+  },
+  "lateral_mm": {
+   "p50": 0.20442749559879303,
+   "p90": 0.5258444547653198,
+   "p99": 0.9177529215812683,
+   "p99.5": 0.9897271394729614
+  },
+  "tilt_deg": {
+   "p50": 0.2009301781654358,
+   "p90": 0.5306496024131775,
+   "p99": 1.054205298423767,
+   "p99.5": 1.25173020362854
+  }
+ },
+ "held_out_nominal_look_abs_error": {
+  "x_mm": {
+   "p50": 0.05007457733154297,
+   "p90": 0.1506616324186325,
+   "p99": 0.21996057033538818,
+   "p99.5": 0.2660277485847473
+  },
+  "y_mm": {
+   "p50": 0.13004985451698303,
+   "p90": 0.324967622756958,
+   "p99": 0.5763383507728577,
+   "p99.5": 0.6407088041305542
+  },
+  "gap_mm": {
+   "p50": 0.09771537780761719,
+   "p90": 0.2640306055545807,
+   "p99": 0.4383496642112732,
+   "p99.5": 0.49898263812065125
+  },
+  "rx_deg": {
+   "p50": 0.1353110671043396,
+   "p90": 0.4153536856174469,
+   "p99": 0.6965376138687134,
+   "p99.5": 0.7814938426017761
+  },
+  "ry_deg": {
+   "p50": 0.056027770042419434,
+   "p90": 0.13713429868221283,
+   "p99": 0.2956181466579437,
+   "p99.5": 0.32349318265914917
+  },
+  "rz_deg": {
+   "p50": 0.06661820411682129,
+   "p90": 0.1909237951040268,
+   "p99": 0.9880534410476685,
+   "p99.5": 1.396619439125061
+  },
+  "lateral_mm": {
+   "p50": 0.15894195437431335,
+   "p90": 0.3549724817276001,
+   "p99": 0.5770840644836426,
+   "p99.5": 0.6506666541099548
+  },
+  "tilt_deg": {
+   "p50": 0.1620577573776245,
+   "p90": 0.4292263984680176,
+   "p99": 0.6971797347068787,
+   "p99.5": 0.7884689569473267
+  }
+ },
+ "generate_s": 731.9274835586548,
+ "total_s": 2494.0196640491486,
+ "note": "visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)"
+}
