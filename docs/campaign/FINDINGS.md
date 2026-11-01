@@ -328,7 +328,21 @@ friction rows of the elliptic cones, resolved in the port frame), sampled at the
   target met). Training plateaus at ~97 % at scale 1.5 with the wide in-hand error.
 - **Hard TCP speed limit** (G: 15 mm/s commanded via the believed-angle Jacobian): success fell to 29-49 % in
   training, seat time 4-4.6 s; too slow to search within the episode. Dropped (penalties already reach p99 < 20 N).
-- Running: F2 (scale 1.5) and H (from F2, scale 1.0 only, 100 % wide in-hand).
+- **F2 final (40 M) and H (from F2, scale 1.0 only, 100 % wide in-hand, 31 M):**
+
+  | | live held-out (n = 1024) | peak push p50 / p99 (live) | contact speed p99 | r3 × 1.5 (n = 1024) | wide in-hand r3 × 1.0 (n = 2048) |
+  |---|---|---|---|---|---|
+  | F2 40 M | — | — | — | — | 97.17 % [96.36, 97.80], push p99 15.3 N |
+  | H 31 M | 99.90 % [99.45, 99.98] | 7.2 / 14.2 N (max 23.1; 0.1 % > 20 N) | 32 mm/s | 97.07 % [95.85, 97.94] | 97.12 % [96.30, 97.76], push p99 14.8 N |
+
+  H meets the live and force gates (gentle, slow contact) but loses margin at × 1.5 (trained at 1.0 only) and is
+  still ~97 % with the wide in-hand error. **Wide in-hand failures are not collisions** (no hand-PC contact in
+  n = 1024): they concentrate where the reader sits 1.5-3 mm further along the tool's x/z axes (`inhand_x` >
+  -28 mm: 85-96 %; `inhand_z` > 46.5 mm: 90-95 %; all other starts ~100 %). The blind policy cannot infer a
+  changed hand-to-plug lever arm in time; more training plateaued at ~97 %. Likely needs an in-hand pose estimate
+  (from perception) as an input, or the pick's in-hand spread kept within ~1.5 mm.
+- No policy meets the combined gate (live ≥ 99.5 %, push p99 ≤ 20 N, wide in-hand ≥ 99.5 %); best.pt stays
+  gentle-D. Candidate for the chain if gentleness matters more than × 1.5 margin: `runs/gentle_h_31M.pt`.
 
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 

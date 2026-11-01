@@ -1,0 +1,34 @@
+{
+ "policy": "runs/gentle_h_31M.pt",
+ "n": 2048,
+ "seated": 1989,
+ "rate": 0.97119140625,
+ "wilson95": [
+  0.9630179913851145,
+  0.977600426722794
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 1989,
+  "lateral_miss": 46,
+  "grasp_slip": 13
+ },
+ "strict_seated_rate": 0.02294921875,
+ "seated_or_deep_rate": 0.97119140625,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 0.98,
+ "t_seat_s_p95": 1.46,
+ "pc_max_mm_p99": 0.935688539147377,
+ "peak_axial_force_N": {
+  "p50": 6.9937584400177,
+  "p99": 14.792864751815783,
+  "max": 24.59078025817871
+ },
+ "contact_speed_mm_s": {
+  "p50": 13.17148733139038,
+  "p99": 26.077535057067873,
+  "max": 53.05598449707031
+ },
+ "gate_pass": false
+}
