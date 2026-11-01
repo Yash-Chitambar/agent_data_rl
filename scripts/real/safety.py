@@ -161,9 +161,16 @@ class SafeArm:
             raise SafetyStop(f"measured pose unsafe: {why}; holding")
         return q
 
-    def command(self, q7_target) -> np.ndarray:
+    def command(self, q7_target, fric_comp=None) -> np.ndarray:
         """Send the target, capped to MAX_STEP per joint from the previous command and refused
         beyond MAX_DEVIATION from the measured pose; returns what was sent.
+
+        fric_comp = (tau, ramp): Coulomb friction feed-forward on the arm joints from the sent
+        target and the measured pose (blind_insertion/envs/friction_comp.py), in the command's
+        `torques` field (i2rt adds it to gravity compensation; command_joint_pos zeroes it, so it is
+        set right after, under the same lock: at worst one motor-thread cycle goes without it).
+        (Restored 2026-11-01: b151281 added it; a later merge dropped it while scripts/real/deploy.py
+        RealArm.send kept calling command(q7, FRIC_COMP).)
 
         An unsafe request (outside the joint box or too near the table) is refused as a whole:
         nothing is sent, the arm holds its measured pose and SafetyStop is raised. Clipping it
@@ -188,6 +195,13 @@ class SafeArm:
             self._hold(q)
             raise SafetyStop(f"step unsafe: {why}; holding")
         self.robot.command_joint_pos(tgt)
+        self.last_ff = None
+        if fric_comp is not None:
+            from blind_insertion.envs import friction_comp as FC   # repo root on sys.path (deploy.py)
+            tau = FC.feedforward(tgt[:6] - q[:6], *fric_comp)
+            with self.robot._command_lock:
+                self.robot._commands.torques[:6] = tau
+            self.last_ff = tau
         self.last_safe = tgt
         return tgt
 

@@ -25,3 +25,8 @@ data/calib/
 
 # real/dry Task H runner logs and frames (deploy/runner.py)
 data/task_h/
+
+# bimanual deploy bundle (checkpoints, deploy/bimanual/bundle.py) and real-run logs (deploy/run_bimanual.py)
+deploy/bundle/
+deploy/bundle.tar
+data/real_runs/

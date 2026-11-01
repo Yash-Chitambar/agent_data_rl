@@ -1,0 +1,406 @@
+{
+ "host": "mason",
+ "torch_threads": 4,
+ "cpu": {
+  "zed+gate": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "dtype": "torch.uint8",
+   "out_shapes": [
+    [
+     1,
+     2
+    ],
+    [
+     1
+    ],
+    [
+     1
+    ]
+   ],
+   "finite": true,
+   "net_size": 160,
+   "crop": [
+    110,
+    70,
+    160
+   ],
+   "p50_ms": 18.79493147134781,
+   "p99_ms": 24.299448840320107,
+   "max_ms": 25.07106587290764
+  },
+  "reader_zed_cap+gate": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "res_expected": 320,
+   "crop": [
+    80,
+    173,
+    128
+   ],
+   "out_shapes": [
+    [
+     1,
+     2
+    ],
+    [
+     1
+    ]
+   ],
+   "finite": true,
+   "p50_ms": 8.980192244052887,
+   "p99_ms": 10.931411646306515,
+   "max_ms": 11.011175811290741
+  },
+  "reader_servo_hover": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "res_expected": 320,
+   "net_size": 224,
+   "n_out": 3,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 11.600689962506294,
+   "p99_ms": 16.698296442627907,
+   "max_ms": 16.993794590234756
+  },
+  "reader_servo_near": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "res_expected": 320,
+   "net_size": 224,
+   "n_out": 3,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 10.864751413464546,
+   "p99_ms": 14.842548184096813,
+   "max_ms": 14.989618211984634
+  },
+  "reader_servo_near6": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "res_expected": 320,
+   "net_size": 224,
+   "n_out": 6,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 10.834924876689911,
+   "p99_ms": 14.346474558115005,
+   "max_ms": 14.356959611177444
+  },
+  "wrist_v14w": {
+   "input": "320 -> area 192",
+   "mode": "resize",
+   "net_size": 192,
+   "wrist_size": 192,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 16.098544001579285,
+   "p99_ms": 25.372656285762787,
+   "max_ms": 25.59582144021988
+  },
+  "wrist_v15ws": {
+   "input": "320 -> area 192",
+   "mode": "resize",
+   "net_size": 192,
+   "wrist_size": 192,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 15.717064961791039,
+   "p99_ms": 21.910223364830003,
+   "max_ms": 25.43611451983452
+  },
+  "inhand_ih1": {
+   "input": "320 -> area 192",
+   "mode": "resize",
+   "net_size": 192,
+   "wrist_size": 192,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 15.416808426380157,
+   "p99_ms": 19.547856003046032,
+   "max_ms": 20.655255764722824
+  },
+  "insert_KJ": {
+   "input": [
+    1,
+    30,
+    68
+   ],
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "in_range": true,
+   "mask_idx": [
+    11,
+    23,
+    36,
+    49
+   ],
+   "p50_ms": 0.615287572145462,
+   "p99_ms": 0.641031339764595,
+   "max_ms": 0.6416775286197662
+  },
+  "insert_KJ+contact_head": {
+   "p50_ms": 1.234155148267746,
+   "p99_ms": 1.5795898064970968,
+   "max_ms": 1.626577228307724
+  }
+ },
+ "cuda:0": {
+  "zed+gate": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "dtype": "torch.uint8",
+   "out_shapes": [
+    [
+     1,
+     2
+    ],
+    [
+     1
+    ],
+    [
+     1
+    ]
+   ],
+   "finite": true,
+   "net_size": 160,
+   "crop": [
+    110,
+    70,
+    160
+   ],
+   "p50_ms": 14.27442766726017,
+   "p99_ms": 20.184302739799023,
+   "max_ms": 20.19890770316124
+  },
+  "reader_zed_cap+gate": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "res_expected": 320,
+   "crop": [
+    80,
+    173,
+    128
+   ],
+   "out_shapes": [
+    [
+     1,
+     2
+    ],
+    [
+     1
+    ]
+   ],
+   "finite": true,
+   "p50_ms": 10.087564587593079,
+   "p99_ms": 18.479731082916256,
+   "max_ms": 19.553616642951965
+  },
+  "reader_servo_hover": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "res_expected": 320,
+   "net_size": 224,
+   "n_out": 3,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 3.228655084967613,
+   "p99_ms": 5.348863899707794,
+   "max_ms": 5.356844514608383
+  },
+  "reader_servo_near": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "res_expected": 320,
+   "net_size": 224,
+   "n_out": 3,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 2.4108421057462692,
+   "p99_ms": 4.338928088545799,
+   "max_ms": 4.410143941640854
+  },
+  "reader_servo_near6": {
+   "input": [
+    1,
+    320,
+    320,
+    3
+   ],
+   "res_expected": 320,
+   "net_size": 224,
+   "n_out": 6,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 3.2257456332445145,
+   "p99_ms": 5.296604186296463,
+   "max_ms": 5.301598459482193
+  },
+  "wrist_v14w": {
+   "input": "320 -> area 192",
+   "mode": "resize",
+   "net_size": 192,
+   "wrist_size": 192,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 3.3896341919898987,
+   "p99_ms": 5.695033930242062,
+   "max_ms": 5.738940089941025
+  },
+  "wrist_v15ws": {
+   "input": "320 -> area 192",
+   "mode": "resize",
+   "net_size": 192,
+   "wrist_size": 192,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 3.5238973796367645,
+   "p99_ms": 5.629776567220688,
+   "max_ms": 5.629893392324448
+  },
+  "inhand_ih1": {
+   "input": "320 -> area 192",
+   "mode": "resize",
+   "net_size": 192,
+   "wrist_size": 192,
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "p50_ms": 3.5299621522426605,
+   "p99_ms": 5.632655322551727,
+   "max_ms": 5.642402917146683
+  },
+  "insert_KJ": {
+   "input": [
+    1,
+    30,
+    68
+   ],
+   "out_shape": [
+    1,
+    6
+   ],
+   "finite": true,
+   "in_range": true,
+   "mask_idx": [
+    11,
+    23,
+    36,
+    49
+   ],
+   "p50_ms": 5.49919530749321,
+   "p99_ms": 14.008029364049435,
+   "max_ms": 14.040019363164902
+  },
+  "insert_KJ+contact_head": {
+   "p50_ms": 17.7412461489439,
+   "p99_ms": 32.53936514258385,
+   "max_ms": 32.63726457953453
+  },
+  "gpu": "Tesla V100-PCIE-32GB"
+ },
+ "real_capture": {
+  "snapshot": "data/sim_ref/2026-10-25_scene",
+  "tag": "pointed",
+  "top_shape": [
+   320,
+   320,
+   3
+  ],
+  "wrist_shape": [
+   320,
+   320,
+   3
+  ],
+  "port_xy": [
+   0.19537660479545593,
+   0.3630044758319855
+  ],
+  "yaw_deg": -0.9241021831445111,
+  "ok": false,
+  "arm_ok": 1.0,
+  "presence": 9.922319804900326e-06,
+  "mahalanobis": 20.4306583404541,
+  "sigma_xy_mm": 0.0,
+  "sigma_yaw_deg": 0.0,
+  "disagree_xy_mm": 0.0,
+  "disagree_yaw_deg": 0.0,
+  "right_finger_m": 0.047989191159561205
+ },
+ "all_finite": true
+}

@@ -1,0 +1,143 @@
+{
+ "checks": {
+  "fk_equal": {
+   "ok": true,
+   "max_abs": 2.384185791015625e-07,
+   "note": "scene chains are deploy/bimanual/fastchain.FastChain on the CPU"
+  },
+  "fastchain_ik_equal": {
+   "ok": true,
+   "max_dq_rad": 4.76837158203125e-07,
+   "max_dpos_err_m": 7.53393365471311e-08
+  },
+  "kp_equal": {
+   "ok": true,
+   "scene": [
+    [
+     80.0,
+     80.0,
+     80.0,
+     40.0,
+     10.0,
+     10.0
+    ],
+    [
+     80.0,
+     80.0,
+     80.0,
+     40.0,
+     10.0,
+     10.0
+    ]
+   ]
+  },
+  "joint_limits_equal": {
+   "ok": true
+  },
+  "encoder_offsets_equal": {
+   "ok": true
+  },
+  "reader0_pc0_equal": {
+   "ok": true
+  },
+  "grasp_offsets_equal": {
+   "ok": true,
+   "keys": [
+    "(55.0, False)",
+    "(55.0, True)"
+   ]
+  },
+  "table_top_equal": {
+   "ok": true,
+   "scene": -0.03300000079853799
+  },
+  "finger_qadr_equal": {
+   "ok": true
+  },
+  "port_height_vs_sim_reset": {
+   "ok": true,
+   "scene_mm": -9.488035924732685,
+   "sim_reset_mm": -9.488035924732685
+  },
+  "offsets_right": {
+   "ok": true,
+   "rig_deg": [
+    0.0,
+    0.726,
+    0.015,
+    1.328,
+    -1.115,
+    0.0
+   ],
+   "capture_pose_diff_rad": 2.9700851440495057e-06
+  },
+  "offsets_left": {
+   "ok": true,
+   "rig_deg": [
+    0.0,
+    1.2,
+    -0.412,
+    0.379,
+    -0.026,
+    0.0
+   ],
+   "capture_pose_diff_rad": 4.678344726600386e-06
+  },
+  "port_frame_yaw_roundtrip": {
+   "ok": true,
+   "max_err_rad": 3.725290298461914e-09
+  },
+  "port_frame_flat": {
+   "ok": true,
+   "note": "port y axis vertical (PC flat)"
+  },
+  "motor_believed_roundtrip": {
+   "ok": true
+  },
+  "gripper_right_full_open": {
+   "ok": true,
+   "finger_m": 0.048
+  },
+  "gripper_right_approach_in_range": {
+   "ok": true,
+   "reading": 0.3826206896551725
+  },
+  "gripper_reader_band": {
+   "ok": true,
+   "note": "calibrated 2026-10-28 for the top-down grasp; re-verify for the 55 deg side grasp"
+  },
+  "camera_top_fov": {
+   "ok": true,
+   "real_crop_deg": 52.73754780916484,
+   "sim_fovy_deg": 52.73754780916484
+  },
+  "camera_wrist_right_fov": {
+   "ok": true,
+   "real_crop_deg": 69.69925536009474,
+   "sim_fovy_deg": 69.7
+  },
+  "table_z_is_scene_table": {
+   "ok": true,
+   "config": -0.033,
+   "scene": -0.03300000079853799
+  },
+  "left_base_height": {
+   "ok": true,
+   "left_base_z_mm": -0.8099999999999999,
+   "note": "FlexChecker uses each arm base frame; the left table plane differs by this"
+  },
+  "safety_capture_right": {
+   "ok": true,
+   "why": null
+  },
+  "safety_capture_left": {
+   "ok": true,
+   "why": null
+  },
+  "safety_park_left_left": {
+   "ok": true,
+   "why": null
+  }
+ },
+ "failed": []
+}

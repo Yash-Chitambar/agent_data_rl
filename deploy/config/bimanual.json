@@ -1,0 +1,68 @@
+{
+ "_about": "Bimanual USB-C chain on the real YAMs (deploy/run_bimanual.py). Lengths m, angles rad, times s, forces N, torques N m. Sim-derived values are checked against the sim by deploy/checks/bimanual_conventions.py. Chain settings not listed here are scripts/eval/eval_chain.py defaults (the 99.56-99.66 % sim config).",
+ "control_dt": 0.02,
+ "bundle_dir": "deploy/bundle",
+ "chain_args": {
+  "_about": "eval_chain.py arguments for the real chain (the rest are its defaults). believed_frame: plan and command on encoder FK (the only frame the real robot has).",
+  "believed_frame": true,
+  "hold_force": 25.0,
+  "hold_along": -0.02,
+  "look_gap": 30.0,
+  "stop": 6.0,
+  "wrist_net": "wrist_v14w",
+  "fine_net": "wrist_v15ws",
+  "inhand_net": "inhand_ih1",
+  "zed_gate": "zed_v1_gate_arm",
+  "handover": "torque",
+  "stop_offset_mm": [0.0, 0.12, 0.0]
+ },
+ "pick": {
+  "_about": "Servo-descent pick (blind_insertion/pipeline/pick_servo.py): the 2040/2048 gate settings of scripts/policy/pick_expert_eval.py",
+  "reader_estimator": "reader_zed_cap",
+  "reader_retries": 1,
+  "hover_net": "reader_servo_hover",
+  "near_net": "reader_servo_near",
+  "rot_net": "reader_servo_near6",
+  "fracs": [0.5, 0.8, 0.92],
+  "rehover_mm": 8.0,
+  "rehover_max": 2,
+  "settle_max_s": 3.0,
+  "hold_s": 1.0,
+  "episode_s": 22.0
+ },
+ "insert": {
+  "_about": "Part 4 K-J (obs_dim 68): accumulate, target cap from the policy meta (0.05), 10 s, 50 Hz; left joint-6 mask inside the loader. Seated detector: plug advance along the port axis (encoder FK) past the servo's stop gap.",
+  "policy": "insert_KJ",
+  "insert_s": 10.0,
+  "seat_margin_m": 0.001,
+  "seat_hold_s": 0.2,
+  "seat_speed_m_s": 0.005,
+  "release_open_s": 0.4,
+  "retreat_m": 0.05,
+  "retreat_v_m_s": 0.02,
+  "left_lift_m": 0.03
+ },
+ "gripper": {
+  "_about": "i2rt gripper 0 closed .. 1 open (position PD). Finger opening per finger (m, the sim finger joint) is linear in the reading: right through (1.0, 0.048) and (g_reader, m_reader) (deploy/config/task_h.json, 2026-10-28); left uncalibrated (proportional). close = squeeze target (force NOT calibrated: sim squeeze 12 N).",
+  "right": {"open": 1.0, "close": 0.0, "m_open": 0.048, "g_reader": 0.254, "m_reader": 0.019, "g_empty": 0.015},
+  "left": {"open": 1.0, "close": 0.0, "m_open": 0.048, "g_reader": null, "m_reader": 0.019, "g_empty": null},
+  "right_approach_open_m": 0.024,
+  "full_open_m": 0.0475
+ },
+ "safety": {
+  "_about": "FlexChecker clearances (model frame, above the tabletop) on every target and measured pose; table_z = tabletop in each arm's base frame (bimanual scene: -0.033). Guards: PD torque estimate kp (target - q) + feed-forward per joint; DM4340 (joints 1-3) rated ~9 N m, DM4310 (4-6) ~3 N m.",
+  "table_z": -0.033,
+  "clearance": 0.04,
+  "tip_clearance": -0.015,
+  "body_clearance": {"gripper": 0.015, "link_6": 0.02, "wrist_camera": 0.03},
+  "tau_peak_nm": [12.0, 12.0, 12.0, 5.0, 5.0, 5.0],
+  "tau_peak_s": 0.1,
+  "tau_cont_nm": [9.0, 9.0, 9.0, 3.0, 3.0, 3.0],
+  "tau_cont_s": 20.0,
+  "hold_max_s": 60.0,
+  "qd_max_rad_s": 2.5,
+  "tcp_box": {"x": [-0.10, 0.60], "y": [-0.30, 0.90], "z_above_table": [-0.02, 0.50]}
+ },
+ "fric_comp_right": {"tau": [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], "ramp": 0.005},
+ "cameras": {"res": 320, "max_age_ms": 250, "stream_hz": 2.0}
+}

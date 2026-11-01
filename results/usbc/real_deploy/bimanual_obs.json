@@ -1,0 +1,19 @@
+{
+ "ok": true,
+ "compared": 320,
+ "obs_dim": 68,
+ "max_abs_diff": 1.1920928955078125e-06,
+ "nworld": 8,
+ "steps": 40,
+ "enc_error_deg_range": 1.4928151369094849,
+ "latency": [
+  0,
+  1,
+  1,
+  1,
+  1,
+  1,
+  1,
+  1
+ ]
+}

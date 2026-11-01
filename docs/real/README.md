@@ -18,5 +18,6 @@ dependencies: `bash scripts/real/setup_real.sh` (not in `uv.lock`).
 Data: small results (calibration JSON, measurement summaries) are committed here and merged
 into `main` when the sim uses them; large raw captures go to a `data/<name>` branch.
 
-The single-arm task-H deploy path uses `pc_bench.build_scene(table_z=REAL_TABLE_Z)`; the
-bimanual policy deploy runner does not exist yet.
+The single-arm task-H deploy path uses `pc_bench.build_scene(table_z=REAL_TABLE_Z)`. The bimanual
+USB-C chain runner is `deploy/run_bimanual.py` (`deploy/bimanual/`). The first rig test is described in
+[BIMANUAL_DEPLOY](BIMANUAL_DEPLOY.md).
