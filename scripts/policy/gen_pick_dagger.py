@@ -9,7 +9,7 @@ Takeover times: `--early_frac` of the worlds uniformly over [t_lo, t_hi] s; the 
 "trouble" event, which oversamples the v4 failure states: gripper commanded closed with the hand
 > 8 mm from the grasp, fingers closed on nothing, hand rising without the reader, or the
 policy still open and hovering 2 s after reaching grasp height; worlds with no event by t_hi
-take over at t_hi.
+take over at t_hi unless the reader is already lifted > 50 mm (those give no episode).
 
     CUDA_VISIBLE_DEVICES=3 PYTHONPATH=. MUJOCO_GL=egl .venv/bin/python scripts/policy/gen_pick_dagger.py \
         --policy runs/P1-act-pick-v4/act_080000_traced.pt --episodes 1536 --out data/act/pick_raw_dagger1
@@ -44,8 +44,8 @@ def main():
     ap.add_argument('--layout', default='results/usbc/policy/pick/task_layout.json')
     ap.add_argument('--ens_k', type=float, default=0.01)
     ap.add_argument('--t_lo', type=float, default=3.0)
-    ap.add_argument('--t_hi', type=float, default=14.0)
-    ap.add_argument('--early_frac', type=float, default=0.4)
+    ap.add_argument('--t_hi', type=float, default=12.0)
+    ap.add_argument('--early_frac', type=float, default=0.6)
     ap.add_argument('--recover_s', type=float, default=11.0)
     a = ap.parse_args()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
@@ -71,6 +71,7 @@ def main():
         k_take = (t_take / dt).round().long()
         taken = torch.zeros(N, dtype=torch.bool, device=dev); k0 = torch.full((N,), -1, dtype=torch.long, device=dev)
         kind = torch.full((N,), -1, dtype=torch.long, device=dev); cause = torch.zeros(N, dtype=torch.long, device=dev)
+        tilt_take = torch.zeros(N, device=dev); lift_take = torch.zeros(N, device=dev)
         closed_t = torch.zeros(N, dtype=torch.long, device=dev); low_t = torch.zeros(N, dtype=torch.long, device=dev)
         writers = {i: imageio.get_writer(out / f'ep{ep0 + i:05d}_wrist.mp4', fps=50, codec='libx264', quality=None,
                                          ffmpeg_params=['-crf', '18', '-preset', 'fast'], macro_block_size=8) for i in range(n_ep)}
@@ -110,12 +111,14 @@ def main():
             ev_rise_empty = (closed_t > round(.8 / dt)) & (p_a[:, 2] > grasp_z + .02) & (m['lift_m'] < .005)
             ev_hover = low_t >= round(2.0 / dt)
             ev = ~early & (ev_close_far | ev_nothing | ev_rise_empty | ev_hover)
-            go = ~taken & ((k_take == t) | ev) & (t > round(1.0 / dt))
+            lifted_ok = (m['lift_m'] > .05) & (fo < .040)          # the policy already has it: no takeover at t_hi
+            go = ~taken & (((k_take == t) & (early | ~lifted_ok)) | ev) & (t > round(1.0 / dt))
             if go.any():
                 cls = ex.takeover(go)
                 kind[go] = torch.where(cls['holding'][go], 2, torch.where(cls['on_line'][go], 1, 0))
                 cause[go & ev] = torch.where(ev_close_far, 1, torch.where(ev_nothing, 2, torch.where(ev_rise_empty, 3, 4)))[go & ev]
                 taken |= go; k0[go] = t
+                tilt_take[go] = m['tilt_deg'][go]; lift_take[go] = m['lift_m'][go]
             prev = ex.phase.clone()
             eact = ex.act()
             act = torch.where(taken[:, None], eact, pact)
@@ -149,7 +152,10 @@ def main():
             L = min(len(A), done_t + 10)
             meta = dict(episode=ep0 + i, ok=bool(ok[i]) and L >= 60, length=L, takeover_s=float(k0[i] * dt), early=bool(early[i]),
                         kind=['retreat', 'on_line', 'holding'][int(kind[i])], cause=['time', 'close_far', 'closed_on_nothing', 'rise_empty', 'hover_open'][int(cause[i])],
-                        lift_mm=float(final['lift_m'][i] * 1e3), tilt_deg=float(final['tilt_deg'][i]))
+                        lift_mm=float(final['lift_m'][i] * 1e3), tilt_deg=float(final['tilt_deg'][i]),
+                        reader_tilt_take_deg=float(tilt_take[i]), reader_lift_take_mm=float(lift_take[i] * 1e3), ik_ok=bool(ex.ik_ok[i]),
+                        settle_err_mm=float(ex.settle_err[i, 0] * 1e3) if hasattr(ex, 'settle_err') else -1.,
+                        settle_err_deg=float(ex.settle_err[i, 1]) if hasattr(ex, 'settle_err') else -1.)
             np.savez_compressed(out / f'ep{ep0 + i:05d}.npz', state=S[:L].astype(np.float32), action=A[:L].astype(np.float32),
                                 phase=P[:L].astype(np.int8), meta=json.dumps(meta))
             summary.append(meta)

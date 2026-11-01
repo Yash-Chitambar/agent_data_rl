@@ -228,6 +228,12 @@ class PickExpert:
         # reader_pose_fn: () -> (p (N,3), R (N,3,3)) estimated reader pose (perception); default privileged.
         self.pose_err, self.reader_pose_fn, self.hover_tol = pose_err, reader_pose_fn, hover_tol_m
         self.gen = torch.Generator(device=task.device); self.gen.manual_seed(seed + 101)
+        self.believed_frame = False   # True: plan and servo on encoder FK (non-privileged joints)
+
+    def _q(self):
+        """Joint angles the expert plans and servos with: true (privileged) or, with believed_frame,
+        the encoder reading in the model frame (encoder-offset errors included, as on the real robot)."""
+        return self.t._measured_model_angles()[:, 0] if self.believed_frame else self.t.q_true()
 
     def _ik(self, p, R, q0, iters):
         return self.t.chain.ik(p, R, q0, iters=iters)
@@ -239,7 +245,7 @@ class PickExpert:
         self.timer = torch.zeros(N, dtype=torch.long, device=dev)
         self.done = torch.zeros(N, dtype=torch.bool, device=dev)
         self.integ = torch.zeros(N, 6, device=dev)
-        self.q0 = t.q_true().clone()
+        self.q0 = self._q().clone()
         p_r, R_r = t.reader_pose() if self.reader_pose_fn is None else self.reader_pose_fn()
         if self.pose_err is not None:     # tolerance study: perturb the reader pose the expert plans with
             p_r, R_r = perturb_reader_pose(p_r, R_r, t.lay, *self.pose_err, gen=self.gen)
@@ -311,7 +317,8 @@ class PickExpert:
         """DAgger: take over the worlds in mask from wherever another controller (a learned policy)
         left the hand, and continue with the privileged expert from there. Re-plans at the reader's
         CURRENT pose (it may have been pushed). Per world:
-          holding  (reader within hold_err of the nominal in-hand pose, fingers closed): lift (phase 4)
+          holding  (fingers closed and the reader within hold_err of the nominal in-hand pose or already
+                   lifted > 10 mm): lift (phase 4)
                    from the current pose to the planned lift height;
           on the approach line (fingers open, hand within near_perp of the pre-grasp -> grasp segment,
                    tool within near_rot_deg of the grasp orientation): continue the Cartesian
@@ -331,7 +338,7 @@ class PickExpert:
         n_p, _ = G.nominal_inhand(t.offsets[(G.TILT_DEG, False)], G.TILT_DEG, False)
         in_err = (met['inhand_p'] - torch.as_tensor(n_p, device=dev, dtype=torch.float32)).norm(dim=1)
         fo = t.runtime.q[:, t.finger_qadr].sum(1)
-        holding = (in_err < hold_err) & (fo < .040)
+        holding = ((in_err < hold_err) | (met['lift_m'] > .010)) & (fo < .040)   # lifted with closed fingers: keep it, the in-hand pose may be off-nominal
         seg = W['pregrasp'][0] - W['grasp'][0]; L = seg.norm(dim=1, keepdim=True); u = seg / L
         d = p_a - W['grasp'][0]; along = (d * u).sum(1)
         perp = (d - along[:, None] * u).norm(dim=1)
@@ -387,7 +394,7 @@ class PickExpert:
         q_ik, _, _ = self._ik(self.p_cmd, self.R_cmd, self.q_cmd, 12)
         self.q_cmd = torch.where(m0[:, None], q_joint, q_ik)
         # settle-before-close: integral on the true joint error once the command has arrived
-        q = t.q_true()
+        q = self._q()
         p_a, R_a = t.chain.fk(q)
         e_p = (self.p_g - p_a).norm(dim=1)
         e_r = torch.rad2deg(K.rot_log(self.R_g @ R_a.transpose(1, 2)).norm(dim=1))
@@ -435,7 +442,7 @@ class PickExpert:
         self.done = self.phase >= 6
         self.grip = torch.where(self.phase >= 3, -torch.ones_like(self.grip), torch.ones_like(self.grip))
         # absolute physical target -> believed-frame target -> normalized accumulate increment
-        believed = q_phys - t.enc_error[:, 0]
+        believed = q_phys if self.believed_frame else q_phys - t.enc_error[:, 0]
         a = torch.zeros(N, 14, device=t.device)
         a[:, :6] = ((believed - t.joint_target[:, 0]) / t.cfg.action_scale_rad).clamp(-1, 1)
         a[:, 6] = self.grip
