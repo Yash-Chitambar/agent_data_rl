@@ -603,6 +603,8 @@ class InsertionTask(BimanualTask):
             if 'err_p' in z.files:      # approach failures are not insertion starts (as the chain counts them)
                 ep = z['err_p'] * 1e3
                 keep &= (np.hypot(ep[:, 0], ep[:, 1]) <= 8) & (ep[:, 2] >= .5) & (ep[:, 2] <= 15)
+            if 'e2e_class' in z.files:  # estimated-pick chain: rejected / failed picks never reach insertion
+                keep &= z['e2e_class'] == 'insert_not_run'
             rows = np.nonzero(keep)[0]
             h = self.icfg.live_holdout
             rows = rows[:h] if self.icfg.live_split == 'eval' else rows[h:] if self.icfg.live_split == 'train' else rows

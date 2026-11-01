@@ -456,6 +456,20 @@ friction rows of the elliptic cones, resolved in the port frame), sampled at the
   obs[62:68], mm / deg in the TCP frame, sigma 0.5 mm / 0.5° estimate error), 50 % wide in-hand starts,
   scale 1.5, same force/speed penalties; new input weights start at 0 (`train_bimanual.widen_obs`).
   **I** (`runs/P4-insert-gentle-i`, GPU 2, from H): blind, scale 1.5, 60 % wide in-hand. H stopped at 31 M.
+- **Gate on estimated-pick live states** (`aux/handover_pickest_n4096.npz`, chain seeds 11000-11007, rows with
+  `e2e_class == 'insert_not_run'` only (4076 of 4096; the filter is now in `InsertionTask._live`), held-out first
+  1024, `contact_estpick_<policy>.json`):
+
+  | policy | seated (n = 1024) | peak axial push p50 / p99 / max | > 20 N | contact speed p99 |
+  |---|---|---|---|---|
+  | gentle-D | 1024 [99.63, 100] | 9.4 / 30.3 / 33.8 N | 16.5 % | 122 mm/s |
+  | H 31 M | 1024 [99.63, 100] | 7.2 / 15.7 / 22.5 N | 0.2 % | 34 mm/s |
+  | **I 12.5 M** | 1024 [99.63, 100] | 6.7 / 14.8 / 19.8 N | 0 % | 29 mm/s |
+  | J 11 M (in-hand input, simulated estimate sigma 0.5 mm / 0.5°) | 1023 [99.45, 99.98] | 7.3 / 15.3 / 26.1 N | 0.4 % | 32 mm/s |
+
+  gentle-D matches the chain's own measurement (p50 9.4 / p99 31.1 N), so the replay is faithful. The wide
+  in-hand error of the earlier synthetic eval does not occur here (the approach servo removes it). **Exported I
+  12.5 M as best.pt** (`runs/gentle_i_12M.pt`); backups gentle-D (`runs/gentle_d_backup.pt`) and v11.
 
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
