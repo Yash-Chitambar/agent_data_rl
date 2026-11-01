@@ -86,7 +86,7 @@ def main():
     ap.add_argument('--hold-along', type=float, default=-.02, help='press point from the case centre toward the rear (m); -0.035 = round-4 hold')
     ap.add_argument('--pad-mu', type=float, default=1.2, help='right pad friction (Part 1); <= 0 keeps the scene 1.68')
     ap.add_argument('--impratio', type=float, default=30., help='task impratio (Part 1); <= 0 keeps the scene 100')
-    ap.add_argument('--inhand', choices=('measured', 'uniform'), default='measured', help='in-hand pose: Part 1 measured spread or uniform +/- --inhand-pos/--inhand-rot')
+    ap.add_argument('--inhand', choices=('measured', 'uniform', 'chain_est'), default='measured', help='in-hand pose: Part 1 measured spread or uniform +/- --inhand-pos/--inhand-rot')
     ap.add_argument('--save-states', default=None, help='npz path: full qpos at every wrist estimate (DAgger data)')
     ap.add_argument('--final-iters', type=int, default=6, help='extra servo iterations at the stop gap')
     ap.add_argument('--settle-s', type=float, default=.3)
@@ -141,7 +141,7 @@ def main():
     q_hold = hold.hold_target()
     # 3. reader in hand, arm where an IK move to the look pose (believed) would put it
     ins = RightInserter(h, InsertCfg(tilt_deg=a.tilt, inhand_pos_mm=a.inhand_pos, inhand_rot_deg=a.inhand_rot, inhand=a.inhand))
-    if a.inhand == 'measured':                                 # believed in-hand pose: the measured mean
+    if a.inhand in ('measured', 'chain_est'):                  # believed in-hand pose: the measured mean
         from blind_insertion.envs.inhand import measured_mean
         R_sr0, p_sr0 = measured_mean(device=dev)
     else:

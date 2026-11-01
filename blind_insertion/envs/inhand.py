@@ -90,3 +90,52 @@ def sample_measured(n, device='cpu', generator=None):
     p_rs = p0 + d[:, :3] * 1e-3
     R_sr = R_rs.transpose(1, 2)
     return R_sr, -(R_sr @ p_rs[..., None])[..., 0], d
+
+
+# --- wider in-hand poses after an estimate-driven pick (chain, round 8) -------------------------------
+CHAIN_PICKEST = ('results/usbc/policy/chain/pickest_1_1.5.csv', 'results/usbc/policy/chain/pickest_2_3.csv',
+                 'results/usbc/policy/chain/pickest_4_5.csv')
+
+
+def _rows_chain():
+    import pandas as pd
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    cols = ['pick_inhand_dx_mm', 'pick_inhand_dy_mm', 'pick_inhand_dz_mm', 'pick_inhand_rx_deg', 'pick_inhand_ry_deg', 'pick_inhand_rz_deg']
+    dfs = [pd.read_csv(root / f) for f in CHAIN_PICKEST if (root / f).exists()]
+    d = pd.concat(dfs)
+    d = d[d['pick_ok'] == 1]
+    return d[cols].to_numpy()
+
+
+def _site_in_reader_from_deltas(d, device):
+    from blind_insertion.envs import kinematics as K
+    s, _ = _measured()
+    nom = s['nominal'].get('55.0') or s['nominal']['tilt55_flip0']
+    R0 = K.quat_to_mat(torch.tensor(nom['quat_wxyz'], device=device, dtype=torch.float32)[None])[0]
+    p0 = torch.tensor(nom['pos_m'], device=device, dtype=torch.float32)
+    rv = torch.deg2rad(d[:, 3:])
+    dR = K.axis_angle_mat(rv / rv.norm(dim=1, keepdim=True).clamp(min=1e-9), rv.norm(dim=1))
+    R_rs = dR @ R0
+    p_rs = p0 + d[:, :3] * 1e-3
+    R_sr = R_rs.transpose(1, 2)
+    return R_sr, -(R_sr @ p_rs[..., None])[..., 0]
+
+
+def sample_chain_est(n, device='cpu', generator=None, pos_mm=4., rot_deg=5., uniform_frac=0., stretch=(.8, 1.3)):
+    """Wide in-hand poses for the wrist estimators (round 8): drawn from the chain's estimate-driven picks
+    (pickest_*.csv, successful picks, noise levels 1-5 mm / 1.5-5 deg; settled grasps), each deviation
+    from the mean scaled by U(stretch) to widen the tails, about the nominal grasp (sample_measured
+    convention). uniform_frac > 0 mixes in uniform +/- pos_mm / +/- rot_deg on all axes: NOT physical for the
+    parallel pads (teleported, those readers slip 10 mm in 1 s), kept off by default.
+    Returns R (n,3,3), p (n,3), deltas (n,6)."""
+    rows = torch.tensor(_rows_chain(), device=device, dtype=torch.float32)
+    d = rows[torch.randint(len(rows), (n,), device=device, generator=generator)]
+    mu = rows.mean(0)
+    k = torch.rand(n, 1, device=device, generator=generator) * (stretch[1] - stretch[0]) + stretch[0]
+    d = mu + (d - mu) * k
+    u = (torch.rand(n, 6, device=device, generator=generator) * 2 - 1) * torch.tensor([pos_mm] * 3 + [rot_deg] * 3, device=device)
+    uni = torch.rand(n, device=device, generator=generator) < uniform_frac
+    d = torch.where(uni[:, None], u, d)
+    R, p = _site_in_reader_from_deltas(d, device)
+    return R, p, d

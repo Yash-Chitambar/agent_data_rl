@@ -468,6 +468,9 @@ class RightInserter:
             if c.inhand == 'measured':
                 from blind_insertion.envs.inhand import sample_measured
                 self.R_sr, self.p_sr, self.inhand = sample_measured(n, device=dev)
+            elif c.inhand == 'chain_est':
+                from blind_insertion.envs.inhand import sample_chain_est
+                self.R_sr, self.p_sr, self.inhand = sample_chain_est(n, device=dev)
             else:
                 self.R_sr, self.p_sr, self.inhand = sample_inhand(n, c.tilt_deg, c.pad_z_m, c.inhand_pos_mm, c.inhand_rot_deg, device=dev)
         if rel_p is None:
@@ -497,9 +500,13 @@ class RightInserter:
         pa = rt.lay.peg_qadr
         rt.q[:, pa:pa + 3] = reader_p
         rt.q[:, pa + 3:pa + 7] = K.mat_to_quat(reader_R)
-        if not hasattr(self, '_fq'):
-            self._fq = self._finger_q(rt.q[0])
-        rt.q[:, self.fingers] = self._fq
+        if c.inhand in ('measured', 'chain_est'):   # settled grasps: one opening fits every world
+            if not hasattr(self, '_fq'):
+                self._fq = self._finger_q(rt.q[0])
+            rt.q[:, self.fingers] = self._fq
+        else:                                # wide spread (tilted readers): per-world opening
+            fq = torch.tensor([self._finger_q(rt.q[w]) for w in range(n)], device=dev, dtype=rt.q.dtype)
+            rt.q[:, self.fingers] = fq[:, None]
         rt.v[:] = 0
         if forward:
             with wp.ScopedDevice(rt.cfg.device):
@@ -524,7 +531,7 @@ class RightInserter:
                   and reader in (int(m.geom_bodyid[c.geom1]), int(m.geom_bodyid[c.geom2]))]
             return min(ds) if ds else 1.
         lo, hi = 0., .0475
-        for _ in range(30):
+        for _ in range(16):
             mid = (lo + hi) / 2
             lo, hi = (mid, hi) if depth(mid) < contact else (lo, mid)
         return hi
