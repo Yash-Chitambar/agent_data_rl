@@ -229,6 +229,11 @@ class PickExpert:
         self.pose_err, self.reader_pose_fn, self.hover_tol = pose_err, reader_pose_fn, hover_tol_m
         self.gen = torch.Generator(device=task.device); self.gen.manual_seed(seed + 101)
         self.believed_frame = False   # True: plan and servo on encoder FK (non-privileged joints)
+        # Visual servo through the descent: stop at these fractions of the pre-grasp -> grasp line, settle,
+        # and raise need_frame; the caller renders the wrist camera and calls servo_update (or skip_frame).
+        self.servo_fracs = ()
+        self.servo_tol = (.0015, 1.0)    # settle at a waypoint: believed-FK error (m, deg), at most servo_wait_s
+        self.servo_wait_s = 1.5
 
     def _q(self):
         """Joint angles the expert plans and servos with: true (privileged) or, with believed_frame,
@@ -295,6 +300,8 @@ class PickExpert:
         self.ik_ok = ~bad
         self.p_est, self.R_est = p_r.clone(), R_r.clone()     # the reader pose planned with
         self.refined = torch.zeros(N, dtype=torch.bool, device=dev)
+        self.servo_k = torch.zeros(N, dtype=torch.long, device=dev)
+        self.need_frame = torch.zeros(N, dtype=torch.bool, device=dev)
         dq = (self.q_pre - self.q0).abs().max(1).values
         self.move_n = torch.clamp((dq / self.js / self.dt).ceil(), min=10).long()
         self.q_cmd = self.q0.clone()
@@ -363,6 +370,26 @@ class PickExpert:
         self.grip = torch.where(m, torch.where(self.phase >= 3, -1., 1.), self.grip)
         return {'holding': holding & m, 'on_line': on_line & ~holding & m, 'retreat': ~holding & ~on_line & m}
 
+    def servo_update(self, mask, delta):
+        """Wrist-servo correction for the worlds in mask: delta (N, 6) = grasp pose relative to the hand
+        (t in the grasp_site frame, rotation vector), composed with the hand pose the expert believes
+        (encoder FK with believed_frame). Re-plans grasp, approach line and lift; next waypoint."""
+        q = self._q(); p_h, R_h = self.t.chain.fk(q)
+        R_new = R_h @ K.axis_angle_mat(delta[:, 3:] / delta[:, 3:].norm(dim=1, keepdim=True).clamp(min=1e-9), delta[:, 3:].norm(dim=1))
+        p_new = p_h + (R_h @ delta[:, :3, None])[..., 0]
+        upv = torch.tensor([0., 0., 1.], device=q.device)
+        m = mask & self.ik_ok
+        self.p_g[m], self.R_g[m] = p_new[m], R_new[m]
+        self.p_pre[m] = (p_new - G.APPROACH_BACK * R_new[:, :, 2] + G.APPROACH_UP * upv)[m]
+        self.p_lift[m] = (p_new + G.LIFT_HEIGHT * upv)[m]
+        self.skip_frame(mask)
+
+    def skip_frame(self, mask):
+        at_way = mask & self.need_frame          # waypoint frames advance; the hover frame does not
+        self.servo_k = torch.where(at_way, self.servo_k + 1, self.servo_k)
+        self.refined |= mask
+        self.need_frame = self.need_frame & ~mask
+
     def _cart_step(self, p_wp, R_wp, v):
         dp = p_wp - self.p_cmd
         dist = dp.norm(dim=1, keepdim=True)
@@ -387,6 +414,12 @@ class PickExpert:
         self.R_cmd = torch.where(m0[:, None, None], R_c, self.R_cmd)
         # Cartesian targets for later phases
         p_wp = torch.where((ph == 4)[:, None] | (ph >= 5)[:, None], self.p_lift, self.p_g)
+        nf = len(self.servo_fracs)
+        if nf:
+            fr = torch.tensor(list(self.servo_fracs) + [1.], device=t.device)[self.servo_k.clamp(max=nf)]
+            p_way = self.p_pre + fr[:, None] * (self.p_g - self.p_pre)
+            at_way = (ph == 1) & (self.servo_k < nf)
+            p_wp = torch.where(at_way[:, None], p_way, p_wp)
         v = torch.where(ph >= 4, torch.full((N,), self.v, device=t.device), torch.full((N,), .05, device=t.device))
         dist, ang = self._cart_step(p_wp, self.R_g, v[:, None])
         self.p_cmd = torch.where(m0[:, None], p_c, self.p_cmd)
@@ -401,10 +434,14 @@ class PickExpert:
         # Cartesian integral (true TCP vs its waypoint) mapped through the Jacobian: removes servo
         # sag and IK residuals alike. Active from the settle phase on.
         integrate = (ph >= 2)
+        if nf:
+            integrate = integrate | (at_way & (dist < 2e-4))
         if self.hover_tol is not None:   # hold at the hover for the wrist camera: servo there too
             integrate = integrate | ((ph == 0) & (self.timer >= self.move_n))
         _, _, J = t.chain.fk(q, with_jac=True)
         p_tgt = torch.where((ph >= 4)[:, None], self.p_cmd, torch.where((ph == 0)[:, None], self.p_pre, self.p_g))
+        if nf:
+            p_tgt = torch.where(at_way[:, None], p_way, p_tgt)
         e6 = torch.cat([p_tgt - p_a, .5 * K.rot_log(self.R_g @ R_a.transpose(1, 2))], 1)
         JJt = J @ J.transpose(1, 2) + 1e-4 * torch.eye(6, device=t.device)
         dq = (J.transpose(1, 2) @ torch.linalg.solve(JJt, e6[..., None]))[..., 0]
@@ -418,7 +455,14 @@ class PickExpert:
         if self.hover_tol is not None:   # wait at the hover until the hand is there (wrist-camera refinement)
             hover_ok = (((p_a - self.p_pre).norm(dim=1) < self.hover_tol) & (e_r < 1.5)) | (self.timer >= self.move_n + round(4.0 / self.dt))
         adv |= (ph == 0) & (self.timer >= self.move_n + 5) & self.ik_ok & hover_ok
-        adv |= (ph == 1) & (dist < 2e-4) & (ang < 5e-3)
+        arrived = (ph == 1) & (dist < 2e-4) & (ang < 5e-3)
+        if nf:
+            e_w = (p_way - p_a).norm(dim=1)
+            self.way_timer = torch.where(at_way & arrived, getattr(self, 'way_timer', torch.zeros_like(self.timer)) + 1, torch.zeros_like(self.timer))
+            settled_w = ((e_w < self.servo_tol[0]) & (e_r < self.servo_tol[1])) | (self.way_timer >= round(self.servo_wait_s / self.dt))
+            self.need_frame = at_way & arrived & settled_w & (self.way_timer >= 5)
+            arrived = arrived & ~at_way
+        adv |= arrived
         settled = (e_p < self.settle_tol[0]) & (e_r < self.settle_tol[1])
         adv |= (ph == 2) & ((settled & (self.timer >= 5)) | (self.timer >= self.settle_max))
         # closed: the fingers have stopped (opening changes < 0.05 mm per step for 5 steps; the
