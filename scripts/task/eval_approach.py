@@ -97,6 +97,7 @@ def main():
     ap.add_argument('--fine-below-mm', type=float, default=0., help='use the fine wrist estimator at waypoints <= this gap (0: never)')
     ap.add_argument('--coarse-net', default='wrist', help='wrist estimator used above --fine-below-mm (runs/perception/<name>.pt)')
     ap.add_argument('--fine-net', default='wrist_fine', help='wrist_fine (right wrist) or wrist2_fine (right + left wrist)')
+    ap.add_argument('--inhand-net', default='', help='estimate the in-hand pose at the stop with this net (runs/perception/<name>.pt) and record its error')
     ap.add_argument('--fric-comp', action='store_true', help='right-arm Coulomb feed-forward (friction_comp.py)')
     ap.add_argument('--enc-offset-deg', type=float, default=1.5)
     ap.add_argument('--seed', type=int, default=1)
@@ -253,6 +254,17 @@ def main():
                       'lateral_mm_p99': float(torch.quantile(latn, .99)), 'ik_pos_err_mm_p99': float(torch.quantile(ik_pe[fin], .99) * 1e3),
                       'inhand_rot_change_deg_p99': float(torch.quantile(slip[fin], .99))})
     # 5. final
+    ih_err = None
+    if a.inhand_net:          # in-hand estimate at the stop (Part 4 variant J's 6 inputs) vs truth
+        from blind_insertion.envs.inhand import inhand_error6
+        ihn = load(a.inhand_net, dev)
+        fr = rt.render()
+        img = F.interpolate(fr['wrist_cam'].permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
+        with torch.no_grad():
+            est6 = ihn[0](img) * ihn[1]
+        sp_t, sR_t = ch.fk(h.q('right')); tip_t, rR_t = h.reader_pose()
+        true6 = inhand_error6(sp_t, sR_t, tip_t, rR_t)
+        ih_err = est6 - true6
     tp, trv = rel_pose(h)
     pc_final, _ = h.pc_pose()
     fin = torch.isfinite(rt.q).all(1)
@@ -265,6 +277,8 @@ def main():
          'left_latched': hold.latched, 'zed_ok': zed_ok,
          'wrist_cam_pos_err_mm': rt.visual.params['cam_pos_err_mm'][:, rt.visual.camera_names.index('wrist_cam')].clone(),
          'wrist_cam_rot_err_deg': rt.visual.params['cam_rot_err_deg'][:, rt.visual.camera_names.index('wrist_cam')].clone()}
+    if ih_err is not None:
+        w['inhand_est_err'] = ih_err; w['inhand_true'] = true6
     if per_world:
         w['servo_per_world'] = torch.stack(per_world, 1)     # (n, iters, [x, y, gap, ik_err, inhand_rot_change])
     w = {k: v.detach().cpu().numpy() for k, v in w.items()}
@@ -272,7 +286,13 @@ def main():
     q = lambda x, p: float(np.percentile(x[ok], p))
     pct = (50, 90, 99, 99.5, 100)
     name = a.name or f'approach_pc-{a.pc}_servo-{a.servo}_stop{a.stop:g}'
-    rep = {'name': name, 'method': __doc__.strip(), 'n': int(len(ok)), 'n_finite': int(ok.sum()), 'args': vars(a),
+    ih = {}
+    if 'inhand_est_err' in w:
+        e = w['inhand_est_err'][ok]
+        nm = ['dx_mm', 'dy_mm', 'dz_mm', 'rx_deg', 'ry_deg', 'rz_deg']
+        ih = {'inhand_estimate_at_stop': {k: {'p50_abs': float(np.percentile(np.abs(e[:, i]), 50)), 'p99_abs': float(np.percentile(np.abs(e[:, i]), 99)),
+                                              'mean': float(e[:, i].mean()), 'std': float(e[:, i].std())} for i, k in enumerate(nm)}}
+    rep = {'name': name, **ih, 'method': __doc__.strip(), 'n': int(len(ok)), 'n_finite': int(ok.sum()), 'args': vars(a),
            'units': 'mm and deg; plug tip in the port-2 frame (x across the panel, y up, z out of the panel = gap); '
                     'tilt = angle between the plug axis and the port axis; roll about the port axis',
            'lateral_mm': {f'p{p}': q(w['lateral_mm'], p) for p in pct},

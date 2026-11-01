@@ -144,6 +144,9 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   Details: FINDINGS 2026-11-01 round 5. Round 6: the arm-robust ZED nets miss real frames because of the
   arm-pose variation itself (ablation: DR, layout and reader placement do not; masking the arms does not
   help); v1 + gate stays; real frames with known PC poses under varied arm poses are needed (FINDINGS round 6).
+  Round 8: wrist nets for the chain's wider in-hand poses (`wrist_v14w` + `wrist_v15ws`, chain noisy-oracle 2,3:
+  lateral p99 1.32 mm / tilt 0.69 deg; 4,5: 1.64 / 0.87; nominal 1.17 / 0.62) and an in-hand estimate for Part 4's
+  variant J (`inhand_ih1`, error std <= 0.27 mm / 0.24 deg at the stop). FINDINGS round 8.
 - **Status (2026-11-01, round 4, `policy/approach-hold`): tilt/roll targets met; lateral p99 1.64 mm (target
   1.5 mm; 1.13 mm when the wrist-camera error is inside the real calibration).** Deliverable for Part 4:
   `results/usbc/policy/approach/preinsert_error.json` (+ `preinsert_error_samples.npz`).

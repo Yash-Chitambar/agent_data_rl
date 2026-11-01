@@ -131,7 +131,14 @@ class ApproachRenderer:
         rel_p = (pR.transpose(1, 2) @ (tip - pp)[..., None])[..., 0]
         rel_rv = K.rot_log(pR.transpose(1, 2) @ rR)
         ok = torch.isfinite(qpos).all(1) & (rel_p[:, 2] > .001) & (rel_p[:, :2].abs() < .02).all(1)
-        return frames, {'rel_p': rel_p, 'rel_rv': rel_rv, 'ok': ok}
+        return frames, {'rel_p': rel_p, 'rel_rv': rel_rv, 'ok': ok, 'inhand6': self.inhand6()}
+
+    def inhand6(self):
+        """True in-hand pose minus the nominal grasp (Part 4 variant J's 6 inputs) at the current state."""
+        from blind_insertion.envs.inhand import inhand_error6
+        sp, sR = self.h.chain['right'].fk(self.h.q('right'))
+        tip, rR = self.h.reader_pose()
+        return inhand_error6(sp, sR, tip, rR)
 
     def sample(self, cfg=None, nominal=False):
         c, n, h = cfg or SampleCfg(), self.n, self.h
@@ -152,7 +159,7 @@ class ApproachRenderer:
         ok = self.ins.place(rel_p, rel_R, resample_inhand=True)
         frames = rt.render()
         yaw = torch.atan2(-port_R[:, 1, 2], -port_R[:, 0, 2])  # insertion direction (-port z) in the plane
-        lab = {'rel_p': rel_p, 'rel_rv': K.rot_log(rel_R), 'port_xy': port_p[:, :2].clone(),
+        lab = {'rel_p': rel_p, 'rel_rv': K.rot_log(rel_R), 'port_xy': port_p[:, :2].clone(), 'inhand6': self.inhand6(),
                'port_yaw': yaw, 'ok': ok & plan['ok'], 'inhand': self.ins.inhand,
                'cam_err': rt.visual.params['cam_pos_err_mm'].clone() if 'cam_pos_err_mm' in rt.visual.params else None}
         return frames, lab

@@ -139,3 +139,23 @@ def sample_chain_est(n, device='cpu', generator=None, pos_mm=4., rot_deg=5., uni
     d = torch.where(uni[:, None], u, d)
     R, p = _site_in_reader_from_deltas(d, device)
     return R, p, d
+
+
+def nominal_reader_in_site(device='cpu'):
+    """(R_rs0, p_rs0): the nominal Part 1 grasp, reader (plug-tip frame) in grasp_site (reader_grasp nominal)."""
+    from blind_insertion.envs import kinematics as K
+    s, _ = _measured()
+    nom = s['nominal'].get('55.0') or s['nominal']['tilt55_flip0']
+    R0 = K.quat_to_mat(torch.tensor(nom['quat_wxyz'], device=device, dtype=torch.float32)[None])[0]
+    return R0, torch.tensor(nom['pos_m'], device=device, dtype=torch.float32)
+
+
+def inhand_error6(site_p, site_R, reader_p, reader_R):
+    """(n, 6) in-hand pose minus the nominal grasp, as Part 4 variant J reads it (InsertionTask.inhand_error):
+    reader-in-TCP position minus nominal in mm on the TCP axes, then the rotation vector of R_rs @ R_nom^T
+    in deg on the TCP axes."""
+    from blind_insertion.envs import kinematics as K
+    R0, p0 = nominal_reader_in_site(site_p.device)
+    R_rs = site_R.transpose(1, 2) @ reader_R
+    p_rs = (site_R.transpose(1, 2) @ (reader_p - site_p)[..., None])[..., 0]
+    return torch.cat([(p_rs - p0) * 1e3, torch.rad2deg(K.rot_log(R_rs @ R0.T))], 1)
