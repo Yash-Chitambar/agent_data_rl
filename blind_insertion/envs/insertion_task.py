@@ -130,6 +130,9 @@ class InsertionCfg:
     # gap. Rows that are approach failures (lateral > 8 mm, gap outside 0.5-15 mm) are dropped.
     start_source: str = 'uniform'
     npz_scale: float = 1.0
+    # This fraction of npz starts instead scales its errors by a per-start factor uniform in scale_range.
+    scale_range_frac: float = 0.0
+    scale_range: tuple = (1.5, 2.0)
     # Over-sample hard starts: this fraction of npz starts gets its lateral error replaced by a uniform
     # draw in an annulus [lo, hi] m (direction uniform); angles and gap stay from the npz row (scaled).
     hard_frac: float = 0.0
@@ -455,9 +458,13 @@ class InsertionTask(BimanualTask):
                 ang = u(k, 3) * c.angle_deg * math.pi / 180
             else:
                 rows = self._npz_rows()[torch.randint(len(self._npz_rows()), (k,), device=dev, generator=gen)]
-                lat = rows[:, :2] * 1e-3 * c.npz_scale
+                sc = torch.full((k, 1), float(c.npz_scale), device=dev)
+                if c.scale_range_frac > 0:
+                    alt = c.scale_range[0] + (c.scale_range[1] - c.scale_range[0]) * torch.rand(k, 1, device=dev, generator=gen)
+                    sc = torch.where(torch.rand(k, 1, device=dev, generator=gen) < c.scale_range_frac, alt, sc)
+                lat = rows[:, :2] * 1e-3 * sc
                 gap = rows[:, 2] * 1e-3
-                ang = rows[:, 3:6] * math.pi / 180 * c.npz_scale
+                ang = rows[:, 3:6] * math.pi / 180 * sc
                 if c.hard_frac > 0:
                     hard = (torch.rand(k, device=dev, generator=gen) < c.hard_frac)
                     rad = c.hard_lat_m[0] + (c.hard_lat_m[1] - c.hard_lat_m[0]) * torch.rand(k, device=dev, generator=gen)
