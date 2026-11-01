@@ -10,8 +10,8 @@
   "look_gap": 30.0,
   "stop": 6.0,
   "wrist_net": "wrist_v14w",
-  "fine_net": "wrist_v15ws",
-  "inhand_net": "inhand_ih1",
+  "fine_net": "wrist_v18ws",
+  "inhand_net": "inhand_ih5",
   "zed_gate": "zed_v1_gate_arm",
   "handover": "torque",
   "stop_offset_mm": [0.0, 0.12, 0.0]
