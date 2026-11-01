@@ -293,10 +293,13 @@ def main():
     ap.add_argument('--nworld', type=int, default=1024)
     ap.add_argument('--seed', type=int, default=1000)
     ap.add_argument('--out', required=True)
+    ap.add_argument('--live', default=LV, help='live hand-over states npz (held-out: first live_holdout)')
+    ap.add_argument('--conds', default='live,r3x1.5')
     a = ap.parse_args()
+    globals()['LV'] = a.live
     pol = load_insertion_policy(a.policy)
-    report = {'policy': a.policy, 'note': 'forces sampled at the last of the 20 substeps of each 20 ms control step'}
-    for cond in ('live', 'r3x1.5'):
+    report = {'policy': a.policy, 'live_states': a.live, 'note': 'forces sampled at the last of the 20 substeps of each 20 ms control step'}
+    for cond in a.conds.split(','):
         env, rec, length, outcome, starts = rollout(pol, cond, a.nworld, a.seed)
         dt = env.dt
         st = episode_stats(rec, length, outcome, dt)
