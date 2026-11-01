@@ -104,6 +104,29 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/chain`) — Real-robot-realistic chain (encoder-FK everywhere, servo-descent pick, K-J with in-hand net): 99.32 % at ±1.5 deg (n = 2048) and ±0.5 deg (n = 1024)
+
+Config: `--believed-frame --enc-offset-deg 1.5|0.5 --pick expert_servo` (Part 1 servo descent, policy/pick 49067ed: ZED reader
+estimate + gate, hover wait 4 mm, wrist servo nets `reader_servo_hover` / `_near` (position) / `_near6` (rotation) at the
+hover and 50 / 80 / 92 % of the descent, re-hover above 8 mm, expert on encoder FK), round-8 approach, 2 cm hold, torque
+hand-over, insertion K-J fed by the in-hand net `inhand_ih1`. Seeds 7000-7003 (1.5 deg; 7003 run separately on GPU 1,
+same config) and 7000-7001 (0.5 deg).
+
+| Offsets | n | End to end | Wilson 95 % | Pick | Hold / transport / approach | Insertion | Failures |
+|---|---|---|---|---|---|---|---|
+| ±1.5 deg | 2048 | **99.32 %** | [98.86, 99.59] | 2043 | all | 2034/2043 | 5 reader rejected, 9 stuck at the mouth |
+| ±0.5 deg | 1024 | **99.32 %** | [98.60, 99.67] | 1021 | all | 1017/1021 | 2 reader rejected, 1 pick, 2 mouth, 1 tilt, 1 deep-unseated |
+
+(The privileged-joint expert under the same convention: 51.4 % / 82.9 %.) Peak axial push (1.5 deg) p50 7.6 / p99 15.8 /
+max 24.4 N; time to seat p50 0.9 / p99 2.75 s. Grasp error at the close p99 3.4 mm / 3.1 deg; 1345/2048 picks re-hovered.
+**In-hand handling:** the servo pick leaves a wider in-hand pose (true offset from nominal p50 1.7 / p99 3.8 mm,
+0.6 / 2.7 deg) than the privileged pick (p99 0.9 mm / 0.5 deg). The approach still brings the plug to lateral p99
+1.98 mm, tilt p99 2.69 deg. The in-hand net's error grows to p50 0.57 / p99 2.62 mm, 0.69 / 2.84 deg (vs 1.09 mm /
+0.65 deg p99 with the privileged pick): it is outside its training spread. The insertion failures concentrate there:
+episodes with an in-hand rotation estimate error > 1.5 deg seat 94.3 % (n = 229) vs 99.95 % below. Next lever: train
+the in-hand net (and the approach nets) on the servo pick's in-hand distribution.
+Demos of this config (6 successes, 2 failures at ±1.5 deg): `results/usbc/policy/chain/demos/`.
+
 ### 2026-11-01 (mason, `policy/chain`) — Chain with insertion K-J (6-D in-hand estimate input): 99.56 % (n = 2048), in-hand net error p99 1.09 mm / 0.65 deg
 
 The chain now feeds insertion policies that read an in-hand estimate (`pol.meta obs_dim` 68, `InsertionCfg.inhand_obs`):
