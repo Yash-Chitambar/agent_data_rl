@@ -57,10 +57,13 @@ def generate(task, n, gen, size=192, f_min=0., f_max=.93, rot_deg=5., e_max=.015
     return torch.cat(X)[:n], torch.cat(Y)[:n]
 
 
-def errors(pred, y):
+def errors(pred, y, rot_only=False, dist=None):
     d = (pred - y)
-    pos = d[:, :3].norm(dim=1) * 1e3; rot = torch.rad2deg(d[:, 3:].norm(dim=1)) if d.shape[1] > 3 else torch.zeros_like(pos)
-    dist = y[:, :3].norm(dim=1)
+    if rot_only:
+        rot = torch.rad2deg(d.norm(dim=1)); pos = torch.zeros_like(rot)
+    else:
+        pos = d[:, :3].norm(dim=1) * 1e3; rot = torch.rad2deg(d[:, 3:].norm(dim=1)) if d.shape[1] > 3 else torch.zeros_like(pos)
+    dist = y[:, :3].norm(dim=1) if dist is None else dist
     out = {}
     for name, m in (('all', torch.ones_like(dist, dtype=torch.bool)), ('near_lt40mm', dist < .04), ('mid_40_80mm', (dist >= .04) & (dist < .08)), ('far_ge80mm', dist >= .08)):
         if m.sum() == 0: continue
@@ -75,6 +78,7 @@ def main():
     ap.add_argument('--res', type=int, default=320); ap.add_argument('--size', type=int, default=192)
     ap.add_argument('--epochs', type=int, default=40); ap.add_argument('--width', type=int, default=32)
     ap.add_argument('--tag', default=''); ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--rot_only', action='store_true', help='predict the grasp rotation relative to the hand only (3 outputs)')
     ap.add_argument('--pos_only', action='store_true', help='predict the grasp position relative to the hand only (3 outputs)')
     ap.add_argument('--f_min', type=float, default=0.); ap.add_argument('--f_max', type=float, default=.93)
     ap.add_argument('--extra', nargs='*', default=[], help='servo DAgger dumps (pick_expert_eval.py --dump_servo): frames + privileged labels, added to training')
@@ -96,13 +100,19 @@ def main():
     print(f'generated {len(X)}+{len(Xt)} in {t_gen:.0f} s', flush=True)
     del task; torch.cuda.empty_cache()
     for f_ in a.extra:
+        while not Path(f_).exists():      # a closed-loop dump may still be running
+            time.sleep(30)
+        time.sleep(5)
         D = torch.load(f_); m_ = (D['k'] >= a.extra_k_min) & (D['k'] <= a.extra_k_max)
         X = torch.cat([X, D['X'][m_]]); Y = torch.cat([Y, D['Y'][m_].to(dev)])
         print(f'extra {f_}: {int(m_.sum())} frames', flush=True)
-    no = 3 if a.pos_only else 6
+    no = 3 if (a.pos_only or a.rot_only) else 6
+    dist_tr, dist_te = Y[:, :3].norm(dim=1), Yt[:, :3].norm(dim=1)
     if a.pos_only:
         Y, Yt = Y[:, :3], Yt[:, :3]
-    sc = SCALE[:no].to(dev)
+    if a.rot_only:
+        Y, Yt = Y[:, 3:], Yt[:, 3:]
+    sc = (SCALE[3:] if a.rot_only else SCALE[:no]).to(dev)
     net = PoseNet(no, a.size, width=a.width).to(dev)
     if a.init:
         net.load_state_dict(torch.load(a.init)['net'])
@@ -114,24 +124,24 @@ def main():
         net.train(); perm = torch.randperm(len(X))
         for i in range(len(X) // bs):
             idx = perm[i * bs:(i + 1) * bs]; y = Y[idx.to(dev)]
-            w = (.03 / (y[:, :3].norm(dim=1) + .01)).clamp(max=2.)
+            w = (.03 / (dist_tr[idx.to(dev)] + .01)).clamp(max=2.) if not a.rot_only else torch.ones(len(idx), device=dev)
             l = F.smooth_l1_loss(net(X[idx].to(dev, non_blocking=True)), y / sc, beta=.02, reduction='none').mean(1)
             loss = (w * l).sum() / w.sum()
             opt.zero_grad(); loss.backward(); opt.step(); sched.step()
         if ep % 5 == 4 or ep == a.epochs - 1:
             net.eval()
             with torch.no_grad():
-                e = errors(pred_of(Xt), Yt)
+                e = errors(pred_of(Xt), Yt, a.rot_only, dist_te)
             print(ep, f'loss {loss.item():.4f}', {k: (round(v['pos_mm'][50], 2), round(v['pos_mm'][99], 2), round(v['rot_deg'][50], 2), round(v['rot_deg'][99], 2)) for k, v in e.items()}, flush=True)
     net.eval()
     with torch.no_grad():
         pt = pred_of(Xt)
     Path('runs/perception').mkdir(parents=True, exist_ok=True)
-    torch.save({'net': net.state_dict(), 'size': a.size, 'width': a.width, 'n_out': no, 'scale': sc.cpu(), 'res': a.res,
+    torch.save({'net': net.state_dict(), 'size': a.size, 'width': a.width, 'n_out': no, 'rot_only': a.rot_only, 'scale': sc.cpu(), 'res': a.res,
                 'camera': 'wrist_cam', 'output': 'grasp pose relative to the hand: t (m, grasp_site frame), rotation vector (rad)'},
                f'runs/perception/reader_servo{a.tag}.pt')
     rep = {'estimator': 'reader_servo' + a.tag, 'method': __doc__.strip(), 'args': vars(a), 'n_train': len(X), 'n_test': len(Xt),
-           'heldout_error': errors(pt, Yt), 'generate_s': t_gen, 'total_s': time.time() - t0}
+           'heldout_error': errors(pt, Yt, a.rot_only, dist_te), 'generate_s': t_gen, 'total_s': time.time() - t0}
     out = Path(f'results/usbc/policy/pick/reader_servo{a.tag}.json')
     out.write_text(json.dumps(rep, indent=1) + '\n')
     np.savez_compressed(out.with_suffix('.npz'), pred=pt.cpu().numpy(), target=Yt.cpu().numpy())

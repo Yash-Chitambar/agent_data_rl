@@ -159,7 +159,8 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
                     if NNET is not None and ex.need_frame.any():
                         dn = _run(NNET, NSC)
                         if RNET is not None:
-                            dn = torch.cat([dn[:, :3], _run(RNET, RSC)[:, 3:]], 1)
+                            _r = torch.cat([RNET(fr[i:i + 256]) for i in range(0, N, 256)]) * RSC
+                            dn = torch.cat([dn[:, :3], _r if _r.shape[1] == 3 else _r[:, 3:]], 1)
                         delta = torch.where(ex.need_frame[:, None], dn, delta)
                 task.cfg.physics.render_rgb = False
                 if a.dump_servo:
