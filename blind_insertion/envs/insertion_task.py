@@ -142,6 +142,12 @@ class InsertionCfg:
     live_split: str = 'all'             # 'eval': first live_holdout valid states; 'train': the rest; 'all'
     live_holdout: int = 1024
     privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
+    # In-hand pose estimate as 6 extra actor inputs (obs[62:68]): reader (plug-tip frame) in the right TCP
+    # frame minus the nominal grasp, position in mm (TCP axes) then rotation vector in deg (TCP axes,
+    # R_est @ R_nom^T). Set from the true pose at reset and refreshed at the end of warmup, plus a
+    # per-episode Gaussian estimate error (sigma: m, deg). The chain feeds the perception estimate here.
+    inhand_obs: bool = False
+    inhand_obs_noise: tuple = (0.0005, 0.5)
     grasp_p: tuple | None = None        # legacy 60-deg geometric grasp only (grasp='geometric60')
     # In-hand pose: 'part1' = Part 1's measured pick (scenes/reader_grasp.inhand_pose(): 55-deg grasp,
     # mean pose about the nominal, per-axis p1..p99 spread of 2048 held-out picks) with the spread x
@@ -269,6 +275,8 @@ class InsertionTask(BimanualTask):
         self.hist = torch.zeros(n, self.icfg.history, self.obs_dim, device=dev)
         self.start = {}
         self.ref_rel = torch.zeros(n, 4, 4, device=dev)       # reader in TCP at end of warmup
+        self.inhand_est = torch.zeros(n, 6, device=dev)        # in-hand estimate input (inhand_obs)
+        self.inhand_noise = torch.zeros(n, 6, device=dev)
         self.pc_start = torch.zeros(n, 7, device=dev)
         self.captured = torch.zeros(n, dtype=torch.bool, device=dev)
         self.strict_run = torch.zeros(n, dtype=torch.long, device=dev)
@@ -577,6 +585,11 @@ class InsertionTask(BimanualTask):
             if len(live):
                 self._restore_live(live)
         self.ref_rel[ids] = self._reader_in_tcp()[ids]
+        if self.icfg.inhand_obs:
+            sp, sr = self.icfg.inhand_obs_noise
+            z = torch.randn(len(ids), 6, device=self.device, generator=self.gen)
+            self.inhand_noise[ids] = z * torch.tensor([sp * 1e3] * 3 + [sr] * 3, device=self.device)
+            self._set_inhand_est(ids)
         o = self._actor_obs()
         self.hist[ids] = o[ids, None].expand(-1, self.icfg.history, -1)
         self.phi[ids] = self._potential()[ids]
@@ -702,6 +715,8 @@ class InsertionTask(BimanualTask):
         rel = self._reader_in_tcp()
         at_warm = self.steps == self.icfg.warmup_steps
         self.ref_rel[at_warm] = rel[at_warm]
+        if self.icfg.inhand_obs:
+            self._set_inhand_est(at_warm)
         d_rel = rel[:, :3, 3] - self.ref_rel[:, :3, 3]
         ang_rel = K.rot_log(rel[:, :3, :3] @ self.ref_rel[:, :3, :3].transpose(1, 2)).norm(dim=1) * 180 / math.pi
         after_warm = self.steps > self.icfg.warmup_steps
@@ -830,6 +845,18 @@ class InsertionTask(BimanualTask):
         dist = (d[:, :2].norm(dim=1) * 3 + d[:, 2].abs())    # lateral weighted (precision)
         return -(dist / self.icfg.shaping_scale_m).clamp(max=5.)
 
+    def inhand_error(self, rel):
+        """(n, 6) reader-in-TCP pose minus the nominal grasp: mm (TCP axes), rotation vector deg."""
+        if not hasattr(self, '_inhand_nom'):
+            R0, p0 = inhand_pose(1, self.icfg, self.device, nominal=True)
+            self._inhand_nom = (R0[0], p0[0])
+        R0, p0 = self._inhand_nom
+        dr = K.rot_log(rel[:, :3, :3] @ R0.T) * 180 / math.pi
+        return torch.cat([(rel[:, :3, 3] - p0) * 1e3, dr], 1)
+
+    def _set_inhand_est(self, ids):
+        self.inhand_est[ids] = self.inhand_error(self.ref_rel[ids]) + self.inhand_noise[ids]
+
     def _reader_in_tcp(self):
         rt = self.runtime
         q = rt.q[:, rt.indices['right'][0]]
@@ -844,7 +871,7 @@ class InsertionTask(BimanualTask):
 
     @property
     def obs_dim(self):
-        return 62 + (18 if self.icfg.privileged_actor else 0)
+        return 62 + (6 if self.icfg.inhand_obs else 0) + (18 if self.icfg.privileged_actor else 0)
 
     def _actor_obs(self):
         o = self.observation()
@@ -862,6 +889,8 @@ class InsertionTask(BimanualTask):
             base = torch.cat(parts[:4], 1).clone()
             base[:, list(self.icfg.left_mask_idx())] = 0
             parts = [base] + parts[4:]
+        if self.icfg.inhand_obs:
+            parts.append(self.inhand_est)
         if self.icfg.privileged_actor:     # teacher only: plug pose in the live port frame, reader in the TCP
             p, R = self.runtime.plug_in_port()
             rel = self._reader_in_tcp()
