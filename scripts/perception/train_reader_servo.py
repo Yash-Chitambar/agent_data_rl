@@ -29,14 +29,14 @@ from blind_insertion.perception.nets import PoseNet
 SCALE = torch.tensor([.05, .05, .10, .06, .06, .06])
 
 
-def generate(task, n, gen, size=192, f_max=.93, rot_deg=5.):
+def generate(task, n, gen, size=192, f_min=0., f_max=.93, rot_deg=5.):
     X, Y = [], []
     rt = task.runtime; dev = task.device
     while sum(len(x) for x in X) < n:
         task.reset()
         N = task.cfg.physics.nworld
         ex = PickExpert(task); ex.reset()                        # privileged plan = true approach line
-        f = torch.rand(N, device=dev, generator=gen) * f_max
+        f = f_min + torch.rand(N, device=dev, generator=gen) * (f_max - f_min)
         p_line = ex.p_pre + f[:, None] * (ex.p_g - ex.p_pre)
         e = torch.clamp(.015 * (1 - f), min=.003)
         dp = (torch.rand(N, 3, device=dev, generator=gen) * 2 - 1) * e[:, None]
@@ -59,7 +59,7 @@ def generate(task, n, gen, size=192, f_max=.93, rot_deg=5.):
 
 def errors(pred, y):
     d = (pred - y)
-    pos = d[:, :3].norm(dim=1) * 1e3; rot = torch.rad2deg(d[:, 3:].norm(dim=1))
+    pos = d[:, :3].norm(dim=1) * 1e3; rot = torch.rad2deg(d[:, 3:].norm(dim=1)) if d.shape[1] > 3 else torch.zeros_like(pos)
     dist = y[:, :3].norm(dim=1)
     out = {}
     for name, m in (('all', torch.ones_like(dist, dtype=torch.bool)), ('near_lt40mm', dist < .04), ('mid_40_80mm', (dist >= .04) & (dist < .08)), ('far_ge80mm', dist >= .08)):
@@ -75,23 +75,38 @@ def main():
     ap.add_argument('--res', type=int, default=320); ap.add_argument('--size', type=int, default=192)
     ap.add_argument('--epochs', type=int, default=40); ap.add_argument('--width', type=int, default=32)
     ap.add_argument('--tag', default=''); ap.add_argument('--seed', type=int, default=0)
+    ap.add_argument('--pos_only', action='store_true', help='predict the grasp position relative to the hand only (3 outputs)')
+    ap.add_argument('--f_min', type=float, default=0.); ap.add_argument('--f_max', type=float, default=.93)
+    ap.add_argument('--extra', nargs='*', default=[], help='servo DAgger dumps (pick_expert_eval.py --dump_servo): frames + privileged labels, added to training')
+    ap.add_argument('--extra_k_min', type=int, default=0, help='use dump frames with waypoint index >= this (-1: hover frames too)')
+    ap.add_argument('--init', default=None, help='initialise from this checkpoint (fine-tune)')
+    ap.add_argument('--lr', type=float, default=2e-3)
     a = ap.parse_args()
     t0 = time.time(); dev = torch.device('cuda:0')
     torch.manual_seed(a.seed); gen = torch.Generator(device=dev); gen.manual_seed(a.seed)
     task = PickTask(PickTaskCfg(physics=BimanualCfg(nworld=256, device='cuda:0', render_rgb=True, visual_dr=True, camera_resolution=a.res,
                                                     measured_camera_cadence=False, task_layout='results/usbc/policy/pick/task_layout.json')))
-    X, Y = generate(task, a.n, gen, a.size)
+    X, Y = generate(task, a.n, gen, a.size, a.f_min, a.f_max)
     gen.manual_seed(999); torch.manual_seed(999)
-    Xt, Yt = generate(task, a.n_test, gen, a.size)
+    Xt, Yt = generate(task, a.n_test, gen, a.size, a.f_min, a.f_max)
     Y, Yt = Y.to(dev), Yt.to(dev)
     t_gen = time.time() - t0
     print(f'generated {len(X)}+{len(Xt)} in {t_gen:.0f} s', flush=True)
     del task; torch.cuda.empty_cache()
-    sc = SCALE.to(dev)
-    net = PoseNet(6, a.size, width=a.width).to(dev)
+    for f_ in a.extra:
+        D = torch.load(f_); m_ = D['k'] >= a.extra_k_min
+        X = torch.cat([X, D['X'][m_]]); Y = torch.cat([Y, D['Y'][m_].to(dev)])
+        print(f'extra {f_}: {int(m_.sum())} frames', flush=True)
+    no = 3 if a.pos_only else 6
+    if a.pos_only:
+        Y, Yt = Y[:, :3], Yt[:, :3]
+    sc = SCALE[:no].to(dev)
+    net = PoseNet(no, a.size, width=a.width).to(dev)
+    if a.init:
+        net.load_state_dict(torch.load(a.init)['net'])
     opt = torch.optim.AdamW(net.parameters(), 1e-3, weight_decay=1e-4)
     bs = 128; steps = a.epochs * (len(X) // bs)
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, 2e-3, total_steps=steps, pct_start=.1)
+    sched = torch.optim.lr_scheduler.OneCycleLR(opt, a.lr, total_steps=steps, pct_start=.1)
     pred_of = lambda XX: torch.cat([net(XX[i:i + 128].to(dev)) for i in range(0, len(XX), 128)]) * sc   # noqa: E731
     for ep in range(a.epochs):
         net.train(); perm = torch.randperm(len(X))
@@ -110,7 +125,7 @@ def main():
     with torch.no_grad():
         pt = pred_of(Xt)
     Path('runs/perception').mkdir(parents=True, exist_ok=True)
-    torch.save({'net': net.state_dict(), 'size': a.size, 'width': a.width, 'n_out': 6, 'scale': sc.cpu(), 'res': a.res,
+    torch.save({'net': net.state_dict(), 'size': a.size, 'width': a.width, 'n_out': no, 'scale': sc.cpu(), 'res': a.res,
                 'camera': 'wrist_cam', 'output': 'grasp pose relative to the hand: t (m, grasp_site frame), rotation vector (rad)'},
                f'runs/perception/reader_servo{a.tag}.pt')
     rep = {'estimator': 'reader_servo' + a.tag, 'method': __doc__.strip(), 'args': vars(a), 'n_train': len(X), 'n_test': len(Xt),

@@ -234,6 +234,7 @@ class PickExpert:
         self.servo_fracs = ()
         self.servo_tol = (.0015, 1.0)    # settle at a waypoint: believed-FK error (m, deg), at most servo_wait_s
         self.servo_wait_s = 1.5
+        self.servo_rot = True
 
     def _q(self):
         """Joint angles the expert plans and servos with: true (privileged) or, with believed_frame,
@@ -375,7 +376,10 @@ class PickExpert:
         (t in the grasp_site frame, rotation vector), composed with the hand pose the expert believes
         (encoder FK with believed_frame). Re-plans grasp, approach line and lift; next waypoint."""
         q = self._q(); p_h, R_h = self.t.chain.fk(q)
-        R_new = R_h @ K.axis_angle_mat(delta[:, 3:] / delta[:, 3:].norm(dim=1, keepdim=True).clamp(min=1e-9), delta[:, 3:].norm(dim=1))
+        rv = delta[:, 3:].nan_to_num(0.)
+        R_new = R_h @ K.axis_angle_mat(rv / rv.norm(dim=1, keepdim=True).clamp(min=1e-9), rv.norm(dim=1))
+        keep = torch.isnan(delta[:, 3:]).any(1) | (not self.servo_rot)   # position-only correction: keep the planned tool orientation
+        R_new = torch.where(keep[:, None, None], self.R_g, R_new)
         p_new = p_h + (R_h @ delta[:, :3, None])[..., 0]
         upv = torch.tensor([0., 0., 1.], device=q.device)
         m = mask & self.ik_ok

@@ -43,6 +43,7 @@ ap.add_argument('--ens_k', type=float, default=0.01, help='temporal ensembling w
 ap.add_argument('--n_action_steps', type=int, default=10)
 ap.add_argument('--layout', default='results/usbc/policy/pick/task_layout.json')
 ap.add_argument('--no_visual_dr', action='store_true')
+ap.add_argument('--enc_offset_deg', type=float, default=None, help='encoder-offset DR half range (deg, joints 2-5); default the task config (1.5)')
 ap.add_argument('--out', default='results/usbc/policy/pick/act_eval')
 ap.add_argument('--auto_close', action='store_true', help='latch the gripper closed once the encoder-FK tool tip is within 8 mm '
                 'above the grasp height and the right arm has been still (< 0.03 rad/s) for 0.4 s (no privileged state)')
@@ -54,6 +55,8 @@ pol = torch.jit.load(a.policy).eval().cuda()
 cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout=a.layout, render_rgb=True,
                                       camera_resolution=a.res, visual_dr=None if a.no_visual_dr else True),
                   episode_s=a.episode_s + 0.5)
+if a.enc_offset_deg is not None:
+    cfg.enc_offset_deg = a.enc_offset_deg
 task = PickTask(cfg)
 dev, N = task.device, a.nworld
 T = round(a.episode_s / task.dt); hold = round(1.0 / task.dt)
@@ -120,7 +123,7 @@ for b in range(math.ceil(a.episodes / N)):
 import pandas as pd
 df = pd.DataFrame(rows); n, k = len(df), int(df.success.sum())
 out = Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
-tag = f'{out.name}_{Path(a.policy).parent.name}_s{a.seed}' + ('_ens' if a.ens_k >= 0 else f'_chunk{a.n_action_steps}') + (f'_retry{a.retry}' if a.retry else '') + ('_autoclose' if a.auto_close else '') + (f'_ep{a.episode_s:g}' if a.episode_s != 13 else '')
+tag = f'{out.name}_{Path(a.policy).parent.name}_s{a.seed}' + ('_ens' if a.ens_k >= 0 else f'_chunk{a.n_action_steps}') + (f'_retry{a.retry}' if a.retry else '') + ('_autoclose' if a.auto_close else '') + (f'_ep{a.episode_s:g}' if a.episode_s != 13 else '') + (f'_enc{a.enc_offset_deg:g}' if a.enc_offset_deg is not None else '')
 df.to_parquet(out.parent / f'{tag}.parquet')
 summ = {'policy': a.policy, 'n': n, 'success': k, 'rate': k / n, 'wilson95_lo': wilson_lo(k, n), 'seed': a.seed,
         'execution': f'temporal ensembling k={a.ens_k}' if a.ens_k >= 0 else f'chunks of {a.n_action_steps}',

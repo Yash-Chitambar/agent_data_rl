@@ -39,6 +39,10 @@ ap.add_argument('--pad_mu_range', type=float, nargs=2, default=None)
 ap.add_argument('--layout', default='results/usbc/policy/pick/task_layout.json')
 ap.add_argument('--enc_offset_deg', type=float, default=None, help='encoder-offset DR half range (deg, joints 2-5); default the task config (1.5)')
 ap.add_argument('--servo', default=None, help='wrist servo net (scripts/perception/train_reader_servo.py): grasp pose relative to the hand at the hover and at --servo_fracs of the descent')
+ap.add_argument('--servo_pos_only', action='store_true')
+ap.add_argument('--dump_servo', default=None, help='save the servo frames (224 px) with privileged labels (true grasp relative to the true hand) to this .pt (servo DAgger)')
+ap.add_argument('--dump_size', type=int, default=224)
+ap.add_argument('--servo_near', default=None, help='second servo net used for the waypoint frames (the hover frame keeps --servo)')
 ap.add_argument('--servo_fracs', type=float, nargs='*', default=[.5, .8])
 ap.add_argument('--believed_frame', action='store_true', help='expert plans/servos on encoder FK (encoder-offset errors hit the grasp, as on the real robot)')
 ap.add_argument('--wrist_rebase', choices=('true', 'encoder'), default='true', help='hand pose the wrist estimate is rebased on: true FK (privileged) or encoder FK (as on the real robot: encoder offset DR errors included)')
@@ -94,7 +98,7 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
     ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v, integral_gain=a.ki, settle_max_s=a.settle_max_s,
                     pose_err=a.pose_err, reader_pose_fn=est_fn, hover_tol_m=.004 if (a.reader_wrist or a.servo) else None)
     ex.believed_frame = a.believed_frame
-    if a.servo: ex.servo_fracs = tuple(a.servo_fracs)
+    if a.servo: ex.servo_fracs = tuple(a.servo_fracs); ex.servo_rot = not a.servo_pos_only
     ex.reset()
     N = a.nworld
     start_hold = {k: torch.zeros(N, *s, device=task.device) for k, s in (('p', (3,)), ('R', (3, 3)), ('tilt', ()))}
@@ -111,7 +115,12 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
         from blind_insertion.perception.nets import PoseNet as _PN
         if batch == 0 and a.servo != 'oracle':
             _ck = torch.load(a.servo, map_location=task.device)
-            SNET = _PN(6, _ck['size'], width=_ck['width']).to(task.device).eval(); SNET.load_state_dict(_ck['net']); SSC = _ck['scale'].to(task.device); SSIZE = _ck['size']
+            SNET = _PN(_ck.get('n_out', 6), _ck['size'], width=_ck['width']).to(task.device).eval(); SNET.load_state_dict(_ck['net']); SSC = _ck['scale'].to(task.device); SSIZE = _ck['size']
+            NNET = None
+            DUMP = {'X': [], 'Y': [], 'k': []}
+            if a.servo_near:
+                _cn = torch.load(a.servo_near, map_location=task.device)
+                NNET = _PN(_cn.get('n_out', 6), _cn['size'], width=_cn['width']).to(task.device).eval(); NNET.load_state_dict(_cn['net']); NSC = _cn['scale'].to(task.device)
         n_frames = torch.zeros(N, dtype=torch.long, device=task.device)
     g_err = torch.full((N, 2), float('nan'), device=task.device)
     for k in range(task.max_steps - 1):
@@ -136,9 +145,19 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
                 task.cfg.physics.render_rgb = True
                 with torch.no_grad():
                     fr = task.runtime.render()['wrist_cam']
-                    fr = torch.nn.functional.interpolate(fr.permute(0, 3, 1, 2).float(), size=(SSIZE, SSIZE), mode='area').round().permute(0, 2, 3, 1)
-                    delta = torch.cat([SNET(fr[i:i + 256]) for i in range(0, N, 256)]) * SSC
+                    def _run(net, sc):
+                        d_ = torch.cat([net(fr[i:i + 256]) for i in range(0, N, 256)]) * sc
+                        return torch.cat([d_, torch.full_like(d_, float('nan'))], 1) if d_.shape[1] == 3 else d_
+                    delta = _run(SNET, SSC)
+                    if NNET is not None and ex.need_frame.any():
+                        delta = torch.where(ex.need_frame[:, None], _run(NNET, NSC), delta)
                 task.cfg.physics.render_rgb = False
+                if a.dump_servo:
+                    _W = G.grasp_poses(*task.reader_pose(), ex.offset, ex.tilt.nan_to_num(G.TILT_DEG), flip=ex.flip)
+                    _p, _R = task.tcp_pose()
+                    lab = torch.cat([(_R.transpose(1, 2) @ (_W['grasp'][0] - _p)[..., None])[..., 0], K.rot_log(_R.transpose(1, 2) @ _W['grasp'][1])], 1)
+                    small = torch.nn.functional.interpolate(fr[want].permute(0, 3, 1, 2).float(), size=(a.dump_size, a.dump_size), mode='area').round().clamp(0, 255).byte().permute(0, 2, 3, 1)
+                    DUMP['X'].append(small.cpu()); DUMP['Y'].append(lab[want].cpu()); DUMP['k'].append(torch.where(ex.need_frame, ex.servo_k, -1)[want].cpu())
                 ex.servo_update(want, delta)
                 n_frames += want.long()
         if a.reader_wrist:
@@ -205,7 +224,7 @@ P, R = cat.pop('inhand_p'), cat.pop('inhand_R')
 import pandas as pd
 df = pd.DataFrame(cat)
 out = Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
-tag = out.name + ('_nodr' if a.no_dr else '') + (('_servo_oracle' if a.servo == 'oracle' else '_servo') if a.servo else '') + ('_encrebase' if a.reader_wrist and a.wrist_rebase == 'encoder' else '') + ('_believed' if a.believed_frame else '') + (f'_enc{a.enc_offset_deg:g}' if a.enc_offset_deg is not None else '') + f'_s{a.seed}'
+tag = out.name + ('_nodr' if a.no_dr else '') + (('_servo_oracle' if a.servo == 'oracle' else '_servo') + ('pos' if a.servo_pos_only else '') if a.servo else '') + ('_encrebase' if a.reader_wrist and a.wrist_rebase == 'encoder' else '') + ('_believed' if a.believed_frame else '') + (f'_enc{a.enc_offset_deg:g}' if a.enc_offset_deg is not None else '') + f'_s{a.seed}'
 df.to_parquet(out.parent / f'{tag}.parquet')
 n, k = len(df), int(df.success.sum())
 summ = {'n': n, 'success': k, 'rate': k / n, 'wilson95_lo': wilson_lo(k, n), 'seed': a.seed, 'dr': not a.no_dr,
@@ -232,6 +251,8 @@ if okm.any():
                                 'hold_drift_mm': pc(df.hold_drift_mm.values[okm]), 'hold_rot_drift_deg': pc(df.hold_rot_drift_deg.values[okm]), 'hold_s': a.hold_s}
 print(json.dumps(summ, indent=1))
 (out.parent / f'{tag}.json').write_text(json.dumps(summ, indent=1) + '\n')
+if a.dump_servo:
+    torch.save({k_: torch.cat(v) for k_, v in DUMP.items()}, a.dump_servo); print('dumped', sum(len(x) for x in DUMP['X']), 'servo frames ->', a.dump_servo)
 if a.write_spread:
     Pm = P[okm].mean(0); Rm = R[okm].mean(0); U, _, Vt = np.linalg.svd(Rm); Rm = U @ Vt
     from blind_insertion.scenes.reader_grasp import _mat_to_quat
