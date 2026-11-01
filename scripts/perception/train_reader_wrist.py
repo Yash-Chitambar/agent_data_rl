@@ -4,7 +4,7 @@ The ZED estimate puts the hand at the pre-grasp hover (6 cm back along the tool 
 there the right wrist camera sees the reader close up. This CNN predicts the correction of the ZED
 estimate: true minus estimated body centre (m) in the estimated reader's horizontal frame (along the
 plug, across) and the yaw error (rad). The hand is off the hover by +/-10 mm / +/-3 deg (tracking); the estimate is re-expressed relative to
-the hand's measured (encoder FK, offset errors included) pose, horizontally (rebase_estimate). Training hovers come from estimates perturbed like the ZED net
+the hand's actual pose (a relative correction), horizontally (rebase_estimate). Training hovers come from estimates perturbed like the ZED net
 (70 %: xy N(0, 2.5 mm), yaw N(0, 2 deg); 30 % gross: xy uniform within 40 mm, yaw U(+/-8 deg)).
 Full visual DR (incl. wrist-camera pose error), left arm parked, gripper at the 24 mm approach opening.
 
@@ -90,25 +90,46 @@ def heading(R):
     return torch.atan2(R[:, 1, 2], R[:, 0, 2])
 
 
-def rebase_estimate(task, p_est, R_est, p_hover, R_hover, p_hand, R_hand):
-    """Re-express an estimate made for the PLANNED hover relative to the hand's MEASURED pose, in the
-    horizontal plane only (shift and turn about the vertical; the reader stays flat): what the wrist
-    camera sees is the reader relative to where the hand actually is."""
+def wrist_cam_pos(task):
+    """World position of the right wrist camera (valid after kinematics + camlight, e.g. after render)."""
+    rt = task.runtime
+    i = rt.camera_indices[list(rt.camera_names).index('wrist_cam')]
+    return wp.to_torch(rt.d.cam_xpos)[:, i]
+
+
+def rebase_estimate(task, p_est, R_est, p_hover, R_hover, p_hand, R_hand, cam_pos=None):
+    """Re-express an estimate made for the PLANNED hover relative to the hand's ACTUAL pose, so the
+    estimate lands on the same wrist-camera pixel it would have at the planned hover: the camera ray
+    to the estimated body centre is carried along with the hand (full rotation) and cut with the
+    reader's table plane; the yaw turns with the hand heading only (the reader stays flat). Without
+    the ray (wrist v3: heading-only rebase) a 3 deg hand tilt moves the view ~8 mm and the label is not
+    observable (xy p50 3.4 mm). cam_pos: actual wrist camera position (wrist_cam_pos)."""
+    n = len(p_est); dev = p_est.device
+    R_d = R_hand @ R_hover.transpose(1, 2)
     dyaw = heading(R_hand) - heading(R_hover)
     c, s = torch.cos(dyaw), torch.sin(dyaw)
-    n = len(p_est); z, o = torch.zeros(n, device=p_est.device), torch.ones(n, device=p_est.device)
+    z, o = torch.zeros(n, device=dev), torch.ones(n, device=dev)
     Rz = torch.stack([torch.stack([c, -s, z], -1), torch.stack([s, c, z], -1), torch.stack([z, z, o], -1)], -2)
     bz = float(task.lay.variants[0].peg_boxes[0][0][2])
     cen = body_centre(task, p_est, R_est)
-    rel = cen - p_hover; rel[:, 2] = 0
-    cen_new = p_hand + (Rz @ rel[..., None])[..., 0]; cen_new[:, 2] = cen[:, 2]
+    if cam_pos is None:
+        cam_pos = p_hand
+    cam_rel = (R_hand.transpose(1, 2) @ (cam_pos - p_hand)[..., None])[..., 0]     # camera in the hand frame
+    c_h = p_hover + (R_hover @ cam_rel[..., None])[..., 0]                          # camera at the planned hover
+    v = (R_d @ (cen - c_h)[..., None])[..., 0]
+    t = (cen[:, 2] - cam_pos[:, 2]) / v[:, 2].clamp(max=-1e-4)
+    cen_new = cam_pos + t[:, None] * v
     R_new = Rz @ R_est
     return cen_new - R_new[:, :, 2] * bz, R_new
 
 
 def measured_tcp(task):
-    """Hand pose from the encoders (believed joint angles incl. the encoder-offset error)."""
-    return task.chain.fk(task._measured_model_angles()[:, 0])
+    """Hand pose the correction is relative to. The correction is applied as a RELATIVE hand motion
+    (the camera moves with the true hand), so the true FK is the right reference: rebasing on the
+    encoder FK (offset errors +/-1.5 deg) made the label unobservable from the image (wrist v2 trial:
+    xy p50 6 mm). In the privileged-joint expert, true-FK rebase == a relative correction, which is
+    what the real controller does (Jacobian step from the current pose)."""
+    return task.tcp_pose()
 
 
 def hover_q(task, p_est, R_est):
@@ -138,9 +159,9 @@ def generate(task, n, gen, size=192, hover_err=(.010, 3.)):
         rt.q[:, task.qadr] = q
         with wp.ScopedDevice(task.cfg.physics.device):
             mjw.kinematics(rt.m, rt.d)
-        p_m, R_m = measured_tcp(task)
-        p_eb, R_eb = rebase_estimate(task, p_est, R_est, p_h, R_h, p_m, R_m)
         fr = rt.render()['wrist_cam'][ok]
+        p_m, R_m = measured_tcp(task)
+        p_eb, R_eb = rebase_estimate(task, p_est, R_est, p_h, R_h, p_m, R_m, wrist_cam_pos(task))
         fr = F.interpolate(fr.permute(0, 3, 1, 2).float(), size=(size, size), mode='area').round().clamp(0, 255).byte().permute(0, 2, 3, 1)
         X.append(fr.contiguous().cpu()); Y.append(correction_label(task, p_eb, R_eb)[ok].cpu())
     return torch.cat(X)[:n], torch.cat(Y)[:n]

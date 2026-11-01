@@ -109,7 +109,7 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
                     corr = torch.cat([WNET(fr[i:i + 256]) for i in range(0, N, 256)]) * WSC
                 task.cfg.physics.render_rgb = False
                 p_m, R_m = RW.measured_tcp(task)
-                p_eb, R_eb = RW.rebase_estimate(task, ex.p_est, ex.R_est, ex.p_pre, ex.R_g, p_m, R_m)
+                p_eb, R_eb = RW.rebase_estimate(task, ex.p_est, ex.R_est, ex.p_pre, ex.R_g, p_m, R_m, RW.wrist_cam_pos(task))
                 p_new, R_new = RW.apply_correction(task, p_eb, R_eb, corr)
                 ex.replan(at_hover, p_new, R_new)
                 wcorr[at_hover] = corr[at_hover]

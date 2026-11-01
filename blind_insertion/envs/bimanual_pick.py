@@ -307,6 +307,55 @@ class PickExpert:
         self.p_est[m], self.R_est[m] = p_r[m], R_r[m]
         self.refined |= m
 
+    def takeover(self, mask, near_perp=.006, near_rot_deg=8., hold_err=.004):
+        """DAgger: take over the worlds in mask from wherever another controller (a learned policy)
+        left the hand, and continue with the privileged expert from there. Re-plans at the reader's
+        CURRENT pose (it may have been pushed). Per world:
+          holding  (reader within hold_err of the nominal in-hand pose, fingers closed): lift (phase 4)
+                   from the current pose to the planned lift height;
+          on the approach line (fingers open, hand within near_perp of the pre-grasp -> grasp segment,
+                   tool within near_rot_deg of the grasp orientation): continue the Cartesian
+                   descent (phase 1) from the current pose;
+          otherwise (fingers closed on nothing, hand off the line, after a failed lift): open the
+                   gripper and go back to the pre-grasp in joint space (phase 0), then grasp again."""
+        t, dev = self.t, self.t.device
+        m = mask.clone()
+        q = t.q_true(); p_a, R_a = t.chain.fk(q)
+        p_r, R_r = t.reader_pose()
+        W = G.grasp_poses(p_r, R_r, self.offset, self.tilt.nan_to_num(G.TILT_DEG), flip=self.flip)
+        q_pre, pe, re = self._ik(*W['pregrasp'], self.q_pre, 80)
+        q_g, pe_g, re_g = self._ik(*W['grasp'], q_pre, 80)
+        lo, hi = t.chain.lo + .02, t.chain.hi - .02
+        reach = (pe + .05 * re < 1e-3) & (pe_g + .05 * re_g < 1e-3) & ((q_pre >= lo) & (q_pre <= hi)).all(1)
+        met = t.pick_metrics()
+        n_p, _ = G.nominal_inhand(t.offsets[(G.TILT_DEG, False)], G.TILT_DEG, False)
+        in_err = (met['inhand_p'] - torch.as_tensor(n_p, device=dev, dtype=torch.float32)).norm(dim=1)
+        fo = t.runtime.q[:, t.finger_qadr].sum(1)
+        holding = (in_err < hold_err) & (fo < .040)
+        seg = W['pregrasp'][0] - W['grasp'][0]; L = seg.norm(dim=1, keepdim=True); u = seg / L
+        d = p_a - W['grasp'][0]; along = (d * u).sum(1)
+        perp = (d - along[:, None] * u).norm(dim=1)
+        rot = torch.rad2deg(K.rot_log(W['grasp'][1] @ R_a.transpose(1, 2)).norm(dim=1))
+        on_line = (fo > .040) & (along > -.002) & (along < L[:, 0] + .005) & (perp < near_perp) & (rot < near_rot_deg)
+        lift_z = self.p_lift[:, 2].clone()
+        upd = m & ~holding
+        self.p_pre[upd], self.p_g[upd], self.R_g[upd], self.p_lift[upd] = W['pregrasp'][0][upd], W['grasp'][0][upd], W['grasp'][1][upd], W['lift'][0][upd]
+        self.q_pre[upd] = q_pre[upd]
+        self.p_est[upd], self.R_est[upd] = p_r[upd], R_r[upd]
+        self.ik_ok = torch.where(upd, reach & self.ik_ok, self.ik_ok)
+        h = m & holding
+        self.p_lift[h] = torch.cat([p_a[h, :2], lift_z[h, None]], 1)
+        ph = torch.where(holding, torch.full_like(self.phase, 4), torch.where(on_line, torch.ones_like(self.phase), torch.zeros_like(self.phase)))
+        self.phase = torch.where(m, ph, self.phase)
+        self.timer[m] = 0; self.done[m] = False; self.integ[m] = 0
+        self.q0[m] = q[m]; self.q_cmd[m] = q[m]
+        self.p_cmd[m], self.R_cmd[m] = p_a[m], R_a[m]
+        dq = (self.q_pre - self.q0).abs().max(1).values
+        self.move_n = torch.where(m, torch.clamp((dq / self.js / self.dt).ceil(), min=10).long(), self.move_n)
+        self.finger_prev[m] = fo[m]; self.finger_still[m] = 0
+        self.grip = torch.where(m, torch.where(self.phase >= 3, -1., 1.), self.grip)
+        return {'holding': holding & m, 'on_line': on_line & ~holding & m, 'retreat': ~holding & ~on_line & m}
+
     def _cart_step(self, p_wp, R_wp, v):
         dp = p_wp - self.p_cmd
         dist = dp.norm(dim=1, keepdim=True)
