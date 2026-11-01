@@ -1,0 +1,225 @@
+{
+ "policy": "runs/gentle_i_live.pt",
+ "live_states": "results/usbc/policy/insertion/aux/handover_pickest_n4096.npz",
+ "note": "forces sampled at the last of the 20 substeps of each 20 ms control step",
+ "live": {
+  "n": 1024,
+  "seated": 1024,
+  "rate": 1.0,
+  "wilson95": [
+   0.9962624591182144,
+   1.0
+  ],
+  "outcomes": {
+   "seated": 1024
+  },
+  "episode": {
+   "peak_axial_insertion_force_N": {
+    "p50": 6.722765207290649,
+    "p99": 14.757264013290404,
+    "max": 19.822830200195312,
+    "mean": 7.369948003906757,
+    "n": 1024
+   },
+   "mean_axial_force_in_contact_N": {
+    "p50": 3.347375273704529,
+    "p99": 4.391406545639038,
+    "max": 5.144747734069824,
+    "mean": 3.364878130145371,
+    "n": 1024
+   },
+   "peak_lateral_port_force_N": {
+    "p50": 6.252092599868774,
+    "p99": 8.913182182312012,
+    "max": 12.648263931274414,
+    "mean": 6.335509217809886,
+    "n": 1024
+   },
+   "peak_net_port_force_N": {
+    "p50": 8.974546909332275,
+    "p99": 14.96294672012329,
+    "max": 19.850488662719727,
+    "mean": 9.326863286551088,
+    "n": 1024
+   },
+   "peak_net_reader_to_pc_force_N": {
+    "p50": 8.974546909332275,
+    "p99": 14.96294672012329,
+    "max": 19.850488662719727,
+    "mean": 9.326863276772201,
+    "n": 1024
+   },
+   "depth_at_peak_force_mm": {
+    "p50": 5.711947679519653,
+    "p99": 5.789371604919434,
+    "max": 5.819701194763184,
+    "mean": 3.227734680142504,
+    "n": 1024
+   },
+   "peak_wall_squeeze_sum_N": {
+    "p50": 62.00156021118164,
+    "p99": 81.64600845336913,
+    "max": 115.50650787353516,
+    "mean": 60.3169007897377,
+    "n": 1024
+   },
+   "mean_port_N_in_contact": {
+    "p50": 18.071541786193848,
+    "p99": 34.23925857543944,
+    "max": 47.912803649902344,
+    "mean": 18.159518574830145,
+    "n": 1024
+   },
+   "peak_pc_N": {
+    "p50": 62.00156784057617,
+    "p99": 81.6460008239746,
+    "max": 115.50650024414062,
+    "mean": 60.31690057180822,
+    "n": 1024
+   },
+   "peak_pad_N": {
+    "p50": 24.213241577148438,
+    "p99": 29.937735576629635,
+    "max": 32.39774703979492,
+    "mean": 24.37116694636643,
+    "n": 1024
+   },
+   "speed_first_contact_mm_s": {
+    "p50": 12.975086688995361,
+    "p99": 29.050027256011944,
+    "max": 41.14985275268555,
+    "mean": 13.071428362512961,
+    "n": 1024
+   },
+   "peak_speed_after_contact_mm_s": {
+    "p50": 55.24006652832031,
+    "p99": 67.86097007751465,
+    "max": 112.1779556274414,
+    "mean": 54.56415181234479,
+    "n": 1024
+   },
+   "rim_contact_steps": {
+    "p50": 6.0,
+    "p99": 53.0,
+    "max": 313.0,
+    "mean": 9.6630859375,
+    "n": 1024
+   },
+   "rim_contact_onsets": {
+    "p50": 2.0,
+    "p99": 12.0,
+    "max": 51.0,
+    "mean": 2.59765625,
+    "n": 1024
+   },
+   "frac_episodes_peak_axial_over_20N": 0.0,
+   "peak_force_phase": {
+    "entry_or_rim(<0.5mm)": 0.283203125,
+    "inside(0.5-5mm)": 0.03125,
+    "bottoming(>5mm)": 0.685546875
+   },
+   "frac_episodes_peak_net_over_20N": 0.0
+  },
+  "contact_head": {
+   "free": {
+    "precision": 0.9948683858804992,
+    "recall": 0.9678083797095449,
+    "f1": 0.9811518406331109,
+    "support": 1169062
+   },
+   "rim_contact": {
+    "precision": 0.8873371625933851,
+    "recall": 0.9559953474177311,
+    "f1": 0.9203876071442058,
+    "support": 815891
+   },
+   "inside": {
+    "precision": 0.9728154374997177,
+    "recall": 0.9460371957931802,
+    "f1": 0.9592394669070651,
+    "support": 1138247
+   },
+   "accuracy": 0.9567878842353821,
+   "balanced_accuracy": 0.9566136409734854
+  },
+  "behaviour": {
+   "rim_steps_with_lateral_motion": 7151,
+   "cos_lateral_velocity_toward_axis": {
+    "p50": 0.30479496717453003,
+    "p99": 0.9997928142547607,
+    "max": 1.0000001192092896,
+    "mean": 0.12584806849615193,
+    "n": 7151
+   },
+   "frac_moving_toward_axis": 0.5836946368217468,
+   "rim_episodes": 1019,
+   "offset_at_first_rim_mm": {
+    "p50": 0.514703094959259,
+    "p99": 1.7863008236885056,
+    "max": 5.280802249908447,
+    "mean": 0.5912754578813837,
+    "n": 1019
+   },
+   "offset_at_last_rim_mm": {
+    "p50": 0.18878066539764404,
+    "p99": 1.633384578227996,
+    "max": 2.9562301635742188,
+    "mean": 0.3035599438522022,
+    "n": 1019
+   },
+   "frac_rim_steps_backing_off": 0.24800404906272888
+  },
+  "probes": {
+   "contact_yes_no/linear": {
+    "accuracy": 0.9100993871688843,
+    "balanced_accuracy": 0.909320205450058,
+    "class_counts_test": [
+     5983,
+     6186
+    ]
+   },
+   "contact_yes_no/mlp": {
+    "accuracy": 0.8972799181938171,
+    "balanced_accuracy": 0.8970374763011932,
+    "class_counts_test": [
+     5983,
+     6186
+    ]
+   },
+   "touching_side_(+x,-x,+y,-y,none)/linear": {
+    "accuracy": 0.7745911478996277,
+    "balanced_accuracy": 0.7744965076446533,
+    "class_counts_test": [
+     1039,
+     415,
+     4158,
+     36,
+     6521
+    ]
+   },
+   "touching_side_(+x,-x,+y,-y,none)/mlp": {
+    "accuracy": 0.8720518946647644,
+    "balanced_accuracy": 0.660536777973175,
+    "class_counts_test": [
+     1039,
+     415,
+     4158,
+     36,
+     6521
+    ]
+   },
+   "lateral_offset_mm/linear": {
+    "median_err_mm": 0.33888936042785645,
+    "p90_err_mm": 0.844477653503418,
+    "baseline_median_err_mm": 0.24638248980045319,
+    "r2": 0.43731576204299927
+   },
+   "lateral_offset_mm/mlp": {
+    "median_err_mm": 0.24137254059314728,
+    "p90_err_mm": 0.7985485792160034,
+    "baseline_median_err_mm": 0.24638248980045319,
+    "r2": 0.5179606676101685
+   }
+  }
+ }
+}

@@ -31,6 +31,7 @@ ZED_CROP = (110, 70, 160)       # top-left x, y and size (px) of the PC crop in 
 WRIST_SIZE = 192
 SCALE = {'zed': torch.tensor([30., 30., 10.]), 'wrist': torch.tensor([12., 12., 25., 6., 6., 3.])}
 SCALE['wrist2'] = SCALE['wrist']
+SCALE['inhand'] = torch.tensor([4., 4., 4., 4., 1., 4.])   # Part 4 J inputs: dx, dy, dz mm; rotvec deg (TCP axes)
 
 
 WRIST_CROP = (64, 40)          # x0, y0 of the full-resolution 192-px crop (plug tip and port 2 in view)
@@ -51,6 +52,8 @@ def zed_crop(img):
 
 
 def targets(which, lab):
+    if which == 'inhand':
+        return lab['inhand6']
     if which == 'zed':
         yaw = torch.rad2deg(torch.atan2(torch.sin(lab['port_yaw']), torch.cos(lab['port_yaw'])))
         t = torch.cat([(lab['port_xy'] - torch.tensor(NOMINAL['port_xy'], device=yaw.device)) * 1e3, yaw[:, None]], 1)
@@ -84,9 +87,14 @@ def generate(r, which, n, cfg=None, nominal=False, states=None):
 
 def errors(which, pred, t):
     e = (pred - t).abs().cpu().numpy()
-    names = ['x_mm', 'y_mm', 'yaw_deg'] if which == 'zed' else ['x_mm', 'y_mm', 'gap_mm', 'rx_deg', 'ry_deg', 'rz_deg']
+    names = ['x_mm', 'y_mm', 'yaw_deg'] if which == 'zed' else ['dx_mm', 'dy_mm', 'dz_mm', 'rx_deg', 'ry_deg', 'rz_deg'] if which == 'inhand' else ['x_mm', 'y_mm', 'gap_mm', 'rx_deg', 'ry_deg', 'rz_deg']
     out = {k: {f'p{p}': float(np.percentile(e[:, i], p)) for p in (50, 90, 99, 99.5)} for i, k in enumerate(names)}
-    if which != 'zed':
+    if which == 'inhand':
+        ee = (pred - t).cpu().numpy()
+        out['signed_mean'] = {k: float(ee[:, i].mean()) for i, k in enumerate(names)}
+        out['signed_std'] = {k: float(ee[:, i].std()) for i, k in enumerate(names)}
+        out['truth_abs_p99'] = {k: float(np.percentile(np.abs(t.cpu().numpy()[:, i]), 99)) for i, k in enumerate(names)}
+    elif which != 'zed':
         lat = np.linalg.norm(e[:, :2], axis=1)
         tilt = np.linalg.norm(e[:, 3:5], axis=1)
         out['lateral_mm'] = {f'p{p}': float(np.percentile(lat, p)) for p in (50, 90, 99, 99.5)}
@@ -99,7 +107,7 @@ def errors(which, pred, t):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--which', choices=('zed', 'wrist', 'wrist2'), required=True)
+    ap.add_argument('--which', choices=('zed', 'wrist', 'wrist2', 'inhand'), required=True)
     ap.add_argument('--n', type=int, default=24576)
     ap.add_argument('--n-test', type=int, default=2048)
     ap.add_argument('--epochs', type=int, default=40)
@@ -109,6 +117,7 @@ def main():
     ap.add_argument('--rot', type=float, default=6.)
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position (mm)')
+    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est'), default='measured', help='render in-hand pose distribution')
     ap.add_argument('--tilt', type=float, default=60., help='grasp tilt from vertical (deg)')
     ap.add_argument('--states', nargs='*', default=[], help='DAgger: npz files of recorded in-loop qpos (eval_approach --save-states)')
     ap.add_argument('--n-states', type=int, default=0, help='training samples rendered from --states (added to --n)')
@@ -144,6 +153,7 @@ def main():
     r.ins.cfg.inhand_rot_deg = a.inhand_rot
     r.ins.cfg.inhand_pos_mm = a.inhand_pos
     r.ins.cfg.tilt_deg = a.tilt
+    r.ins.cfg.inhand = a.inhand_mode
     cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot)
     X, Y = generate(r, a.which, a.n, cfg)
     St = None
@@ -200,7 +210,7 @@ def main():
             with torch.no_grad():
                 pred = torch.cat([mean_of(net(Xt[i:i + 256])) for i in range(0, len(Xt), 256)]) * sc
             e = errors(a.which, pred, Yt)
-            print(ep, f'loss {loss.item():.4f}', {k2: round(v['p50'], 3) for k2, v in e.items()}, flush=True)
+            print(ep, f'loss {loss.item():.4f}', {k2: round(v['p50'], 3) for k2, v in e.items() if 'p50' in v}, flush=True)
     net.eval()
     with torch.no_grad():
         pred = torch.cat([mean_of(net(Xt[i:i + 256])) for i in range(0, len(Xt), 256)]) * sc
