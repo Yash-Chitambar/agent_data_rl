@@ -1,0 +1,85 @@
+{
+ "estimator": "reader_servo_rot",
+ "method": "Wrist-camera servo net for the Part 1 pick descent (RGB only): from one right-wrist frame, the grasp pose\nRELATIVE TO THE HAND (grasp_site frame): translation t = R_h^T (p_g - p_h) (m) and rotation vector\nr = log(R_h^T R_g) (rad). Relative to the hand, so the believed-frame expert composes it with its own\nencoder-FK hand pose (T_g = FK_enc(q) * Delta): encoder-offset errors cancel up to the error of the\nremaining (short) relative move, and the tool tilt error from the offsets is corrected too.\n\nTraining views: the hand anywhere along the approach line from the pre-grasp hover (f = 0) to 8 mm short\nof the grasp (f = 0.93), off the line by U(+/-e) per axis with e = max(3 mm, 15 mm (1 - f)) and turned by\nU(+/-5 deg) about a random axis (PD tracking, ZED estimate and encoder-offset errors); full visual DR incl.\ncamera pose error. Loss weighted toward short distances (the last correction sets the grasp).\n\n    CUDA_VISIBLE_DEVICES=3 PYTHONPATH=. MUJOCO_GL=egl .venv/bin/python scripts/perception/train_reader_servo.py",
+ "args": {
+  "n": 65536,
+  "n_test": 4096,
+  "res": 320,
+  "size": 224,
+  "epochs": 40,
+  "width": 32,
+  "tag": "_rot",
+  "seed": 0,
+  "rot_only": true,
+  "pos_only": false,
+  "f_min": 0.4,
+  "f_max": 0.95,
+  "extra": [
+   "runs/perception/servo_dagger1.pt",
+   "runs/perception/servo_dagger2.pt"
+  ],
+  "extra_k_max": 99,
+  "extra_k_min": 0,
+  "init": null,
+  "lr": 0.002,
+  "e_max": 0.015
+ },
+ "n_train": 77824,
+ "n_test": 4096,
+ "heldout_error": {
+  "all": {
+   "n": 4096,
+   "pos_mm": {
+    "50": 0.0,
+    "90": 0.0,
+    "99": 0.0
+   },
+   "rot_deg": {
+    "50": 0.8701627254486084,
+    "90": 1.9380011558532715,
+    "99": 3.4251105785369873
+   }
+  },
+  "near_lt40mm": {
+   "n": 1704,
+   "pos_mm": {
+    "50": 0.0,
+    "90": 0.0,
+    "99": 0.0
+   },
+   "rot_deg": {
+    "50": 0.9344688653945923,
+    "90": 2.1861937046051025,
+    "99": 3.867567300796509
+   }
+  },
+  "mid_40_80mm": {
+   "n": 2051,
+   "pos_mm": {
+    "50": 0.0,
+    "90": 0.0,
+    "99": 0.0
+   },
+   "rot_deg": {
+    "50": 0.8225128054618835,
+    "90": 1.7904773950576782,
+    "99": 2.9520397186279297
+   }
+  },
+  "far_ge80mm": {
+   "n": 341,
+   "pos_mm": {
+    "50": 0.0,
+    "90": 0.0,
+    "99": 0.0
+   },
+   "rot_deg": {
+    "50": 0.877390444278717,
+    "90": 1.8182166814804077,
+    "99": 3.354912757873535
+   }
+  }
+ },
+ "generate_s": 2532.367054462433,
+ "total_s": 7092.907286643982
+}

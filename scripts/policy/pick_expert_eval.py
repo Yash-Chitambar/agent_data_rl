@@ -18,6 +18,18 @@ from blind_insertion.envs.bimanual_pick import PickExpert, PickTask, PickTaskCfg
 from blind_insertion.envs.bimanual_runtime import BimanualCfg
 from blind_insertion.scenes import reader_grasp as G
 
+def visual_dr_wrist(err):
+    """Visual DR with the right wrist-camera mount error capped at err = (mm, deg) (max magnitude;
+    VisualDRCfg samples U(0, cam_err_scale x value)); None: defaults (5.1 mm / 1.2 deg x 2)."""
+    if err is None:
+        return True
+    from blind_insertion.envs import visual_dr as VD
+    s = VD.VisualDRCfg().cam_err_scale
+    pos, rot = dict(VD.REAL_CAM_ERR_MM), dict(VD.REAL_CAM_ERR_DEG)
+    pos['wrist_cam'], rot['wrist_cam'] = err[0] / s, err[1] / s
+    return {'cam_pos_mm': pos, 'cam_rot_deg': rot}
+
+
 ap = argparse.ArgumentParser()
 ap.add_argument('--episodes', type=int, default=2048)
 ap.add_argument('--nworld', type=int, default=1024)
@@ -47,6 +59,7 @@ ap.add_argument('--dump_size', type=int, default=224)
 ap.add_argument('--servo_near_rot', default=None, help='6-DoF servo net used only for the rotation of the waypoint correction (position from --servo_near)')
 ap.add_argument('--servo_near', default=None, help='second servo net used for the waypoint frames (the hover frame keeps --servo)')
 ap.add_argument('--servo_fracs', type=float, nargs='*', default=[.5, .8])
+ap.add_argument('--wrist_cam_err', type=float, nargs=2, default=None, help='cap the right wrist-camera mount error DR at (mm, deg) (a calibrated mount); default the real-error DR')
 ap.add_argument('--believed_frame', action='store_true', help='expert plans/servos on encoder FK (encoder-offset errors hit the grasp, as on the real robot)')
 ap.add_argument('--wrist_rebase', choices=('true', 'encoder'), default='true', help='hand pose the wrist estimate is rebased on: true FK (privileged) or encoder FK (as on the real robot: encoder offset DR errors included)')
 a = ap.parse_args()
@@ -62,7 +75,7 @@ cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_lay
 if a.enc_offset_deg is not None:
     cfg.enc_offset_deg = a.enc_offset_deg
 if a.reader_est:
-    cfg.physics.render_rgb = True; cfg.physics.visual_dr = True; cfg.physics.measured_camera_cadence = False
+    cfg.physics.render_rgb = True; cfg.physics.visual_dr = visual_dr_wrist(a.wrist_cam_err); cfg.physics.measured_camera_cadence = False
     cfg.physics.camera_resolution = torch.load(a.reader_est, map_location='cpu')['res']
 if a.impratio is not None: cfg.impratio = a.impratio
 if a.finger_open >= 0: cfg.finger_open = a.finger_open or None
@@ -239,7 +252,7 @@ P, R = cat.pop('inhand_p'), cat.pop('inhand_R')
 import pandas as pd
 df = pd.DataFrame(cat)
 out = Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
-tag = out.name + ('_nodr' if a.no_dr else '') + (('_servo_oracle' if a.servo == 'oracle' else '_servo') + ('pos' if a.servo_pos_only else '') if a.servo else '') + ('_encrebase' if a.reader_wrist and a.wrist_rebase == 'encoder' else '') + ('_believed' if a.believed_frame else '') + (f'_enc{a.enc_offset_deg:g}' if a.enc_offset_deg is not None else '') + f'_s{a.seed}'
+tag = out.name + ('_nodr' if a.no_dr else '') + (('_servo_oracle' if a.servo == 'oracle' else '_servo') + ('pos' if a.servo_pos_only else '') if a.servo else '') + ('_encrebase' if a.reader_wrist and a.wrist_rebase == 'encoder' else '') + ('_believed' if a.believed_frame else '') + (f'_wcam{a.wrist_cam_err[0]:g}-{a.wrist_cam_err[1]:g}' if a.wrist_cam_err else '') + (f'_enc{a.enc_offset_deg:g}' if a.enc_offset_deg is not None else '') + f'_s{a.seed}'
 df.to_parquet(out.parent / f'{tag}.parquet')
 n, k = len(df), int(df.success.sum())
 summ = {'n': n, 'success': k, 'rate': k / n, 'wilson95_lo': wilson_lo(k, n), 'seed': a.seed, 'dr': not a.no_dr,

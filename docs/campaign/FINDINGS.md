@@ -104,6 +104,44 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-02 (mason, `policy/pick`) — Part 1: visual-servo descent passes at ±1.5° encoder offsets (99.61 %, n = 2048)
+
+- **Servo descent** (`PickExpert.believed_frame/servo_fracs/servo_update/rehover`, loop in
+  `scripts/policy/pick_expert_eval.py --servo ...`): the expert plans and servos on encoder FK; wrist
+  frames at the hover and at 0.5 / 0.8 / 0.92 of the descent give the grasp pose RELATIVE to the hand
+  (composed with the encoder-FK hand pose, so offsets cancel), then a short straight move. Oracle relative
+  corrections: 1024/1024 at ±1.5° (grasp error p99 2.1 mm); position-only oracle also 1024/1024.
+- **Nets** (`scripts/perception/train_reader_servo.py`, RGB, visual DR): hover net (position, hand up to
+  ±50 mm off the line + hover DAgger frames; re-hover when the correction exceeds 8 mm), near net
+  (position, 224 px; held-out near-grasp p50 0.41 / p99 3.5 mm), rotation from a 6-DoF net (p50 0.9 /
+  p99 3.7°). A 6-DoF net for position too is worse (p99 7 mm; gate 98.7 %).
+- **Gate** (believed frame, ZED estimate, ±1.5°, seed 60000): **2040/2048 = 99.61 %** (Wilson 99.23 %);
+  grasp error p99 4.0 mm / 3.8°; in-hand vs nominal p99 4.6 mm / 3.1°. Earlier rounds: v1 net 97.8 %, near
+  net position-only 99.32 %.
+- **Residual sweep** (success vs encoder-offset residual, n = 1024; 1.5° n = 2048):
+
+  | residual | privileged pose | ZED only | ZED + servo | ACT v4 80k |
+  |---|---|---|---|---|
+  | 0.25° | 99.7 % | 99.4 % | 99.6 % | 85.8 % |
+  | 0.5° | 87.0 % | 86.8 % | 99.6 % | 86.5 % |
+  | 1.0° | 65.9 % | 68.5 % | 99.6 % | 86.4 % |
+  | 1.5° | 49.4 % | 49.7 % | 99.6 % | 84.9 % |
+
+- **In-hand rotation floor = wrist-camera mount DR** (5.1 mm / 1.2° × 2): no net gets below ~3.5° p99
+  rotation (rotation-only net with 12k DAgger frames: 0.87 / 3.4°). With the mount DR capped at
+  1.5 mm / 0.4° (a calibrated mount) the current nets give 2043/2048 (99.76 %), in-hand p99 4.6 mm / 2.7°.
+- **ACT (stopped; comparison path).** Best config: **v4** (wrist + joints, no ZED; gripper close labelled
+  from the arrival at the grasp; 1280 demos; chunk 50, temporal ensembling; 80k steps): **84.9 %**
+  [82.5, 86.9] (n = 1024, 20 s). Flat over encoder-offset residual (85.8 / 86.5 / 86.4 / 84.9 % at
+  0.25 / 0.5 / 1.0 / 1.5°): the wrist image closes the loop. **v5** = v4 data + 1577 DAgger recovery
+  episodes: 40k 75.4 % (n = 256), 80k 81.9 % (auto-close 81.3 %), 120k 83.4 % [81.0] (n = 1024): no gain.
+  DAgger-mix lesson: random-time takeovers gave 70 % lift-from-hold episodes (1114) and only 554
+  approach/grasp recoveries; v5 hovers open more often (no-lift with opening >= 20 mm 134-143 vs 48 in v4),
+  likely from the retreat/re-approach segments. Next time: take over only before the grasp (or at trouble
+  events) and rebalance toward approach/grasp recoveries.
+- Superseded entries: servo_cal (wrist-mount DR 1.5 mm / 0.4° retrained nets: 99.51 %, in-hand 4.7 mm /
+  3.3°, no gain over the default nets) is dropped.
+
 ### 2026-11-01 (mason, `policy/chain`) — Real-robot-realistic chain (encoder-FK everywhere, servo-descent pick, K-J with in-hand net): 99.32 % at ±1.5 deg (n = 2048) and ±0.5 deg (n = 1024)
 
 Config: `--believed-frame --enc-offset-deg 1.5|0.5 --pick expert_servo` (Part 1 servo descent, policy/pick 49067ed: ZED reader
