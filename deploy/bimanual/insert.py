@@ -9,7 +9,7 @@ Observation (InsertionTask._actor_obs, obs_dim 68), all from the encoders + the 
   [50:53] (right TCP - nominal pre-insert TCP) x 10, believed FK (m)
   [53:56] XYZ Euler angles of the TCP rotation relative to the nominal TCP rotation
   [56:62] TCP twist J(q_believed) qd
-  [62:68] in-hand estimate (inhand_ih1 at the 6 mm stop): mm on the TCP axes, rotation vector deg
+  [62:68] in-hand estimate (inhand_ih5 at the 6 mm stop): mm on the TCP axes, rotation vector deg
 Left joint-6 entries (11, 23, 36, 49) are zeroed (the policy's env_json mask_left_obs 'j6'; the loader masks too).
 Controller (InsertionTask.step/_update_joint_targets): right target accumulates 0.04 a (a in [-1, 1]), within
 target_cap (policy meta, 0.05 rad) of the believed angles and inside the joint limits; actions are zeroed for the

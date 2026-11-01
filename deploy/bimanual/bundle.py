@@ -59,9 +59,9 @@ NETS = {
     'wrist_v14w': dict(src=APPROACH / 'wrist_v14w.pt', script='scripts/perception/train_wrist*.py (approach-hold round 8)',
                        input=WRIST + '; eval_chain area-resizes 320 -> 192 (F.interpolate mode area, rounded to uint8)',
                        output='plug tip in the port frame (mm) and rotation vector (deg): x, y, gap, rx, ry, roll'),
-    'wrist_v15ws': dict(src=APPROACH / 'wrist_v15ws.pt', script='scripts/perception/train_wrist*.py (stop-gap specialist)',
+    'wrist_v18ws': dict(src=APPROACH / 'wrist_v18ws.pt', script='scripts/perception/train_approach_estimators.py (round 9 stop-gap specialist, servo-pick in-hand)',
                         input=WRIST + '; area-resize 320 -> 192', output='as wrist_v14w; used at waypoints <= 7 mm'),
-    'inhand_ih1': dict(src=APPROACH / 'inhand_ih1.pt', script='scripts/perception/train_wrist*.py (in-hand head)',
+    'inhand_ih5': dict(src=APPROACH / 'inhand_ih5.pt', script='scripts/perception/train_approach_estimators.py (round 9 in-hand head, servo-pick in-hand)',
                        input=WRIST + '; area-resize 320 -> 192; frame at the 6 mm stop',
                        output='reader in the right TCP frame minus the nominal grasp: dx dy dz mm, rotation vector deg (InsertionTask.inhand_error)'),
 }
