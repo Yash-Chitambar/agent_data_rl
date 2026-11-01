@@ -60,7 +60,7 @@ from blind_insertion.scenes import reader_grasp as G  # noqa: E402
 PICK_LAYOUT = 'results/usbc/policy/pick/task_layout.json'
 import os  # noqa: E402
 # Part 4 best (blind PPO v6 seed 2; copy of policy-insertion runs/P4-insert-best/best.pt, outside git). Override: P4_INSERT_BEST.
-INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_I.pt')   # gentle-D (target cap 0.05 from its env_json); earlier: P4-insert-best_v11.pt   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
+INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_KJ.pt')   # gentle-D (target cap 0.05 from its env_json); earlier: P4-insert-best_v11.pt   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
 INSERT_V5 = 'runs/chain/P4-insert-proprio-v5-s0_last.pt'    # earlier: policy-insertion runs/P4-insert-proprio-v5-s0/last.pt
 FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005}   # eval_approach.py
 OUT = ROOT / 'results/usbc/policy/chain'
@@ -138,6 +138,9 @@ def parse(argv=None):
                     help='real-robot convention for every scripted stage: the pick expert plans and servos on encoder FK '
                          '(PickExpert.believed_frame) and the teleported capture / park poses are commanded poses (true = '
                          'believed + encoder-offset error). Transport, hold, approach and insertion already use encoder angles.')
+    ap.add_argument('--inhand-net', default='inhand_ih1',
+                    help='right-wrist in-hand pose net (runs/perception/<name>.pt), used when the insertion policy reads a '
+                         '6-D in-hand estimate (pol.meta obs_dim 68: obs[62:68] = env.inhand_est)')
     ap.add_argument('--policy', default=INSERT_CKPT)
     ap.add_argument('--insert-s', type=float, default=10.)
     ap.add_argument('--visual-dr', type=int, default=1)
@@ -194,6 +197,15 @@ class Chain:
         self.wrist = wrist_loader(a.wrist_net, dev)
         self.fine = wrist_loader(a.fine_net, dev) if a.fine_below_mm > 0 else None
         self.pol = load_insertion_policy(str(ROOT / a.policy), dev)   # handles masked left-arm features (v11)
+        # In-hand estimate input (insertion policies with obs_dim 68, InsertionCfg.inhand_obs): the chain writes a
+        # perception estimate (right-wrist net at the 6 mm stop) into env.inhand_est; InsertionTask's own privileged
+        # fill (truth + noise at the end of the warm-up) is switched off.
+        self.inhand_net = None
+        if env.obs_dim != self.pol.obs_dim:
+            raise ValueError(f'insertion env obs_dim {env.obs_dim} != policy obs_dim {self.pol.obs_dim}')
+        if env.icfg.inhand_obs:
+            self.inhand_net = wrist_loader(a.inhand_net, dev)
+            env._set_inhand_est = lambda ids: None
         cap = float(self.pol.meta.get('target_cap_rad', .1))
         if abs(env.cfg.target_cap_rad - cap) > 1e-9 or env.cfg.action_mode != self.pol.meta['action_mode']:
             raise ValueError(f'insertion env does not match the policy: cap {env.cfg.target_cap_rad} vs {cap}, '
@@ -436,6 +448,12 @@ class Chain:
             settle = a.settle_s if self.rt.comp['right'] is not None else max(a.settle_s, a.ff_off_settle_s)
             for k in range(int(settle / self.dt)):
                 self.hstep(cmd, q_hold, '4 approach')
+        if self.inhand_net is not None:     # in-hand estimate from the right-wrist frame at the stop (6-D, TCP axes)
+            net, scale, _ = self.inhand_net
+            fr = self.render()['wrist_cam']
+            img = F.interpolate(fr.permute(0, 3, 1, 2).float(), size=(192, 192), mode='area').round().byte().permute(0, 2, 3, 1)
+            with torch.no_grad():
+                self.inhand_est6 = torch.cat([net(img[i:i + 256]) for i in range(0, n, 256)]) * scale
         tp, trv = self.rel_pose()
         ip1, iR1 = self.inhand()
         log.update(pre_x_mm=tp[:, 0] * 1e3, pre_y_mm=tp[:, 1] * 1e3, pre_gap_mm=tp[:, 2] * 1e3, pre_lateral_mm=tp[:, :2].norm(dim=1) * 1e3,
@@ -473,6 +491,15 @@ class Chain:
         tp, trv = self.rel_pose()
         env.start['err_p'] = tp.clone(); env.start['err_ang'] = trv.clone()
         env.phi.copy_(env._potential())
+        if self.inhand_net is not None:
+            env.inhand_est.copy_(self.inhand_est6)
+            true6 = env.inhand_error(env._reader_in_tcp())
+            err = self.inhand_est6 - true6
+            for i, k_ in enumerate(('dx_mm', 'dy_mm', 'dz_mm', 'rx_deg', 'ry_deg', 'rz_deg')):
+                log[f'inhand_est_err_{k_}'] = err[:, i]
+                log[f'inhand_true_{k_}'] = true6[:, i]
+            log['inhand_est_err_pos_mm'] = err[:, :3].norm(dim=1)
+            log['inhand_est_err_rot_deg'] = err[:, 3:].norm(dim=1)
         o = env._actor_obs()
         env.hist = o[:, None].expand(-1, env.icfg.history, -1).clone()
         if self.a.save_handover:
@@ -765,6 +792,8 @@ def summarize(df, a, wall):
                           **({'peak_axial_push_N': stats(df.insert_peak_axial_push_N[a_ok], (50, 90, 99, 99.9, 100)),
                               'peak_axial_pc_N': stats(df.insert_peak_axial_pc_N[a_ok], (50, 90, 99, 99.9, 100))}
                              if 'insert_peak_axial_push_N' in df else {})},
+            'inhand_estimate': ({k: stats(df[k][a_ok].abs()) for k in df.columns if k.startswith('inhand_est_err_')}
+                                if 'inhand_est_err_pos_mm' in df else None),
             'finite_end': float(df.finite_end.mean()), 'wall_s': wall}
 
 

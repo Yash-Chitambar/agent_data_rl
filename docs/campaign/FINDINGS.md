@@ -104,6 +104,24 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/chain`) — Chain with insertion K-J (6-D in-hand estimate input): 99.56 % (n = 2048), in-hand net error p99 1.09 mm / 0.65 deg
+
+The chain now feeds insertion policies that read an in-hand estimate (`pol.meta obs_dim` 68, `InsertionCfg.inhand_obs`):
+the right-wrist in-hand net `inhand_ih1` (approach worktree) runs on the wrist frame at the 6 mm stop; its 6 outputs
+(reader pose in the TCP frame minus the nominal grasp, mm / rotation vector deg, as `InsertionTask.inhand_error`) are
+written into `env.inhand_est` before the policy's first observation; InsertionTask's privileged fill (truth + noise at
+the end of the warm-up) is disabled. Blind policies (obs_dim 62) skip it; `check_chain` passes for K-J and I.
+
+**K-J, final estimated-pick config, seeds 7000-7003: 2039/2048 = 99.56 % [99.17, 99.77]** (I on the same seeds:
+2041/2048 = 99.66 %; the difference is 2 episodes, within noise). Stages: pick 2042/2048 (5 reader rejected, 1 pick
+failure), hold / transport / approach 2042/2042, insertion 2039/2042 (2 stuck at the mouth incl. world 218, 1 grasp slip).
+Peak axial plug-port push p50 7.4 / p90 9.3 / p99 13.4 / p99.9 19.8 / max 22.1 N (2 episodes > 20 N); time to seat
+p50 0.86 / p99 1.52 s.
+**In-hand estimate vs truth** (worlds that reached the stop, n = 2042): position error p50 0.26 / p99 1.09 mm, rotation
+p50 0.16 / p99 0.65 deg; per axis bias <= 0.07 mm / 0.01 deg, std 0.15-0.25 mm / 0.10-0.17 deg, against a true
+in-hand spread (std) of 0.33-1.01 mm / 0.06-0.36 deg. The insertion failures had small estimate errors (0.15-0.60 mm,
+0.11-0.46 deg): not caused by the estimate.
+
 ### 2026-11-01 (mason, `policy/chain`) — Final perception-driven chain with insertion I: 99.66 % (n = 2048), push p99 13.5 N; believed-frame (encoder-FK) chain: 82.9 % / 51.4 %
 
 **Final config** (`eval_chain.py` defaults): `--pick expert_estimated` (ZED reader estimator `reader_zed_cap.pt` +
