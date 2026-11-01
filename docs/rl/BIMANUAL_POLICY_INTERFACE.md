@@ -63,3 +63,27 @@ electrical connection or successful hardware transfer.
 
 The GPU episode check additionally verifies target-error observations and
 selective target reset, alongside termination, truncation and seating duration.
+
+## Part 4 insertion episode (`envs/insertion_task.py`)
+
+`InsertionTask` subclasses `BimanualTask` and keeps its controller (accumulated targets, 0.1 rad
+cap, per-world latency and encoder-offset error). Contract differences, documented here:
+
+- **Policy action: 6-D** (right joints 1-6, normalized, x 0.04 rad). The env fills the 14-D command:
+  right gripper closed, left arm scripted (press target on the PC top, through the same cap), left
+  gripper closed. Actions are ignored for the first 10 steps (0.2 s warmup: grasp and press settle).
+- **Actor observation: 62-D** = the 50-D proprioception above (encoders, velocities, 14 previous
+  actions, 12 target errors) + right TCP position (x10, relative to the nominal pre-insert TCP),
+  XYZ Euler angles relative to the nominal TCP orientation, and TCP twist, all from forward
+  kinematics of the *believed* joint angles (no object state). `privileged_actor=True` appends 18
+  privileged values (teacher only).
+- **In-hand estimate (optional, `inhand_obs=True`, 68-D actor obs):** obs[62:68] = the reader
+  (plug-tip frame) pose in the right TCP (`grasp_site`) frame minus the nominal Part 1 grasp
+  (`inhand_pose(nominal=True)`): `[dx, dy, dz]` in mm on the TCP axes, then the rotation vector of
+  `R_est @ R_nom^T` in deg on the TCP axes (`InsertionTask.inhand_error`). Constant over the episode
+  (set at reset, refreshed at the end of warmup). Training adds a per-episode Gaussian error
+  (`inhand_obs_noise`, default sigma 0.5 mm / 0.5 deg). In the chain, write the perception estimate here
+  (e.g. via `env.inhand_noise` = estimate - truth, or override `env.inhand_est`); a policy with
+  `meta['obs_dim'] == 68` needs it.
+- Use `action_mode="accumulate"`: with relative targets, zero action has zero stiffness and the arm
+  drifts 23 mm in 2 s under the identified gravity/friction model (FINDINGS 2026-10-31).

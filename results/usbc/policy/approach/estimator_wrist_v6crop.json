@@ -1,0 +1,148 @@
+{
+ "estimator": "wrist_v6crop",
+ "method": "Train the approach estimators on DR renders (policy/v1 visual DR defaults; RGB only) and report\nheld-out errors.\n\n  zed   : PC port pose (x, y, yaw) in the right-base frame from the ZED frame taken before the arms\n          move (crop around the nominal PC). Labels: deviation from the nominal port pose.\n  wrist : plug tip pose relative to port 2 (x across, y up, z gap; rotation vector) from the right\n          wrist frame at an approach pose (left arm holding the PC, reader in the 60-deg grasp).\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/train_approach_estimators.py --which wrist --n 24576\nWrites runs/perception/<which>.pt and results/usbc/policy/approach/estimator_<which>.json",
+ "n_train": 32768,
+ "n_test_dr": 2048,
+ "n_test_nominal_look": 512,
+ "sample_cfg": {
+  "lateral_m": 0.004,
+  "gap_m": [
+   0.003,
+   0.014
+  ],
+  "rot_deg": 4.0,
+  "roll_deg": 3.0
+ },
+ "args": {
+  "which": "wrist",
+  "n": 16384,
+  "n_test": 2048,
+  "epochs": 30,
+  "nworld": 256,
+  "lateral": 0.004,
+  "gap": [
+   0.003,
+   0.014
+  ],
+  "rot": 4.0,
+  "inhand_rot": 8.0,
+  "inhand_pos": 3.0,
+  "tilt": 55.0,
+  "states": [
+   "runs/perception/states/r3v5_s1.npz",
+   "runs/perception/states/r3v5_s2.npz",
+   "runs/perception/states/r3v5c_s1.npz",
+   "runs/perception/states/r3v5c_s2.npz"
+  ],
+  "n_states": 16384,
+  "states_max_gap": 0.015,
+  "init": "runs/perception/wrist_v4crop.pt",
+  "lr": 0.001,
+  "wrist_mode": "crop",
+  "tag": "_v6crop"
+ },
+ "test_set": "held-out in-loop states",
+ "held_out_dr_abs_error": {
+  "x_mm": {
+   "p50": 0.13211242854595184,
+   "p90": 0.37013304233551025,
+   "p99": 0.724175751209259,
+   "p99.5": 0.7958909869194031
+  },
+  "y_mm": {
+   "p50": 0.5351283550262451,
+   "p90": 1.4761077165603638,
+   "p99": 2.756195306777954,
+   "p99.5": 3.2025859355926514
+  },
+  "gap_mm": {
+   "p50": 0.36406993865966797,
+   "p90": 1.031838059425354,
+   "p99": 1.915266752243042,
+   "p99.5": 2.11950945854187
+  },
+  "rx_deg": {
+   "p50": 0.33660373091697693,
+   "p90": 0.9887241125106812,
+   "p99": 1.7326889038085938,
+   "p99.5": 1.9184472560882568
+  },
+  "ry_deg": {
+   "p50": 0.15761373937129974,
+   "p90": 0.44919273257255554,
+   "p99": 0.7948377132415771,
+   "p99.5": 0.8900731205940247
+  },
+  "rz_deg": {
+   "p50": 0.3435428738594055,
+   "p90": 0.9896769523620605,
+   "p99": 1.8210724592208862,
+   "p99.5": 1.9995702505111694
+  },
+  "lateral_mm": {
+   "p50": 0.575225830078125,
+   "p90": 1.506726622581482,
+   "p99": 2.7733376026153564,
+   "p99.5": 3.2536354064941406
+  },
+  "tilt_deg": {
+   "p50": 0.4397084712982178,
+   "p90": 1.0528719425201416,
+   "p99": 1.7541794776916504,
+   "p99.5": 1.9239728450775146
+  }
+ },
+ "held_out_nominal_look_abs_error": {
+  "x_mm": {
+   "p50": 0.10370099544525146,
+   "p90": 0.23984095454216003,
+   "p99": 0.37146005034446716,
+   "p99.5": 0.43302810192108154
+  },
+  "y_mm": {
+   "p50": 0.3333413004875183,
+   "p90": 0.8193503022193909,
+   "p99": 1.199626088142395,
+   "p99.5": 1.282954216003418
+  },
+  "gap_mm": {
+   "p50": 0.23895931243896484,
+   "p90": 0.5846025347709656,
+   "p99": 0.9948862791061401,
+   "p99.5": 1.0414267778396606
+  },
+  "rx_deg": {
+   "p50": 0.1765000820159912,
+   "p90": 0.41072267293930054,
+   "p99": 0.6594985723495483,
+   "p99.5": 0.689445972442627
+  },
+  "ry_deg": {
+   "p50": 0.1299419403076172,
+   "p90": 0.3129759728908539,
+   "p99": 0.5140570402145386,
+   "p99.5": 0.5587510466575623
+  },
+  "rz_deg": {
+   "p50": 0.13331076502799988,
+   "p90": 0.32544174790382385,
+   "p99": 0.46679091453552246,
+   "p99.5": 0.5273735523223877
+  },
+  "lateral_mm": {
+   "p50": 0.37342846393585205,
+   "p90": 0.8323289155960083,
+   "p99": 1.2011675834655762,
+   "p99.5": 1.284428358078003
+  },
+  "tilt_deg": {
+   "p50": 0.27004408836364746,
+   "p90": 0.4765332043170929,
+   "p99": 0.7450845837593079,
+   "p99.5": 0.7954046130180359
+  }
+ },
+ "generate_s": 400.71413135528564,
+ "total_s": 1180.0963771343231,
+ "note": "visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)"
+}

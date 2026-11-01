@@ -1,0 +1,108 @@
+{
+ "n": 2048,
+ "pass_rate": 0.4140625,
+ "wilson95_lower": 0.3929098807222929,
+ "gate_met": false,
+ "tolerance": {
+  "translation_mm": 0.5,
+  "rotation_deg": 0.5
+ },
+ "arm_arm_contact_worlds": 0,
+ "left_touches_other_worlds": 129,
+ "nonfinite_worlds": 113,
+ "unlatched_worlds": 0,
+ "plan_failed_worlds": 4,
+ "pc_translation_mm": {
+  "p50": 2.049666404724121,
+  "p90": 58.26096725463867,
+  "p99": 7458361180160.0,
+  "p99.5": 47980543475712.0,
+  "p100": 3.4227652661765734e+17
+ },
+ "pc_rotation_deg": {
+  "p50": 0.6297521591186523,
+  "p90": 16.719371795654297,
+  "p99": 178.42324829101562,
+  "p99.5": 179.3004150390625,
+  "p100": 184.88087463378906
+ },
+ "engage_translation_mm": {
+  "p50": NaN,
+  "p99": NaN,
+  "p100": NaN
+ },
+ "engage_rotation_deg": {
+  "p50": 0.000702878343872726,
+  "p99": 0.17714373767375946,
+  "p100": 124.98086547851562
+ },
+ "left_contact_force_n": {
+  "p1": 7.912271499633789,
+  "p50": 26.12645721435547,
+  "p99": 29.098833084106445
+ },
+ "seated_rate": null,
+ "hold": {
+  "mode": "press",
+  "across_m": -0.0208,
+  "along_m": 0.03,
+  "brace_height_m": 0.02,
+  "force_n": 25.0,
+  "preload_n": 0.0,
+  "down_n": 0.0,
+  "standoff_m": 0.015,
+  "move_s": 1.5,
+  "engage_s": 0.6,
+  "settle_s": 0.5,
+  "yaws_deg": [
+   -90,
+   -75,
+   -60,
+   -45,
+   -30,
+   -15,
+   0,
+   15,
+   30,
+   45,
+   60,
+   75,
+   90
+  ],
+  "tilt_deg": 0.0,
+  "ik_iters": 120,
+  "guarded": true,
+  "guard_speed_m_s": 0.01,
+  "guard_depth_m": 0.025,
+  "guard_force_n": 3.0,
+  "ramp_s": 0.4
+ },
+ "insert": null,
+ "load": {
+  "type": "push",
+  "push_n": [
+   0.0,
+   20.0
+  ],
+  "lateral_frac": 0.15,
+  "push_hold_s": 1.5
+ },
+ "pc_estimate_error": {
+  "sigma_m": 0.002,
+  "sigma_yaw_deg": 1.0
+ },
+ "enc_offset_deg": 1.5,
+ "wall_s": 73.72196054458618,
+ "pass_by_push_n": {
+  "0-4": 0.9664082687338501,
+  "4-8": 0.705607476635514,
+  "8-12": 0.3088235294117647,
+  "12-16": 0.09048723897911833,
+  "16-20": 0.017766497461928935
+ },
+ "pass_by_feet_mu": {
+  "0.3-0.5": 0.2727272727272727,
+  "0.5-0.7": 0.38144329896907214,
+  "0.7-0.9": 0.5969924812030075
+ }
+}

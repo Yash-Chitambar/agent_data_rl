@@ -1,0 +1,27 @@
+{
+ "policy": "runs/P4-student-wrist_approach-s0/last.pt",
+ "n": 1024,
+ "seated": 36,
+ "rate": 0.03515625,
+ "wilson95": [
+  0.025500777101469377,
+  0.048286467937065744
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "lateral_miss": 623,
+  "grasp_slip": 342,
+  "seated": 36,
+  "tilt": 11,
+  "jam": 9,
+  "deep_unseated": 3
+ },
+ "strict_seated_rate": 0.0009765625,
+ "seated_or_deep_rate": 0.0380859375,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 1.02,
+ "t_seat_s_p95": 2.75,
+ "pc_max_mm_p99": 1.5300064027309417,
+ "gate_pass": false
+}

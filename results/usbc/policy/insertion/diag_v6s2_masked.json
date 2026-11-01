@@ -1,0 +1,27 @@
+{
+ "policy": "runs/v6s2_maskednorm.pt",
+ "n": 1024,
+ "seated": 533,
+ "rate": 0.5205078125,
+ "wilson95": [
+  0.4898890747773058,
+  0.5509732526474648
+ ],
+ "scale": 1.5,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 533,
+  "lateral_miss": 438,
+  "tilt": 25,
+  "grasp_slip": 15,
+  "deep_unseated": 8,
+  "jam": 5
+ },
+ "strict_seated_rate": 0.0,
+ "seated_or_deep_rate": 0.5283203125,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 0.86,
+ "t_seat_s_p95": 5.0559999999999965,
+ "pc_max_mm_p99": 1.6717835581302642,
+ "gate_pass": false
+}

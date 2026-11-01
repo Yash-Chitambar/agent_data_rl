@@ -1,0 +1,146 @@
+{
+ "estimator": "wrist_v4crop",
+ "method": "Train the approach estimators on DR renders (policy/v1 visual DR defaults; RGB only) and report\nheld-out errors.\n\n  zed   : PC port pose (x, y, yaw) in the right-base frame from the ZED frame taken before the arms\n          move (crop around the nominal PC). Labels: deviation from the nominal port pose.\n  wrist : plug tip pose relative to port 2 (x across, y up, z gap; rotation vector) from the right\n          wrist frame at an approach pose (left arm holding the PC, reader in the 60-deg grasp).\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/train_approach_estimators.py --which wrist --n 24576\nWrites runs/perception/<which>.pt and results/usbc/policy/approach/estimator_<which>.json",
+ "n_train": 32768,
+ "n_test_dr": 2048,
+ "n_test_nominal_look": 512,
+ "sample_cfg": {
+  "lateral_m": 0.004,
+  "gap_m": [
+   0.003,
+   0.014
+  ],
+  "rot_deg": 4.0,
+  "roll_deg": 3.0
+ },
+ "args": {
+  "which": "wrist",
+  "n": 16384,
+  "n_test": 2048,
+  "epochs": 40,
+  "nworld": 256,
+  "lateral": 0.004,
+  "gap": [
+   0.003,
+   0.014
+  ],
+  "rot": 4.0,
+  "inhand_rot": 12.0,
+  "inhand_pos": 1.5,
+  "tilt": 55.0,
+  "states": [
+   "runs/perception/states/v3_s1.npz",
+   "runs/perception/states/v3_s2.npz"
+  ],
+  "n_states": 16384,
+  "states_max_gap": 0.015,
+  "init": null,
+  "lr": 0.002,
+  "wrist_mode": "crop",
+  "tag": "_v4crop"
+ },
+ "test_set": "held-out in-loop states",
+ "held_out_dr_abs_error": {
+  "x_mm": {
+   "p50": 0.16275662183761597,
+   "p90": 0.4415016174316406,
+   "p99": 0.9102498888969421,
+   "p99.5": 1.057610273361206
+  },
+  "y_mm": {
+   "p50": 0.6290192604064941,
+   "p90": 1.6676596403121948,
+   "p99": 2.7911460399627686,
+   "p99.5": 3.321195602416992
+  },
+  "gap_mm": {
+   "p50": 0.3896639347076416,
+   "p90": 1.071138620376587,
+   "p99": 2.020036220550537,
+   "p99.5": 2.196779251098633
+  },
+  "rx_deg": {
+   "p50": 0.6025705337524414,
+   "p90": 1.6094706058502197,
+   "p99": 3.1245434284210205,
+   "p99.5": 3.4847629070281982
+  },
+  "ry_deg": {
+   "p50": 0.22963491082191467,
+   "p90": 0.629995584487915,
+   "p99": 1.1664315462112427,
+   "p99.5": 1.3500138521194458
+  },
+  "rz_deg": {
+   "p50": 0.40213847160339355,
+   "p90": 1.4356489181518555,
+   "p99": 3.329071521759033,
+   "p99.5": 3.834460735321045
+  },
+  "lateral_mm": {
+   "p50": 0.6826052069664001,
+   "p90": 1.7133089303970337,
+   "p99": 2.924431800842285,
+   "p99.5": 3.3261256217956543
+  },
+  "tilt_deg": {
+   "p50": 0.7312772274017334,
+   "p90": 1.6694400310516357,
+   "p99": 3.1373789310455322,
+   "p99.5": 3.5049943923950195
+  }
+ },
+ "held_out_nominal_look_abs_error": {
+  "x_mm": {
+   "p50": 0.1349257230758667,
+   "p90": 0.33957695960998535,
+   "p99": 0.5580232739448547,
+   "p99.5": 0.6441923975944519
+  },
+  "y_mm": {
+   "p50": 0.5700165629386902,
+   "p90": 1.3371875286102295,
+   "p99": 2.1445188522338867,
+   "p99.5": 2.450159788131714
+  },
+  "gap_mm": {
+   "p50": 0.39686107635498047,
+   "p90": 0.8971768617630005,
+   "p99": 1.6120872497558594,
+   "p99.5": 1.7306182384490967
+  },
+  "rx_deg": {
+   "p50": 0.45422446727752686,
+   "p90": 1.1031370162963867,
+   "p99": 1.713173508644104,
+   "p99.5": 1.8556514978408813
+  },
+  "ry_deg": {
+   "p50": 0.16491281986236572,
+   "p90": 0.39108380675315857,
+   "p99": 0.5919221043586731,
+   "p99.5": 0.6107416749000549
+  },
+  "rz_deg": {
+   "p50": 0.1611817479133606,
+   "p90": 0.4183076322078705,
+   "p99": 0.7341362237930298,
+   "p99.5": 0.767919659614563
+  },
+  "lateral_mm": {
+   "p50": 0.6178985834121704,
+   "p90": 1.3409504890441895,
+   "p99": 2.2042884826660156,
+   "p99.5": 2.4625799655914307
+  },
+  "tilt_deg": {
+   "p50": 0.5149317979812622,
+   "p90": 1.1414464712142944,
+   "p99": 1.7288607358932495,
+   "p99.5": 1.8748859167099
+  }
+ },
+ "generate_s": 371.50515031814575,
+ "total_s": 1376.8901815414429,
+ "note": "visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)"
+}

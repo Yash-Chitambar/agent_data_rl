@@ -1,0 +1,111 @@
+{
+ "n": 1024,
+ "pass_rate": 0.9609375,
+ "wilson95_lower": 0.9472454916079235,
+ "gate_met": false,
+ "tolerance": {
+  "translation_mm": 0.5,
+  "rotation_deg": 0.5
+ },
+ "arm_arm_contact_worlds": 0,
+ "left_touches_other_worlds": 0,
+ "nonfinite_worlds": 1,
+ "right_touches_pc_worlds": 0,
+ "unlatched_worlds": 0,
+ "plan_failed_worlds": 1,
+ "pc_translation_mm": {
+  "p50": 0.021420519798994064,
+  "p90": 0.04696423560380936,
+  "p99": 2.1279327869415283,
+  "p99.5": 2.7368409633636475,
+  "p100": 1000.0
+ },
+ "pc_rotation_deg": {
+  "p50": 0.0,
+  "p90": 0.005705052055418491,
+  "p99": 0.7762153744697571,
+  "p99.5": 0.928725004196167,
+  "p100": 2.6951136589050293
+ },
+ "engage_translation_mm": {
+  "p50": NaN,
+  "p99": NaN,
+  "p100": NaN
+ },
+ "engage_rotation_deg": {
+  "p50": 0.0011806779075413942,
+  "p99": 0.11797690391540527,
+  "p100": 119.82080841064453
+ },
+ "left_contact_force_n": {
+  "p1": 35.45212936401367,
+  "p50": 37.03327941894531,
+  "p99": 39.645538330078125
+ },
+ "seated_rate": null,
+ "hold": {
+  "mode": "press",
+  "across_m": -0.0208,
+  "along_m": -0.02,
+  "brace_height_m": 0.02,
+  "force_n": 35.0,
+  "preload_n": 4.0,
+  "down_n": 0.0,
+  "standoff_m": 0.015,
+  "move_s": 1.5,
+  "engage_s": 0.6,
+  "settle_s": 0.5,
+  "yaws_deg": [
+   -90,
+   -75,
+   -60,
+   -45,
+   -30,
+   -15,
+   0,
+   15,
+   30,
+   45,
+   60,
+   75,
+   90
+  ],
+  "tilt_deg": 0.0,
+  "ik_iters": 120,
+  "guarded": true,
+  "guard_speed_m_s": 0.01,
+  "guard_depth_m": 0.025,
+  "guard_force_n": 3.0,
+  "ramp_s": 0.4
+ },
+ "insert": null,
+ "load": {
+  "type": "push",
+  "push_n": [
+   0.0,
+   10.0
+  ],
+  "lateral_frac": 0.15,
+  "push_hold_s": 1.5
+ },
+ "pc_estimate_error": {
+  "sigma_m": 0.002,
+  "sigma_yaw_deg": 1.0
+ },
+ "enc_offset_deg": 1.5,
+ "feet_solref": null,
+ "feet_solimp": null,
+ "wall_s": 71.39520001411438,
+ "pass_by_push_n": {
+  "0-2": 1.0,
+  "2-4": 0.9688888888888889,
+  "4-6": 0.9326424870466321,
+  "6-8": 0.9545454545454546,
+  "8-10": 0.9507389162561576
+ },
+ "pass_by_feet_mu": {
+  "0.3-0.5": 0.9376770538243626,
+  "0.5-0.7": 0.9730538922155688,
+  "0.7-0.9": 0.973293768545994
+ }
+}

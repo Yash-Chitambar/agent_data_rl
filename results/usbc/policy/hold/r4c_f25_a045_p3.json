@@ -1,0 +1,108 @@
+{
+ "n": 1024,
+ "pass_rate": 0.982421875,
+ "wilson95_lower": 0.9723850217017403,
+ "gate_met": false,
+ "tolerance": {
+  "translation_mm": 0.5,
+  "rotation_deg": 0.5
+ },
+ "arm_arm_contact_worlds": 0,
+ "left_touches_other_worlds": 9,
+ "nonfinite_worlds": 0,
+ "right_touches_pc_worlds": 0,
+ "unlatched_worlds": 0,
+ "plan_failed_worlds": 0,
+ "left_j2_cmd_torque_nm": {
+  "p50": 8.036624908447266,
+  "max": 8.494794845581055
+ },
+ "pc_translation_mm": {
+  "p50": 0.10157415270805359,
+  "p90": 0.113547682762146,
+  "p99": 436.629150390625,
+  "p99.5": 2577.2724609375,
+  "p100": 5301.37939453125
+ },
+ "pc_rotation_deg": {
+  "p50": 0.005663473159074783,
+  "p90": 0.01762489415705204,
+  "p99": 178.41078186035156,
+  "p99.5": 179.35289001464844,
+  "p100": 189.8545379638672
+ },
+ "engage_translation_mm": {
+  "p50": 0.010865041986107826,
+  "p99": 0.08692482858896255,
+  "p100": 0.20564912259578705
+ },
+ "engage_rotation_deg": {
+  "p50": 0.007692634128034115,
+  "p99": 0.02461755834519863,
+  "p100": 0.05136343836784363
+ },
+ "left_contact_force_n": {
+  "p1": 0.6208062171936035,
+  "p50": 25.31658172607422,
+  "p99": 27.08816909790039
+ },
+ "seated_rate": null,
+ "hold": {
+  "mode": "press",
+  "across_m": -0.0208,
+  "along_m": -0.045,
+  "brace_height_m": 0.02,
+  "force_n": 25.0,
+  "preload_n": 0.0,
+  "down_n": 0.0,
+  "standoff_m": 0.015,
+  "move_s": 1.5,
+  "engage_s": 0.6,
+  "settle_s": 0.5,
+  "yaws_deg": [
+   -90,
+   -75,
+   -60,
+   -45,
+   -30,
+   -15,
+   0,
+   15,
+   30,
+   45,
+   60,
+   75,
+   90
+  ],
+  "tilt_deg": 0.0,
+  "ik_iters": 120,
+  "guarded": true,
+  "guard_speed_m_s": 0.01,
+  "guard_depth_m": 0.025,
+  "guard_force_n": 3.0,
+  "ramp_s": 0.4
+ },
+ "insert": null,
+ "load": {
+  "type": "push",
+  "push_n": [
+   3.0,
+   3.0
+  ],
+  "lateral_frac": 0.15,
+  "push_hold_s": 1.5
+ },
+ "pc_estimate_error": {
+  "sigma_m": 0.002,
+  "sigma_yaw_deg": 1.0
+ },
+ "enc_offset_deg": 1.5,
+ "feet_solref": null,
+ "feet_solimp": null,
+ "wall_s": 172.69137048721313,
+ "pass_by_feet_mu": {
+  "0.3-0.5": NaN,
+  "0.5-0.7": NaN,
+  "0.7-0.9": 0.9849906191369606
+ }
+}

@@ -1,5 +1,7 @@
 # RL: bimanual runtime, policy interface, training
 
+Plan for the policy (pick → approach → hold → insert): [POLICY_PLAN](POLICY_PLAN.md).
+
 ## Runtime
 
 `blind_insertion/envs/bimanual_runtime.py` (`BimanualRuntime`, `BimanualCfg`): both arms, free

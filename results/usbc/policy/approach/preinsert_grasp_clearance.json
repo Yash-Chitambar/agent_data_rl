@@ -1,0 +1,2511 @@
+{
+ "method": "Pre-insert / seated reachability and clearance of the confirmed 60-deg grasp (CPU, MuJoCo).\n\nFor PC poses over the training box (port nominal (0.22, 0.36) m, +/-3 cm, +/-10 deg: corners,\nedge midpoints and centre = 27 poses) and grasp tilts from vertical (60 = confirmed), the right\narm is solved by IK for the reader at 10 mm, 6 mm (pre-insert), 0 mm and seated along the port axis,\nwith the in-hand extremes (+/-3 mm along the reader axis / vertically, +/-8 deg about the closing\naxis). The left arm is at its press hold (explore_pc_placement press target). Reported per tilt:\nIK success, joint margin, and the minimum signed distance of the right gripper/fingers/links to\nthe PC case, the table and the left arm (and of the reader body to the PC, excluding the plug).\n\n    PYTHONPATH=. .venv/bin/python scripts/task/check_preinsert_grasp.py\nWrites results/usbc/policy/approach/preinsert_grasp_clearance.json",
+ "gaps_m": [
+  0.01,
+  0.006,
+  0.0,
+  -0.0058
+ ],
+ "summary_by_tilt_deg": {
+  "60": {
+   "n_pc_poses": 27,
+   "ik_ok": 24,
+   "left_hold_ok": 27,
+   "min_joint_margin_rad": 0.0,
+   "min_dist_mm": {
+    "pc": 1000.0,
+    "table": 7.7916197961942,
+    "left": 22.297142160700766,
+    "reader_pc": 2.595910847391636e-07
+   }
+  },
+  "55": {
+   "n_pc_poses": 27,
+   "ik_ok": 27,
+   "left_hold_ok": 27,
+   "min_joint_margin_rad": 0.014068549358840166,
+   "min_dist_mm": {
+    "pc": 1000.0,
+    "table": 7.862845205894358,
+    "left": 20.440864747554397,
+    "reader_pc": 2.595910847391636e-07
+   }
+  },
+  "50": {
+   "n_pc_poses": 27,
+   "ik_ok": 27,
+   "left_hold_ok": 27,
+   "min_joint_margin_rad": 0.10838782762349664,
+   "min_dist_mm": {
+    "pc": 36.59331144454121,
+    "table": 7.790464809400037,
+    "left": 22.18894347196644,
+    "reader_pc": 2.595910847391636e-07
+   }
+  },
+  "45": {
+   "n_pc_poses": 27,
+   "ik_ok": 27,
+   "left_hold_ok": 27,
+   "min_joint_margin_rad": 0.18701536973394695,
+   "min_dist_mm": {
+    "pc": 36.77475875838576,
+    "table": 7.78582827932621,
+    "left": 22.466019471584566,
+    "reader_pc": 2.595910847391636e-07
+   }
+  },
+  "40": {
+   "n_pc_poses": 27,
+   "ik_ok": 27,
+   "left_hold_ok": 27,
+   "min_joint_margin_rad": 0.2542640948062582,
+   "min_dist_mm": {
+    "pc": 37.06562266890417,
+    "table": 7.769635421234218,
+    "left": 20.42806697888809,
+    "reader_pc": 2.595910847391636e-07
+   }
+  }
+ },
+ "cases": [
+  {
+   "pc": [
+    0.19,
+    0.33,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "fail": [
+    [
+     1,
+     0.01
+    ],
+    [
+     1,
+     0.006
+    ],
+    [
+     1,
+     0.0
+    ],
+    [
+     1,
+     -0.0058
+    ],
+    [
+     3,
+     0.01
+    ],
+    [
+     3,
+     0.006
+    ],
+    [
+     3,
+     0.0
+    ],
+    [
+     3,
+     -0.0058
+    ],
+    [
+     5,
+     0.01
+    ],
+    [
+     5,
+     0.006
+    ],
+    [
+     5,
+     0.0
+    ],
+    [
+     7,
+     0.01
+    ],
+    [
+     7,
+     0.006
+    ],
+    [
+     7,
+     0.0
+    ]
+   ],
+   "ik_ok": false,
+   "joint_margin_rad": 0.014152907135204895,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008070110817799403,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.2363268307004467,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008057848344100386,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3884133700646044,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008039922253927467,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "fail": [
+    [
+     1,
+     0.01
+    ],
+    [
+     1,
+     0.006
+    ],
+    [
+     1,
+     0.0
+    ],
+    [
+     3,
+     0.01
+    ],
+    [
+     3,
+     0.006
+    ],
+    [
+     3,
+     0.0
+    ],
+    [
+     5,
+     0.01
+    ],
+    [
+     5,
+     0.006
+    ],
+    [
+     7,
+     0.01
+    ],
+    [
+     7,
+     0.006
+    ]
+   ],
+   "ik_ok": false,
+   "joint_margin_rad": 0.0,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.0077916197961942005,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.2589294849797523,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008059878122661068,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3901950764399533,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007998706895943827,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "fail": [
+    [
+     1,
+     0.01
+    ],
+    [
+     1,
+     0.006
+    ],
+    [
+     1,
+     0.0
+    ],
+    [
+     3,
+     0.01
+    ],
+    [
+     3,
+     0.006
+    ],
+    [
+     3,
+     0.0
+    ],
+    [
+     5,
+     0.01
+    ],
+    [
+     5,
+     0.006
+    ],
+    [
+     7,
+     0.01
+    ],
+    [
+     7,
+     0.006
+    ]
+   ],
+   "ik_ok": false,
+   "joint_margin_rad": 0.0,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007970273685445742,
+    "left": 0.022297142160700764,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.27865890257880976,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008061358979441519,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3918583072034971,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008011046966516958,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.06433738221481144,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008070217907913846,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3836560147031849,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.00807032920629152,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.41590631706404046,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.00803210896354977,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.06596026248220443,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008070154902944875,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.383706248508799,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008070115545561238,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4162781720105009,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008051316792606254,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.06739151042908409,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008070143450936214,
+    "left": 0.025876713857094558,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3837451043423856,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.00807010584052753,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4165878505722851,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008060062665555173,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.2572973998790662,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008064052434002468,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3900808542097325,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008006157390127423,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4638034857573954,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007915596367764663,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.24381755643272007,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008084222410410874,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.38911981235023463,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008031052865532635,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4591564443905376,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.0079889826727388,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    -10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.2321742097499293,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.00808233061309832,
+    "left": 0.03464724481760004,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    0.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.38836893807511497,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008048145076645273,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    10.0
+   ],
+   "tilt": 60.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.45538034758129453,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.008023736004631583,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.014068549358840166,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.00789647794598776,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.322406066318901,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007872302492440524,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.47761594040048805,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.0079023046646233,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.024121088047996064,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007896462221061301,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3389264923738913,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007876499830322438,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4790989102858323,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007910507817513027,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.03286066244672092,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007896598276578813,
+    "left": 0.020440864747554396,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.35292489937154037,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007879653488195013,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4804264686230104,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007908432160159039,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.16806257148231296,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007908897051082595,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4710559539095587,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.00791166945420059,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5034384241263201,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007892430398880941,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.16704161662090788,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007907013715436374,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4710161667968904,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.00790919033032271,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5031412169362748,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007895050850091435,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.16617972988795304,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007905432991960587,
+    "left": 0.02829133821334759,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4710608037555992,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007907375741143731,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5028886394148895,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007895983769600275,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3367028917945596,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007878218955531459,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4789012834633899,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007910026920170739,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5459041307469823,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007862845205894357,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3225081134293095,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007885973780934356,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.47769656213971223,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007896524161713943,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5409384792033753,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007881270603145085,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    -10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3103023138510397,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.00789604971763129,
+    "left": 0.03165425352813245,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    0.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.47675476768433245,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007896558924424646,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    10.0
+   ],
+   "tilt": 55.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5369177105385503,
+   "min_dist_m": {
+    "pc": 1.0,
+    "table": 0.007889170604017656,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.10838782762349664,
+   "min_dist_m": {
+    "pc": 0.036617168377647925,
+    "table": 0.007827608291560303,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.39059398908563425,
+   "min_dist_m": {
+    "pc": 0.036606733775791704,
+    "table": 0.007790464809400037,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5673148579032943,
+   "min_dist_m": {
+    "pc": 0.03659524932007594,
+    "table": 0.007818846685279414,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.11537927291676442,
+   "min_dist_m": {
+    "pc": 0.036618863067298314,
+    "table": 0.007826200967451916,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.40164894948267293,
+   "min_dist_m": {
+    "pc": 0.03660933258174339,
+    "table": 0.007795542150053056,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5684438534717133,
+   "min_dist_m": {
+    "pc": 0.036599151816191736,
+    "table": 0.007818847308841415,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.12142522996180971,
+   "min_dist_m": {
+    "pc": 0.03662014106951649,
+    "table": 0.00782523216475279,
+    "left": 0.02218894347196644,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.41097072602935625,
+   "min_dist_m": {
+    "pc": 0.03661162564574302,
+    "table": 0.007799323047848951,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5694214872968675,
+   "min_dist_m": {
+    "pc": 0.03660247919736187,
+    "table": 0.007818849720237712,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.24978472811370245,
+   "min_dist_m": {
+    "pc": 0.03661350446042871,
+    "table": 0.007827837795695146,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5586570960685657,
+   "min_dist_m": {
+    "pc": 0.036602696026950425,
+    "table": 0.007827818809715462,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5921466443627029,
+   "min_dist_m": {
+    "pc": 0.036593311444541206,
+    "table": 0.007818607559035948,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.2462382160778387,
+   "min_dist_m": {
+    "pc": 0.03661576987188317,
+    "table": 0.007826438763732409,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5584196233433407,
+   "min_dist_m": {
+    "pc": 0.03660604854919414,
+    "table": 0.007826896432002753,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5911884794799507,
+   "min_dist_m": {
+    "pc": 0.036597563369625954,
+    "table": 0.007818794714600369,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.24320203482783098,
+   "min_dist_m": {
+    "pc": 0.03661754528891465,
+    "table": 0.007825272352822168,
+    "left": 0.0265790113190649,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5557826385883222,
+   "min_dist_m": {
+    "pc": 0.036608702853790524,
+    "table": 0.007826130421460992,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5903924937601718,
+   "min_dist_m": {
+    "pc": 0.03660099314214621,
+    "table": 0.007806984945871551,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3988572883861088,
+   "min_dist_m": {
+    "pc": 0.036610167678068205,
+    "table": 0.007797260960151209,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5681449599977337,
+   "min_dist_m": {
+    "pc": 0.03660024596957435,
+    "table": 0.007818713643421196,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6305905305929783,
+   "min_dist_m": {
+    "pc": 0.036593822760465765,
+    "table": 0.007812832051094523,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.38373953660030513,
+   "min_dist_m": {
+    "pc": 0.036612814070729936,
+    "table": 0.007802458486884455,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5666323410071421,
+   "min_dist_m": {
+    "pc": 0.03660369930121103,
+    "table": 0.007818741681604749,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6252261409280537,
+   "min_dist_m": {
+    "pc": 0.03659766564625766,
+    "table": 0.007816590396915443,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    -10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3707597882218967,
+   "min_dist_m": {
+    "pc": 0.03661493568006005,
+    "table": 0.00780827710631582,
+    "left": 0.03040428465676981,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    0.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5654488200908958,
+   "min_dist_m": {
+    "pc": 0.03660649814197113,
+    "table": 0.007826414269279387,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    10.0
+   ],
+   "tilt": 50.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6208946924856409,
+   "min_dist_m": {
+    "pc": 0.036600901643645704,
+    "table": 0.007817951672142567,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.18701536973394695,
+   "min_dist_m": {
+    "pc": 0.03679587829633889,
+    "table": 0.00784405973103066,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4473765964374259,
+   "min_dist_m": {
+    "pc": 0.03678526585199358,
+    "table": 0.00780559794846928,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6574424150323288,
+   "min_dist_m": {
+    "pc": 0.03677563584619238,
+    "table": 0.007846279720890498,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.1909348131039872,
+   "min_dist_m": {
+    "pc": 0.036797754207988885,
+    "table": 0.007843017050138387,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.45378071215867744,
+   "min_dist_m": {
+    "pc": 0.03678829073018153,
+    "table": 0.007811401167194643,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6581390617640754,
+   "min_dist_m": {
+    "pc": 0.03677979607195829,
+    "table": 0.007844892513793493,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.19431345257494304,
+   "min_dist_m": {
+    "pc": 0.03679918788119878,
+    "table": 0.007842136087242477,
+    "left": 0.022466019471584567,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4591786418730739,
+   "min_dist_m": {
+    "pc": 0.03679066241853224,
+    "table": 0.007815697729856463,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6587261597451292,
+   "min_dist_m": {
+    "pc": 0.03678309563175482,
+    "table": 0.007843798197768953,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3169717719047931,
+   "min_dist_m": {
+    "pc": 0.036792262617933016,
+    "table": 0.007840439339007535,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5982853165673061,
+   "min_dist_m": {
+    "pc": 0.03678277312743211,
+    "table": 0.007817390329855615,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6815292299123497,
+   "min_dist_m": {
+    "pc": 0.03677475875838576,
+    "table": 0.00778582827932621,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.3110145272845697,
+   "min_dist_m": {
+    "pc": 0.03679464606349292,
+    "table": 0.00784327883904467,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.592110001696994,
+   "min_dist_m": {
+    "pc": 0.03678612033432289,
+    "table": 0.007821340835174766,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6799004212984406,
+   "min_dist_m": {
+    "pc": 0.03677881529449006,
+    "table": 0.007790901548406767,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.30589457937911235,
+   "min_dist_m": {
+    "pc": 0.036796521497309324,
+    "table": 0.007842421386758065,
+    "left": 0.02570615917792876,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5868795401564137,
+   "min_dist_m": {
+    "pc": 0.036788788037387034,
+    "table": 0.007824254030993419,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6785701640917727,
+   "min_dist_m": {
+    "pc": 0.036782138614484566,
+    "table": 0.007813553607791998,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4504316387132534,
+   "min_dist_m": {
+    "pc": 0.03678913937481964,
+    "table": 0.00781344968475843,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6577231813512445,
+   "min_dist_m": {
+    "pc": 0.03678085732342374,
+    "table": 0.007844430291529973,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7167225430394032,
+   "min_dist_m": {
+    "pc": 0.03677591172502484,
+    "table": 0.007837075996665055,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4342590813391365,
+   "min_dist_m": {
+    "pc": 0.03679182569108666,
+    "table": 0.007818875834978423,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6558541015324005,
+   "min_dist_m": {
+    "pc": 0.03678421226070567,
+    "table": 0.007843555584993903,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7109293947726684,
+   "min_dist_m": {
+    "pc": 0.03677949777572985,
+    "table": 0.007837639886920107,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    -10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4203655593530735,
+   "min_dist_m": {
+    "pc": 0.036793985935730036,
+    "table": 0.007823875923160861,
+    "left": 0.03543879408017418,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    0.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.654389846232639,
+   "min_dist_m": {
+    "pc": 0.036786960941980425,
+    "table": 0.007843039556068951,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    10.0
+   ],
+   "tilt": 45.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7062610281609522,
+   "min_dist_m": {
+    "pc": 0.03678258467370488,
+    "table": 0.007837598460543556,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.2542640948062582,
+   "min_dist_m": {
+    "pc": 0.037085354789147505,
+    "table": 0.007923444735983401,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.49683967505432713,
+   "min_dist_m": {
+    "pc": 0.03707503275953983,
+    "table": 0.007918237965638383,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.33,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7478666143188333,
+   "min_dist_m": {
+    "pc": 0.03706586721032755,
+    "table": 0.007774522119954469,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.255186018602785,
+   "min_dist_m": {
+    "pc": 0.03708732355538204,
+    "table": 0.007923432189610412,
+    "left": 1.0,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.49910157952875767,
+   "min_dist_m": {
+    "pc": 0.037078029091202606,
+    "table": 0.007924486429983023,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.36,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7480560312939623,
+   "min_dist_m": {
+    "pc": 0.03706980298368333,
+    "table": 0.007794362992180247,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.2559812915811659,
+   "min_dist_m": {
+    "pc": 0.03708884735066057,
+    "table": 0.007923574404970976,
+    "left": 0.02042806697888809,
+    "reader_pc": 2.595910986169514e-10
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.5010127936440381,
+   "min_dist_m": {
+    "pc": 0.037080389172985596,
+    "table": 0.007929100899006405,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.19,
+    0.39,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7482096138593678,
+   "min_dist_m": {
+    "pc": 0.037072968561456074,
+    "table": 0.007808143050596399,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.37412362747068917,
+   "min_dist_m": {
+    "pc": 0.03708179548175716,
+    "table": 0.007936092451958802,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6323362051727732,
+   "min_dist_m": {
+    "pc": 0.03707221588711927,
+    "table": 0.00786768019834544,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.33,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7711902309808673,
+   "min_dist_m": {
+    "pc": 0.03706562266890417,
+    "table": 0.007880716448039136,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.36589778844658083,
+   "min_dist_m": {
+    "pc": 0.03708420944048124,
+    "table": 0.007934030050287935,
+    "left": 1.0,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6233552276453336,
+   "min_dist_m": {
+    "pc": 0.03707544083957799,
+    "table": 0.007879993325911439,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.36,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7689017425868833,
+   "min_dist_m": {
+    "pc": 0.03706937693993521,
+    "table": 0.007923672530429166,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.35884757469911,
+   "min_dist_m": {
+    "pc": 0.03708612121136025,
+    "table": 0.007932343864104172,
+    "left": 0.027279538564853018,
+    "reader_pc": 2.595910847391636e-10
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.6157432718837386,
+   "min_dist_m": {
+    "pc": 0.03707803488667743,
+    "table": 0.007887283893462979,
+    "left": 1.0,
+    "reader_pc": 1.2161911339125808e-09
+   }
+  },
+  {
+   "pc": [
+    0.22,
+    0.39,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7670439685075074,
+   "min_dist_m": {
+    "pc": 0.037072515030606545,
+    "table": 0.007769635421234218,
+    "left": 1.0,
+    "reader_pc": 4.639958833818625e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4951987984031603,
+   "min_dist_m": {
+    "pc": 0.03707886406759016,
+    "table": 0.007926797166077977,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7475128083073422,
+   "min_dist_m": {
+    "pc": 0.03707079920860867,
+    "table": 0.007801055182963382,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.33,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.8035007683519761,
+   "min_dist_m": {
+    "pc": 0.037067302416852965,
+    "table": 0.007923758725350581,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4777879051472742,
+   "min_dist_m": {
+    "pc": 0.03708151062480366,
+    "table": 0.007932809097905592,
+    "left": 1.0,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.744586823958961,
+   "min_dist_m": {
+    "pc": 0.03707396130634983,
+    "table": 0.007822320912107439,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.36,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7973065765242975,
+   "min_dist_m": {
+    "pc": 0.03707057215206059,
+    "table": 0.007912666450532874,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    -10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.4628101968128573,
+   "min_dist_m": {
+    "pc": 0.03708365137712529,
+    "table": 0.007932784918720438,
+    "left": 0.032096109593806404,
+    "reader_pc": 2.595911194336331e-10
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    0.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7280850830051415,
+   "min_dist_m": {
+    "pc": 0.03707658961200885,
+    "table": 0.007836170380863004,
+    "left": 1.0,
+    "reader_pc": 1.2161911477903686e-09
+   }
+  },
+  {
+   "pc": [
+    0.25,
+    0.39,
+    10.0
+   ],
+   "tilt": 40.0,
+   "left_ok": true,
+   "ik_ok": true,
+   "joint_margin_rad": 0.7923147329896082,
+   "min_dist_m": {
+    "pc": 0.03707346748504528,
+    "table": 0.007892818022948396,
+    "left": 1.0,
+    "reader_pc": 4.639958868513094e-09
+   }
+  }
+ ],
+ "note": "distances are signed (negative = penetration), clipped at 20 mm (geom margin); 9 in-hand variants per pose"
+}

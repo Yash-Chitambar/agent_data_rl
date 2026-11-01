@@ -1,0 +1,29 @@
+{
+ "hold_along_m": -0.02,
+ "hold_force_n": 15.0,
+ "stand_up_m": 0.0,
+ "n": 1024,
+ "solver": "elliptic cones, impratio 30 (InsertionCfg physics)",
+ "arm_arm_worlds": 0,
+ "arm_arm_pairs_samples": {},
+ "latched": 1.0,
+ "pick_ok": 1.0,
+ "pc_sink_mm": {
+  "p1": 0.1795337051153183,
+  "p50": 0.562491774559021,
+  "p99": 0.6355974078178406
+ },
+ "engage_translation_mm": {
+  "p50": 0.5679967403411865,
+  "p99": 0.6487022042274475,
+  "p100": 6.327721118927002
+ },
+ "engage_rotation_deg": {
+  "p50": 0.15762196481227875,
+  "p99": 0.24999494850635529,
+  "p100": 1.8409377336502075
+ },
+ "push_n": 10.0,
+ "pc_still_rate": 0.9990234375,
+ "j2_cmd_nm_max": 5.350120544433594
+}

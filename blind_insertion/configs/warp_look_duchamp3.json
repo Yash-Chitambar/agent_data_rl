@@ -1,0 +1,120 @@
+{
+ "_note": "Nominal Warp look fitted by scripts/real2sim/fit_warp_look.py to the 21 recorded views of fit_backdrop.py (colour per appearance group, emission, per-camera RGB gain; gain_top = 1).",
+ "colors": {
+  "wall": [
+   0.7366,
+   0.7338,
+   0.7289
+  ],
+  "raceway": [
+   0.5068,
+   0.5012,
+   0.5003
+  ],
+  "table": [
+   0.083,
+   0.0749,
+   0.0741
+  ],
+  "arm_dark": [
+   0.1419,
+   0.1283,
+   0.1382
+  ],
+  "gripper": [
+   0.0829,
+   0.0767,
+   0.0717
+  ],
+  "backdrop_black": [
+   0.1345,
+   0.1238,
+   0.1385
+  ],
+  "mount": [
+   0.1358,
+   0.1288,
+   0.1308
+  ],
+  "accents": [
+   0.5862,
+   0.6631,
+   0.2857
+  ]
+ },
+ "emission": {
+  "wall": 0.026
+ },
+ "camera_gain": {
+  "top": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "wrist_cam": [
+   0.7356,
+   0.7314,
+   0.7534
+  ],
+  "left_wrist_cam": [
+   0.9676,
+   0.9566,
+   0.9975
+  ]
+ },
+ "camera_offset": {
+  "top": [
+   -5.75,
+   -3.75,
+   -3.69
+  ],
+  "wrist_cam": [
+   5.62,
+   8.01,
+   4.28
+  ],
+  "left_wrist_cam": [
+   21.2,
+   22.07,
+   18.01
+  ]
+ },
+ "fit_history": [
+  {
+   "round": 0,
+   "fitted_region_abs_delta_mean": 22.1
+  },
+  {
+   "round": 1,
+   "fitted_region_abs_delta_mean": 8.69
+  },
+  {
+   "round": 2,
+   "fitted_region_abs_delta_mean": 4.8
+  },
+  {
+   "round": 3,
+   "fitted_region_abs_delta_mean": 4.73
+  },
+  {
+   "round": 4,
+   "fitted_region_abs_delta_mean": 4.69
+  },
+  {
+   "round": 5,
+   "fitted_region_abs_delta_mean": 4.71
+  },
+  {
+   "round": 6,
+   "fitted_region_abs_delta_mean": 4.71
+  },
+  {
+   "round": 7,
+   "fitted_region_abs_delta_mean": 4.64
+  },
+  {
+   "round": 8,
+   "fitted_region_abs_delta_mean": 4.69
+  }
+ ]
+}

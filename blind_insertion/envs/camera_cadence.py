@@ -9,11 +9,12 @@ import torch
 
 
 class CameraCadence:
-    def __init__(self, render, nworld, device, profile=None):
+    def __init__(self, render, nworld, device, profile=None, cameras=None):
         source=profile or Path(__file__).resolve().parents[1]/'configs/bimanual_camera_cadence.json'
         data=json.loads(Path(source).read_text())
         if data['schema']!='host-camera-cadence-v1':raise ValueError('unsupported camera cadence schema')
         self.schedule=data['cameras'];self.render=render;self.device=device
+        if cameras is not None:self.schedule={k:v for k,v in self.schedule.items() if k in cameras}
         self.cursor={name:0 for name in self.schedule};self.cycle={name:0 for name in self.schedule}
         self.pending=[];self.generation=torch.zeros(nworld,device=device,dtype=torch.long)
         self.frames={};self.captured={};self.published_index={}

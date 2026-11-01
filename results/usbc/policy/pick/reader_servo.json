@@ -1,0 +1,72 @@
+{
+ "estimator": "reader_servo",
+ "method": "Wrist-camera servo net for the Part 1 pick descent (RGB only): from one right-wrist frame, the grasp pose\nRELATIVE TO THE HAND (grasp_site frame): translation t = R_h^T (p_g - p_h) (m) and rotation vector\nr = log(R_h^T R_g) (rad). Relative to the hand, so the believed-frame expert composes it with its own\nencoder-FK hand pose (T_g = FK_enc(q) * Delta): encoder-offset errors cancel up to the error of the\nremaining (short) relative move, and the tool tilt error from the offsets is corrected too.\n\nTraining views: the hand anywhere along the approach line from the pre-grasp hover (f = 0) to 8 mm short\nof the grasp (f = 0.93), off the line by U(+/-e) per axis with e = max(3 mm, 15 mm (1 - f)) and turned by\nU(+/-5 deg) about a random axis (PD tracking, ZED estimate and encoder-offset errors); full visual DR incl.\ncamera pose error. Loss weighted toward short distances (the last correction sets the grasp).\n\n    CUDA_VISIBLE_DEVICES=3 PYTHONPATH=. MUJOCO_GL=egl .venv/bin/python scripts/perception/train_reader_servo.py",
+ "args": {
+  "n": 49152,
+  "n_test": 4096,
+  "res": 320,
+  "size": 192,
+  "epochs": 40,
+  "width": 32,
+  "tag": "",
+  "seed": 0
+ },
+ "n_train": 49152,
+ "n_test": 4096,
+ "heldout_error": {
+  "all": {
+   "n": 4096,
+   "pos_mm": {
+    "50": 1.7058007717132568,
+    "90": 4.44905948638916,
+    "99": 13.044685363769531
+   },
+   "rot_deg": {
+    "50": 1.0004632472991943,
+    "90": 2.140899181365967,
+    "99": 3.575923442840576
+   }
+  },
+  "near_lt40mm": {
+   "n": 948,
+   "pos_mm": {
+    "50": 1.230564832687378,
+    "90": 3.0037474632263184,
+    "99": 9.377579689025879
+   },
+   "rot_deg": {
+    "50": 1.1991899013519287,
+    "90": 2.5721328258514404,
+    "99": 4.044721603393555
+   }
+  },
+  "mid_40_80mm": {
+   "n": 1201,
+   "pos_mm": {
+    "50": 1.4443106651306152,
+    "90": 3.7077443599700928,
+    "99": 10.079689979553223
+   },
+   "rot_deg": {
+    "50": 0.9831045866012573,
+    "90": 2.1344997882843018,
+    "99": 3.3896570205688477
+   }
+  },
+  "far_ge80mm": {
+   "n": 1947,
+   "pos_mm": {
+    "50": 2.1613733768463135,
+    "90": 5.5051164627075195,
+    "99": 17.62804412841797
+   },
+   "rot_deg": {
+    "50": 0.9334617853164673,
+    "90": 1.9407622814178467,
+    "99": 3.184774398803711
+   }
+  }
+ },
+ "generate_s": 1567.640079498291,
+ "total_s": 3080.3623530864716
+}

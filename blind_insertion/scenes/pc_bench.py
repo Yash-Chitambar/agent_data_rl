@@ -174,8 +174,9 @@ def _free_pc_spec(spec, profile):
 
 def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                 support_mode='fixed', profile=None, bimanual=False, table_top=0.0, measured_support=False,
-                controller_profile=None, table_z=None):
+                controller_profile=None, table_z=None, extra_spec=None):
     """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode.
+    ``extra_spec(spec)`` runs last on the spec before compiling (e.g. visual_dr.add_assets).
 
     table_z (single-arm rig deploy path): tabletop height in the arm base frame (REAL_TABLE_Z on
     duchamp3); sets table_top, adds mount plates under the bases, 10-sphere pads and pad torsion."""
@@ -233,6 +234,8 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         if bimanual:
             from blind_insertion.scenes.bimanual_collision import configure_spec
             configure_spec(sp)
+        if extra_spec is not None:
+            extra_spec(sp)
 
     m, lay = B.build("yam", [variant], pad_spheres=PAD_SPHERES if legacy_rig else 4, table_top=table_top, fixture_boxes=boxes,
                      extra=decorate, gripper="flexpoint" if physical else "linear")

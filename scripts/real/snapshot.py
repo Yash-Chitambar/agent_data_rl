@@ -191,6 +191,62 @@ def cmd_point(a):
             m.close()
 
 
+def cmd_pose(a):
+    """Move the selected arms to stored joint angles (encoder frame), capture like `capture`, return to rest.
+    Poses: blind_insertion/configs/zed_capture_pose.json ('capture': the pose the ZED PC-pose net was trained
+    at), 'folded' (all 0 = rigctl REST), 'parked' (left only, Part 1 park pose), or a JSON file
+    {"right": [6], "left": [6]} (encoder frame, rad)."""
+    out = Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+    spec = load_spec(str(rig.SPEC))
+    root = HERE.parents[1]
+    if a.pose == "capture":
+        enc = json.loads((root / "blind_insertion/configs/zed_capture_pose.json").read_text())["encoder_frame_rad"]
+    elif a.pose == "folded":
+        enc = {"right": [0.0] * 6, "left": [0.0] * 6}
+    elif a.pose == "parked":   # bimanual_pick.PickTaskCfg.left_park_q (model frame) -> encoder frame
+        park = np.array([0.0, 0.83, 0.29, -0.02, -0.73, -0.78])
+        enc = {"left": (park - rig.joint_offsets("left")).tolist()}
+    else:
+        enc = json.loads(Path(a.pose).read_text())
+    sides = [s for s in ((a.side,) if a.side else SIDES) if s in enc]
+    kin, checker = calib.Kin(), calib.calib_checker(calib.PLAN_CLEARANCE)
+    if estop.stopped():
+        raise SystemExit(f"{estop.STOP_FILE} is set: clear it in estop.py first")
+    movers, rest = {}, {}
+    try:
+        for side in sides:
+            movers[side] = calib.Mover(side, kin, checker)
+            rest[side] = movers[side].joints()
+        for side in sides:   # check every goal before anything moves
+            q = np.asarray(enc[side], float)
+            m = movers[side]
+            if checker.violation(q) or not m.lateral_ok(q) or m.path_ok(m.arm.read()[:6], q, check=m.path_check):
+                raise SystemExit(f"{side}: pose {q.round(3)} fails the safety checks; nothing moved")
+        for side in sides:
+            print(f"moving {side} to {a.pose}", flush=True)
+            movers[side].move_to(np.asarray(enc[side], float))
+        q_now = {s: movers[s].joints() for s in sides}
+        if not a.move_only:
+            grab_zed(out, a.tag)
+            grab_wrists(out, a.tag, spec)
+            write_meta(out, a.tag, spec, q_now, {"pose": a.pose})
+        if a.hold:
+            print("At the pose. Press Enter to return to the starting pose.", flush=True)
+            input()
+    except (safety.SafetyStop, KeyboardInterrupt) as e:
+        for m in movers.values():
+            m.hold()
+        if movers:
+            next(iter(movers.values())).wait_clear(e if str(e) else "interrupted")
+    finally:
+        for side, m in movers.items():
+            print(f"returning {side} to rest", flush=True)
+            m.go_home(rest[side][:6])
+        for m in movers.values():
+            m.close()
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -204,5 +260,12 @@ if __name__ == "__main__":
     c.add_argument("--side", choices=SIDES, help="move only this arm")
     c.add_argument("--move-only", action="store_true", help="move and hold without taking images")
     c.add_argument("--hold", action="store_true", help="wait for Enter before returning to start")
+    c = sub.add_parser("pose")
+    c.add_argument("--out", required=True)
+    c.add_argument("--pose", required=True, help="capture | folded | parked | <json file> (encoder frame, rad)")
+    c.add_argument("--tag", default="pose")
+    c.add_argument("--side", choices=SIDES, help="move only this arm")
+    c.add_argument("--move-only", action="store_true", help="move and hold without taking images")
+    c.add_argument("--hold", action="store_true", help="wait for Enter before returning to start")
     a = ap.parse_args()
-    {"capture": cmd_capture, "point": cmd_point}[a.cmd](a)
+    {"capture": cmd_capture, "point": cmd_point, "pose": cmd_pose}[a.cmd](a)

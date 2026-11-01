@@ -15,6 +15,8 @@ mini PC; left YAM holds the PC. Recipe and question: [README](../../README.md),
 - **Short term (this week):** finish the sim-side randomization, define reward and resets,
   and show with a short PPO run that the task is solvable in the bimanual runtime.
 
+Policy plan (four parts, domain randomization, accuracy targets): [POLICY_PLAN](../rl/POLICY_PLAN.md).
+
 ## Done: simulator matched to the rig
 
 | Item | Result | Where |

@@ -1,0 +1,358 @@
+{
+ "tilt_60deg": {
+  "preinsert_5mm_nominal": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 49.69,
+     "table_mm": 18.1
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 41.23
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 48.03
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": 10.8,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "seated_nominal": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 38.89,
+     "table_mm": 18.1
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 41.23
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 48.03
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": -0.0,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "seated_randomized": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 35.3,
+     "table_mm": 13.66
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 27.35
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 34.24
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": 0.0,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "nominal_right_q": [
+   1.5362069606781006,
+   2.1663198471069336,
+   1.1946009397506714,
+   -0.5392507314682007,
+   1.0461626052856445,
+   1.5017006397247314
+  ],
+  "grasp": {
+   "tcp_in_reader_m": [
+    0.0,
+    0.00175281804769824,
+    0.04886115414764354
+   ],
+   "pad_y_range_m": [
+    -0.000532189323956172,
+    0.013665772443354613
+   ],
+   "side_face_coverage_m": 0.006147189323956172,
+   "lowest_finger_below_reader_m": 0.001
+  }
+ },
+ "tilt_50deg": {
+  "preinsert_5mm_nominal": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 49.48,
+     "table_mm": 18.1
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": 10.8,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "seated_nominal": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 38.68,
+     "table_mm": 18.1
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": -0.0,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "seated_randomized": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 35.16,
+     "table_mm": 13.9
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 41.97
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": 0.0,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "nominal_right_q": [
+   1.4901484251022339,
+   2.1020326614379883,
+   1.2089543342590332,
+   -0.5820034742355347,
+   0.868800163269043,
+   1.4457145929336548
+  ],
+  "grasp": {
+   "tcp_in_reader_m": [
+    0.0,
+    0.0009370579746359681,
+    0.04982377759523033
+   ],
+   "pad_y_range_m": [
+    -0.00043751660911074404,
+    0.014689360502960658
+   ],
+   "side_face_coverage_m": 0.006052516609110744,
+   "lowest_finger_below_reader_m": 0.001
+  }
+ },
+ "tilt_40deg": {
+  "preinsert_5mm_nominal": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 49.66,
+     "table_mm": 18.1
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": 10.8,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "seated_nominal": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 38.86,
+     "table_mm": 18.1
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": -0.0,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "seated_randomized": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 35.3,
+     "table_mm": 13.8
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": 0.0,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "nominal_right_q": [
+   1.4337549209594727,
+   2.0590767860412598,
+   1.239960789680481,
+   -0.6375466585159302,
+   0.690290629863739,
+   1.3926811218261719
+  ],
+  "grasp": {
+   "tcp_in_reader_m": [
+    0.0,
+    -7.170616568919104e-05,
+    0.05101052382803742
+   ],
+   "pad_y_range_m": [
+    -0.00049408220836936,
+    0.015102087741981528
+   ],
+   "side_face_coverage_m": 0.00610908220836936,
+   "lowest_finger_below_reader_m": 0.001
+  }
+ },
+ "tilt_30deg": {
+  "preinsert_5mm_nominal": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 50.0,
+     "table_mm": 18.1
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": 10.8,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "seated_nominal": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 39.42,
+     "table_mm": 18.1
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": -0.0,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "seated_randomized": {
+   "min_over_samples": {
+    "fingers": {
+     "pc_mm": 35.56,
+     "table_mm": 13.67
+    },
+    "gripper_housing": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "wrist_links": {
+     "pc_mm": 50.0,
+     "table_mm": 50.0
+    },
+    "reader_body_vs_pc": {
+     "pc_mm": 0.0,
+     "table_mm": 19.1
+    }
+   },
+   "ik_failures": 0,
+   "n": 64
+  },
+  "nominal_right_q": [
+   1.3694453239440918,
+   2.0391366481781006,
+   1.2859089374542236,
+   -0.7026116847991943,
+   0.5119736790657043,
+   1.3393269777297974
+  ],
+  "grasp": {
+   "tcp_in_reader_m": [
+    0.0,
+    -0.001242823585332742,
+    0.05238533416230352
+   ],
+   "pad_y_range_m": [
+    -0.0007001674046221207,
+    0.014891413652109636
+   ],
+   "side_face_coverage_m": 0.0063151674046221205,
+   "lowest_finger_below_reader_m": 0.001
+  }
+ }
+}

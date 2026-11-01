@@ -1,0 +1,27 @@
+{
+ "policy": "runs/v10dr_5M.pt",
+ "n": 1024,
+ "seated": 490,
+ "rate": 0.478515625,
+ "wilson95": [
+  0.44805633466408706,
+  0.5091355127956771
+ ],
+ "scale": 1.5,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 490,
+  "lateral_miss": 477,
+  "grasp_slip": 28,
+  "tilt": 24,
+  "jam": 4,
+  "deep_unseated": 1
+ },
+ "strict_seated_rate": 0.001953125,
+ "seated_or_deep_rate": 0.4794921875,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 0.86,
+ "t_seat_s_p95": 6.052999999999997,
+ "pc_max_mm_p99": 1.5281650686264039,
+ "gate_pass": false
+}

@@ -1,0 +1,24 @@
+{
+ "policy": "runs/wrist_v1_4.1M.pt",
+ "n": 2048,
+ "seated": 2039,
+ "rate": 0.99560546875,
+ "wilson95": [
+  0.991668807961468,
+  0.9976863157478866
+ ],
+ "scale": 2.0,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 2039,
+  "lateral_miss": 8,
+  "grasp_slip": 1
+ },
+ "strict_seated_rate": 0.001953125,
+ "seated_or_deep_rate": 0.99560546875,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 0.88,
+ "t_seat_s_p95": 2.001999999999998,
+ "pc_max_mm_p99": 1.4200425124168397,
+ "gate_pass": true
+}

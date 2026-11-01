@@ -1,0 +1,27 @@
+{
+ "policy": "runs/P4-student-blind-s0/last.pt",
+ "n": 1024,
+ "seated": 25,
+ "rate": 0.0244140625,
+ "wilson95": [
+  0.016590522319669204,
+  0.03579264644874803
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "lateral_miss": 971,
+  "seated": 25,
+  "tilt": 21,
+  "jam": 5,
+  "grasp_slip": 1,
+  "deep_unseated": 1
+ },
+ "strict_seated_rate": 0.0029296875,
+ "seated_or_deep_rate": 0.025390625,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 1.58,
+ "t_seat_s_p95": 5.247999999999998,
+ "pc_max_mm_p99": 1.0931942677497861,
+ "gate_pass": false
+}

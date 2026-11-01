@@ -1,0 +1,148 @@
+{
+ "estimator": "wrist_v5",
+ "method": "Train the approach estimators on DR renders (policy/v1 visual DR defaults; RGB only) and report\nheld-out errors.\n\n  zed   : PC port pose (x, y, yaw) in the right-base frame from the ZED frame taken before the arms\n          move (crop around the nominal PC). Labels: deviation from the nominal port pose.\n  wrist : plug tip pose relative to port 2 (x across, y up, z gap; rotation vector) from the right\n          wrist frame at an approach pose (left arm holding the PC, reader in the 60-deg grasp).\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/train_approach_estimators.py --which wrist --n 24576\nWrites runs/perception/<which>.pt and results/usbc/policy/approach/estimator_<which>.json",
+ "n_train": 32768,
+ "n_test_dr": 2048,
+ "n_test_nominal_look": 512,
+ "sample_cfg": {
+  "lateral_m": 0.008,
+  "gap_m": [
+   0.003,
+   0.035
+  ],
+  "rot_deg": 6.0,
+  "roll_deg": 3.0
+ },
+ "args": {
+  "which": "wrist",
+  "n": 12288,
+  "n_test": 2048,
+  "epochs": 30,
+  "nworld": 256,
+  "lateral": 0.008,
+  "gap": [
+   0.003,
+   0.035
+  ],
+  "rot": 6.0,
+  "inhand_rot": 12.0,
+  "inhand_pos": 1.5,
+  "tilt": 55.0,
+  "states": [
+   "runs/perception/states/v3_s1.npz",
+   "runs/perception/states/v3_s2.npz",
+   "runs/perception/states/v4_s1.npz",
+   "runs/perception/states/v4_s2.npz"
+  ],
+  "n_states": 20480,
+  "states_max_gap": 1.0,
+  "init": "runs/perception/wrist_v4.pt",
+  "lr": 0.0007,
+  "wrist_mode": "resize",
+  "tag": "_v5"
+ },
+ "test_set": "held-out in-loop states",
+ "held_out_dr_abs_error": {
+  "x_mm": {
+   "p50": 0.1581067442893982,
+   "p90": 0.4446718096733093,
+   "p99": 0.9022834300994873,
+   "p99.5": 1.0624724626541138
+  },
+  "y_mm": {
+   "p50": 0.37288200855255127,
+   "p90": 1.0704606771469116,
+   "p99": 2.161982297897339,
+   "p99.5": 2.679631233215332
+  },
+  "gap_mm": {
+   "p50": 0.3072316646575928,
+   "p90": 0.859532356262207,
+   "p99": 1.759753704071045,
+   "p99.5": 2.077411651611328
+  },
+  "rx_deg": {
+   "p50": 0.4203743636608124,
+   "p90": 1.1608985662460327,
+   "p99": 2.3751606941223145,
+   "p99.5": 2.664254903793335
+  },
+  "ry_deg": {
+   "p50": 0.14197055995464325,
+   "p90": 0.38459375500679016,
+   "p99": 0.7487749457359314,
+   "p99.5": 0.9284902215003967
+  },
+  "rz_deg": {
+   "p50": 0.2847065329551697,
+   "p90": 1.1031579971313477,
+   "p99": 2.417320966720581,
+   "p99.5": 2.8161258697509766
+  },
+  "lateral_mm": {
+   "p50": 0.46842288970947266,
+   "p90": 1.1312578916549683,
+   "p99": 2.309995412826538,
+   "p99.5": 2.7711167335510254
+  },
+  "tilt_deg": {
+   "p50": 0.48493921756744385,
+   "p90": 1.1990588903427124,
+   "p99": 2.3817667961120605,
+   "p99.5": 2.689789295196533
+  }
+ },
+ "held_out_nominal_look_abs_error": {
+  "x_mm": {
+   "p50": 0.14039230346679688,
+   "p90": 0.32470324635505676,
+   "p99": 0.557645320892334,
+   "p99.5": 0.6026096343994141
+  },
+  "y_mm": {
+   "p50": 0.2820807695388794,
+   "p90": 0.7482262849807739,
+   "p99": 1.2623887062072754,
+   "p99.5": 1.4116708040237427
+  },
+  "gap_mm": {
+   "p50": 0.25749969482421875,
+   "p90": 0.6568125486373901,
+   "p99": 1.0105949640274048,
+   "p99.5": 1.1343247890472412
+  },
+  "rx_deg": {
+   "p50": 0.30939781665802,
+   "p90": 0.7701205015182495,
+   "p99": 1.3307801485061646,
+   "p99.5": 1.4842486381530762
+  },
+  "ry_deg": {
+   "p50": 0.11771118640899658,
+   "p90": 0.3054230213165283,
+   "p99": 0.5022445321083069,
+   "p99.5": 0.549781858921051
+  },
+  "rz_deg": {
+   "p50": 0.13450419902801514,
+   "p90": 0.336251437664032,
+   "p99": 0.5267882347106934,
+   "p99.5": 0.587972104549408
+  },
+  "lateral_mm": {
+   "p50": 0.3597656786441803,
+   "p90": 0.7867239713668823,
+   "p99": 1.2863280773162842,
+   "p99.5": 1.4561947584152222
+  },
+  "tilt_deg": {
+   "p50": 0.36364322900772095,
+   "p90": 0.7888739109039307,
+   "p99": 1.3328174352645874,
+   "p99.5": 1.492234706878662
+  }
+ },
+ "generate_s": 469.2102530002594,
+ "total_s": 1201.6349213123322,
+ "note": "visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)"
+}

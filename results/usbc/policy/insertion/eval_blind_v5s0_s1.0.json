@@ -1,0 +1,24 @@
+{
+ "policy": "runs/v5s0_final.pt",
+ "n": 2048,
+ "seated": 2042,
+ "rate": 0.9970703125,
+ "wilson95": [
+  0.9936226801966676,
+  0.9986566458487737
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "seated": 2042,
+  "grasp_slip": 3,
+  "lateral_miss": 3
+ },
+ "strict_seated_rate": 0.00146484375,
+ "seated_or_deep_rate": 0.9970703125,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 0.84,
+ "t_seat_s_p95": 1.4000000000000001,
+ "pc_max_mm_p99": 1.2329226279258727,
+ "gate_pass": true
+}

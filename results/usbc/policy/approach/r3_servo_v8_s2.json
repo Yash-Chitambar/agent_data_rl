@@ -1,0 +1,170 @@
+{
+ "name": "r3_servo_v8_s2",
+ "method": "Closed-loop approach to the pre-insert pose (policy Part 2) in the GPU runtime, RGB estimators only.\n\nPer episode, all worlds in parallel, full DR (layout, arm dynamics, encoder-offset error +/-1.5 deg on\njoints 2-5, 0-1 step latency, in-hand pose +/-3 mm / +/-8 deg about the closing axis (confirmed 60-deg\ngrasp), policy/v1 visual DR incl. camera pose/intrinsics error at real scale):\n  1. ZED frame with the arms at the reset pose -> PC port pose estimate (x, y, yaw)   [--pc zed|true]\n  2. left press hold planned from that estimate, guarded engage (physics)\n  3. right arm + reader placed where the real arm would be after an IK move to the look pose\n     (reader `look_gap` in front of the estimated port, nominal in-hand pose, believed joint frame;\n     the true joints carry the encoder-offset error, the reader carries the true in-hand pose)\n  4. servo (--servo wrist|oracle|none): each iteration renders the right wrist frame, estimates the\n     plug tip pose relative to port 2, and moves the commanded hand pose by the rigid correction that\n     would bring the reader to the next waypoint (gap schedule ending at --stop mm) -- integrating in\n     command space, which also takes out the joint-friction deadband and gravity sag;\n  5. the plug-tip pose relative to the live port is recorded (privileged) at the end.\n\n    PYTHONPATH=. .venv/bin/python scripts/task/eval_approach.py --nworld 512 --stop 6 --servo wrist\nWrites results/usbc/policy/approach/<name>.json (+ .npz per episode).",
+ "n": 512,
+ "n_finite": 512,
+ "args": {
+  "nworld": 512,
+  "pc": "zed",
+  "servo": "wrist",
+  "stop": 6.0,
+  "look_gap": 30.0,
+  "iters": 6,
+  "final_rot": "roll",
+  "final_pos_only": 2,
+  "tilt": 55.0,
+  "inhand_pos": 3.0,
+  "inhand_rot": 8.0,
+  "hold_force": 25.0,
+  "pad_mu": 1.2,
+  "impratio": 30.0,
+  "inhand": "measured",
+  "save_states": "runs/perception/states/r3v8_s2.npz",
+  "final_iters": 6,
+  "settle_s": 0.3,
+  "ramp_s": 0.5,
+  "grasp_settle_s": 1.0,
+  "gain": 1.0,
+  "frames": 1,
+  "fine_below_mm": 0.0,
+  "coarse_net": "wrist_v8",
+  "fine_net": "wrist_fine",
+  "fric_comp": true,
+  "enc_offset_deg": 1.5,
+  "seed": 2,
+  "name": "r3_servo_v8_s2",
+  "debug": false
+ },
+ "units": "mm and deg; plug tip in the port-2 frame (x across the panel, y up, z out of the panel = gap); tilt = angle between the plug axis and the port axis; roll about the port axis",
+ "lateral_mm": {
+  "p50": 0.3822341561317444,
+  "p90": 0.9817765355110168,
+  "p99": 2.0022809505462646,
+  "p99.5": 2.226524829864502,
+  "p100": 2.784395456314087
+ },
+ "tilt_deg": {
+  "p50": 0.22630122303962708,
+  "p90": 0.5323649644851685,
+  "p99": 0.9944180846214294,
+  "p99.5": 1.1477712392807007,
+  "p100": 2.14143443107605
+ },
+ "gap_error_mm": {
+  "p50": 0.18862581253051758,
+  "p90": 0.5483877062797546,
+  "p99": 1.0703294277191162,
+  "p99.5": 1.2682546377182007,
+  "p100": 1.4659805297851562
+ },
+ "roll_deg_abs": {
+  "p50": 0.11880958080291748,
+  "p90": 0.38720402121543884,
+  "p99": 0.6532912254333496,
+  "p99.5": 0.6658812165260315,
+  "p100": 0.7475196123123169
+ },
+ "x_mm": {
+  "mean": -0.0022374545224010944,
+  "std": 0.32400134205818176
+ },
+ "y_mm": {
+  "mean": -0.03244028985500336,
+  "std": 0.5477864742279053
+ },
+ "within_1mm_2deg": 0.8984375,
+ "zed_error": {
+  "xy_mm_p50": 0.7910694479942322,
+  "xy_mm_p99": 3.2329087257385254,
+  "yaw_deg_p99": 1.3879541158676147
+ },
+ "look_pose_lateral_mm": {
+  "p50": 7.519225120544434,
+  "p99": 19.49380111694336
+ },
+ "pc_moved_since_reset_mm": {
+  "p50": 0.0082772895693779,
+  "p99": 0.192085862159729,
+  "p100": 0.20461924374103546
+ },
+ "servo_trace": [
+  {
+   "gap_target_mm": 30.0,
+   "lateral_mm_p50": 1.531056523323059,
+   "lateral_mm_p99": 4.250707626342773,
+   "ik_pos_err_mm_p99": 7.938125054351985e-05,
+   "inhand_rot_change_deg_p99": 0.332224577665329
+  },
+  {
+   "gap_target_mm": 20.06220914929266,
+   "lateral_mm_p50": 1.1293649673461914,
+   "lateral_mm_p99": 3.735891103744507,
+   "ik_pos_err_mm_p99": 9.742310794536024e-05,
+   "inhand_rot_change_deg_p99": 0.4490249454975128
+  },
+  {
+   "gap_target_mm": 13.416407864998744,
+   "lateral_mm_p50": 0.6471962928771973,
+   "lateral_mm_p99": 3.125417470932007,
+   "ik_pos_err_mm_p99": 9.411785867996514e-05,
+   "inhand_rot_change_deg_p99": 0.46054109930992126
+  },
+  {
+   "gap_target_mm": 8.972092687327327,
+   "lateral_mm_p50": 0.5066148042678833,
+   "lateral_mm_p99": 2.2656638622283936,
+   "ik_pos_err_mm_p99": 8.636225538793951e-05,
+   "inhand_rot_change_deg_p99": 0.4655963182449341
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 0.5571568012237549,
+   "lateral_mm_p99": 2.071772336959839,
+   "ik_pos_err_mm_p99": 8.405147673329338e-05,
+   "inhand_rot_change_deg_p99": 0.470644474029541
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 0.49514633417129517,
+   "lateral_mm_p99": 1.943925380706787,
+   "ik_pos_err_mm_p99": 9.281772508984432e-05,
+   "inhand_rot_change_deg_p99": 0.4788455665111542
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 0.4444085955619812,
+   "lateral_mm_p99": 1.9110636711120605,
+   "ik_pos_err_mm_p99": 8.57213672134094e-05,
+   "inhand_rot_change_deg_p99": 0.48880186676979065
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 0.4130212366580963,
+   "lateral_mm_p99": 1.9941242933273315,
+   "ik_pos_err_mm_p99": 9.173175931209698e-05,
+   "inhand_rot_change_deg_p99": 0.4958074390888214
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 0.390994668006897,
+   "lateral_mm_p99": 1.8763203620910645,
+   "ik_pos_err_mm_p99": 8.997569238999858e-05,
+   "inhand_rot_change_deg_p99": 0.49933090806007385
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 0.3909466862678528,
+   "lateral_mm_p99": 1.9446277618408203,
+   "ik_pos_err_mm_p99": 8.772771980147809e-05,
+   "inhand_rot_change_deg_p99": 0.5025081634521484
+  },
+  {
+   "gap_target_mm": 6.0,
+   "lateral_mm_p50": 0.3818526566028595,
+   "lateral_mm_p99": 2.0022809505462646,
+   "ik_pos_err_mm_p99": 8.708071982255206e-05,
+   "inhand_rot_change_deg_p99": 0.5067384243011475
+  }
+ ],
+ "wall_s": 91.59910726547241
+}

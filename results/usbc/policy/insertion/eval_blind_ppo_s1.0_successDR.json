@@ -1,0 +1,27 @@
+{
+ "policy": "runs/blind_ppo_snapshot.pt",
+ "n": 1024,
+ "seated": 438,
+ "rate": 0.427734375,
+ "wilson95": [
+  0.39775650326598133,
+  0.4582524381895893
+ ],
+ "scale": 1.0,
+ "seed": 1000,
+ "outcomes": {
+  "lateral_miss": 504,
+  "seated": 438,
+  "grasp_slip": 56,
+  "tilt": 12,
+  "deep_unseated": 9,
+  "jam": 5
+ },
+ "strict_seated_rate": 0.0068359375,
+ "seated_or_deep_rate": 0.4365234375,
+ "aperture_tol_m": 2.5e-05,
+ "t_seat_s_median": 1.69,
+ "t_seat_s_p95": 5.2459999999999996,
+ "pc_max_mm_p99": 1.3384187698364256,
+ "gate_pass": false
+}

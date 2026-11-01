@@ -1,0 +1,38 @@
+{
+ "hold_along_m": -0.035,
+ "hold_force_n": 25.0,
+ "stand_up_m": 0.05,
+ "n": 1024,
+ "solver": "elliptic cones, impratio 30 (InsertionCfg physics)",
+ "arm_arm_worlds": 8,
+ "arm_arm_pairs_samples": {
+  "left_link_5:left_link_5_collision_1 / link_4:link_4_collision_1": 18,
+  "left_right_finger:left_right_tip_hull / right_finger:right_tip_hull": 474,
+  "fixture:fixbox_4 / left_left_finger:left_left_tip_hull": 17434,
+  "fixture:fixbox_1 / left_left_finger:left_left_tip_hull": 1028,
+  "fixture:fixbox_0 / left_left_finger:left_left_tip_hull": 25194,
+  "fixture:fixbox_1 / left_right_finger:left_right_tip_hull": 458,
+  "fixture:fixbox_0 / left_right_finger:left_right_tip_hull": 23621,
+  "fixture:fixbox_4 / left_right_finger:left_right_tip_hull": 4392
+ },
+ "latched": 1.0,
+ "pick_ok": 1.0,
+ "pc_sink_mm": {
+  "p1": 0.0,
+  "p50": 0.823110818862915,
+  "p99": 0.9536107778549194
+ },
+ "engage_translation_mm": {
+  "p50": 0.833096444606781,
+  "p99": 0.9817410111427307,
+  "p100": 1.0229755640029907
+ },
+ "engage_rotation_deg": {
+  "p50": 0.2984048128128052,
+  "p99": 0.4911757707595825,
+  "p100": 0.5511507391929626
+ },
+ "push_n": 3.0,
+ "pc_still_rate": 0.7705078125,
+ "j2_cmd_nm_max": 8.632808685302734
+}

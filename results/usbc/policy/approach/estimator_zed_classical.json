@@ -1,0 +1,40 @@
+{
+ "method": "Classical (fiducial-free) ZED PC-pose estimator: bright-case silhouette in the PC crop (Otsu\nthreshold of the grey image, largest blob), minimum-area rectangle -> blob centre ray intersected with\nthe case mid-height plane through the nominal (calibrated) camera; yaw from the rectangle's long-edge\nangle in the table plane. A constant offset (centre -> port) is fitted on 256 nominal-look sim\nrenders. Evaluated on held-out DR renders (policy/v1 visual DR) and on the real stationary frames.\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/classical_zed.py",
+ "offset_fit_m": [
+  -0.0425360396789897,
+  0.0190106533091654
+ ],
+ "dr_heldout": {
+  "n": 2048,
+  "failed": 435,
+  "xy_mm": {
+   "p50": 11.787328468823393,
+   "p90": 35.496466403444956,
+   "p99": 425.11170022325086,
+   "p99.5": 449.640905392376
+  },
+  "yaw_deg": {
+   "p50": 1.4600477039649595,
+   "p90": 3.8618349751247423,
+   "p99": 19.344650963550073,
+   "p99.5": 35.708096338553
+  }
+ },
+ "real_stationary": {
+  "n_frames": 123,
+  "port_xy_m_mean": [
+   0.21939862756788384,
+   0.3268094493024656
+  ],
+  "xy_std_mm": [
+   1.1102230246251565e-13,
+   7.216449660063518e-13
+  ],
+  "yaw_deg_mean": -0.6081240286929728,
+  "vs_manual_reference_mm": 6.496337555292677,
+  "dxdy_mm": [
+   5.158408712918034,
+   -3.9488252915009237
+  ]
+ }
+}
