@@ -1,0 +1,129 @@
+{
+ "mode": "servo",
+ "seeds": [
+  7007,
+  7008,
+  7009,
+  7010
+ ],
+ "rows": [
+  {
+   "seed": 7007,
+   "runner": {
+    "completed": true,
+    "stop": null,
+    "zed_xy": [
+     0.2123768925666809,
+     0.3583604395389557
+    ],
+    "zed_yaw_deg": -3.978638552385318,
+    "zed_ok": true,
+    "zed_err_mm": 0.39099273247727123,
+    "pick_ok": true,
+    "hold_latched": true,
+    "pre_lateral_mm": 0.11102847754955292,
+    "pre_tilt_deg": 0.4882931709289551,
+    "insert": "seated_detected",
+    "t_detect_s": 0.9400000000000001,
+    "true_seat_tick": 34,
+    "obs_max_abs_err": 8.940696716308594e-07,
+    "true_seated_after_release": true,
+    "seated_end": true,
+    "ticks": 2207
+   },
+   "wall_s": 158.20917344093323
+  },
+  {
+   "seed": 7008,
+   "runner": {
+    "completed": true,
+    "stop": null,
+    "zed_xy": [
+     0.21898207068443298,
+     0.3558116853237152
+    ],
+    "zed_yaw_deg": 3.8897244304305616,
+    "zed_ok": true,
+    "zed_err_mm": 1.9297038726908413,
+    "pick_ok": true,
+    "hold_latched": true,
+    "pre_lateral_mm": 0.6459769010543823,
+    "pre_tilt_deg": 0.2465958446264267,
+    "insert": "seated_detected",
+    "t_detect_s": 1.26,
+    "true_seat_tick": 50,
+    "obs_max_abs_err": 5.997717380523682e-07,
+    "true_seated_after_release": true,
+    "seated_end": true,
+    "ticks": 2238
+   },
+   "wall_s": 114.12561893463135
+  },
+  {
+   "seed": 7009,
+   "runner": {
+    "completed": true,
+    "stop": null,
+    "zed_xy": [
+     0.2192535698413849,
+     0.3661516308784485
+    ],
+    "zed_yaw_deg": 1.7215121478698077,
+    "zed_ok": true,
+    "zed_err_mm": 4.7988057494264496,
+    "pick_ok": true,
+    "hold_latched": true,
+    "pre_lateral_mm": 1.060425877571106,
+    "pre_tilt_deg": 0.21129141747951508,
+    "insert": "seated_detected",
+    "t_detect_s": 1.3,
+    "true_seat_tick": 52,
+    "obs_max_abs_err": 8.940696716308594e-07,
+    "true_seated_after_release": true,
+    "seated_end": true,
+    "ticks": 2181
+   },
+   "wall_s": 107.33239459991455
+  },
+  {
+   "seed": 7010,
+   "runner": {
+    "completed": true,
+    "stop": null,
+    "zed_xy": [
+     0.2304902821779251,
+     0.3693341314792633
+    ],
+    "zed_yaw_deg": -3.359039009044669,
+    "zed_ok": true,
+    "zed_err_mm": 4.5543675868667455,
+    "pick_ok": true,
+    "hold_latched": true,
+    "pre_lateral_mm": 1.3199809789657593,
+    "pre_tilt_deg": 0.07147245109081268,
+    "insert": "seated_detected",
+    "t_detect_s": 1.36,
+    "true_seat_tick": 55,
+    "obs_max_abs_err": 8.940696716308594e-07,
+    "true_seated_after_release": true,
+    "seated_end": true,
+    "ticks": 2183
+   },
+   "wall_s": 107.39337468147278
+  }
+ ],
+ "summary": {
+  "n": 4,
+  "runner_completed": 4,
+  "runner_seated_after_release": 4,
+  "runner_detected_seated": 4,
+  "obs_max_abs_err": 8.940696716308594e-07,
+  "stops": [],
+  "detector_delay_s_after_true_seat": [
+   0.26,
+   0.26,
+   0.26,
+   0.26
+  ]
+ }
+}

@@ -147,10 +147,13 @@ Restored here. RealIO checks at connect that i2rt has the attributes it writes; 
 **Real configuration (servo pick), seeds 7000-7007:**
 - 7/8 seated after release.
 - Pre-insert lateral 0.7-1.3 mm. In-hand and obs checks as above.
-- Seated detector: 7/7 detections, 0.26-0.60 s after the true seat; 0 false positives on the right port.
+- Seated detector: 11/11 detections, 0.24-0.60 s after the true seat; 0 false positives on the right port.
 - Seed 7007 stopped: a servo-corrected grasp target 20 mm below the tabletop hit the TCP box (the real SafeArm would
   also refuse it). The runner now lifts a right target whose fingertips go below the SafeArm floor + 2 mm, as the
   Task H runner does. It logs `floor_lift`.
+- With the floor, seeds 7007-7010 are 4/4 seated (pre-insert 0.1-1.3 mm).
+- Servo total: 11/11 seated after release, counting 7007 after the fix.
+- The floor lifts targets often near the grasp (248 ticks in 4 episodes). Watch `floor_lift` in the real logs.
 - Single-stage dry runs pass: hold, approach_insert (hand-placed reader: seated), pick.
 - Hold: 24.6 N estimated, joint-2 PD torque 8.2 N m at 25 N.
 
