@@ -143,6 +143,9 @@ def main():
     R_nom, p_nom = R0[0].numpy(), p0[0].numpy()
     ds = {k: {'X': [], 'Y': [], 'Y_net': [], 'tick': [], 'run': []} for k in ('zed_pc', 'pick_servo', 'zed_reader', 'approach', 'inhand')}
     err = {k: [] for k in ds}
+    err.update(approach_label_vs_truth=[], inhand_label_vs_truth=[])
+    label_src = {'zed_pc': 'measured PC spot', 'pick_servo': 'encoder FK at the close', 'zed_reader': 'FK at the close + nominal in-hand',
+                 'approach': 'encoder FK from the seated pose (port rotation: ZED)', 'inhand': None}
 
     def add(name, rd, f, y, yn):
         d = ds[name]
@@ -180,19 +183,18 @@ def main():
                 sv = [e for e in rd.ev if e.get('kind') == 'servo_frame' and e.get('frame_tag') == f'{f["tag"]}@{f["tick"]}']
                 add('pick_servo', rd, f, y, sv[-1]['delta'] if sv else None)
             Tr = Tc @ np.linalg.inv(T(p_sr, R_sr))               # reader (plug-tip frame) from the nominal in-hand pose
-            bz = float(sc.lay.variants[0].peg_boxes[0][0][2])
-            centre = Tr[:3, 3] + Tr[:3, 2] * bz
-            yaw = math.atan2(-Tr[1, 2], -Tr[0, 2])
+            yaw = math.atan2(-Tr[1, 2], -Tr[0, 2])               # the estimator event's convention
             for f in rd.frames('top', 'zed_reader'):
                 e = next(iter(rd.events('estimate', est='zed_reader')), None)
-                yn = None
-                if e is not None:
-                    pe = np.asarray(e['p'])
-                    Re = None
-                    yn = [pe[0], pe[1], e['yaw_deg']]
-                add('zed_reader', rd, f, [centre[0], centre[1], math.degrees(yaw)], yn)
+                yn = None if e is None else [e['p'][0], e['p'][1], e['yaw_deg']]
+                add('zed_reader', rd, f, [Tr[0, 3], Tr[1, 3], math.degrees(yaw)], yn)
         # approach + in-hand from the seated pose
         ts = rd.seat_tick()
+        port_spot = None
+        if spot is not None:      # measured PC spot: absolute port position for the in-hand label
+            pp, RR = sc.port_frame(torch.tensor([spot['port_xy']]), torch.tensor([math.radians(spot['yaw_deg'])]))
+            port_spot = T(pp[0].numpy(), RR[0].numpy())
+        truth = {e['frame_tag']: e for e in rd.events('frame_truth')}
         if ts is not None and port is not None:
             Ts = rd.tcp(rd.qb(ts)[0])
             S = T(np.array([0., 0., -consts['seat_depth_m']]), np.eye(3))
@@ -200,14 +202,23 @@ def main():
             for f in rd.frames('wrist_right', '4_approach'):
                 Pt = np.linalg.inv(port) @ rd.tcp(rd.qb(f['tick'])[0]) @ X
                 y = [*(Pt[:3, 3] * 1e3), *np.degrees(rotvec(Pt[:3, :3]))]
+                tr = truth.get(f'{f["tag"]}@{f["tick"]}')
+                if tr is not None:
+                    err['approach_label_vs_truth'].append(np.asarray(y) - np.r_[tr['plug_in_port_mm'], tr['plug_rot_deg']])
                 add('approach', rd, f, y, net_out(rd, f, cfg['chain_args']['fine_net']) if abs(y[2]) <= 7.5 else net_out(rd, f, cfg['chain_args']['wrist_net']))
             ih = [x for x in rd.ev if x.get('kind') == 'net' and x.get('net') == cfg['chain_args']['inhand_net']]
             if ih:
                 tag = ih[-1]['frame_tag']
                 f = next((g for g in rd.frames('wrist_right', '4_approach') if f'{g["tag"]}@{g["tick"]}' == tag), None)
                 if f is not None:
-                    y = [*((X[:3, 3] - p_nom) * 1e3), *np.degrees(rotvec(X[:3, :3] @ R_nom.T))]
+                    Xi = X if port_spot is None else np.linalg.inv(Ts) @ port_spot @ S
+                    y = [*((Xi[:3, 3] - p_nom) * 1e3), *np.degrees(rotvec(Xi[:3, :3] @ R_nom.T))]
+                    label_src['inhand'] = 'measured PC spot' if port_spot is not None else 'ZED estimate (its error is in the label)'
                     add('inhand', rd, f, y, ih[-1]['out'][0])
+                    tr = truth.get(tag)
+                    if tr is not None:
+                        yt = [*((np.asarray(tr['inhand_p']) - p_nom) * 1e3), *np.degrees(rotvec(np.asarray(tr['inhand_R']) @ R_nom.T))]
+                        err['inhand_label_vs_truth'].append(np.asarray(y) - np.asarray(yt))
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     rep = {'runs': a.runs, 'datasets': {}}
@@ -217,9 +228,13 @@ def main():
             continue
         np.savez_compressed(out / f'{k}.npz', X=np.stack(d['X']).astype(np.uint8), Y=np.stack(d['Y']), Y_net=np.stack(d['Y_net']),
                             tick=np.asarray(d['tick']), run=np.asarray(d['run']))
-        rep['datasets'][k] = {'n': len(d['X']), 'labelled': int(np.isfinite(np.stack(d['Y'])[:, 0]).sum()), 'net_error': stats(err[k])}
+        rep['datasets'][k] = {'n': len(d['X']), 'labelled': int(np.isfinite(np.stack(d['Y'])[:, 0]).sum()), 'label_source': label_src[k],
+                              'net_error': stats(err[k])}
+    for k in ('approach_label_vs_truth', 'inhand_label_vs_truth'):
+        if err[k]:
+            rep[k] = stats(err[k])           # dry runs only: label quality against the sim truth
     (out / 'report.json').write_text(json.dumps(rep, indent=1))
-    print(json.dumps(rep['datasets'], indent=1))
+    print(json.dumps({k: v for k, v in rep.items() if k != 'runs'}, indent=1))
 
 
 if __name__ == '__main__':

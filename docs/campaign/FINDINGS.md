@@ -104,6 +104,74 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `real/bimanual-deploy`): real-robot runner for the bimanual chain; dry run through the real code path
+
+**Built:**
+- `deploy/run_bimanual.py` with `deploy/bimanual/`. It runs the staged real chain:
+  `capture | hold | approach_insert | pick | full`, with `--dry-run`, `--max-steps`, `--speed`, `--hold-force` and prompts.
+- The sim code is shared, not copied:
+  - hold, transport and approach are eval_chain's `Chain.stage_*`, borrowed by a duck-typed `RealChain`;
+  - the pick is the Part 1 servo descent as a shared stage (`blind_insertion/pipeline/pick_servo.py`, the
+    `pick_expert_eval.py --servo` block) on an encoder-only PickTask adapter;
+  - the estimators are ZedEstimator and pick_stage.ZedReader.
+- Privileged quantities raise or return NaN on the robot; in the dry run they feed the logs only.
+- Bundle: `deploy/bimanual/bundle.py`, 140 MB, sha256 manifest. All 9 nets are byte-equal to the copies the 99.56 %
+  chain eval used.
+- Run logging: `data/real_runs/<date>/<run>/` (writer thread, drop counters).
+- Real-to-sim tools: `scripts/real2sim/replay_real_run.py`, `export_real_dataset.py`, and `scripts/real/handeye.py`.
+- Doc: `docs/real/BIMANUAL_DEPLOY.md`.
+
+**Bug on real/duchamp3:** `scripts/real/safety.SafeArm.command` had lost its `fric_comp` argument in a merge (b151281).
+`scripts/real/deploy.RealArm.send` still passes it, so the single-arm Task H runner would raise on its first command.
+Restored here. RealIO checks at connect that i2rt has the attributes it writes; if not, it disables the FF.
+
+**Offline checks** (`results/usbc/real_deploy/`):
+
+| Check | Result |
+|---|---|
+| Conventions (CPU scene vs live sim) | FK 2.4e-7 m; kp, limits, offsets, grasp offsets, reader/PC refs and table equal. FastChain IK = K.Chain IK within 4.8e-7 rad. Offsets agree with the capture pose within 5e-6 rad. Sim fovy = real crop FOV (top 52.74 / 52.74 deg, wrist 69.70 / 69.70 deg). Capture and park poses pass FlexChecker. |
+| Insertion observation | Equals InsertionTask._actor_obs: max abs diff 1.2e-6 (320 states, offset DR, latency 0/1). Live in every dry-run tick: <= 8.9e-7. |
+| Nets on CPU (p50 ms) | zed+gate 18.8, reader_zed 9.0, servo nets 10.8-11.6, wrist/inhand 15.4-16.1, K-J 0.62 (+ contact head 1.2) |
+| Nets on GPU (busy V100, p50 ms) | 2.4-3.5 (14 with the gates) |
+| Tick compute (FakeIO, mason load 17) | Pick 12.6 / 24 ms (p50 / p99, after the NumPy FK/IK FastChain; torch FK on one world: 31.6 ms). Hold 2 / 4, transport 7 / 32, insert 4.3 / 8.7. Approach: one 50-90 ms IK tick per waypoint. At load 28: pick 19.5 / 42. |
+| RealIO on mock hardware | SafeArm + FF written to the i2rt command, three cameras through the real preprocessing, CAN and move streams logged, torque guard trips (16 N m on joint 1) |
+| Hand-eye self-test | 36 synthetic views, 0.5 px noise: 0.50 mm / 0.03 deg error; fold spread estimate 0.29 mm |
+
+**Dry run vs eval_chain (same Chain object and seeds, believed frame):**
+- `--pick-mode expert`, seeds 7000-7003: the ZED estimate is identical on 4/4 (same render). Pick outcome agrees
+  4/4: the believed-frame expert without servo fails 3/4 in both, the known 51 % at +/-1.5 deg.
+- Seed 7000 picked in both. eval_chain then seated; the runner's servo locked onto the neighbouring port
+  (pre-insert 18.9 mm = the port pitch) after a marginal grasp. MuJoCo Warp is not deterministic.
+- In that run the seated detector fired in the wrong port.
+
+**Real configuration (servo pick), seeds 7000-7007:**
+- 7/8 seated after release.
+- Pre-insert lateral 0.7-1.3 mm. In-hand and obs checks as above.
+- Seated detector: 7/7 detections, 0.26-0.60 s after the true seat; 0 false positives on the right port.
+- Seed 7007 stopped: a servo-corrected grasp target 20 mm below the tabletop hit the TCP box (the real SafeArm would
+  also refuse it). The runner now lifts a right target whose fingertips go below the SafeArm floor + 2 mm, as the
+  Task H runner does. It logs `floor_lift`.
+- Single-stage dry runs pass: hold, approach_insert (hand-placed reader: seated), pick.
+- Hold: 24.6 N estimated, joint-2 PD torque 8.2 N m at 25 N.
+
+**Logs to sim:**
+- On a dry run with true latency 1, the replay picks latency 1 in hold, transport, approach and insert
+  (RMS 1.8-2.2 mrad).
+- Exporter labels against sim truth: approach labels (relative FK from the seated pose) are within 0.3 / 1.4 / 0.7 mm
+  and 2.6 / 1.0 / 0.4 deg (rx bias).
+- The absolute in-hand label is off by ~12 mm. It needs absolute FK, and the dry run had +/-1.5 deg offset error.
+  Use it only with freshly calibrated joint offsets.
+- A pre-insert wrong-port check from FK (plug vs ZED port axis) does not separate good approaches (up to 15 mm) from
+  a neighbouring-port lock (11 mm) under the offset DR. It is logged only.
+
+**Open for the rig:**
+- Gripper squeeze force (sim 12 N; the real close target is uncalibrated).
+- The reader band for the 55 deg grasp.
+- 25 N vs the left joint-2 rating (start at 15 N).
+- Hand-eye mount vs DR range.
+- Timing gate on the rig CPU.
+- The i2rt FF attributes.
+
 ### 2026-11-01 (mason, `policy/chain`) — Chain with insertion K-J (6-D in-hand estimate input): 99.56 % (n = 2048), in-hand net error p99 1.09 mm / 0.65 deg
 
 The chain now feeds insertion policies that read an in-hand estimate (`pol.meta obs_dim` 68, `InsertionCfg.inhand_obs`):

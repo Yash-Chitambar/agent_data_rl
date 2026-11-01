@@ -194,6 +194,10 @@ class Runner:
         if a.dry_run:
             truth0 = self.io.reset(seed)
             log.update_meta(sim_truth0=truth0)
+            if not a.pc_spot:      # the dry run's "measured spot" is the sim truth (exporter labels)
+                R = truth0['pc_R']
+                log.update_meta(pc_spot={'port_xy': truth0['pc_p'][:2].tolist(), 'yaw_deg': math.degrees(math.atan2(-R[1, 2], -R[0, 2])),
+                                         'method': 'sim truth (dry run)', 'unc_mm': 0.0})
         ch = self.make_chain(log)
         ch.seed = seed or 0
         res = {}
@@ -319,6 +323,13 @@ class Runner:
         q_look = ch.stage_transport(qr, q_hold, ep, eR, log)
         cmd = ch.stage_approach(q_look, q_hold, ep, eR, log)
         print(f'in-hand estimate (mm, deg): {np.round(ch.inhand_est6[0].cpu().numpy(), 2)}', flush=True)
+        lat = ch.preinsert_lateral_mm(cmd)
+        res['preinsert_fk_lateral_mm'] = lat
+        lim = self.cfg['insert'].get('wrong_port_mm')
+        ch.log_event('preinsert_check', fk_lateral_mm=lat, limit_mm=lim)
+        print(f'pre-insert: plug {lat:.1f} mm across the ZED port axis (encoder FK; log only unless wrong_port_mm is set)', flush=True)
+        if lim is not None and lat > lim:
+            raise GuardStop(f'approach ended {lat:.1f} mm across the ZED port axis (port pitch 18.6 mm): neighbouring port?')
         if not self.confirm_in_press(ch, 'insertion'):
             raise GuardStop('operator stop in the press')
         sim_obs = self.sim_obs_fn() if (a.dry_run and a.check_obs) else None

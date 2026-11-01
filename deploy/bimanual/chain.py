@@ -209,6 +209,13 @@ class RealChain:
         self.hold_obj, self.pressing, self.k = None, False, 0
         self.label, self.last_frame_tag = 'manual', None
         self.stream_every = max(1, int(round(1.0 / (cfg['cameras']['stream_hz'] * self.dt))))
+        # right fingertip floor (deploy/runner.py, try1 2026-10-28): a target pressing the tips below SafeArm's limit
+        # + 2 mm is lifted to it (the sim fingers just press on the table; SafeArm would stop the run)
+        from deploy.safety_task import FlexChecker
+        sc_ = cfg['safety']
+        self.floor_chk = FlexChecker(np.zeros(6), sc_['clearance'], sc_['tip_clearance'], sc_.get('body_clearance'), sc_['table_z'])
+        self.floor = sc_['table_z'] + sc_['tip_clearance'] + 0.002
+        self.floor_lifts = 0
         self.read_state()
         self.q_start = self.state['q'].copy()
 
@@ -251,6 +258,19 @@ class RealChain:
             pl, _ = self.scene.chain['left'].fk(tgt[1:2].to(self.scene.device))
             self.guards.check_target(pr[0].cpu().numpy(), pl[0].cpu().numpy())
         tb = tgt.cpu().numpy().astype(float)
+        low = np.inf
+        if self.guards is None or pr[0, 2] < self.scene.table_top + 0.08:     # fingertip heights only near the table
+            h = self.floor_chk.heights(tb[0])
+            low = min(h['left_finger'], h['right_finger'])
+        if low < self.floor:
+            ch_ = self.scene.chain['right']
+            p_, R_ = ch_.fk(torch.as_tensor(tb[0], dtype=torch.float32)[None].to(self.scene.device))
+            q_, _, _ = ch_.ik(p_ + torch.tensor([[0., 0., self.floor - low + 1e-4]], device=p_.device), R_,
+                              torch.as_tensor(tb[0], dtype=torch.float32)[None].to(self.scene.device), iters=8)
+            self.log_event('floor_lift', tick=self.k, stage=label, lift_mm=(self.floor - low) * 1e3)
+            tb = tb.copy()
+            tb[0] = q_[0].cpu().numpy()
+            self.floor_lifts += 1
         motor = tb - self.off
         grip = np.array([self.grip_cmd('right', grip_r), self.grip_cmd('left', grip_l)])
         ff_cfg = self.rt.comp['right']
@@ -309,6 +329,10 @@ class RealChain:
                 if raw is not None:
                     self.logger.frame(n, raw, tag, t_capture=t, t_use=self.state['t'], kind='raw', bgr=True, count=cnt, tick=self.k)
         self.last_frame_tag = f'{tag}@{self.k}'
+        tr = self.truth()
+        if tr is not None:      # dry run: sim truth at the frame (checks the exporter's FK labels)
+            self.log_event('frame_truth', frame_tag=self.last_frame_tag, plug_in_port_mm=tr['plug_in_port_mm'],
+                           plug_rot_deg=tr['plug_rot_deg'], inhand_p=tr['inhand_p'], inhand_R=tr['inhand_R'])
         return out
 
     def rel_pose(self):
@@ -496,6 +520,16 @@ class RealChain:
             pt = p0 + torch.tensor([[0., 0., lift * (k + 1) / n]], device=self.dev)
             q, _, _ = ch.ik(pt, R0, q, iters=10)
             self.hstep(qr, q[0], '6 release')
+
+    def preinsert_lateral_mm(self, cmd):
+        """Plug tip (encoder FK of the approach command + nominal in-hand pose, as eval_chain's servo pivot) across the
+        ZED-estimated port axis (mm). The wrist servo aligns the plug with whichever port it sees; a value near the
+        port pitch (18.6 mm) means it locked onto a neighbouring port."""
+        ep, eR = self.port
+        sp, sR = self.scene.chain['right'].fk(torch.as_tensor(cmd, dtype=torch.float32).reshape(1, 6).to(self.scene.device))
+        tip = sp - (sR @ (self.R_sr0.T @ self.p_sr0).cpu()[:, None])[..., 0]
+        rel = (eR.cpu().transpose(1, 2) @ (tip - ep.cpu())[..., None])[0, :, 0]
+        return float(rel[:2].norm()) * 1e3
 
     # ------------------------------------------------------------------ stage 5: insertion and release
     def stage_insert(self, cmd, q_hold, log):

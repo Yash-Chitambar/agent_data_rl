@@ -1,0 +1,233 @@
+{
+ "mode": "expert",
+ "seeds": [
+  7000,
+  7001,
+  7002,
+  7003
+ ],
+ "rows": [
+  {
+   "seed": 7000,
+   "eval_chain": {
+    "zed_ok": true,
+    "zed_err_mm": 3.692538261413574,
+    "pick_ok": true,
+    "reader_est_err_mm": 1.5624648332595825,
+    "hold_latched": true,
+    "pre_lateral_mm": 1.005570888519287,
+    "pre_tilt_deg": 1.1308577060699463,
+    "insert": "seated",
+    "e2e": "success"
+   },
+   "runner": {
+    "completed": true,
+    "stop": null,
+    "zed_xy": [
+     0.2154417335987091,
+     0.3692306578159332
+    ],
+    "zed_yaw_deg": 1.9497157049508096,
+    "zed_ok": true,
+    "zed_err_mm": 3.692538291841208,
+    "pick_ok": true,
+    "hold_latched": true,
+    "pre_lateral_mm": 18.863100051879883,
+    "pre_tilt_deg": 0.7516911625862122,
+    "insert": "seated_detected",
+    "t_detect_s": 3.22,
+    "true_seat_tick": null,
+    "obs_max_abs_err": 8.940696716308594e-07,
+    "true_seated_after_release": false,
+    "seated_end": false,
+    "ticks": 1923
+   },
+   "wall_s": 558.1520748138428
+  },
+  {
+   "seed": 7001,
+   "eval_chain": {
+    "zed_ok": true,
+    "zed_err_mm": 1.7830756902694702,
+    "pick_ok": false,
+    "reader_est_err_mm": 1.588667631149292,
+    "hold_latched": true,
+    "pre_lateral_mm": 123.8315658569336,
+    "pre_tilt_deg": 89.85316467285156,
+    "insert": "lateral_miss",
+    "e2e": "pick_failed"
+   },
+   "runner": {
+    "completed": false,
+    "stop": "GuardStop: pick failed (no grasp or no reader between the fingers)",
+    "zed_xy": [
+     0.22489339113235474,
+     0.3448446989059448
+    ],
+    "zed_yaw_deg": -2.8242891982157965,
+    "zed_ok": true,
+    "zed_err_mm": 1.7830758069584887,
+    "pick_ok": false,
+    "hold_latched": null,
+    "pre_lateral_mm": null,
+    "pre_tilt_deg": null,
+    "insert": null,
+    "t_detect_s": null,
+    "true_seat_tick": null,
+    "obs_max_abs_err": null,
+    "true_seated_after_release": null,
+    "seated_end": false,
+    "ticks": 420
+   },
+   "wall_s": 375.96726393699646
+  },
+  {
+   "seed": 7002,
+   "eval_chain": {
+    "zed_ok": true,
+    "zed_err_mm": 3.271876096725464,
+    "pick_ok": false,
+    "reader_est_err_mm": 3.317049741744995,
+    "hold_latched": true,
+    "pre_lateral_mm": 108.2623519897461,
+    "pre_tilt_deg": 91.25576782226562,
+    "insert": "lateral_miss",
+    "e2e": "pick_failed"
+   },
+   "runner": {
+    "completed": false,
+    "stop": "GuardStop: pick failed (no grasp or no reader between the fingers)",
+    "zed_xy": [
+     0.22058641910552979,
+     0.37452346086502075
+    ],
+    "zed_yaw_deg": -2.000380980996906,
+    "zed_ok": true,
+    "zed_err_mm": 3.271876137448149,
+    "pick_ok": false,
+    "hold_latched": null,
+    "pre_lateral_mm": null,
+    "pre_tilt_deg": null,
+    "insert": null,
+    "t_detect_s": null,
+    "true_seat_tick": null,
+    "obs_max_abs_err": null,
+    "true_seated_after_release": null,
+    "seated_end": false,
+    "ticks": 420
+   },
+   "wall_s": 395.22212052345276
+  },
+  {
+   "seed": 7003,
+   "eval_chain": {
+    "zed_ok": true,
+    "zed_err_mm": 5.000560760498047,
+    "pick_ok": false,
+    "reader_est_err_mm": 1.8580955266952515,
+    "hold_latched": true,
+    "pre_lateral_mm": 104.4669189453125,
+    "pre_tilt_deg": 82.37508392333984,
+    "insert": "lateral_miss",
+    "e2e": "pick_failed"
+   },
+   "runner": {
+    "completed": false,
+    "stop": "GuardStop: pick failed (no grasp or no reader between the fingers)",
+    "zed_xy": [
+     0.2303479015827179,
+     0.36632487177848816
+    ],
+    "zed_yaw_deg": 1.2184283746935831,
+    "zed_ok": true,
+    "zed_err_mm": 5.00056081724339,
+    "pick_ok": false,
+    "hold_latched": null,
+    "pre_lateral_mm": null,
+    "pre_tilt_deg": null,
+    "insert": null,
+    "t_detect_s": null,
+    "true_seat_tick": null,
+    "obs_max_abs_err": null,
+    "true_seated_after_release": null,
+    "seated_end": false,
+    "ticks": 406
+   },
+   "wall_s": 261.94895815849304
+  }
+ ],
+ "summary": {
+  "n": 4,
+  "runner_completed": 1,
+  "runner_seated_after_release": 0,
+  "runner_detected_seated": 1,
+  "obs_max_abs_err": 8.940696716308594e-07,
+  "stops": [
+   "GuardStop: pick failed (no grasp or no reader between the fingers)",
+   "GuardStop: pick failed (no grasp or no reader between the fingers)",
+   "GuardStop: pick failed (no grasp or no reader between the fingers)"
+  ],
+  "eval_chain_e2e_success": 1,
+  "zed_ok_agree": 4,
+  "zed_err_mm_pairs": [
+   [
+    3.693,
+    3.693
+   ],
+   [
+    1.783,
+    1.783
+   ],
+   [
+    3.272,
+    3.272
+   ],
+   [
+    5.001,
+    5.001
+   ]
+  ],
+  "pick_agree": 4,
+  "hold_agree": 1,
+  "pre_lateral_mm_pairs": [
+   [
+    18.863100051879883,
+    1.005570888519287
+   ],
+   [
+    null,
+    123.8315658569336
+   ],
+   [
+    null,
+    108.2623519897461
+   ],
+   [
+    null,
+    104.4669189453125
+   ]
+  ],
+  "insert_pairs": [
+   [
+    "seated_detected",
+    false,
+    "seated"
+   ],
+   [
+    null,
+    null,
+    "lateral_miss"
+   ],
+   [
+    null,
+    null,
+    "lateral_miss"
+   ],
+   [
+    null,
+    null,
+    "lateral_miss"
+   ]
+  ]
+ }
+}

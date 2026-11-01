@@ -40,7 +40,9 @@
   "release_open_s": 0.4,
   "retreat_m": 0.05,
   "retreat_v_m_s": 0.02,
-  "left_lift_m": 0.03
+  "left_lift_m": 0.03,
+  "wrong_port_mm": null,
+  "_wrong_port": "log only: in the dry runs (+/-1.5 deg offset DR) the FK lateral of good approaches reached 15 mm, a neighbouring-port lock 11 mm; set a limit only with calibrated offsets"
  },
  "gripper": {
   "_about": "i2rt gripper 0 closed .. 1 open (position PD). Finger opening per finger (m, the sim finger joint) is linear in the reading: right through (1.0, 0.048) and (g_reader, m_reader) (deploy/config/task_h.json, 2026-10-28); left uncalibrated (proportional). close = squeeze target (force NOT calibrated: sim squeeze 12 N).",
@@ -61,7 +63,7 @@
   "tau_cont_s": 20.0,
   "hold_max_s": 60.0,
   "qd_max_rad_s": 2.5,
-  "tcp_box": {"x": [-0.10, 0.60], "y": [-0.30, 0.90], "z_above_table": [-0.02, 0.50]}
+  "tcp_box": {"x": [-0.10, 0.60], "y": [-0.30, 0.90], "z_above_table": [-0.05, 0.50]}
  },
  "fric_comp_right": {"tau": [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], "ramp": 0.005},
  "cameras": {"res": 320, "max_age_ms": 250, "stream_hz": 2.0}
