@@ -363,6 +363,14 @@ friction rows of the elliptic cones, resolved in the port frame), sampled at the
   gentle-D matches the chain's own measurement (p50 9.4 / p99 31.1 N), so the replay is faithful. The wide
   in-hand error of the earlier synthetic eval does not occur here (the approach servo removes it). **Exported I
   12.5 M as best.pt** (`runs/gentle_i_12M.pt`); backups gentle-D (`runs/gentle_d_backup.pt`) and v11.
+- **Export bar (live estimated-pick ≥ 99.5 %, push p99 ≤ 20 N, r3 × 1.5 ≥ 99.5 %).** I and J to 40 M: every
+  snapshot passes live and push but fails × 1.5 (98.0-99.0 %, 8-17 lateral misses; `runs/logs/gate3.tsv`).
+  K fine-tunes (50 % of starts at a per-start r3 scale in [1.5, 2.0] via `scale_range_frac`, wide in-hand 0.2,
+  same penalties): **K-J 5 M** (from J 39 M, in-hand input) passes: live 1022/1024 (99.80 % [99.29, 99.95]),
+  push p50 7.4 / p99 15.3 / max 19.4 N, r3 × 1.5 1023/1024 (99.90 % [99.45, 99.98]). Exported as best.pt.
+  Blind K-I 5 M: live 1022/1024, push p99 15.3 N, × 1.5 1018/1024 (99.41 %), just below. Caveat: K-J needs the
+  6-D in-hand estimate (obs_dim 68); the eval simulates it as truth + sigma 0.5 mm / 0.5° (real estimator
+  0.27 mm / 0.24°).
 
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
