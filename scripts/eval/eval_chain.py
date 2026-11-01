@@ -115,7 +115,7 @@ def parse(argv=None):
     ap.add_argument('--ramp-s', type=float, default=.5)
     ap.add_argument('--grasp-settle-s', type=float, default=1.)
     ap.add_argument('--wrist-net', default='wrist_v14w', help='round 8 (wide in-hand); round 5: wrist_v12w; round 4: wrist_v10w')
-    ap.add_argument('--fine-net', default='wrist_v15ws', help='stop-gap specialist used at waypoints <= --fine-below-mm (round 4 final)')
+    ap.add_argument('--fine-net', default='wrist_v18ws', help='stop-gap specialist used at waypoints <= --fine-below-mm (round 9: servo-pick in-hand)')
     ap.add_argument('--fine-below-mm', type=float, default=7., help='0: coarse net only')
     ap.add_argument('--servo', choices=('wrist', 'oracle'), default='wrist', help='oracle: privileged relative pose (diagnostic)')
     ap.add_argument('--handover', choices=('torque', 'cmd', 'measured'), default='torque',
@@ -143,7 +143,7 @@ def parse(argv=None):
                     help='real-robot convention for every scripted stage: the pick expert plans and servos on encoder FK '
                          '(PickExpert.believed_frame) and the teleported capture / park poses are commanded poses (true = '
                          'believed + encoder-offset error). Transport, hold, approach and insertion already use encoder angles.')
-    ap.add_argument('--inhand-net', default='inhand_ih1',
+    ap.add_argument('--inhand-net', default='inhand_ih5',
                     help='right-wrist in-hand pose net (runs/perception/<name>.pt), used when the insertion policy reads a '
                          '6-D in-hand estimate (pol.meta obs_dim 68: obs[62:68] = env.inhand_est)')
     ap.add_argument('--policy', default=INSERT_CKPT)
