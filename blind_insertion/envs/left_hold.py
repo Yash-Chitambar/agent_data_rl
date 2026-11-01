@@ -440,6 +440,7 @@ class InsertCfg:
     # 'measured': the Part 1 post-pick in-hand poses (inhand.sample_measured; 55-deg grasp); 'uniform':
     # the provisional tilt_deg / pad_z_m pose +/- inhand_pos_mm / inhand_rot_deg.
     inhand: str = 'measured'
+    servo_stretch: tuple = (.8, 1.4)        # 'servo_pick': deviation scale range about the mean
 
 
 class RightInserter:
@@ -468,6 +469,9 @@ class RightInserter:
             if c.inhand == 'measured':
                 from blind_insertion.envs.inhand import sample_measured
                 self.R_sr, self.p_sr, self.inhand = sample_measured(n, device=dev)
+            elif c.inhand == 'servo_pick':
+                from blind_insertion.envs.inhand import sample_servo_pick
+                self.R_sr, self.p_sr, self.inhand = sample_servo_pick(n, device=dev, stretch=c.servo_stretch)
             elif c.inhand == 'chain_est':
                 from blind_insertion.envs.inhand import sample_chain_est
                 self.R_sr, self.p_sr, self.inhand = sample_chain_est(n, device=dev)
@@ -500,7 +504,7 @@ class RightInserter:
         pa = rt.lay.peg_qadr
         rt.q[:, pa:pa + 3] = reader_p
         rt.q[:, pa + 3:pa + 7] = K.mat_to_quat(reader_R)
-        if c.inhand in ('measured', 'chain_est'):   # settled grasps: one opening fits every world
+        if c.inhand in ('measured', 'chain_est', 'servo_pick'):   # settled grasps: one opening fits every world
             if not hasattr(self, '_fq'):
                 self._fq = self._finger_q(rt.q[0])
             rt.q[:, self.fingers] = self._fq

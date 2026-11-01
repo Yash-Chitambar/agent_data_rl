@@ -47,14 +47,20 @@ FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005
 
 
 def load(which, dev):
+    if ',' in which:            # ensemble: mean of the members' (scaled) outputs; mode of the first member
+        ms = [load(w, dev) for w in which.split(',')]
+        load.mode[which], load.two[which] = load.mode[which.split(',')[0]], load.two[which.split(',')[0]]
+        return (lambda x: torch.stack([n_(x) * s_ for n_, s_ in ms]).mean(0)), torch.ones(1, device=dev)
     ck = torch.load(f'runs/perception/{which}.pt', map_location=dev)
     load.mode[which] = ck.get('wrist_mode', 'resize')
-    net = (TwoViewPoseNet if ck['which'] == 'wrist2' else PoseNet)(len(ck['scale']), ck['size'], width=ck.get('width', 32)).to(dev)
+    load.two[which] = ck['which'] == 'wrist2' or ck.get('two_view', False)
+    net = (TwoViewPoseNet if load.two[which] else PoseNet)(len(ck['scale']), ck['size'], width=ck.get('width', 32)).to(dev)
     net.load_state_dict(ck['net']); net.eval()
     return net, ck['scale'].to(dev)
 
 
 load.mode = {}
+load.two = {}
 
 
 def rel_pose(h):
@@ -86,7 +92,7 @@ def main():
     ap.add_argument('--hold-along', type=float, default=-.02, help='press point from the case centre toward the rear (m); -0.035 = round-4 hold')
     ap.add_argument('--pad-mu', type=float, default=1.2, help='right pad friction (Part 1); <= 0 keeps the scene 1.68')
     ap.add_argument('--impratio', type=float, default=30., help='task impratio (Part 1); <= 0 keeps the scene 100')
-    ap.add_argument('--inhand', choices=('measured', 'uniform', 'chain_est'), default='measured', help='in-hand pose: Part 1 measured spread or uniform +/- --inhand-pos/--inhand-rot')
+    ap.add_argument('--inhand', choices=('measured', 'uniform', 'chain_est', 'servo_pick'), default='measured', help='in-hand pose: Part 1 measured spread or uniform +/- --inhand-pos/--inhand-rot')
     ap.add_argument('--save-states', default=None, help='npz path: full qpos at every wrist estimate (DAgger data)')
     ap.add_argument('--final-iters', type=int, default=6, help='extra servo iterations at the stop gap')
     ap.add_argument('--settle-s', type=float, default=.3)
@@ -103,10 +109,13 @@ def main():
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--name', default=None)
     ap.add_argument('--debug', action='store_true')
+    ap.add_argument('--cam-err-scale', type=float, default=None,
+                    help='camera extrinsic error magnitude U(0, scale x real calibration error); default DR = 2')
     a = ap.parse_args()
     t0 = time.time()
     torch.manual_seed(a.seed)
-    rt = BimanualRuntime(BimanualCfg(nworld=a.nworld, device='cuda:0', render_rgb=True, visual_dr=True,
+    rt = BimanualRuntime(BimanualCfg(nworld=a.nworld, device='cuda:0', render_rgb=True,
+                                     visual_dr=True if a.cam_err_scale is None else {'cam_err_scale': a.cam_err_scale},
                                      camera_resolution=320, measured_camera_cadence=False,
                                      right_fric_comp=FRIC_COMP if a.fric_comp else None,
                                      opt_overrides={'cone': 1, 'impratio': 30.} if a.elliptic else None,
@@ -142,7 +151,7 @@ def main():
     q_hold = hold.hold_target()
     # 3. reader in hand, arm where an IK move to the look pose (believed) would put it
     ins = RightInserter(h, InsertCfg(tilt_deg=a.tilt, inhand_pos_mm=a.inhand_pos, inhand_rot_deg=a.inhand_rot, inhand=a.inhand))
-    if a.inhand in ('measured', 'chain_est'):                  # believed in-hand pose: the measured mean
+    if a.inhand in ('measured', 'chain_est', 'servo_pick'):                  # believed in-hand pose: the measured mean
         from blind_insertion.envs.inhand import measured_mean
         R_sr0, p_sr0 = measured_mean(device=dev)
     else:
@@ -201,6 +210,8 @@ def main():
                 name = a.fine_net if net is fine else a.coarse_net
                 if load.mode.get(name) == 'crop':
                     img = fr['wrist_cam'][:, WRIST_CROP[1]:WRIST_CROP[1] + WRIST_SIZE, WRIST_CROP[0]:WRIST_CROP[0] + WRIST_SIZE].contiguous()
+                elif load.mode.get(name) == 'full':
+                    img = fr['wrist_cam'].contiguous()
                 else:
                     img = rs(fr['wrist_cam'])
                 if net is fine and two:
@@ -259,13 +270,30 @@ def main():
         from blind_insertion.envs.inhand import inhand_error6
         ihn = load(a.inhand_net, dev)
         fr = rt.render()
-        img = F.interpolate(fr['wrist_cam'].permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
+        if load.mode.get(a.inhand_net) == 'crop':
+            img = fr['wrist_cam'][:, WRIST_CROP[1]:WRIST_CROP[1] + WRIST_SIZE, WRIST_CROP[0]:WRIST_CROP[0] + WRIST_SIZE].contiguous()
+        elif load.mode.get(a.inhand_net) == 'full':
+            img = fr['wrist_cam'].contiguous()
+        else:
+            img = F.interpolate(fr['wrist_cam'].permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
+        if load.two[a.inhand_net]:
+            img = torch.stack([img, F.interpolate(fr['left_wrist_cam'].permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)], 1)
         with torch.no_grad():
             est6 = ihn[0](img) * ihn[1]
         sp_t, sR_t = ch.fk(h.q('right')); tip_t, rR_t = h.reader_pose()
         true6 = inhand_error6(sp_t, sR_t, tip_t, rR_t)
         ih_err = est6 - true6
     tp, trv = rel_pose(h)
+    fin_est = None
+    if a.servo == 'wrist' and fine is not None and not two:   # fine-net estimate at the final state vs truth
+        fr = rt.render()
+        mode = load.mode.get(a.fine_net)
+        img = (fr['wrist_cam'].contiguous() if mode == 'full' else
+               fr['wrist_cam'][:, WRIST_CROP[1]:WRIST_CROP[1] + WRIST_SIZE, WRIST_CROP[0]:WRIST_CROP[0] + WRIST_SIZE].contiguous() if mode == 'crop' else
+               F.interpolate(fr['wrist_cam'].permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1))
+        with torch.no_grad():
+            e = fine[0](img) * fine[1]
+        fin_est = torch.cat([e[:, :3] - tp * 1e3, e[:, 3:] - torch.rad2deg(trv)], 1)
     pc_final, _ = h.pc_pose()
     fin = torch.isfinite(rt.q).all(1)
     lat = tp[:, :2].norm(dim=1) * 1e3
@@ -279,6 +307,8 @@ def main():
          'wrist_cam_rot_err_deg': rt.visual.params['cam_rot_err_deg'][:, rt.visual.camera_names.index('wrist_cam')].clone()}
     if ih_err is not None:
         w['inhand_est_err'] = ih_err; w['inhand_true'] = true6
+    if fin_est is not None:
+        w['final_wrist_est_err'] = fin_est     # (x, y, gap mm, rotvec deg) fine-net estimate minus truth at the end
     if per_world:
         w['servo_per_world'] = torch.stack(per_world, 1)     # (n, iters, [x, y, gap, ik_err, inhand_rot_change])
     w = {k: v.detach().cpu().numpy() for k, v in w.items()}
@@ -292,6 +322,9 @@ def main():
         nm = ['dx_mm', 'dy_mm', 'dz_mm', 'rx_deg', 'ry_deg', 'rz_deg']
         ih = {'inhand_estimate_at_stop': {k: {'p50_abs': float(np.percentile(np.abs(e[:, i]), 50)), 'p99_abs': float(np.percentile(np.abs(e[:, i]), 99)),
                                               'mean': float(e[:, i].mean()), 'std': float(e[:, i].std())} for i, k in enumerate(nm)}}
+        for k, sl in (('pos_norm_mm', slice(0, 3)), ('rot_norm_deg', slice(3, 6))):      # the chain's gate metrics
+            nn_ = np.linalg.norm(e[:, sl], axis=1)
+            ih['inhand_estimate_at_stop'][k] = {'p50_abs': float(np.percentile(nn_, 50)), 'p99_abs': float(np.percentile(nn_, 99)), 'mean': float(nn_.mean()), 'std': float(nn_.std())}
     rep = {'name': name, **ih, 'method': __doc__.strip(), 'n': int(len(ok)), 'n_finite': int(ok.sum()), 'args': vars(a),
            'units': 'mm and deg; plug tip in the port-2 frame (x across the panel, y up, z out of the panel = gap); '
                     'tilt = angle between the plug axis and the port axis; roll about the port axis',

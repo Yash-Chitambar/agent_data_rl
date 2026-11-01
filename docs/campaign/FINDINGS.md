@@ -174,6 +174,116 @@ Restored here. RealIO checks at connect that i2rt has the attributes it writes; 
 - Hand-eye mount vs DR range.
 - Timing gate on the rig CPU.
 - The i2rt FF attributes.
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 9: in-hand and wrist nets on the servo-pick in-hand distribution; chain 1022/1024, gate not met
+
+- **Distribution:** `inhand.sample_servo_pick` (`InsertCfg(inhand='servo_pick')`). It uses the true in-hand poses of the
+  realistic chain `chain_real_servo_bf1.5_n2048` (`inhand_true_*`, 2043 picks; copy in
+  `results/usbc/policy/approach/inhand_servo_pick.csv`). Deviations from the mean are scaled by U(0.8, 1.4) (eval, about x1.3)
+  or U(0.8, 2.0) (training: more weight on the tails). Teleported grasps at x2 slide <= 0.04 mm in 1 s.
+- **Training:** DAgger at the stop as in round 8 (states with gap <= 7.5 mm, 6 seeds of closed-loop states, encoder
+  offsets +/-1.5 deg in the loop). Labels are the true reader-in-TCP pose (`inhand_error6`).
+  `inhand_ih2 -> ih3 -> ih4` (81k renders) `-> ih5` (130k, x2 tails, host-memory data). Wrist stop nets: `v16ws -> v17ws -> v18ws`.
+- **Closed loop at the stop** (`eval_approach`, elliptic, 2 cm hold, n = 512 per seed; norms of the in-hand error = chain
+  gate metrics; `results/usbc/policy/approach/round9_summary.json`):
+
+| Nets (in-hand + wrist stop) | n | lateral / tilt p99 (mm / deg) | in-hand error p99 (mm / deg) | rot err > 1.5 deg |
+|---|---|---|---|---|
+| ih1 + v15ws (round 8) | 1024 | 2.14 / 2.85 | 2.73 / 3.25 | 12.7 % |
+| ih2 + v16ws | 1024 | 1.62 / 1.91 | 2.17 / 2.42 | 6.1 % |
+| ih3 + v17ws | 1024 | 1.59 / 1.84 | 1.90 / 2.17 | 3.2 % |
+| **ih5 + v18ws** | 2048 | 1.72 / 1.49 | 1.39 / 1.82 | 2.0 % |
+| ih5 + v19f (320 px input) | 1024 | 1.75 / 1.87 | 1.46 / 1.83 | 1.7 % |
+| ih4,ih5 + v18ws,v17ws ensembles | 1024 | 1.80 / 1.55 | 1.45 / 1.90 | 2.3 % |
+| ih5 + v18ws, camera mount error <= real calibration | 1024 | 1.22 / 1.32 | 1.16 / 1.39 | 0.8 % |
+
+- **Chain** (`eval_chain.py` with the `chain_real_servo_bf1.5_n2048` args, seeds 7000-7001, n = 1024; CSV/JSON in
+  `results/usbc/policy/approach/chain/`):
+
+| Config | success | insertion failures | in-hand error p99 (mm / deg) | rot err > 1.5 deg | pre-insert lateral / tilt p99 |
+|---|---|---|---|---|---|
+| base (ih1 + v15ws, same seeds) | 1019/1024 | 3 | 2.50 / 2.67 | 11.3 % | 1.75 / 2.30 |
+| ih5 + v15ws | 1019/1024 | 3 | 1.79 / 1.93 | 2.4 % | 1.84 / 2.59 |
+| **ih5 + v18ws** | **1022/1024 = 99.80 % [99.29, 99.95]** | **0** | 1.78 / 1.84 | 3.3 % | **1.47 / 1.63** |
+
+  The 2 failures are reader rejections at the pick (the same worlds fail in the base run).
+  A better in-hand estimate alone does not remove the insertion misses. The misses also need the pre-insert tilt (v18ws):
+  in the base chain, pre-insert tilt correlates 0.88 with |true in-hand ry|.
+- **Gate (1.1 mm / 0.8 deg in-hand, 1.5 mm / 1 deg approach): not met.** Met: lateral 1.47 mm in the chain. Not met:
+  tilt 1.5-1.6 deg, in-hand 1.4-1.8 mm / 1.8 deg.
+- **Why it stops there** (ih4/ih5 on held-out in-loop renders):
+  - The error is concentrated in ry (pivot about the pinch axis) and the correlated dx/dz. In the right-wrist view
+    the reader is a bar from the fingers to the port, and the pivot tilts the bar toward or away from the camera.
+    2 deg of pivot changes the image less than 1 mm of translation (mean |pixel change| 0.17 vs 0.41).
+  - The left wrist camera does not see the reader at the stop (zero pixel change), so a two-view net cannot help.
+  - Other levers do not move the floor: 320 px input instead of 192 px, ensembles, 2x more data.
+  - The camera mount DR is part of the floor. With zero mount error, ry p99 is 1.2 deg instead of 1.7 deg. The
+    default DR draws up to 2x the real calibration error (10 mm / 2.4 deg); within the real error the closed loop
+    gives 1.16 / 1.39.
+  - The closed-loop tilt is estimate-limited. At the end, the wrist net's own tilt error (p99 1.39 deg) equals the
+    true tilt (1.37 deg): the servo converges to where its estimate reads zero.
+- **To reach the gate:** a view in which the pivot is an in-plane rotation (for example, a camera looking at the
+  gripper from the side, or a "show" pose of the hand to a fixed camera before the approach), or a tighter pick.
+  Also: a measured wrist-camera calibration error smaller than the DR assumes.
+### 2026-11-02 (mason, `policy/pick`) — Part 1: visual-servo descent passes at ±1.5° encoder offsets (99.61 %, n = 2048)
+
+- **Servo descent** (`PickExpert.believed_frame/servo_fracs/servo_update/rehover`, loop in
+  `scripts/policy/pick_expert_eval.py --servo ...`): the expert plans and servos on encoder FK; wrist
+  frames at the hover and at 0.5 / 0.8 / 0.92 of the descent give the grasp pose RELATIVE to the hand
+  (composed with the encoder-FK hand pose, so offsets cancel), then a short straight move. Oracle relative
+  corrections: 1024/1024 at ±1.5° (grasp error p99 2.1 mm); position-only oracle also 1024/1024.
+- **Nets** (`scripts/perception/train_reader_servo.py`, RGB, visual DR): hover net (position, hand up to
+  ±50 mm off the line + hover DAgger frames; re-hover when the correction exceeds 8 mm), near net
+  (position, 224 px; held-out near-grasp p50 0.41 / p99 3.5 mm), rotation from a 6-DoF net (p50 0.9 /
+  p99 3.7°). A 6-DoF net for position too is worse (p99 7 mm; gate 98.7 %).
+- **Gate** (believed frame, ZED estimate, ±1.5°, seed 60000): **2040/2048 = 99.61 %** (Wilson 99.23 %);
+  grasp error p99 4.0 mm / 3.8°; in-hand vs nominal p99 4.6 mm / 3.1°. Earlier rounds: v1 net 97.8 %, near
+  net position-only 99.32 %.
+- **Residual sweep** (success vs encoder-offset residual, n = 1024; 1.5° n = 2048):
+
+  | residual | privileged pose | ZED only | ZED + servo | ACT v4 80k |
+  |---|---|---|---|---|
+  | 0.25° | 99.7 % | 99.4 % | 99.6 % | 85.8 % |
+  | 0.5° | 87.0 % | 86.8 % | 99.6 % | 86.5 % |
+  | 1.0° | 65.9 % | 68.5 % | 99.6 % | 86.4 % |
+  | 1.5° | 49.4 % | 49.7 % | 99.6 % | 84.9 % |
+
+- **In-hand rotation floor = wrist-camera mount DR** (5.1 mm / 1.2° × 2): no net gets below ~3.5° p99
+  rotation (rotation-only net with 12k DAgger frames: 0.87 / 3.4°). With the mount DR capped at
+  1.5 mm / 0.4° (a calibrated mount) the current nets give 2043/2048 (99.76 %), in-hand p99 4.6 mm / 2.7°.
+- **ACT (stopped; comparison path).** Best config: **v4** (wrist + joints, no ZED; gripper close labelled
+  from the arrival at the grasp; 1280 demos; chunk 50, temporal ensembling; 80k steps): **84.9 %**
+  [82.5, 86.9] (n = 1024, 20 s). Flat over encoder-offset residual (85.8 / 86.5 / 86.4 / 84.9 % at
+  0.25 / 0.5 / 1.0 / 1.5°): the wrist image closes the loop. **v5** = v4 data + 1577 DAgger recovery
+  episodes: 40k 75.4 % (n = 256), 80k 81.9 % (auto-close 81.3 %), 120k 83.4 % [81.0] (n = 1024): no gain.
+  DAgger-mix lesson: random-time takeovers gave 70 % lift-from-hold episodes (1114) and only 554
+  approach/grasp recoveries; v5 hovers open more often (no-lift with opening >= 20 mm 134-143 vs 48 in v4),
+  likely from the retreat/re-approach segments. Next time: take over only before the grasp (or at trouble
+  events) and rebalance toward approach/grasp recoveries.
+- Superseded entries: servo_cal (wrist-mount DR 1.5 mm / 0.4° retrained nets: 99.51 %, in-hand 4.7 mm /
+  3.3°, no gain over the default nets) is dropped.
+
+### 2026-11-01 (mason, `policy/chain`) — Real-robot-realistic chain (encoder-FK everywhere, servo-descent pick, K-J with in-hand net): 99.32 % at ±1.5 deg (n = 2048) and ±0.5 deg (n = 1024)
+
+Config: `--believed-frame --enc-offset-deg 1.5|0.5 --pick expert_servo` (Part 1 servo descent, policy/pick 49067ed: ZED reader
+estimate + gate, hover wait 4 mm, wrist servo nets `reader_servo_hover` / `_near` (position) / `_near6` (rotation) at the
+hover and 50 / 80 / 92 % of the descent, re-hover above 8 mm, expert on encoder FK), round-8 approach, 2 cm hold, torque
+hand-over, insertion K-J fed by the in-hand net `inhand_ih1`. Seeds 7000-7003 (1.5 deg; 7003 run separately on GPU 1,
+same config) and 7000-7001 (0.5 deg).
+
+| Offsets | n | End to end | Wilson 95 % | Pick | Hold / transport / approach | Insertion | Failures |
+|---|---|---|---|---|---|---|---|
+| ±1.5 deg | 2048 | **99.32 %** | [98.86, 99.59] | 2043 | all | 2034/2043 | 5 reader rejected, 9 stuck at the mouth |
+| ±0.5 deg | 1024 | **99.32 %** | [98.60, 99.67] | 1021 | all | 1017/1021 | 2 reader rejected, 1 pick, 2 mouth, 1 tilt, 1 deep-unseated |
+
+(The privileged-joint expert under the same convention: 51.4 % / 82.9 %.) Peak axial push (1.5 deg) p50 7.6 / p99 15.8 /
+max 24.4 N; time to seat p50 0.9 / p99 2.75 s. Grasp error at the close p99 3.4 mm / 3.1 deg; 1345/2048 picks re-hovered.
+**In-hand handling:** the servo pick leaves a wider in-hand pose (true offset from nominal p50 1.7 / p99 3.8 mm,
+0.6 / 2.7 deg) than the privileged pick (p99 0.9 mm / 0.5 deg). The approach still brings the plug to lateral p99
+1.98 mm, tilt p99 2.69 deg. The in-hand net's error grows to p50 0.57 / p99 2.62 mm, 0.69 / 2.84 deg (vs 1.09 mm /
+0.65 deg p99 with the privileged pick): it is outside its training spread. The insertion failures concentrate there:
+episodes with an in-hand rotation estimate error > 1.5 deg seat 94.3 % (n = 229) vs 99.95 % below. Next lever: train
+the in-hand net (and the approach nets) on the servo pick's in-hand distribution.
+Demos of this config (6 successes, 2 failures at ±1.5 deg): `results/usbc/policy/chain/demos/`.
 
 ### 2026-11-01 (mason, `policy/chain`) — Chain with insertion K-J (6-D in-hand estimate input): 99.56 % (n = 2048), in-hand net error p99 1.09 mm / 0.65 deg
 

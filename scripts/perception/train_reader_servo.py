@@ -29,6 +29,18 @@ from blind_insertion.perception.nets import PoseNet
 SCALE = torch.tensor([.05, .05, .10, .06, .06, .06])
 
 
+def visual_dr_wrist(err):
+    """Visual DR with the right wrist-camera mount error capped at err = (mm, deg) (max magnitude;
+    VisualDRCfg samples U(0, cam_err_scale x value)); None: defaults (5.1 mm / 1.2 deg x 2)."""
+    if err is None:
+        return True
+    from blind_insertion.envs import visual_dr as VD
+    s = VD.VisualDRCfg().cam_err_scale
+    pos, rot = dict(VD.REAL_CAM_ERR_MM), dict(VD.REAL_CAM_ERR_DEG)
+    pos['wrist_cam'], rot['wrist_cam'] = err[0] / s, err[1] / s
+    return {'cam_pos_mm': pos, 'cam_rot_deg': rot}
+
+
 def generate(task, n, gen, size=192, f_min=0., f_max=.93, rot_deg=5., e_max=.015):
     X, Y = [], []
     rt = task.runtime; dev = task.device
@@ -86,11 +98,12 @@ def main():
     ap.add_argument('--extra_k_min', type=int, default=0, help='use dump frames with waypoint index >= this (-1: hover frames too)')
     ap.add_argument('--init', default=None, help='initialise from this checkpoint (fine-tune)')
     ap.add_argument('--lr', type=float, default=2e-3)
+    ap.add_argument('--wrist_cam_err', type=float, nargs=2, default=None, help='cap the wrist-camera mount error DR at (mm, deg) (calibrated mount)')
     ap.add_argument('--e_max', type=float, default=.015, help='hand offset from the true approach line at the hover (m, per axis), shrinking to 3 mm at the grasp')
     a = ap.parse_args()
     t0 = time.time(); dev = torch.device('cuda:0')
     torch.manual_seed(a.seed); gen = torch.Generator(device=dev); gen.manual_seed(a.seed)
-    task = PickTask(PickTaskCfg(physics=BimanualCfg(nworld=256, device='cuda:0', render_rgb=True, visual_dr=True, camera_resolution=a.res,
+    task = PickTask(PickTaskCfg(physics=BimanualCfg(nworld=256, device='cuda:0', render_rgb=True, visual_dr=visual_dr_wrist(a.wrist_cam_err), camera_resolution=a.res,
                                                     measured_camera_cadence=False, task_layout='results/usbc/policy/pick/task_layout.json')))
     X, Y = generate(task, a.n, gen, a.size, a.f_min, a.f_max, e_max=a.e_max)
     gen.manual_seed(999); torch.manual_seed(999)

@@ -159,3 +159,21 @@ def inhand_error6(site_p, site_R, reader_p, reader_R):
     R_rs = site_R.transpose(1, 2) @ reader_R
     p_rs = (site_R.transpose(1, 2) @ (reader_p - site_p)[..., None])[..., 0]
     return torch.cat([(p_rs - p0) * 1e3, torch.rad2deg(K.rot_log(R_rs @ R0.T))], 1)
+
+
+SERVO_PICK = 'results/usbc/policy/approach/inhand_servo_pick.csv'
+
+
+def sample_servo_pick(n, device='cpu', generator=None, stretch=(.8, 1.4)):
+    """In-hand poses after the chain's realistic servo-descent pick (round 9): the true in-hand pose at the
+    approach stop of policy/chain chain_real_servo_bf1.5_n2048 (n = 2043 successful picks; inhand_true_*,
+    InsertionTask.inhand_error convention), deviations from the mean scaled by U(stretch) (widened ~x1.3)."""
+    import pandas as pd
+    from pathlib import Path
+    rows = torch.tensor(pd.read_csv(Path(__file__).resolve().parents[2] / SERVO_PICK).to_numpy(), device=device, dtype=torch.float32)
+    d = rows[torch.randint(len(rows), (n,), device=device, generator=generator)]
+    mu = rows.mean(0)
+    k = torch.rand(n, 1, device=device, generator=generator) * (stretch[1] - stretch[0]) + stretch[0]
+    d = mu + (d - mu) * k
+    R, p = _site_in_reader_from_deltas(d, device)
+    return R, p, d

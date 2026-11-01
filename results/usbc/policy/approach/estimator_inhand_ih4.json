@@ -1,0 +1,183 @@
+{
+ "estimator": "inhand_ih4",
+ "method": "Train the approach estimators on DR renders (policy/v1 visual DR defaults; RGB only) and report\nheld-out errors.\n\n  zed   : PC port pose (x, y, yaw) in the right-base frame from the ZED frame taken before the arms\n          move (crop around the nominal PC). Labels: deviation from the nominal port pose.\n  wrist : plug tip pose relative to port 2 (x across, y up, z gap; rotation vector) from the right\n          wrist frame at an approach pose (left arm holding the PC, reader in the 60-deg grasp).\n\n    PYTHONPATH=. .venv/bin/python scripts/perception/train_approach_estimators.py --which wrist --n 24576\nWrites runs/perception/<which>.pt and results/usbc/policy/approach/estimator_<which>.json",
+ "n_train": 81920,
+ "n_test_dr": 2048,
+ "n_test_nominal_look": 512,
+ "sample_cfg": {
+  "lateral_m": 0.003,
+  "gap_m": [
+   0.003,
+   0.01
+  ],
+  "rot_deg": 3.0,
+  "roll_deg": 3.0
+ },
+ "args": {
+  "which": "inhand",
+  "two_view": false,
+  "n": 32768,
+  "n_test": 2048,
+  "epochs": 30,
+  "nworld": 256,
+  "lateral": 0.003,
+  "gap": [
+   0.003,
+   0.01
+  ],
+  "rot": 3.0,
+  "inhand_rot": 8.0,
+  "inhand_pos": 3.0,
+  "inhand_mode": "servo_pick",
+  "tilt": 55.0,
+  "states": [
+   "runs/perception/states/r9sp_s1.npz",
+   "runs/perception/states/r9sp_s2.npz",
+   "runs/perception/states/r9sp2_s3.npz",
+   "runs/perception/states/r9sp2_s4.npz"
+  ],
+  "n_states": 49152,
+  "states_max_gap": 0.0075,
+  "init": "runs/perception/inhand_ih3.pt",
+  "lr": 0.0004,
+  "width": 48,
+  "vary_arms": 0.0,
+  "seed": 0,
+  "pc_range": null,
+  "mask_arms": false,
+  "vary_what": "both",
+  "visual_dr_preset": "default",
+  "hetero": false,
+  "task_layout": "results/usbc/policy/pick/task_layout.json",
+  "wrist_mode": "resize",
+  "tag": "_ih4"
+ },
+ "test_set": "held-out in-loop states",
+ "held_out_dr_abs_error": {
+  "dx_mm": {
+   "p50": 0.2766440212726593,
+   "p90": 0.7650334239006042,
+   "p99": 1.3246620893478394,
+   "p99.5": 1.5927135944366455
+  },
+  "dy_mm": {
+   "p50": 0.05594514682888985,
+   "p90": 0.16336986422538757,
+   "p99": 0.33665552735328674,
+   "p99.5": 0.39633870124816895
+  },
+  "dz_mm": {
+   "p50": 0.17756909132003784,
+   "p90": 0.4846521019935608,
+   "p99": 0.8775501847267151,
+   "p99.5": 1.0736900568008423
+  },
+  "rx_deg": {
+   "p50": 0.07350506633520126,
+   "p90": 0.24011081457138062,
+   "p99": 0.7640994191169739,
+   "p99.5": 0.8948495984077454
+  },
+  "ry_deg": {
+   "p50": 0.3278781771659851,
+   "p90": 0.8904694318771362,
+   "p99": 1.6548289060592651,
+   "p99.5": 1.924489974975586
+  },
+  "rz_deg": {
+   "p50": 0.01998475193977356,
+   "p90": 0.07453256845474243,
+   "p99": 1.0739080905914307,
+   "p99.5": 1.323548436164856
+  },
+  "signed_mean": {
+   "dx_mm": -0.027484996244311333,
+   "dy_mm": 0.0023064883425831795,
+   "dz_mm": -0.019837915897369385,
+   "rx_deg": -0.012503711506724358,
+   "ry_deg": -0.025124546140432358,
+   "rz_deg": 0.017141222953796387
+  },
+  "signed_std": {
+   "dx_mm": 0.46296533942222595,
+   "dy_mm": 0.10583392530679703,
+   "dz_mm": 0.3026135563850403,
+   "rx_deg": 0.17949001491069794,
+   "ry_deg": 0.5664312839508057,
+   "rz_deg": 0.19178971648216248
+  },
+  "truth_abs_p99": {
+   "dx_mm": 3.3761096000671387,
+   "dy_mm": 0.8294702768325806,
+   "dz_mm": 3.207050323486328,
+   "rx_deg": 1.186156153678894,
+   "ry_deg": 3.2071070671081543,
+   "rz_deg": 1.2537423372268677
+  }
+ },
+ "held_out_nominal_look_abs_error": {
+  "dx_mm": {
+   "p50": 0.09239816665649414,
+   "p90": 0.26377978920936584,
+   "p99": 0.6153982281684875,
+   "p99.5": 0.6733961701393127
+  },
+  "dy_mm": {
+   "p50": 0.025022581219673157,
+   "p90": 0.06980882585048676,
+   "p99": 0.1509052962064743,
+   "p99.5": 0.17055641114711761
+  },
+  "dz_mm": {
+   "p50": 0.06784892082214355,
+   "p90": 0.1804414987564087,
+   "p99": 0.37871450185775757,
+   "p99.5": 0.47191891074180603
+  },
+  "rx_deg": {
+   "p50": 0.035193055868148804,
+   "p90": 0.09536921232938766,
+   "p99": 0.6733391284942627,
+   "p99.5": 0.8735857605934143
+  },
+  "ry_deg": {
+   "p50": 0.10814927518367767,
+   "p90": 0.3353293538093567,
+   "p99": 0.7485756874084473,
+   "p99.5": 0.9033581018447876
+  },
+  "rz_deg": {
+   "p50": 0.027094930410385132,
+   "p90": 0.08404527604579926,
+   "p99": 1.3137516975402832,
+   "p99.5": 1.4329065084457397
+  },
+  "signed_mean": {
+   "dx_mm": -0.00010695343371480703,
+   "dy_mm": 0.0034835149999707937,
+   "dz_mm": -0.003496933961287141,
+   "rx_deg": -0.010071264579892159,
+   "ry_deg": -0.0008761845529079437,
+   "rz_deg": 0.009942545555531979
+  },
+  "signed_std": {
+   "dx_mm": 0.17982523143291473,
+   "dy_mm": 0.042494021356105804,
+   "dz_mm": 0.12124132364988327,
+   "rx_deg": 0.1256183683872223,
+   "ry_deg": 0.21875496208667755,
+   "rz_deg": 0.19740967452526093
+  },
+  "truth_abs_p99": {
+   "dx_mm": 3.3721158504486084,
+   "dy_mm": 0.9523739814758301,
+   "dz_mm": 3.1629183292388916,
+   "rx_deg": 1.3438595533370972,
+   "ry_deg": 3.067286729812622,
+   "rz_deg": 1.6097207069396973
+  }
+ },
+ "generate_s": 657.9891126155853,
+ "total_s": 2267.094437599182,
+ "note": "visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)"
+}

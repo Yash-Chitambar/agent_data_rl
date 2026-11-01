@@ -124,6 +124,12 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   `pick_to_lerobot.py` (sharded, `--cams`, `--grip_from_phase`), `pick_merge_shards.py`,
   `scripts/act/train_act.sh`, `export_act.py`, `pick_act_eval.py` (`--auto_close`, `--retry`).
 - **Check:** `scripts/checks/check_pick_part1.py`.
+- **2026-11-02: main path = ZED + wrist visual-servo descent, believed frame.** Gate at ±1.5° encoder
+  offsets: 2040/2048 (99.61 %), in-hand p99 4.6 mm / 3.1°; flat 99.6 % for residuals 0.25-1.5° (scripted
+  pick without servo needs ≤ 0.25°). Weights (runs/perception/): reader_zed_cap.pt, reader_servo_hover.pt,
+  reader_servo_near.pt, reader_servo_near6.pt (rotation). `servo_cal` nets (wrist mount DR 1.5 mm / 0.4°)
+  gave no gain and are dropped. ACT stopped: best v4 80k 84.9 % (n = 1024), flat over offset residual;
+  v5 (+ DAgger, 70 % lift-from-hold episodes) 83.4 % at 120k.
 - **2026-11-01 update.** (1) **Encoder offsets:** with the expert on encoder FK (`believed_frame`, as on
   the real robot), offset DR 0 / 0.5 / 1.0 / 1.5° → 100 / 87 / 66 / 49 % (privileged reader pose,
   n = 1024): the scripted pick, with any perception, needs offsets calibrated well below 0.5° or a visual
@@ -158,6 +164,10 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   Round 8: wrist nets for the chain's wider in-hand poses (`wrist_v14w` + `wrist_v15ws`, chain noisy-oracle 2,3:
   lateral p99 1.32 mm / tilt 0.69 deg; 4,5: 1.64 / 0.87; nominal 1.17 / 0.62) and an in-hand estimate for Part 4's
   variant J (`inhand_ih1`, error std <= 0.27 mm / 0.24 deg at the stop). FINDINGS round 8.
+  Round 9: nets for the servo-pick in-hand distribution (`inhand_ih5` + `wrist_v18ws`): chain 1022/1024 (base
+  1019/1024, same seeds), 0 insertion failures, pre-insert lateral / tilt p99 1.47 mm / 1.63 deg, in-hand error p99
+  1.78 mm / 1.84 deg. The gate (1.1 / 0.8, tilt 1 deg) is not met: the right-wrist view barely sees the pivot about
+  the pinch axis. FINDINGS round 9.
 - **Status (2026-11-01, round 4, `policy/approach-hold`): tilt/roll targets met; lateral p99 1.64 mm (target
   1.5 mm; 1.13 mm when the wrist-camera error is inside the real calibration).** Deliverable for Part 4:
   `results/usbc/policy/approach/preinsert_error.json` (+ `preinsert_error_samples.npz`).
@@ -299,6 +309,8 @@ the live state → InsertionTask seated test. Stages before insertion: 1024/1024
 | Insertion | Hold | n | End to end |
 |---|---|---|---|
 | **v11, round-5 approach, bumpless hand-over (final)** | 2 cm | **4096** | **99.85 %** [99.68, 99.93] |
+| **real-robot-realistic: encoder-FK everywhere ±1.5 deg, servo-descent pick, round-8 approach, K-J + in-hand net** (push p99 15.8 N) | 2 cm | 2048 | **99.32 %** [98.86, 99.59] |
+| same at ±0.5 deg | 2 cm | 1024 | 99.32 % [98.60, 99.67] |
 | **final: perception-driven pick, round-8 approach, insertion I** (push p99 13.5 N) | 2 cm | 2048 | **99.66 %** [99.30, 99.83] |
 | same with K-J (6-D in-hand estimate from the wrist net `inhand_ih1`; push p99 13.4 N) | 2 cm | 2048 | 99.56 % [99.17, 99.77] |
 | same with gentle-D (push p99 31.1 N) | 2 cm | 2048 | 99.56 % [99.17, 99.77] |
