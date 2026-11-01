@@ -216,7 +216,7 @@ class PickExpert:
 
     def __init__(self, task: PickTask, v_max=0.10, w_max=1.0, joint_speed=1.2, settle_tol=(6e-4, 0.4),
                  settle_max_s=2.0, close_s=0.6, hold_s=1.0, integral_gain=0.03, integral_cap=0.08,
-                 jitter=None, margin=0.05, lift_tol_deg=1.0, pose_err=None, reader_pose_fn=None, seed=0):
+                 jitter=None, margin=0.05, lift_tol_deg=1.0, pose_err=None, reader_pose_fn=None, hover_tol_m=None, seed=0):
         self.t, self.v, self.w, self.js = task, v_max, w_max, joint_speed
         self.settle_tol, self.dt = settle_tol, task.dt
         self.settle_max = round(settle_max_s / task.dt)
@@ -226,8 +226,14 @@ class PickExpert:
         self.jitter, self.margin, self.lift_tol = jitter, margin, lift_tol_deg
         # pose_err = (xy_m, yaw_deg): planning pose error of fixed magnitude, random direction/sign per world.
         # reader_pose_fn: () -> (p (N,3), R (N,3,3)) estimated reader pose (perception); default privileged.
-        self.pose_err, self.reader_pose_fn = pose_err, reader_pose_fn
+        self.pose_err, self.reader_pose_fn, self.hover_tol = pose_err, reader_pose_fn, hover_tol_m
         self.gen = torch.Generator(device=task.device); self.gen.manual_seed(seed + 101)
+        self.believed_frame = False   # True: plan and servo on encoder FK (non-privileged joints)
+
+    def _q(self):
+        """Joint angles the expert plans and servos with: true (privileged) or, with believed_frame,
+        the encoder reading in the model frame (encoder-offset errors included, as on the real robot)."""
+        return self.t._measured_model_angles()[:, 0] if self.believed_frame else self.t.q_true()
 
     def _ik(self, p, R, q0, iters):
         return self.t.chain.ik(p, R, q0, iters=iters)
@@ -239,7 +245,7 @@ class PickExpert:
         self.timer = torch.zeros(N, dtype=torch.long, device=dev)
         self.done = torch.zeros(N, dtype=torch.bool, device=dev)
         self.integ = torch.zeros(N, 6, device=dev)
-        self.q0 = t.q_true().clone()
+        self.q0 = self._q().clone()
         p_r, R_r = t.reader_pose() if self.reader_pose_fn is None else self.reader_pose_fn()
         if self.pose_err is not None:     # tolerance study: perturb the reader pose the expert plans with
             p_r, R_r = perturb_reader_pose(p_r, R_r, t.lay, *self.pose_err, gen=self.gen)
@@ -297,22 +303,65 @@ class PickExpert:
         self.finger_prev = t.runtime.q[:, t.finger_qadr].sum(1)
         self.finger_still = torch.zeros(N, dtype=torch.long, device=dev)
 
-    def replan(self, mask, p_r, R_r, hover_relative=True):
-        """New reader pose for the worlds in mask (e.g. a wrist-camera refinement taken at the hover).
-        hover_relative: p_r/R_r are relative to the PLANNED hover and are re-expressed relative to the
-        hand's actual pose (tracking error at the hover does not shift the estimate). Re-plans grasp and
-        lift; the descent starts from the current command."""
-        t = self.t
-        if hover_relative:
-            pa, Ra = t.tcp_pose()
-            Rh = self.R_g; ph = self.p_pre
-            Rrel = Rh.transpose(1, 2) @ R_r; prel = (Rh.transpose(1, 2) @ (p_r - ph)[..., None])[..., 0]
-            p_r, R_r = pa + (Ra @ prel[..., None])[..., 0], Ra @ Rrel
+    def replan(self, mask, p_r, R_r):
+        """New reader pose for the worlds in mask (e.g. a wrist-camera refinement at the hover, already
+        expressed relative to the hand's measured pose). Re-plans grasp and lift; the descent starts
+        from the current command."""
         W = G.grasp_poses(p_r, R_r, self.offset, self.tilt.nan_to_num(G.TILT_DEG), flip=self.flip)
         m = mask & self.ik_ok
         self.p_g[m], self.R_g[m], self.p_lift[m] = W['grasp'][0][m], W['grasp'][1][m], W['lift'][0][m]
         self.p_est[m], self.R_est[m] = p_r[m], R_r[m]
         self.refined |= m
+
+    def takeover(self, mask, near_perp=.006, near_rot_deg=8., hold_err=.004):
+        """DAgger: take over the worlds in mask from wherever another controller (a learned policy)
+        left the hand, and continue with the privileged expert from there. Re-plans at the reader's
+        CURRENT pose (it may have been pushed). Per world:
+          holding  (fingers closed and the reader within hold_err of the nominal in-hand pose or already
+                   lifted > 10 mm): lift (phase 4)
+                   from the current pose to the planned lift height;
+          on the approach line (fingers open, hand within near_perp of the pre-grasp -> grasp segment,
+                   tool within near_rot_deg of the grasp orientation): continue the Cartesian
+                   descent (phase 1) from the current pose;
+          otherwise (fingers closed on nothing, hand off the line, after a failed lift): open the
+                   gripper and go back to the pre-grasp in joint space (phase 0), then grasp again."""
+        t, dev = self.t, self.t.device
+        m = mask.clone()
+        q = t.q_true(); p_a, R_a = t.chain.fk(q)
+        p_r, R_r = t.reader_pose()
+        W = G.grasp_poses(p_r, R_r, self.offset, self.tilt.nan_to_num(G.TILT_DEG), flip=self.flip)
+        q_pre, pe, re = self._ik(*W['pregrasp'], self.q_pre, 80)
+        q_g, pe_g, re_g = self._ik(*W['grasp'], q_pre, 80)
+        lo, hi = t.chain.lo + .02, t.chain.hi - .02
+        reach = (pe + .05 * re < 1e-3) & (pe_g + .05 * re_g < 1e-3) & ((q_pre >= lo) & (q_pre <= hi)).all(1)
+        met = t.pick_metrics()
+        n_p, _ = G.nominal_inhand(t.offsets[(G.TILT_DEG, False)], G.TILT_DEG, False)
+        in_err = (met['inhand_p'] - torch.as_tensor(n_p, device=dev, dtype=torch.float32)).norm(dim=1)
+        fo = t.runtime.q[:, t.finger_qadr].sum(1)
+        holding = ((in_err < hold_err) | (met['lift_m'] > .010)) & (fo < .040)   # lifted with closed fingers: keep it, the in-hand pose may be off-nominal
+        seg = W['pregrasp'][0] - W['grasp'][0]; L = seg.norm(dim=1, keepdim=True); u = seg / L
+        d = p_a - W['grasp'][0]; along = (d * u).sum(1)
+        perp = (d - along[:, None] * u).norm(dim=1)
+        rot = torch.rad2deg(K.rot_log(W['grasp'][1] @ R_a.transpose(1, 2)).norm(dim=1))
+        on_line = (fo > .040) & (along > -.002) & (along < L[:, 0] + .005) & (perp < near_perp) & (rot < near_rot_deg)
+        lift_z = self.p_lift[:, 2].clone()
+        upd = m & ~holding
+        self.p_pre[upd], self.p_g[upd], self.R_g[upd], self.p_lift[upd] = W['pregrasp'][0][upd], W['grasp'][0][upd], W['grasp'][1][upd], W['lift'][0][upd]
+        self.q_pre[upd] = q_pre[upd]
+        self.p_est[upd], self.R_est[upd] = p_r[upd], R_r[upd]
+        self.ik_ok = torch.where(upd, reach & self.ik_ok, self.ik_ok)
+        h = m & holding
+        self.p_lift[h] = torch.cat([p_a[h, :2], lift_z[h, None]], 1)
+        ph = torch.where(holding, torch.full_like(self.phase, 4), torch.where(on_line, torch.ones_like(self.phase), torch.zeros_like(self.phase)))
+        self.phase = torch.where(m, ph, self.phase)
+        self.timer[m] = 0; self.done[m] = False; self.integ[m] = 0
+        self.q0[m] = q[m]; self.q_cmd[m] = q[m]
+        self.p_cmd[m], self.R_cmd[m] = p_a[m], R_a[m]
+        dq = (self.q_pre - self.q0).abs().max(1).values
+        self.move_n = torch.where(m, torch.clamp((dq / self.js / self.dt).ceil(), min=10).long(), self.move_n)
+        self.finger_prev[m] = fo[m]; self.finger_still[m] = 0
+        self.grip = torch.where(m, torch.where(self.phase >= 3, -1., 1.), self.grip)
+        return {'holding': holding & m, 'on_line': on_line & ~holding & m, 'retreat': ~holding & ~on_line & m}
 
     def _cart_step(self, p_wp, R_wp, v):
         dp = p_wp - self.p_cmd
@@ -345,15 +394,17 @@ class PickExpert:
         q_ik, _, _ = self._ik(self.p_cmd, self.R_cmd, self.q_cmd, 12)
         self.q_cmd = torch.where(m0[:, None], q_joint, q_ik)
         # settle-before-close: integral on the true joint error once the command has arrived
-        q = t.q_true()
+        q = self._q()
         p_a, R_a = t.chain.fk(q)
         e_p = (self.p_g - p_a).norm(dim=1)
         e_r = torch.rad2deg(K.rot_log(self.R_g @ R_a.transpose(1, 2)).norm(dim=1))
         # Cartesian integral (true TCP vs its waypoint) mapped through the Jacobian: removes servo
         # sag and IK residuals alike. Active from the settle phase on.
         integrate = (ph >= 2)
+        if self.hover_tol is not None:   # hold at the hover for the wrist camera: servo there too
+            integrate = integrate | ((ph == 0) & (self.timer >= self.move_n))
         _, _, J = t.chain.fk(q, with_jac=True)
-        p_tgt = torch.where((ph >= 4)[:, None], self.p_cmd, self.p_g)
+        p_tgt = torch.where((ph >= 4)[:, None], self.p_cmd, torch.where((ph == 0)[:, None], self.p_pre, self.p_g))
         e6 = torch.cat([p_tgt - p_a, .5 * K.rot_log(self.R_g @ R_a.transpose(1, 2))], 1)
         JJt = J @ J.transpose(1, 2) + 1e-4 * torch.eye(6, device=t.device)
         dq = (J.transpose(1, 2) @ torch.linalg.solve(JJt, e6[..., None]))[..., 0]
@@ -363,7 +414,10 @@ class PickExpert:
         # phase logic
         self.timer += 1
         adv = torch.zeros_like(self.done)
-        adv |= (ph == 0) & (self.timer >= self.move_n + 5) & self.ik_ok
+        hover_ok = torch.ones_like(self.done)
+        if self.hover_tol is not None:   # wait at the hover until the hand is there (wrist-camera refinement)
+            hover_ok = (((p_a - self.p_pre).norm(dim=1) < self.hover_tol) & (e_r < 1.5)) | (self.timer >= self.move_n + round(4.0 / self.dt))
+        adv |= (ph == 0) & (self.timer >= self.move_n + 5) & self.ik_ok & hover_ok
         adv |= (ph == 1) & (dist < 2e-4) & (ang < 5e-3)
         settled = (e_p < self.settle_tol[0]) & (e_r < self.settle_tol[1])
         adv |= (ph == 2) & ((settled & (self.timer >= 5)) | (self.timer >= self.settle_max))
@@ -388,7 +442,7 @@ class PickExpert:
         self.done = self.phase >= 6
         self.grip = torch.where(self.phase >= 3, -torch.ones_like(self.grip), torch.ones_like(self.grip))
         # absolute physical target -> believed-frame target -> normalized accumulate increment
-        believed = q_phys - t.enc_error[:, 0]
+        believed = q_phys if self.believed_frame else q_phys - t.enc_error[:, 0]
         a = torch.zeros(N, 14, device=t.device)
         a[:, :6] = ((believed - t.joint_target[:, 0]) / t.cfg.action_scale_rad).clamp(-1, 1)
         a[:, 6] = self.grip

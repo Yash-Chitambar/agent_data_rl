@@ -170,6 +170,37 @@ plug tip computed from the *nominal* in-hand pose (`tip_b` from the measured mea
 `eval_approach.py` / `eval_chain.py`), so a rotation step also shifts the plug when the true in-hand pose differs.
 The insertion absorbs these (99.5-100 % of picked episodes); the pick itself is the limit at larger planning errors
 (98.4 % at ±2 mm / ±3 deg, 86.7 % at ±4 mm / ±5 deg).
+### 2026-11-01 (mason, `policy/pick`) — Part 1: the scripted pick fails with encoder-offset errors; ACT v4 (wrist + joints) 84.9 %; wrist refinement
+
+- **Encoder offsets break the scripted pick.** Earlier expert gates commanded in the TRUE joint frame (the
+  expert removes the DR encoder error). With `PickExpert.believed_frame` (plan and servo on encoder FK, as
+  a real controller must), privileged reader pose, n = 1024 each (seed 56000): offset DR half range
+  0 / 0.5 / 1.0 / 1.5° on joints 2-5 → **100 / 87.0 / 65.9 / 49.4 %**; in-hand vs nominal p99
+  1.3 mm / 0.43° → 9.1 mm / 5.2°. ZED estimate at 1.5°: 1017/2048; ZED + wrist (encoder-FK rebase)
+  1006/2048. The grasp tolerates ~3 mm; FK error at the grasp and the tool-tilt error exceed it, and a
+  relative correction at the hover does not cancel them. The scripted pick needs joint offsets
+  calibrated well below 0.5° or visual servoing down to the grasp. ACT (wrist closed loop, trained with
+  this DR) is unaffected by construction.
+- **Wrist refinement at the hover** (`scripts/perception/train_reader_wrist.py`): the frame must be taken
+  after the hand reaches the hover (the expert's phase-0 end fired 80-90 mm and ~34° short;
+  `PickExpert(hover_tol_m=.004)` now servos there and waits for 4 mm / 1.5°). Training with the hand
+  ±10 mm / ±3° off the hover needs the estimate re-expressed relative to the actual hand: heading-only
+  rebase xy p50 1.3 mm; carrying the camera ray with the full hand rotation and cutting the table plane
+  (v4) p50 0.70 / p99 4.4 mm (held-out, mixed small and gross ZED errors). Rebasing on encoder FK in
+  training (v2) fails (p50 6 mm): the camera moves with the true hand. In the loop, true-frame
+  expert, n = 2048: ZED + wrist v4 2044/2048, estimate xy p99 2.8 mm vs ZED only 4.4 mm
+  (2046/2048); in-hand residual unchanged (pos p99 4.0 vs 4.1 mm, rot p99 1.30 vs 1.38°): it is set by
+  the grasp dynamics.
+- **ACT v4** (wrist + joints, no ZED; gripper close labelled from the arrival at the grasp, phase 2),
+  1280 demos, n = 1024, 20 s, temporal ensembling: **80k 84.9 %** [82.5, 86.9] (v3 ZED + wrist + joints
+  62.5 %); auto-close + retry 85.4 % (v3 78.3 %). Hovering open without closing fell from 350 to 48 of
+  1024. Remaining v4 failures: 113 no-lift with the hand far from the grasp at the end (moved off without
+  the reader), 36 tilt ≥ 3°, 4 partial lifts. The gripper label is −1 through the lift; no release
+  seen. 40k / 60k (n = 256): 66.8 / 80.5 %.
+- **DAgger for ACT v5:** `scripts/policy/gen_pick_dagger.py` rolls out v4 and hands each world to
+  `PickExpert.takeover` (re-plan at the current reader pose; lift if held, continue the descent if on
+  the approach line, else open and regrasp) at a random time or at the first trouble event. Only the
+  expert part is recorded. 59 % of rollouts give a usable recovery episode.
 
 ### 2026-10-31 (mason, `policy/chain`) — Bumpless hand-over, stop bias removed, round-5 approach: 99.61-99.80 % (n = 1024 each); 4096 live insertion starts saved
 

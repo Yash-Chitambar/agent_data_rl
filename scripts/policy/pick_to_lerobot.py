@@ -42,8 +42,9 @@ def main():
     if a.max_episodes:
         eps = eps[:a.max_episodes]
     eps = eps[a.shard::a.nshards]
-    z0 = np.load(eps[0])
-    h, w = iio.imread(raw / f"{eps[0].stem}_top.mp4", index=0).shape[:2]
+    e0 = next(f for f in eps if json.loads(str(np.load(f)["meta"]))["ok"])     # DAgger dirs hold empty episodes
+    z0 = np.load(e0)
+    h, w = iio.imread(raw / f"{e0.stem}_{a.cams[0]}.mp4", index=0).shape[:2]
     names_q = [f"joint{i}" for i in range(1, 7)]
     features = {
         **{f"observation.images.{c}": {"dtype": "video", "shape": (h, w, 3), "names": ["height", "width", "channel"]} for c in a.cams},

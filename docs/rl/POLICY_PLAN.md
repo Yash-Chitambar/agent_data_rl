@@ -124,6 +124,17 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   `pick_to_lerobot.py` (sharded, `--cams`, `--grip_from_phase`), `pick_merge_shards.py`,
   `scripts/act/train_act.sh`, `export_act.py`, `pick_act_eval.py` (`--auto_close`, `--retry`).
 - **Check:** `scripts/checks/check_pick_part1.py`.
+- **2026-11-01 update.** (1) **Encoder offsets:** with the expert on encoder FK (`believed_frame`, as on
+  the real robot), offset DR 0 / 0.5 / 1.0 / 1.5° → 100 / 87 / 66 / 49 % (privileged reader pose,
+  n = 1024): the scripted pick, with any perception, needs offsets calibrated well below 0.5° or a visual
+  servo to the grasp. All scripted-pick gates above assume exact joints. (2) **Capture pose:**
+  `runs/perception/reader_zed_cap.pt` (right arm at the capture pose, grippers open, left parked) with
+  the arm-envelope gate and the presence classifier. (3) **Wrist refinement v4** at the hover
+  (`runs/perception/reader_wrist_v4.pt`, camera-ray rebase): estimate xy p99 2.8 vs 4.4 mm (ZED only),
+  2044/2048, in-hand residual unchanged; not for the chain (needs the true hand pose). (4) **ACT v4**
+  (wrist + joints): 84.9 % at 80k (n = 1024) vs v3 62.5 %; ACT v5 = v4 + DAgger recovery episodes
+  (`gen_pick_dagger.py`), 120k steps, in training.
+
 
 ## Part 2: Approach (IK to pre-insert)
 

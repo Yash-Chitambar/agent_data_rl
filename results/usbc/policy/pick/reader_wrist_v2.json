@@ -1,0 +1,73 @@
+{
+ "estimator": "reader_wrist_v2",
+ "method": "Wrist-camera refinement of the reader pose at the pick's pre-grasp hover (RGB only).\n\nThe ZED estimate puts the hand at the pre-grasp hover (6 cm back along the tool axis, 10 cm up). From\nthere the right wrist camera sees the reader close up. This CNN predicts the correction of the ZED\nestimate: true minus estimated body centre (m) in the estimated reader's horizontal frame (along the\nplug, across) and the yaw error (rad). The hand is off the hover by +/-10 mm / +/-3 deg (tracking); the estimate is re-expressed relative to\nthe hand's measured (encoder FK, offset errors included) pose, horizontally (rebase_estimate). Training hovers come from estimates perturbed like the ZED net\n(70 %: xy N(0, 2.5 mm), yaw N(0, 2 deg); 30 % gross: xy uniform within 40 mm, yaw U(+/-8 deg)).\nFull visual DR (incl. wrist-camera pose error), left arm parked, gripper at the 24 mm approach opening.\n\n    CUDA_VISIBLE_DEVICES=3 PYTHONPATH=.:scripts/perception MUJOCO_GL=egl .venv/bin/python scripts/perception/train_reader_wrist.py\nWrites runs/perception/reader_wrist{tag}.pt, results/usbc/policy/pick/reader_wrist{tag}.json",
+ "args": {
+  "n": 40960,
+  "n_test": 4096,
+  "res": 320,
+  "size": 192,
+  "epochs": 40,
+  "width": 32,
+  "tag": "_v2",
+  "seed": 0
+ },
+ "n_train": 40960,
+ "n_test": 4096,
+ "heldout_abs_error_of_correction": {
+  "along_mm": {
+   "p50": 3.4329280853271484,
+   "p90": 8.391307830810547,
+   "p99": 13.647747039794922,
+   "p99.5": 15.177791595458984
+  },
+  "across_mm": {
+   "p50": 3.649711847305298,
+   "p90": 8.466718673706055,
+   "p99": 13.414403915405273,
+   "p99.5": 14.511428833007812
+  },
+  "yaw_deg": {
+   "p50": 1.0956099033355713,
+   "p90": 2.5690295696258545,
+   "p99": 4.020534038543701,
+   "p99.5": 4.662103176116943
+  },
+  "xy_mm": {
+   "p50": 6.037827014923096,
+   "p90": 11.057111740112305,
+   "p99": 16.369657516479492,
+   "p99.5": 18.676008224487305
+  },
+  "xy_max_mm": 33.821693420410156
+ },
+ "heldout_gross_start_errors": {
+  "along_mm": {
+   "p50": 3.4843058586120605,
+   "p90": 8.48733901977539,
+   "p99": 13.95227336883545,
+   "p99.5": 15.392894744873047
+  },
+  "across_mm": {
+   "p50": 3.7051680088043213,
+   "p90": 8.59908390045166,
+   "p99": 13.46722412109375,
+   "p99.5": 14.578408241271973
+  },
+  "yaw_deg": {
+   "p50": 1.0927364826202393,
+   "p90": 2.5828633308410645,
+   "p99": 4.0596923828125,
+   "p99.5": 4.66127872467041
+  },
+  "xy_mm": {
+   "p50": 6.129419803619385,
+   "p90": 11.220576286315918,
+   "p99": 16.538311004638672,
+   "p99.5": 18.756057739257812
+  },
+  "xy_max_mm": 33.821693420410156
+ },
+ "n_gross": 3521,
+ "generate_s": 1874.4450306892395,
+ "total_s": 3221.147364616394
+}
