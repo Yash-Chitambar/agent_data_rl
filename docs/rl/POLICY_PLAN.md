@@ -127,8 +127,9 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
 - **2026-11-02: main path = ZED + wrist visual-servo descent, believed frame.** Gate at ±1.5° encoder
   offsets: 2040/2048 (99.61 %), in-hand p99 4.6 mm / 3.1°; flat 99.6 % for residuals 0.25-1.5° (scripted
   pick without servo needs ≤ 0.25°). Weights (runs/perception/): reader_zed_cap.pt, reader_servo_hover.pt,
-  reader_servo_near.pt, reader_servo_near6.pt (rotation). Retrained `servo_cal` nets (wrist mount DR
-  1.5 mm / 0.4°) are for after a measured wrist hand-eye calibration. ACT v5 (v4 + DAgger) in training.
+  reader_servo_near.pt, reader_servo_near6.pt (rotation). `servo_cal` nets (wrist mount DR 1.5 mm / 0.4°)
+  gave no gain and are dropped. ACT stopped: best v4 80k 84.9 % (n = 1024), flat over offset residual;
+  v5 (+ DAgger, 70 % lift-from-hold episodes) 83.4 % at 120k.
 - **2026-11-01 update.** (1) **Encoder offsets:** with the expert on encoder FK (`believed_frame`, as on
   the real robot), offset DR 0 / 0.5 / 1.0 / 1.5° → 100 / 87 / 66 / 49 % (privileged reader pose,
   n = 1024): the scripted pick, with any perception, needs offsets calibrated well below 0.5° or a visual

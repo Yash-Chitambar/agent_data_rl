@@ -130,8 +130,17 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 - **In-hand rotation floor = wrist-camera mount DR** (5.1 mm / 1.2° × 2): no net gets below ~3.5° p99
   rotation (rotation-only net with 12k DAgger frames: 0.87 / 3.4°). With the mount DR capped at
   1.5 mm / 0.4° (a calibrated mount) the current nets give 2043/2048 (99.76 %), in-hand p99 4.6 mm / 2.7°.
-- **ACT v5** = v4 + 1577 DAgger recovery episodes (`gen_pick_dagger.py`, `PickExpert.takeover`):
-  40k 75.4 % (n = 256) vs v4 66.8 %.
+- **ACT (stopped; comparison path).** Best config: **v4** (wrist + joints, no ZED; gripper close labelled
+  from the arrival at the grasp; 1280 demos; chunk 50, temporal ensembling; 80k steps): **84.9 %**
+  [82.5, 86.9] (n = 1024, 20 s). Flat over encoder-offset residual (85.8 / 86.5 / 86.4 / 84.9 % at
+  0.25 / 0.5 / 1.0 / 1.5°): the wrist image closes the loop. **v5** = v4 data + 1577 DAgger recovery
+  episodes: 40k 75.4 % (n = 256), 80k 81.9 % (auto-close 81.3 %), 120k 83.4 % [81.0] (n = 1024): no gain.
+  DAgger-mix lesson: random-time takeovers gave 70 % lift-from-hold episodes (1114) and only 554
+  approach/grasp recoveries; v5 hovers open more often (no-lift with opening >= 20 mm 134-143 vs 48 in v4),
+  likely from the retreat/re-approach segments. Next time: take over only before the grasp (or at trouble
+  events) and rebalance toward approach/grasp recoveries.
+- Superseded entries: servo_cal (wrist-mount DR 1.5 mm / 0.4° retrained nets: 99.51 %, in-hand 4.7 mm /
+  3.3°, no gain over the default nets) is dropped.
 
 ### 2026-11-01 (mason, `policy/pick`) — Part 1: the scripted pick fails with encoder-offset errors; ACT v4 (wrist + joints) 84.9 %; wrist refinement
 
