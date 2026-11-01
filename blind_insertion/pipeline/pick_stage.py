@@ -37,6 +37,7 @@ import torch
 
 from blind_insertion.envs import kinematics as K
 from blind_insertion.envs.bimanual_pick import PickExpert
+from blind_insertion.scenes import reader_grasp as G
 
 
 class ExpertPick:
@@ -118,6 +119,94 @@ class ExpertPick:
         extra['steps'] = torch.full((n,), k + 1, device=dev)
         extra['ik_ok'] = ex.ik_ok
         return dict(done=ex.done, failed=task.failed | ~ok, start_hold=self.start_hold, **extra)
+
+
+class ServoPick:
+    """Part 1 servo-descent pick (policy/pick 49067ed; scripts/policy/pick_expert_eval.py --servo ...): the expert plans
+    from the ZED reader estimate, waits at the hover (hover_tol 4 mm), and takes right-wrist frames at the hover and at
+    `fracs` of the descent; a servo net gives the grasp pose relative to the hand (hover net; near nets for the descent
+    frames: position from `near`, rotation from `near_rot`), applied by PickExpert.servo_update; a hover correction larger
+    than `rehover_mm` re-hovers (at most rehover_max times). Works on encoder FK with --believed-frame."""
+
+    name = 'expert_servo'
+
+    def __init__(self, estimator, hover, near=None, near_rot=None, fracs=(.5, .8, .92), rehover_mm=8., rehover_max=2, dev='cuda:0'):
+        from blind_insertion.perception.nets import PoseNet
+        def load(path):
+            ck = torch.load(path, map_location=dev)
+            net = PoseNet(ck.get('n_out', 6), ck['size'], width=ck['width']).to(dev).eval()
+            net.load_state_dict(ck['net'])
+            return net, ck['scale'].to(dev)
+        self.estimator = estimator
+        self.hover = load(hover)
+        self.near = load(near) if near else None
+        self.near_rot = load(near_rot) if near_rot else None
+        self.fracs, self.rehover_mm, self.rehover_max = tuple(fracs), rehover_mm, rehover_max
+
+    @torch.no_grad()
+    def _run_net(self, nt, fr):
+        net, sc = nt
+        d_ = torch.cat([net(fr[i:i + 256]) for i in range(0, len(fr), 256)]) * sc
+        return torch.cat([d_, torch.full_like(d_, float('nan'))], 1) if d_.shape[1] == 3 else d_
+
+    def run(self, chain):
+        task, n, dev = chain.pick, chain.n, chain.dev
+        extra = {}
+        p_est, R_est, ok = self.estimator(chain)
+        p_t, R_t = task.reader_pose()
+        extra['est_pos_err_mm'] = (p_est - p_t).norm(dim=1) * 1e3
+        extra['est_rot_err_deg'] = torch.rad2deg(K.rot_log(R_est @ R_t.transpose(1, 2)).norm(dim=1))
+        extra['est_ok'] = ok
+        for k_, v_ in getattr(chain, 'reader_est_info', {}).items():
+            extra['est_' + k_] = v_
+        ex = PickExpert(task, seed=chain.seed, reader_pose_fn=lambda: (p_est.clone(), R_est.clone()), hover_tol_m=.004)
+        ex.believed_frame = bool(getattr(chain.a, 'believed_frame', False))
+        ex.servo_fracs = self.fracs
+        ex.servo_rot = True
+        ex.reset()
+        ex.ik_ok &= ok
+        self.expert = ex
+        start_hold = {'p': torch.zeros(n, 3, device=dev), 'R': torch.eye(3, device=dev).repeat(n, 1, 1), 'tilt': torch.zeros(n, device=dev)}
+        n_frames = torch.zeros(n, dtype=torch.long, device=dev)
+        g_err = torch.full((n, 2), float('nan'), device=dev)
+        for k in range(task.max_steps - 1):
+            prev = ex.phase.clone()
+            act = ex.act()
+            closing = (ex.phase == 3) & (prev == 2)
+            if closing.any():          # true hand vs true grasp pose at the close (privileged diagnostic)
+                W = G.grasp_poses(*task.reader_pose(), ex.offset, ex.tilt.nan_to_num(G.TILT_DEG), flip=ex.flip)
+                p_, R_ = task.tcp_pose()
+                g_err[closing, 0] = ((W['grasp'][0] - p_).norm(dim=1) * 1e3)[closing]
+                g_err[closing, 1] = torch.rad2deg(K.rot_log(W['grasp'][1] @ R_.transpose(1, 2)).norm(dim=1))[closing]
+            want = ((ex.phase == 1) & (prev == 0) & ~ex.refined) | ex.need_frame
+            if want.any():
+                fr = chain.render()['wrist_cam']
+                delta = self._run_net(self.hover, fr)
+                if self.near is not None and ex.need_frame.any():
+                    dn = self._run_net(self.near, fr)
+                    if self.near_rot is not None:
+                        dn = torch.cat([dn[:, :3], self._run_net(self.near_rot, fr)[:, 3:]], 1)
+                    delta = torch.where(ex.need_frame[:, None], dn, delta)
+                hov = want & ~ex.need_frame
+                pg_old = ex.p_g.clone()
+                ex.servo_update(want, delta)
+                n_frames += want.long()
+                if self.rehover_mm > 0 and hov.any():
+                    big = hov & ((ex.p_g - pg_old).norm(dim=1) > self.rehover_mm * 1e-3) & (ex.hover_iters < self.rehover_max)
+                    if big.any():
+                        ex.rehover(big)
+            task.step(act)
+            chain.tick('1 pick')
+            entered = (ex.phase == 5) & (prev == 4)
+            if entered.any():
+                m = task.pick_metrics()
+                for key, mk in (('p', 'inhand_p'), ('R', 'inhand_R'), ('tilt', 'tilt_deg')):
+                    start_hold[key][entered] = m[mk][entered]
+            if ex.done.all():
+                break
+        extra.update(steps=torch.full((n,), k + 1, device=dev), ik_ok=ex.ik_ok, servo_frames=n_frames.float(),
+                     grasp_err_mm=g_err[:, 0], grasp_err_deg=g_err[:, 1], hover_iters=ex.hover_iters.float())
+        return dict(done=ex.done, failed=task.failed | ~ok, start_hold=start_hold, **extra)
 
 
 class WristRefine:
@@ -211,6 +300,11 @@ def make_pick_stage(kind, reader_estimator='', chain=None):
             return ExpertPick(noisy_oracle(reader_estimator.split(':', 1)[1]))
         mod, fn = reader_estimator.split(':')
         return ExpertPick(getattr(importlib.import_module(mod), fn)(chain))
+    if kind == 'expert_servo':
+        A, root = chain.a, 'runs/perception/'
+        zed = ZedReader(reader_estimator.split(':', 1)[1], chain.dev, retries=A.reader_retries)
+        return ServoPick(zed, root + A.servo_hover + '.pt', root + A.servo_near + '.pt' if A.servo_near else None,
+                         root + A.servo_near_rot + '.pt' if A.servo_near_rot else None, A.servo_fracs, A.rehover_mm, dev=chain.dev)
     if kind == 'act':
         return ActPick()
     raise ValueError(f'unknown pick stage {kind}')

@@ -299,6 +299,8 @@ the live state → InsertionTask seated test. Stages before insertion: 1024/1024
 | Insertion | Hold | n | End to end |
 |---|---|---|---|
 | **v11, round-5 approach, bumpless hand-over (final)** | 2 cm | **4096** | **99.85 %** [99.68, 99.93] |
+| **real-robot-realistic: encoder-FK everywhere ±1.5 deg, servo-descent pick, round-8 approach, K-J + in-hand net** (push p99 15.8 N) | 2 cm | 2048 | **99.32 %** [98.86, 99.59] |
+| same at ±0.5 deg | 2 cm | 1024 | 99.32 % [98.60, 99.67] |
 | **final: perception-driven pick, round-8 approach, insertion I** (push p99 13.5 N) | 2 cm | 2048 | **99.66 %** [99.30, 99.83] |
 | same with K-J (6-D in-hand estimate from the wrist net `inhand_ih1`; push p99 13.4 N) | 2 cm | 2048 | 99.56 % [99.17, 99.77] |
 | same with gentle-D (push p99 31.1 N) | 2 cm | 2048 | 99.56 % [99.17, 99.77] |

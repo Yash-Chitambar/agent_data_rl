@@ -72,7 +72,12 @@ def parse(argv=None):
     ap.add_argument('--batches', type=int, default=1)
     ap.add_argument('--seed', type=int, default=7000, help='held-out (Part 1 gate 20000, Part 4 1000, Part 2 1-2)')
     ap.add_argument('--name', default='chain')
-    ap.add_argument('--pick', default='expert_estimated', choices=('expert_privileged', 'expert', 'expert_estimated', 'act'),
+    ap.add_argument('--servo-hover', default='reader_servo_hover')
+    ap.add_argument('--servo-near', default='reader_servo_near')
+    ap.add_argument('--servo-near-rot', default='reader_servo_near6')
+    ap.add_argument('--servo-fracs', type=float, nargs='*', default=[.5, .8, .92])
+    ap.add_argument('--rehover-mm', type=float, default=8.)
+    ap.add_argument('--pick', default='expert_estimated', choices=('expert_privileged', 'expert', 'expert_estimated', 'expert_servo', 'act'),
                     help='pick stage (blind_insertion/pipeline/pick_stage.py): Part 1 scripted expert planned from the true '
                          '(privileged) or an estimated reader pose, or ACT (not wired yet)')
     ap.add_argument('--reader-estimator', default='zed:runs/perception/reader_zed_cap.pt',
@@ -181,7 +186,8 @@ class Chain:
         rt.cfg.render_rgb = False                 # task observations must not render every step
         env.reset = lambda *args, **kw: None      # no auto-reset: one continuous episode per world
         self.dev, self.n, self.dt = rt.device, a.nworld, env.dt
-        pcfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device=dev, task_layout=PICK_LAYOUT), episode_s=13.,
+        pcfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device=dev, task_layout=PICK_LAYOUT),
+                           episode_s=22. if a.pick == 'expert_servo' else 13.,
                            enc_offset_deg=a.enc_offset_deg)
         self.pick = PickTask(pcfg, runtime=rt)
         from blind_insertion.pipeline.pick_stage import make_pick_stage

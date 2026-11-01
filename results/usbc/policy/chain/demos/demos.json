@@ -91,23 +91,23 @@
   {
    "seed": 7000,
    "videos": [
-    "chain_s7000_w218_insert_lateral_miss.mp4",
+    "chain_s7000_w273_insert_lateral_miss.mp4",
     "chain_s7000_w370_reader_rejected.mp4"
    ],
    "classes": {
-    "218": "insert_lateral_miss",
+    "273": "insert_lateral_miss",
     "370": "reader_rejected"
    },
    "layouts": {
-    "218": {
+    "273": {
      "pc_xy": [
-      0.22833167016506195,
-      0.3655375838279724
+      0.215764582157135,
+      0.34662455320358276
      ],
-     "pc_yaw_deg": 2.840465784072876,
+     "pc_yaw_deg": -4.364296913146973,
      "reader_xy": [
-      0.13898997008800507,
-      0.48952874541282654
+      0.15773579478263855,
+      0.40725159645080566
      ]
     },
     "370": {
@@ -125,5 +125,5 @@
    "note": "top row: Warp policy cameras with the episode visual DR; bottom: CPU MuJoCo free camera, nominal look"
   }
  ],
- "config": "final: estimated pick (ZED reader + gate + re-take), round-8 approach (wrist_v14w/v15ws), 2 cm hold, torque hand-over, insertion I"
+ "config": "real-robot-realistic: --believed-frame --enc-offset-deg 1.5, servo-descent pick (ZED reader + gate, hover/near/near6 servo nets), round-8 approach, 2 cm hold, torque hand-over, insertion K-J with the in-hand net"
 }
