@@ -60,7 +60,7 @@ from blind_insertion.scenes import reader_grasp as G  # noqa: E402
 PICK_LAYOUT = 'results/usbc/policy/pick/task_layout.json'
 import os  # noqa: E402
 # Part 4 best (blind PPO v6 seed 2; copy of policy-insertion runs/P4-insert-best/best.pt, outside git). Override: P4_INSERT_BEST.
-INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_v11.pt')   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
+INSERT_CKPT = os.environ.get('P4_INSERT_BEST', 'runs/chain/P4-insert-best_gentleD.pt')   # gentle-D (target cap 0.05 from its env_json); earlier: P4-insert-best_v11.pt   # v10dr (hold DR); earlier: P4-insert-best_v6s2.pt
 INSERT_V5 = 'runs/chain/P4-insert-proprio-v5-s0_last.pt'    # earlier: policy-insertion runs/P4-insert-proprio-v5-s0/last.pt
 FRIC_COMP = {'tau': [0.0275, 0.546, 0.819, 0.0463, 0.0433, 0.0467], 'ramp': .005}   # eval_approach.py
 OUT = ROOT / 'results/usbc/policy/chain'
@@ -188,6 +188,10 @@ class Chain:
         self.wrist = wrist_loader(a.wrist_net, dev)
         self.fine = wrist_loader(a.fine_net, dev) if a.fine_below_mm > 0 else None
         self.pol = load_insertion_policy(str(ROOT / a.policy), dev)   # handles masked left-arm features (v11)
+        cap = float(self.pol.meta.get('target_cap_rad', .1))
+        if abs(env.cfg.target_cap_rad - cap) > 1e-9 or env.cfg.action_mode != self.pol.meta['action_mode']:
+            raise ValueError(f'insertion env does not match the policy: cap {env.cfg.target_cap_rad} vs {cap}, '
+                             f'action_mode {env.cfg.action_mode} vs {self.pol.meta["action_mode"]}')
         self.fric = FC.parse(FRIC_COMP, side='right')
         from blind_insertion.envs.inhand import measured_mean
         self.R_sr0, self.p_sr0 = measured_mean(device=dev)      # believed in-hand pose (site in reader)
@@ -473,6 +477,7 @@ class Chain:
         t_seat = torch.full((n,), float('nan'), device=dev)
         final_rec = {}
         pc_max = torch.zeros(n, device=dev)
+        push_max = torch.zeros(n, device=dev); pc_push_max = torch.zeros(n, device=dev)
         for t in range(env.max_steps):
             with torch.no_grad():
                 act = torch.nan_to_num(self.pol(env.hist))
@@ -489,6 +494,10 @@ class Chain:
                 env.hist[bad] = torch.nan_to_num(env.hist[bad])
             _, _, _, done, info = env.step(act)
             self.tick('5 insert')
+            fp, fc = self.plug_forces()
+            live = torch.tensor([o_ is None for o_ in outcome], device=dev)
+            push_max = torch.where(live, torch.maximum(push_max, fp[:, 2].clamp(min=0)), push_max)
+            pc_push_max = torch.where(live, torch.maximum(pc_push_max, fc[:, 2].clamp(min=0)), pc_push_max)
             pc_max = torch.maximum(pc_max, info['pc_d'])
             if t + 1 == env.icfg.warmup_steps:
                 tp, trv = self.rel_pose()
@@ -507,6 +516,47 @@ class Chain:
         log.update(insert_success=torch.tensor([o_ == 'seated' for o_ in outcome], device=dev), insert_t_s=t_seat, insert_pc_max_mm=pc_max * 1e3,
                    insert_end_z_mm=torch.tensor([final_rec.get(w, (np.nan,) * 4)[2] * 1e3 for w in range(n)], device=dev))
         log['insert_outcome'] = outcome
+        log['insert_peak_axial_push_N'] = push_max          # reader-port contacts, port-frame +z (insertion direction reaction)
+        log['insert_peak_axial_pc_N'] = pc_push_max         # all reader-PC contacts
+
+    def plug_forces(self):
+        """Contact force on the reader from the port geoms and from all PC geoms, summed per world, in the live port
+        frame (+z = out of the panel: the reaction to pushing the plug in). Method of policy/insertion
+        scripts/analysis/insertion_contact.py (elliptic cones: efc rows adr..adr+2 = normal, tangent 1, tangent 2)."""
+        rt, env, n, dev = self.rt, self.env, self.n, self.dev
+        if not hasattr(self, '_geoms_rp'):
+            m = rt.mjm
+            reader = torch.zeros(m.ngeom, dtype=torch.bool, device=dev); reader[list(rt.lay.peg_slots)] = True
+            port = torch.zeros_like(reader); port[list(rt.lay.fixture_slots)] = True
+            pcb = m.body('fixture').id
+            pc = torch.tensor([m.geom_bodyid[g] == pcb for g in range(m.ngeom)], device=dev)
+            self._geoms_rp = (reader, port, pc)
+        reader, port, pc = self._geoms_rp
+        out = [torch.zeros(n, 3, device=dev), torch.zeros(n, 3, device=dev)]
+        d = rt.d
+        nc = int(d.nacon.numpy()[0])
+        if nc:
+            g = wp.to_torch(d.contact.geom)[:nc].long()
+            w = wp.to_torch(d.contact.worldid)[:nc].long()
+            adr = wp.to_torch(d.contact.efc_address)[:nc, 0].long()
+            ok = adr >= 0
+            ef = wp.to_torch(d.efc.force)
+            dim = wp.to_torch(d.contact.dim)[:nc].long()
+            fr = wp.to_torch(d.contact.frame)[:nc].reshape(nc, 3, 3)
+            fl = torch.zeros(nc, 3, device=dev)
+            for r_ in range(3):
+                okr = ok & (dim > r_)
+                fl[okr, r_] = ef[w[okr], adr[okr] + r_]
+            Fw = (fr.transpose(1, 2) @ fl[..., None])[..., 0]
+            a_, b_ = g[:, 0], g[:, 1]
+            on_reader = torch.where(reader[b_], 1., -1.)[:, None] * Fw
+            _, port_R = env._port_pose(rt.q[:, rt.pc_qadr:rt.pc_qadr + 7])
+            for i, other in enumerate((port, pc)):
+                msk = (reader[a_] & other[b_]) | (reader[b_] & other[a_])
+                acc = torch.zeros(n, 3, device=dev)
+                acc.index_add_(0, w[msk], on_reader[msk])
+                out[i] = (port_R.transpose(1, 2) @ acc[..., None])[..., 0]
+        return out
 
     def handover_state(self, log):
         """Full state at the insertion start, per world (before the first insertion step).
@@ -699,7 +749,10 @@ def summarize(df, a, wall):
                          'within_1mm_2deg': float(((df.pre_lateral_mm <= 1) & (df.pre_tilt_deg <= 2))[a_ok].mean()),
                          'inhand_dp_mm': stats(df.approach_inhand_dp_mm[trans]), 'inhand_dr_deg': stats(df.approach_inhand_dr_deg[trans])},
             'insertion': {'seated_given_approach': float((df.insert_outcome[a_ok] == 'seated').mean()), 'by_preinsert_lateral': by_lat,
-                          't_seat_s': stats(df.insert_t_s[ok]), 'pc_max_mm': stats(df.insert_pc_max_mm[a_ok])},
+                          't_seat_s': stats(df.insert_t_s[ok]), 'pc_max_mm': stats(df.insert_pc_max_mm[a_ok]),
+                          **({'peak_axial_push_N': stats(df.insert_peak_axial_push_N[a_ok], (50, 90, 99, 99.9, 100)),
+                              'peak_axial_pc_N': stats(df.insert_peak_axial_pc_N[a_ok], (50, 90, 99, 99.9, 100))}
+                             if 'insert_peak_axial_push_N' in df else {})},
             'finite_end': float(df.finite_end.mean()), 'wall_s': wall}
 
 

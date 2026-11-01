@@ -90,6 +90,7 @@ def main():
     ap.add_argument('--policy', default='runs/chain/P4-insert-best_v11.pt')
     ap.add_argument('--nworld', type=int, default=1024)
     ap.add_argument('--geom-names-from-chain', action='store_true', help='add geom_names (chain model incl. visual decals)')
+    ap.add_argument('--pick-desc', default='Part 1 scripted pick (privileged reader pose)')
     a = ap.parse_args()
     path = ROOT / a.states
     z = dict(np.load(path))
@@ -139,7 +140,7 @@ def main():
     readme = {
         'path': str(path),
         'what': 'Live insertion-start states of the end-to-end chain (scripts/eval/eval_chain.py, policy/chain): one '
-                'continuous simulation per world (Part 1 scripted pick, Part 3 guarded 25 N press 2 cm in front of the case '
+                'continuous simulation per world (' + a.pick_desc + ', Part 3 guarded 25 N press 2 cm in front of the case '
                 'centre, Cartesian transport, Part 2 round-5 wrist servo wrist_v12w/v12ws with the chain stop offset, '
                 'bumpless torque hand-over), stopped at the first insertion step. Full DR per world (layout, arm dynamics, '
                 'latency, encoder offsets, PC feet / reader / port / pad contact, visual DR during perception).',
@@ -173,7 +174,8 @@ def main():
         'check': {'policy': a.policy, 'seated': k, 'n': n_all, 'rate': k / n_all, 'wilson95': [lo, hi],
                   'outcomes': {c_: rows_out.count(c_) for c_ in set(rows_out)},
                   'note': 'policy rolled out from the restored states in a fresh InsertionTask (no rendering)'}}
-    (path.parent / 'README.json').write_text(json.dumps(readme, indent=1) + '\n')
+    rp = path.parent / ('README.json' if path.stem == 'handover_r5_hold020_n4096' else f'{path.stem}.README.json')
+    rp.write_text(json.dumps(readme, indent=1) + '\n')
     print(json.dumps(readme['check'], indent=1))
 
 
