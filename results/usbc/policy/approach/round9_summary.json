@@ -1,0 +1,119 @@
+{
+ "what": "Round 9 closed-loop approach + in-hand estimate at the 6 mm stop on the servo-pick in-hand distribution (inhand.sample_servo_pick, chain_real_servo_bf1.5_n2048 inhand_true_*, x U(0.8, 1.4)); eval_approach.py --elliptic --fric-comp --tilt 55 --final-rot roll --hold-along -0.02 --inhand servo_pick, encoder offsets +/-1.5 deg (believed frame), coarse wrist_v14w; norms of the in-hand estimate error (chain gate metrics)",
+ "configs": {
+  "ih1 + v15ws (round 8)": {
+   "n": 1024,
+   "lateral_p99_mm": 2.138943672180176,
+   "tilt_p99_deg": 2.847463369369507,
+   "inhand_pos_norm_p50_mm": 0.5918270349502563,
+   "inhand_pos_norm_p99_mm": 2.7268307209014893,
+   "inhand_rot_norm_p50_deg": 0.6648149490356445,
+   "inhand_rot_norm_p99_deg": 3.2507426738739014,
+   "inhand_rot_err_gt_1p5_frac": 0.126953125,
+   "runs": [
+    "r9_sp_v15_ih1_s1",
+    "r9_sp_v15_ih1_s2"
+   ]
+  },
+  "ih2 + v16ws": {
+   "n": 1024,
+   "lateral_p99_mm": 1.6239948272705078,
+   "tilt_p99_deg": 1.9119713306427002,
+   "inhand_pos_norm_p50_mm": 0.4245626628398895,
+   "inhand_pos_norm_p99_mm": 2.1661455631256104,
+   "inhand_rot_norm_p50_deg": 0.43712061643600464,
+   "inhand_rot_norm_p99_deg": 2.424039125442505,
+   "inhand_rot_err_gt_1p5_frac": 0.060546875,
+   "runs": [
+    "r9_sp_v16_ih2_s3",
+    "r9_sp_v16_ih2_s4"
+   ]
+  },
+  "ih3 + v17ws": {
+   "n": 1024,
+   "lateral_p99_mm": 1.5861817598342896,
+   "tilt_p99_deg": 1.840848684310913,
+   "inhand_pos_norm_p50_mm": 0.3838160037994385,
+   "inhand_pos_norm_p99_mm": 1.9045677185058594,
+   "inhand_rot_norm_p50_deg": 0.4003404974937439,
+   "inhand_rot_norm_p99_deg": 2.1687698364257812,
+   "inhand_rot_err_gt_1p5_frac": 0.0322265625,
+   "runs": [
+    "r9_sp_v17_ih3_s5",
+    "r9_sp_v17_ih3_s6"
+   ]
+  },
+  "ih5 + v17ws": {
+   "n": 1024,
+   "lateral_p99_mm": 1.5689504146575928,
+   "tilt_p99_deg": 1.6364078521728516,
+   "inhand_pos_norm_p50_mm": 0.3032184839248657,
+   "inhand_pos_norm_p99_mm": 1.4387458562850952,
+   "inhand_rot_norm_p50_deg": 0.3242737054824829,
+   "inhand_rot_norm_p99_deg": 1.8115493059158325,
+   "inhand_rot_err_gt_1p5_frac": 0.0185546875,
+   "runs": [
+    "r9_sp_v17_ih5_s7",
+    "r9_sp_v17_ih5_s8"
+   ]
+  },
+  "ih5 + v18ws": {
+   "n": 2048,
+   "lateral_p99_mm": 1.7155327796936035,
+   "tilt_p99_deg": 1.4877804517745972,
+   "inhand_pos_norm_p50_mm": 0.3257114291191101,
+   "inhand_pos_norm_p99_mm": 1.3865169286727905,
+   "inhand_rot_norm_p50_deg": 0.32173609733581543,
+   "inhand_rot_norm_p99_deg": 1.8223848342895508,
+   "inhand_rot_err_gt_1p5_frac": 0.01953125,
+   "runs": [
+    "r9_sp_v18_ih5_s9",
+    "r9_sp_v18_ih5_s10",
+    "r9_sp_v18_ih5_s11",
+    "r9_sp_v18_ih5_s12"
+   ]
+  },
+  "ih5 + v19f (320 px)": {
+   "n": 1024,
+   "lateral_p99_mm": 1.7475699186325073,
+   "tilt_p99_deg": 1.866445541381836,
+   "inhand_pos_norm_p50_mm": 0.32275867462158203,
+   "inhand_pos_norm_p99_mm": 1.4560437202453613,
+   "inhand_rot_norm_p50_deg": 0.3396207094192505,
+   "inhand_rot_norm_p99_deg": 1.82738196849823,
+   "inhand_rot_err_gt_1p5_frac": 0.0166015625,
+   "runs": [
+    "r9_sp_v19f_ih5_s9",
+    "r9_sp_v19f_ih5_s10"
+   ]
+  },
+  "ih4,ih5 + v18ws,v17ws ensembles": {
+   "n": 1024,
+   "lateral_p99_mm": 1.795759916305542,
+   "tilt_p99_deg": 1.5526624917984009,
+   "inhand_pos_norm_p50_mm": 0.31529274582862854,
+   "inhand_pos_norm_p99_mm": 1.445374846458435,
+   "inhand_rot_norm_p50_deg": 0.31689584255218506,
+   "inhand_rot_norm_p99_deg": 1.90142822265625,
+   "inhand_rot_err_gt_1p5_frac": 0.0234375,
+   "runs": [
+    "r9_sp_v18e_ih5e_s9",
+    "r9_sp_v18e_ih5e_s10"
+   ]
+  },
+  "ih5 + v18ws, camera error <= real calibration": {
+   "n": 1024,
+   "lateral_p99_mm": 1.2204484939575195,
+   "tilt_p99_deg": 1.322169542312622,
+   "inhand_pos_norm_p50_mm": 0.2820468842983246,
+   "inhand_pos_norm_p99_mm": 1.1603140830993652,
+   "inhand_rot_norm_p50_deg": 0.27985548973083496,
+   "inhand_rot_norm_p99_deg": 1.3918521404266357,
+   "inhand_rot_err_gt_1p5_frac": 0.0078125,
+   "runs": [
+    "r9_sp_v18_ih5_cam1_s11",
+    "r9_sp_v18_ih5_cam1_s12"
+   ]
+  }
+ }
+}

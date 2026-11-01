@@ -164,6 +164,10 @@ renderer). Check: `scripts/checks/check_visual_dr.py`; contact sheet
   Round 8: wrist nets for the chain's wider in-hand poses (`wrist_v14w` + `wrist_v15ws`, chain noisy-oracle 2,3:
   lateral p99 1.32 mm / tilt 0.69 deg; 4,5: 1.64 / 0.87; nominal 1.17 / 0.62) and an in-hand estimate for Part 4's
   variant J (`inhand_ih1`, error std <= 0.27 mm / 0.24 deg at the stop). FINDINGS round 8.
+  Round 9: nets for the servo-pick in-hand distribution (`inhand_ih5` + `wrist_v18ws`): chain 1022/1024 (base
+  1019/1024, same seeds), 0 insertion failures, pre-insert lateral / tilt p99 1.47 mm / 1.63 deg, in-hand error p99
+  1.78 mm / 1.84 deg. The gate (1.1 / 0.8, tilt 1 deg) is not met: the right-wrist view barely sees the pivot about
+  the pinch axis. FINDINGS round 9.
 - **Status (2026-11-01, round 4, `policy/approach-hold`): tilt/roll targets met; lateral p99 1.64 mm (target
   1.5 mm; 1.13 mm when the wrist-camera error is inside the real calibration).** Deliverable for Part 4:
   `results/usbc/policy/approach/preinsert_error.json` (+ `preinsert_error_samples.npz`).

@@ -35,7 +35,7 @@ SCALE['inhand'] = torch.tensor([4., 4., 4., 4., 1., 4.])   # Part 4 J inputs: dx
 
 
 WRIST_CROP = (64, 40)          # x0, y0 of the full-resolution 192-px crop (plug tip and port 2 in view)
-MODE = {'wrist': 'resize'}
+MODE = {'wrist': 'resize', 'two_view': False, 'cpu': False}
 VARY = {'scale': 0., 'arms': True, 'reader': True, 'mask': False}
 
 
@@ -43,6 +43,8 @@ def wrist_img(img):
     if MODE['wrist'] == 'crop':
         x0, y0 = WRIST_CROP
         return img[:, y0:y0 + WRIST_SIZE, x0:x0 + WRIST_SIZE].contiguous()
+    if MODE['wrist'] == 'full':
+        return img.contiguous()
     return F.interpolate(img.permute(0, 3, 1, 2).float(), size=(WRIST_SIZE, WRIST_SIZE), mode='area').round().byte().permute(0, 2, 3, 1)
 
 
@@ -72,6 +74,8 @@ def generate(r, which, n, cfg=None, nominal=False, states=None):
             fr, lab = r.sample_states(states[idx])
             ok = lab['ok']
             img = wrist_img(fr['wrist_cam'])
+            if MODE['two_view']:
+                img = torch.stack([img, wrist_img(fr['left_wrist_cam'])], 1)
         elif which == 'zed':
             img, lab = r.sample_top(nominal=nominal, vary=VARY['scale'], vary_arms_on=VARY['arms'], vary_reader_on=VARY['reader'], mask_arms=VARY['mask'])
             img, ok = zed_crop(img), torch.ones(len(img), dtype=torch.bool, device=img.device)
@@ -79,9 +83,9 @@ def generate(r, which, n, cfg=None, nominal=False, states=None):
             fr, lab = r.sample(cfg, nominal=nominal)
             ok = lab['ok']
             img = wrist_img(fr['wrist_cam'])
-            if which == 'wrist2':
+            if which == 'wrist2' or MODE['two_view']:
                 img = torch.stack([img, wrist_img(fr['left_wrist_cam'])], 1)
-        imgs.append(img[ok].contiguous()); ts.append(targets(which, lab)[ok])
+        imgs.append(img[ok].contiguous().cpu() if MODE['cpu'] else img[ok].contiguous()); ts.append(targets(which, lab)[ok].to(imgs[-1].device))
     return torch.cat(imgs)[:n], torch.cat(ts)[:n]
 
 
@@ -108,6 +112,9 @@ def errors(which, pred, t):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--which', choices=('zed', 'wrist', 'wrist2', 'inhand'), required=True)
+    ap.add_argument('--cpu-data', action='store_true', help='keep the rendered set in host memory (large n)')
+    ap.add_argument('--servo-stretch', type=float, nargs=2, default=None, help='servo_pick in-hand: deviation scale range')
+    ap.add_argument('--two-view', action='store_true', help='inhand: right + left wrist frames (TwoViewPoseNet)')
     ap.add_argument('--n', type=int, default=24576)
     ap.add_argument('--n-test', type=int, default=2048)
     ap.add_argument('--epochs', type=int, default=40)
@@ -117,7 +124,7 @@ def main():
     ap.add_argument('--rot', type=float, default=6.)
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position (mm)')
-    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est'), default='measured', help='render in-hand pose distribution')
+    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est', 'servo_pick'), default='measured', help='render in-hand pose distribution')
     ap.add_argument('--tilt', type=float, default=60., help='grasp tilt from vertical (deg)')
     ap.add_argument('--states', nargs='*', default=[], help='DAgger: npz files of recorded in-loop qpos (eval_approach --save-states)')
     ap.add_argument('--n-states', type=int, default=0, help='training samples rendered from --states (added to --n)')
@@ -133,11 +140,13 @@ def main():
     ap.add_argument('--visual-dr-preset', choices=('default', 'mild'), default='default', help="mild: the visual DR the v1 ZED net was trained with (policy/v1 e59ab5f)")
     ap.add_argument('--hetero', action='store_true', help='also predict a per-axis log std (Gaussian NLL); the gate rejects large predicted std')
     ap.add_argument('--task-layout', default=None, help='BimanualCfg.task_layout (e.g. results/usbc/policy/pick/task_layout.json: reader on the Part 1 strip)')
-    ap.add_argument('--wrist-mode', choices=('resize', 'crop'), default='resize', help='320 px wrist frame -> 192 px: resize or full-resolution centre crop')
+    ap.add_argument('--wrist-mode', choices=('resize', 'crop', 'full'), default='resize', help='320 px wrist frame -> 192 px: resize or full-resolution centre crop')
     ap.add_argument('--tag', default='', help='suffix of the saved estimator name (e.g. _fine)')
     a = ap.parse_args()
     dev = torch.device('cuda:0')
     MODE['wrist'] = a.wrist_mode
+    MODE['two_view'] = a.two_view
+    MODE['cpu'] = a.cpu_data
     t0 = time.time()
     VARY['scale'] = a.vary_arms
     VARY['arms'], VARY['reader'] = a.vary_what in ('both', 'arms'), a.vary_what in ('both', 'reader')
@@ -154,6 +163,8 @@ def main():
     r.ins.cfg.inhand_pos_mm = a.inhand_pos
     r.ins.cfg.tilt_deg = a.tilt
     r.ins.cfg.inhand = a.inhand_mode
+    if a.servo_stretch:
+        r.ins.cfg.servo_stretch = tuple(a.servo_stretch)
     cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot)
     X, Y = generate(r, a.which, a.n, cfg)
     St = None
@@ -179,13 +190,16 @@ def main():
     del r
     torch.cuda.empty_cache()
     sc = SCALE[a.which].to(dev)
-    size = ZED_CROP[2] if a.which == 'zed' else WRIST_SIZE
+    size = ZED_CROP[2] if a.which == 'zed' else X.shape[-2]
     nout = len(sc) * (2 if a.hetero else 1)
-    net = (TwoViewPoseNet if a.which == 'wrist2' else PoseNet)(nout, size, width=a.width).to(dev)
+    net = (TwoViewPoseNet if a.which == 'wrist2' or a.two_view else PoseNet)(nout, size, width=a.width).to(dev)
     k_ = len(sc)
     mean_of = (lambda o: o[:, :k_]) if a.hetero else (lambda o: o)   # noqa: E731
     if a.init:
-        net.load_state_dict(torch.load(a.init, map_location=dev)['net'])
+        sd, own = torch.load(a.init, map_location=dev)['net'], net.state_dict()
+        keep = {k: v for k, v in sd.items() if k in own and own[k].shape == v.shape}   # other input size: body only
+        net.load_state_dict(keep, strict=False)
+        print(f'init {a.init}: {len(keep)}/{len(own)} tensors', flush=True)
     opt = torch.optim.AdamW(net.parameters(), 1e-3, weight_decay=1e-4)
     bs = 128
     steps = a.epochs * (len(X) // bs)
@@ -193,35 +207,35 @@ def main():
     k = 0
     for ep in range(a.epochs):
         net.train()
-        perm = torch.randperm(len(X), device=dev)
+        perm = torch.randperm(len(X), device=X.device)
         for i in range(len(X) // bs):
             idx = perm[i * bs:(i + 1) * bs]
-            img = X[idx]
+            img, yb = X[idx].to(dev, non_blocking=True), Y[idx].to(dev)
             # photometric augmentation on top of the render DR
             o = net(img)
             if a.hetero:     # Gaussian NLL on normalized targets, log std clamped
                 ls = o[:, k_:].clamp(-7, 3)
-                loss = (.5 * ((o[:, :k_] - Y[idx] / sc) * torch.exp(-ls)) ** 2 + ls).mean() + F.smooth_l1_loss(o[:, :k_], Y[idx] / sc, beta=.05)
+                loss = (.5 * ((o[:, :k_] - yb / sc) * torch.exp(-ls)) ** 2 + ls).mean() + F.smooth_l1_loss(o[:, :k_], yb / sc, beta=.05)
             else:
-                loss = F.smooth_l1_loss(o, Y[idx] / sc, beta=.05)
+                loss = F.smooth_l1_loss(o, yb / sc, beta=.05)
             opt.zero_grad(); loss.backward(); opt.step(); sched.step(); k += 1
         if ep % 5 == 4 or ep == a.epochs - 1:
             net.eval()
             with torch.no_grad():
-                pred = torch.cat([mean_of(net(Xt[i:i + 256])) for i in range(0, len(Xt), 256)]) * sc
-            e = errors(a.which, pred, Yt)
+                pred = torch.cat([mean_of(net(Xt[i:i + 256].to(dev))) for i in range(0, len(Xt), 256)]) * sc
+            e = errors(a.which, pred, Yt.to(dev))
             print(ep, f'loss {loss.item():.4f}', {k2: round(v['p50'], 3) for k2, v in e.items() if 'p50' in v}, flush=True)
     net.eval()
     with torch.no_grad():
-        pred = torch.cat([mean_of(net(Xt[i:i + 256])) for i in range(0, len(Xt), 256)]) * sc
-        pn = torch.cat([mean_of(net(Xn[i:i + 256])) for i in range(0, len(Xn), 256)]) * sc
+        pred = torch.cat([mean_of(net(Xt[i:i + 256].to(dev))) for i in range(0, len(Xt), 256)]) * sc
+        pn = torch.cat([mean_of(net(Xn[i:i + 256].to(dev))) for i in range(0, len(Xn), 256)]) * sc
     Path('runs/perception').mkdir(parents=True, exist_ok=True)
     torch.save({'net': net.state_dict(), 'which': a.which, 'hetero': a.hetero, 'n_out': nout, 'vary_arms': a.vary_arms, 'scale': sc.cpu(), 'size': size, 'zed_crop': ZED_CROP,
-                'width': a.width, 'mask_arms': a.mask_arms, 'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
+                'width': a.width, 'mask_arms': a.mask_arms, 'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'two_view': a.two_view, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
     rep = {'estimator': a.which + a.tag, 'method': __doc__.strip(), 'n_train': len(X), 'n_test_dr': len(Xt), 'n_test_nominal_look': len(Xn),
            'sample_cfg': vars(cfg), 'args': vars(a), 'test_set': 'held-out in-loop states' if St is not None else 'random poses',
-           'held_out_dr_abs_error': errors(a.which, pred, Yt),
-           'held_out_nominal_look_abs_error': errors(a.which, pn, Yn), 'generate_s': t_gen, 'total_s': time.time() - t0,
+           'held_out_dr_abs_error': errors(a.which, pred, Yt.to(dev)),
+           'held_out_nominal_look_abs_error': errors(a.which, pn, Yn.to(dev)), 'generate_s': t_gen, 'total_s': time.time() - t0,
            'note': 'visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)'}
     out = Path(f'results/usbc/policy/approach/estimator_{a.which}{a.tag}.json')
     out.write_text(json.dumps(rep, indent=1) + '\n')
