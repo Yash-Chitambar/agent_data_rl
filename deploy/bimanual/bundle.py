@@ -195,7 +195,7 @@ def check_links(out=BUNDLE):
 
 
 def copy_cmd(a):
-    print('# from this repo root on mason; <rig-repo> = the real/duchamp3 checkout on duchamp3 (e.g. ~/peg_test)')
+    print('# from this repo root on mason; <rig-repo> = the rig checkout on duchamp3 (e.g. ~/peg_test)')
     print(f'rsync -av --progress {BUNDLE.relative_to(ROOT)}/ duchamp3:<rig-repo>/deploy/bundle/')
     print('# then on duchamp3:  .venv/bin/python -m deploy.bimanual.bundle verify && .venv/bin/python -m deploy.bimanual.bundle link')
 

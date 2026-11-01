@@ -47,10 +47,10 @@ export PYTHONPATH=$PWD MUJOCO_GL=egl CUDA_VISIBLE_DEVICES=2
 ### 0. Code, bundle and environment
 
 ```bash
-# on mason: copy the bundle (user runs this; <rig-repo> = the real/duchamp3 checkout on duchamp3)
+# on mason: copy the bundle (user runs this; <rig-repo> = the rig checkout on duchamp3)
 rsync -av --progress /home/yashchitambar/wt/real-deploy/deploy/bundle/ <user>@duchamp3:<rig-repo>/deploy/bundle/
 # on duchamp3
-cd <rig-repo> && git fetch origin && git checkout real/duchamp3 && git pull   # (or real/bimanual-deploy)
+cd <rig-repo> && git fetch origin && git checkout real/bimanual-deploy && git pull   # real/duchamp3 + policy/v1 + this runner
 export PYTHONPATH=$PWD MUJOCO_GL=egl
 bash scripts/real/setup_real.sh                      # only if i2rt / pyzed are missing (uv sync removes them)
 .venv/bin/python -m deploy.bimanual.bundle verify    # sha256 of every file

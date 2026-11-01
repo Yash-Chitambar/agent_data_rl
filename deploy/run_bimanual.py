@@ -110,6 +110,9 @@ class Runner:
             raise SystemExit(f'bundle not verified: changed/missing {bad}, runs/ links not into the bundle {links}: '
                              f'run python -m deploy.bimanual.bundle verify / link')
         self.bundle_manifest = json.loads((bundle / 'MANIFEST.json').read_text())
+        self.config_matches_bundle = BU.sha256(a.config) == self.bundle_manifest['files']['configs/bimanual.json']['sha256']
+        if not self.config_matches_bundle:
+            print(f'NOTE: {a.config} differs from the bundle copy (configs/bimanual.json); the run uses {a.config}', flush=True)
         self.consts = json.loads((bundle / 'configs/chain_constants.json').read_text())
         self.policy_path = bundle / 'models/insert_KJ.pt'
         self.gmaps = gripper_maps(self.cfg)
@@ -147,7 +150,7 @@ class Runner:
         rid = time.strftime('%H%M%S') + ('_dry' if a.dry_run else '') + (f'_s{seed}' if seed is not None else '') + (f'_{a.name}' if a.name else '')
         d = Path(a.out) / time.strftime('%Y-%m-%d') / f'{a.stage}_{rid}'
         meta = dict(stage=a.stage, dry_run=a.dry_run, seed=seed, args=vars(a), git=git_state(), config=self.cfg,
-                    bundle_manifest=self.bundle_manifest, bundle_verified=True, chain_constants=self.consts,
+                    bundle_manifest=self.bundle_manifest, bundle_verified=True, config_matches_bundle=self.config_matches_bundle, chain_constants=self.consts,
                     calibration=calib_versions(), operator_notes=a.notes,
                     pc_spot=json.loads(a.pc_spot) if a.pc_spot else None,
                     host=__import__('socket').gethostname())
