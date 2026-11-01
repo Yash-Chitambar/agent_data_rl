@@ -375,6 +375,88 @@ ZED frame pose (rest pose, gripper open). Layout and DR ranges are the parts' ow
   gap error p99 0.83 mm, 95.3 % inside 1 mm / 2 deg (n = 1024, all finite, ZED gate accepted all)**; with the wrist
   camera error inside the real calibration (n = 331): lateral p99 1.13 mm, tilt p99 0.70 deg. One more round
   (v11w + v10ws): p99 1.62 mm, 94.3 %: plateau.
+### 2026-11-01 (mason) — Part 4: does the insertion policy push too hard, and does it sense the edges?
+
+`scripts/analysis/insertion_contact.py`, results `results/usbc/policy/insertion/contact_v11.{json,_live.png,_r3x1.5.png}`.
+Policy v11 (exported best), deterministic, n = 1024 per condition: the held-out live hand-over states (chain,
+hold 2 cm) and Part 2 round 3 × 1.5. Forces are the net contact force of the port on the plug (normal +
+friction rows of the elliptic cones, resolved in the port frame), sampled at the last of the 20 substeps per
+20 ms control step. Summing contact *magnitudes* instead (opposing slot walls squeezing the plug) gives
+90 N median / 1,400-5,600 N max: that is wall squeeze, not push.
+
+| | live (n = 1024) | round 3 × 1.5 (n = 1024) |
+|---|---|---|
+| seated | 99.90 % [99.45, 99.98] | 99.71 % [99.14, 99.90] |
+| peak axial push on the plug p50 / p99 / max | 20.4 / 49.9 / 67.9 N | 23.5 / 57.8 / 66.3 N |
+| mean axial push while in contact p50 / p99 | 6.6 / 9.9 N | 6.6 / 10.5 N |
+| episodes with peak push > 20 N | 51 % | 60 % |
+| peak net reader→PC force p50 / p99 | 21.4 / 63.9 N | 26.5 / 66.7 N |
+| peak pad force on the reader p50 / p99 | 28.8 / 45.8 N | 29.1 / 53.0 N |
+| plug speed at first contact p50 / p99 | 29 / 306 mm/s | 32 / 478 mm/s |
+| peak plug speed after contact p50 / p99 | 93 / 344 mm/s | 98 / 506 mm/s |
+| rim-contact onsets before seating p50 / p99 | 3 / 7 | 3 / 10 |
+
+- **Too hard and too fast at impact.** The steady push while in contact is moderate (~7 N mean), but the plug
+  reaches the panel fast (p99 0.3-0.5 m/s) and the impact spikes to 15-30 N (p99 50-58 N); it then skids
+  sideways 2-3 mm and searches back (plot). Real USB-C needs ~5-20 N to latch; a gentle policy should stay
+  under ~20 N.
+- **Contact sensing, as in the paper:** the contact head on held-out steps: F1 free 0.99, rim contact
+  0.92-0.94, inside 0.92 (balanced accuracy 0.94-0.95). Probes on the actor state (TCN latent + last hidden
+  layer, 75/25 split by world): contact yes/no 94 % (linear, balanced 92 %); touching side (+x, -x, +y, -y,
+  none) 79-82 % (balanced 73-77 %); lateral offset poorly decodable (R² 0.09-0.20; median error 0.29-0.86 mm
+  vs a 0.27-0.74 mm constant baseline). The policy knows *that* and roughly *where* it touches, not the
+  absolute offset.
+- **Behaviour during rim contact:** lateral velocity points toward the port axis in 53-57 % of rim-contact
+  steps (cos p50 0.10-0.23): weakly directed; it backs off (moves out of the panel) in 31 % of rim steps; the
+  lateral offset falls from 0.83 to 0.29 mm (live, p50) between the first and last rim contact. It corrects,
+  but partly by search, not a clean move toward the axis.
+- **Gentleness fine-tunes** (from v11; live-state mix, same DR; `contact_gentle_*.json/png`), n = 1024 per row:
+
+  | variant | penalties | seated live / r3×1.5 | peak push p50 / p99 (live) | > 20 N | contact speed p50 / p99 |
+  |---|---|---|---|---|---|
+  | v11 | none | 99.90 / 99.71 % | 20.4 / 49.9 N | 51 % | 29 / 306 mm/s |
+  | A | 0.05/N > 15 N; 1/(m/s) > 20 mm/s | 99.80 / 100 % | 19.5 / 47.4 N | 48 % | 27 / 304 mm/s |
+  | B | 0.1/N > 10 N; 2/(m/s) > 15 mm/s | 99.80 / 99.61 % | 18.4 / 45.1 N | 42 % | 24 / 274 mm/s |
+  | C | 0.3/N > 12 N; 5/(m/s) > 15 mm/s within 5 mm | 99.90 / 100 % | 10.5 / 38.1 N | 7.5 % | 25 / 106 mm/s |
+  | D | B + joint tracking cap 0.1 → 0.05 rad | 99.90 / 99.90 % | 8.9 / 30.0 N | 15 % | 15 / 101 mm/s |
+
+  The remaining peaks are at entry/rim impact (46-69 % of episodes) or bottoming at the seat (27-52 %: the
+  policy keeps pushing during the 0.2 s hold). Mean push in contact 4-5 N (C, D). Running: E (cap 0.05 + C's
+  penalties) and F (cap 0.05, 0.5/N > 10 N, 5/(m/s) > 10 mm/s). Gate: ≥ 99.5 % on the held-out live states with
+  peak push p99 ≤ 20 N: not yet met (p99 30 N).
+- **Wider in-hand error (perception-driven pick, p99 ~4 mm / 2°: `inhand_extra_pos_m` (3, 0.4, 3) mm,
+  `inhand_extra_rot_deg` 1.3° per axis on top of the measured spread), round 3 × 1.0, n = 2048:** v11 95.36 %
+  [94.36, 96.19] (52 mouth, 43 slip; peak push p99 56.9 N); gentle-D 96.44 % [95.54, 97.16] (50 mouth, 23 slip;
+  p99 32.0 N). Not robust to it yet: E and F are being fine-tuned with this in-hand noise (E2, F2).
+- **Exported gentle-D as best.pt** (coordinator decision): matches or beats v11 everywhere. The env must use
+  `target_cap_rad` = `pol.meta['target_cap_rad']` (0.05). Backups: `runs/v11_backup.pt`, v10dr, v6s2.
+- **F2** (cap 0.05; 0.5/N > 10 N; 5 per m/s > 10 mm/s within 5 mm; 100 % wide in-hand; 16 M steps): wide in-hand,
+  round 3 × 1.0, n = 2048: 97.07 % [96.25, 97.72] (46 mouth, 14 slip), **peak push p50 7.5 N, p99 18.8 N** (force
+  target met). Training plateaus at ~97 % at scale 1.5 with the wide in-hand error.
+- **Hard TCP speed limit** (G: 15 mm/s commanded via the believed-angle Jacobian): success fell to 29-49 % in
+  training, seat time 4-4.6 s; too slow to search within the episode. Dropped (penalties already reach p99 < 20 N).
+- **F2 final (40 M) and H (from F2, scale 1.0 only, 100 % wide in-hand, 31 M):**
+
+  | | live held-out (n = 1024) | peak push p50 / p99 (live) | contact speed p99 | r3 × 1.5 (n = 1024) | wide in-hand r3 × 1.0 (n = 2048) |
+  |---|---|---|---|---|---|
+  | F2 40 M | — | — | — | — | 97.17 % [96.36, 97.80], push p99 15.3 N |
+  | H 31 M | 99.90 % [99.45, 99.98] | 7.2 / 14.2 N (max 23.1; 0.1 % > 20 N) | 32 mm/s | 97.07 % [95.85, 97.94] | 97.12 % [96.30, 97.76], push p99 14.8 N |
+
+  H meets the live and force gates (gentle, slow contact) but loses margin at × 1.5 (trained at 1.0 only) and is
+  still ~97 % with the wide in-hand error. **Wide in-hand failures are not collisions** (no hand-PC contact in
+  n = 1024): they concentrate where the reader sits 1.5-3 mm further along the tool's x/z axes (`inhand_x` >
+  -28 mm: 85-96 %; `inhand_z` > 46.5 mm: 90-95 %; all other starts ~100 %). The blind policy cannot infer a
+  changed hand-to-plug lever arm in time; more training plateaued at ~97 %. Likely needs an in-hand pose estimate
+  (from perception) as an input, or the pick's in-hand spread kept within ~1.5 mm.
+- No policy meets the combined gate (live ≥ 99.5 %, push p99 ≤ 20 N, wide in-hand ≥ 99.5 %); best.pt stays
+  gentle-D. Candidate for the chain if gentleness matters more than × 1.5 margin: `runs/gentle_h_31M.pt`.
+- Coordinator decision: the gate is measured on live hand-over states from the *estimated-pick* chain (the
+  approach servo removes most in-hand error; that chain had 5 insertion failures in 2042). In parallel:
+  **J** (`runs/P4-insert-inhand-j`, GPU 1, from H): 6-D in-hand estimate input (`InsertionCfg.inhand_obs`,
+  obs[62:68], mm / deg in the TCP frame, sigma 0.5 mm / 0.5° estimate error), 50 % wide in-hand starts,
+  scale 1.5, same force/speed penalties; new input weights start at 0 (`train_bimanual.widen_obs`).
+  **I** (`runs/P4-insert-gentle-i`, GPU 2, from H): blind, scale 1.5, 60 % wide in-hand. H stopped at 31 M.
+
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
 **Result (blind PPO v5 seed 0, `runs/P4-insert-proprio-v5-s0`, ~19 M steps):** held-out seed 1000,

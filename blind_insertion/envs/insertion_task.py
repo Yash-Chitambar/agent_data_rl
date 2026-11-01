@@ -108,6 +108,15 @@ class InsertionCfg:
     shaping: float = 1.0
     fail_penalty: float = 1.0           # subtracted at a failure termination (slip, PC pushed, far)
     success_bonus: float = 10.0
+    # Gentleness (user question 2026-11-01): penalties on the net axial force the port exerts on the plug
+    # above force_thresh_n (per N, per step) and on plug speed above speed_cap_m_s while the tip is within
+    # speed_zone_m of the panel (per m/s, per step). 0 disables (forces are then not computed).
+    force_coef: float = 0.0
+    force_thresh_n: float = 15.0
+    speed_coef: float = 0.0
+    speed_cap_m_s: float = 0.02
+    speed_zone_m: float = 0.003
+    track_forces: bool = False          # compute/log forces even without a penalty (evals)
     shaping_scale_m: float = 0.01
     # Seating test: plug-edge points may lie this far outside the aperture polygon. MuJoCo's soft
     # contacts let a fully inserted plug sit 3 um median / 14 um max outside a 45 um-clearance slot
@@ -125,7 +134,20 @@ class InsertionCfg:
     # draw in an annulus [lo, hi] m (direction uniform); angles and gap stay from the npz row (scaled).
     hard_frac: float = 0.0
     hard_lat_m: tuple = (0.0015, 0.003)
+    # Live hand-over states from the chain (scripts/eval/eval_chain.py --save-handover, policy-chain): this
+    # fraction of resets restores a saved state exactly (qpos/qvel/ctrl/warm start, controller state, latency
+    # buffer, hold target and the per-world DR values); the rest use the start pool.
+    live_states: str = ''
+    live_frac: float = 0.0
+    live_split: str = 'all'             # 'eval': first live_holdout valid states; 'train': the rest; 'all'
+    live_holdout: int = 1024
     privileged_actor: bool = False      # teacher: actor also sees the plug pose in the port and in the hand
+    # In-hand pose estimate as 6 extra actor inputs (obs[62:68]): reader (plug-tip frame) in the right TCP
+    # frame minus the nominal grasp, position in mm (TCP axes) then rotation vector in deg (TCP axes,
+    # R_est @ R_nom^T). Set from the true pose at reset and refreshed at the end of warmup, plus a
+    # per-episode Gaussian estimate error (sigma: m, deg). The chain feeds the perception estimate here.
+    inhand_obs: bool = False
+    inhand_obs_noise: tuple = (0.0005, 0.5)
     grasp_p: tuple | None = None        # legacy 60-deg geometric grasp only (grasp='geometric60')
     # In-hand pose: 'part1' = Part 1's measured pick (scenes/reader_grasp.inhand_pose(): 55-deg grasp,
     # mean pose about the nominal, per-axis p1..p99 spread of 2048 held-out picks) with the spread x
@@ -133,6 +155,15 @@ class InsertionCfg:
     # inhand_pos_m / inhand_rot_deg.
     grasp: str = 'part1'
     inhand_spread_scale: float = 1.25
+    # Extra uniform in-hand error on top of grasp='part1' (perception-driven pick, p99 ~4 mm / 1.4 deg vs the
+    # privileged pick's 0.77 mm / 0.24 deg): half-ranges in the grasp_site frame, position (m) x/y/z
+    # (y = closing axis: the coupled fingers centre the reader, keep it small) and rotation vector (deg).
+    inhand_extra_pos_m: tuple = (0.0, 0.0, 0.0)
+    inhand_extra_rot_deg: tuple = (0.0, 0.0, 0.0)
+    inhand_extra_frac: float = 1.0      # share of starts that get the extra in-hand error
+    # Hard limit on the commanded TCP speed (m/s): each action is scaled down so that |J_lin dq| / dt stays
+    # below this (J at the believed joint angles: deployable). 0 disables.
+    max_tcp_speed_m_s: float = 0.0
 
 
 # Contact values are unmeasured. User directive (2026-10-31): choose values that let insertion work,
@@ -177,8 +208,10 @@ def inhand_pose(n, cfg: InsertionCfg, device, gen=None, nominal=False):
         lo = lambda keys: torch.tensor([sp[k]['p1'] for k in keys], device=device)
         hi = lambda keys: torch.tensor([sp[k]['p99'] for k in keys], device=device)
         sample = lambda keys, f: ((lo(keys) + hi(keys)) / 2 + u(n, 3) * (hi(keys) - lo(keys)) / 2 * cfg.inhand_spread_scale) * f
-        dp = sample(('inhand_dx_mm', 'inhand_dy_mm', 'inhand_dz_mm'), 1e-3)
-        rv = sample(('inhand_rx_deg', 'inhand_ry_deg', 'inhand_rz_deg'), math.pi / 180)
+        wide = (torch.rand(n, 1, device=device, generator=gen) < cfg.inhand_extra_frac).float()
+        dp = sample(('inhand_dx_mm', 'inhand_dy_mm', 'inhand_dz_mm'), 1e-3) + wide * u(n, 3) * torch.tensor(cfg.inhand_extra_pos_m, device=device)
+        rv = sample(('inhand_rx_deg', 'inhand_ry_deg', 'inhand_rz_deg'), math.pi / 180) \
+            + wide * u(n, 3) * torch.tensor(cfg.inhand_extra_rot_deg, device=device) * math.pi / 180
         ang = rv.norm(dim=1)
         Rv = K.axis_angle_mat(rv / ang.clamp(min=1e-9)[:, None], ang)
         return Rv @ R0, p0 + dp
@@ -242,10 +275,14 @@ class InsertionTask(BimanualTask):
         self.hist = torch.zeros(n, self.icfg.history, self.obs_dim, device=dev)
         self.start = {}
         self.ref_rel = torch.zeros(n, 4, 4, device=dev)       # reader in TCP at end of warmup
+        self.inhand_est = torch.zeros(n, 6, device=dev)        # in-hand estimate input (inhand_obs)
+        self.inhand_noise = torch.zeros(n, 6, device=dev)
         self.pc_start = torch.zeros(n, 7, device=dev)
         self.captured = torch.zeros(n, dtype=torch.bool, device=dev)
         self.strict_run = torch.zeros(n, dtype=torch.long, device=dev)
         self.strict_best = torch.zeros(n, dtype=torch.long, device=dev)
+        self.peak_force = torch.zeros(n, device=dev)
+        self.contact_speed = torch.full((n,), -1., device=dev)
         self.phi = torch.zeros(n, device=dev)
         self.left_press_q = torch.zeros(n, 6, device=dev)
         self.overflow_counts = torch.zeros(16, dtype=torch.long, device=dev)
@@ -539,10 +576,95 @@ class InsertionTask(BimanualTask):
         self.captured[ids] = False
         self.strict_run[ids] = 0
         self.strict_best[ids] = 0
+        self.peak_force[ids] = 0
+        self.contact_speed[ids] = -1
+        if hasattr(self, 'is_live'):
+            self.is_live[ids] = False
+        if self.icfg.live_states and self.icfg.live_frac > 0:
+            live = ids[torch.rand(len(ids), device=self.device, generator=self.gen) < self.icfg.live_frac]
+            if len(live):
+                self._restore_live(live)
         self.ref_rel[ids] = self._reader_in_tcp()[ids]
+        if self.icfg.inhand_obs:
+            sp, sr = self.icfg.inhand_obs_noise
+            z = torch.randn(len(ids), 6, device=self.device, generator=self.gen)
+            self.inhand_noise[ids] = z * torch.tensor([sp * 1e3] * 3 + [sr] * 3, device=self.device)
+            self._set_inhand_est(ids)
         o = self._actor_obs()
         self.hist[ids] = o[ids, None].expand(-1, self.icfg.history, -1)
         self.phi[ids] = self._potential()[ids]
+
+    def _live(self):
+        if not hasattr(self, '_live_data'):
+            z = np.load(self.icfg.live_states if Path(self.icfg.live_states).is_absolute() else ROOT / self.icfg.live_states)
+            keep = np.ones(len(z['qpos']), bool)
+            for k in ('qpos', 'qvel'):
+                keep &= np.isfinite(z[k]).all(1)
+            if 'err_p' in z.files:      # approach failures are not insertion starts (as the chain counts them)
+                ep = z['err_p'] * 1e3
+                keep &= (np.hypot(ep[:, 0], ep[:, 1]) <= 8) & (ep[:, 2] >= .5) & (ep[:, 2] <= 15)
+            rows = np.nonzero(keep)[0]
+            h = self.icfg.live_holdout
+            rows = rows[:h] if self.icfg.live_split == 'eval' else rows[h:] if self.icfg.live_split == 'train' else rows
+            self._live_data = {k: torch.as_tensor(z[k][rows], device=self.device) for k in z.files
+                               if z[k].dtype.kind in 'fiub' and len(z[k]) == len(keep)}
+            ng = self.runtime.mjm.ngeom
+            for k in ('geom_friction', 'geom_solref'):
+                if k in self._live_data and self._live_data[k].shape[1] != ng:
+                    # the chain renders: visual DR adds 2 visual-only decal geoms (aux/geom_map_vdr387_to_385.json)
+                    gm = json.loads((ROOT / 'results/usbc/policy/insertion/aux/geom_map_vdr387_to_385.json').read_text())
+                    if self._live_data[k].shape[1] != gm['n_with_visual_dr'] or ng != gm['n_without']:
+                        raise ValueError(f'{k}: {self._live_data[k].shape[1]} columns, model has {ng} geoms')
+                    self._live_data[k] = self._live_data[k][:, torch.tensor(gm['cols_for_no_visual_dr_model'], device=self.device)]
+            self.live_n = len(rows)
+        return self._live_data
+
+    def _restore_live(self, ids):
+        """Exact restore of saved chain hand-over states into worlds `ids` (rows drawn uniformly)."""
+        L, rt = self._live(), self.runtime
+        if self.icfg.live_frac >= 1:     # evaluation: each saved state in turn
+            ptr = getattr(self, '_live_ptr', 0)
+            r = (ptr + torch.arange(len(ids), device=self.device)) % self.live_n
+            self._live_ptr = ptr + len(ids)
+        else:
+            r = torch.randint(self.live_n, (len(ids),), device=self.device, generator=self.gen)
+        g = lambda k: L[k][r]
+        f32 = lambda k: g(k).to(torch.float32)
+        rt.q[ids] = f32('qpos'); rt.v[ids] = f32('qvel'); rt.ctrl[ids] = f32('ctrl')
+        wp.to_torch(rt.d.qacc_warmstart)[ids] = f32('qacc_warmstart')
+        self.enc_error[ids] = f32('enc_error'); self.latency[ids] = g('latency').long()
+        self.joint_target[ids] = f32('joint_target')
+        sh = f32('sent_history').transpose(0, 1)          # (L_saved, n, 14)
+        n_saved, n_buf = sh.shape[0], self.sent_history.shape[0]
+        if n_saved < n_buf:      # longer latency DR here: repeat the oldest saved command
+            sh = torch.cat([sh, sh[-1:].expand(n_buf - n_saved, -1, -1)], 0)
+        self.sent_history[:, ids] = sh[:n_buf]
+        self.left_press_q[ids] = f32('left_press_q')
+        if hasattr(rt, 'frictionloss'):
+            rt.frictionloss[ids] = f32('dof_frictionloss')
+        if hasattr(rt, 'gravity_scale'):
+            rt.gravity_scale[ids] = f32('gravity_scale')
+        if hasattr(rt, 'geom_friction'):
+            rt.geom_friction[ids, :, 0] = f32('geom_friction')
+        if hasattr(rt, 'geom_solref'):
+            rt.geom_solref[ids, :, 0] = f32('geom_solref')
+        if hasattr(rt, 'actuator_gainprm'):
+            rt.actuator_gainprm[ids, :, 0] = f32('actuator_gainprm')
+        if hasattr(rt, 'contact_params'):
+            rt.contact_params[ids] = f32('contact_params')
+        for k in ('err_p', 'err_ang', 'pc', 'q_right', 'reader', 'fingers', 'q_left_hover', 'q_left_press', 'inhand_R', 'inhand_p'):
+            if k in self.start and k in L:
+                self.start[k][ids] = f32(k)
+        self.pc_start[ids] = f32('pc')
+        self.steps[ids] = 0; self.seated_steps[ids] = 0; self.previous_action[ids] = 0; self.captured[ids] = False
+        if not hasattr(self, 'is_live'):
+            self.is_live = torch.zeros(self.N, dtype=torch.bool, device=self.device)
+        self.is_live[ids] = True
+        if len(ids) > self.N // 8:
+            with wp.ScopedDevice(rt.cfg.device):
+                mjw.forward(rt.m, rt.d)
+        if rt.camera_sensor is not None:
+            rt.camera_sensor.reset(ids, rt.sensor_time)
 
     def reset_all(self):
         self.reset(torch.arange(self.N, device=self.device))
@@ -562,6 +684,10 @@ class InsertionTask(BimanualTask):
         a6 = torch.as_tensor(action, device=self.device, dtype=torch.float32).clamp(-1, 1)
         warm = self.steps < self.icfg.warmup_steps
         a6 = torch.where(warm[:, None], torch.zeros_like(a6), a6)
+        if self.icfg.max_tcp_speed_m_s > 0:
+            _, _, J = self.right_chain.fk(self._measured_model_angles()[:, 0], with_jac=True)
+            v = (J[:, :3] @ (a6 * self.cfg.action_scale_rad)[..., None])[..., 0].norm(dim=1) / self.dt
+            a6 = a6 * (self.icfg.max_tcp_speed_m_s / v.clamp(min=1e-9)).clamp(max=1.)[:, None]
         a = torch.zeros(self.N, 14, device=self.device)
         a[:, :6] = a6
         a[:, 6] = -1.      # right gripper closed
@@ -589,6 +715,8 @@ class InsertionTask(BimanualTask):
         rel = self._reader_in_tcp()
         at_warm = self.steps == self.icfg.warmup_steps
         self.ref_rel[at_warm] = rel[at_warm]
+        if self.icfg.inhand_obs:
+            self._set_inhand_est(at_warm)
         d_rel = rel[:, :3, 3] - self.ref_rel[:, :3, 3]
         ang_rel = K.rot_log(rel[:, :3, :3] @ self.ref_rel[:, :3, :3].transpose(1, 2)).norm(dim=1) * 180 / math.pi
         after_warm = self.steps > self.icfg.warmup_steps
@@ -608,7 +736,11 @@ class InsertionTask(BimanualTask):
         rr = pts[..., None, :2] - poly[None, None]
         outside = -((ed[..., 0] * rr[..., 1] - ed[..., 1] * rr[..., 0]) / ed.norm(dim=1))   # >0: outside that edge (m)
         violation = outside.max(-1).values.max(-1).values.clamp(min=0)
-        self._last = dict(aperture_violation=violation, strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
+        if c.force_coef or c.speed_coef or c.track_forces:
+            self._Fax, self._spd = self._contact_force_speed()
+            self.peak_force = torch.maximum(self.peak_force, self._Fax)
+            self.contact_speed = torch.where((self._Fax > 0.05) & (self.contact_speed < 0), self._spd, self.contact_speed)
+        self._last = dict(peak_force=self.peak_force.clone(), contact_speed=self.contact_speed.clone(), aperture_violation=violation, strict_hold=self.strict_best >= self.hold_steps, p=p, R=R, lab=lab, inside=inside_xy, seated=seated, success=success, slip=slip,
                           pushed=pushed, far=far, bad=bad, pc_d=pc_d, tilt=metrics['tilt_deg'],
                           aperture=metrics['aperture_fit'], ang_rel=ang_rel, d_rel=d_rel.norm(dim=1))
         info = {'success': success.clone(), 'nonfinite': bad, 'slip': slip, 'pushed': pushed, 'far': far,
@@ -629,6 +761,11 @@ class InsertionTask(BimanualTask):
         # while success fell 100 -> 50 %, worse with longer episodes).
         reward = new_capture.float() + c.success_bonus * L['success'].float() + c.shaping * (phi2 - self.phi) \
             - c.fail_penalty * (failed & ~L['success']).float()
+        if c.force_coef or c.speed_coef or c.track_forces:
+            Fax, spd = self._Fax, self._spd
+            near = L['p'][:, 2] < c.speed_zone_m
+            reward = reward - c.force_coef * (Fax - c.force_thresh_n).clamp(min=0) \
+                - c.speed_coef * near.float() * (spd - c.speed_cap_m_s).clamp(min=0)
         reward = torch.where(L['bad'], torch.zeros_like(reward), reward)
         reward = torch.nan_to_num(reward, 0., 0., 0.)
         self.phi = phi2
@@ -649,6 +786,42 @@ class InsertionTask(BimanualTask):
         return self.hist, crit, reward, done, info
 
     # ------------------------------------------------------------------ observations
+    def _contact_force_speed(self):
+        """Net axial force (N) of the port on the plug (port +z = out of the panel; >0 = resisting insertion)
+        from the elliptic-cone contact rows at the last substep, and the plug speed (m/s)."""
+        rt, dev, N = self.runtime, self.device, self.N
+        if not hasattr(self, '_reader_mask'):
+            m = rt.mjm
+            self._reader_mask = torch.zeros(m.ngeom, dtype=torch.bool, device=dev)
+            self._reader_mask[list(rt.lay.peg_slots)] = True
+            self._port_mask = torch.zeros_like(self._reader_mask)
+            self._port_mask[list(rt.lay.fixture_slots)] = True
+            self._peg_dof = int(m.jnt_dofadr[m.body('peg').jntadr[0]])
+        d = rt.d
+        Fw = torch.zeros(N, 3, device=dev)
+        nc = int(d.nacon.numpy()[0])
+        if nc:
+            g = wp.to_torch(d.contact.geom)[:nc].long()
+            w = wp.to_torch(d.contact.worldid)[:nc].long()
+            adr = wp.to_torch(d.contact.efc_address)[:nc, 0].long()
+            a_, b_ = g[:, 0], g[:, 1]
+            msk = (adr >= 0) & ((self._reader_mask[a_] & self._port_mask[b_]) | (self._reader_mask[b_] & self._port_mask[a_]))
+            if msk.any():
+                ef = wp.to_torch(d.efc.force)
+                dim = wp.to_torch(d.contact.dim)[:nc].long()[msk]
+                fr = wp.to_torch(d.contact.frame)[:nc].reshape(nc, 3, 3)[msk]
+                ww, aa = w[msk], adr[msk]
+                fl = torch.zeros(len(ww), 3, device=dev)
+                for r_ in range(3):
+                    okr = dim > r_
+                    fl[okr, r_] = ef[ww[okr], aa[okr] + r_]
+                f = (fr.transpose(1, 2) @ fl[..., None])[..., 0] * torch.where(self._reader_mask[b_[msk]], 1., -1.)[:, None]
+                Fw.index_add_(0, ww, f)
+        _, port_R = self._port_pose(rt.q[:, rt.pc_qadr:rt.pc_qadr + 7])
+        Fp = (port_R.transpose(1, 2) @ Fw[..., None])[..., 0]
+        spd = rt.v[:, self._peg_dof:self._peg_dof + 3].norm(dim=1)
+        return Fp[:, 2].clamp(min=0), spd
+
     def _labels(self, pts):
         z = pts[..., 2]
         poly = self.hole
@@ -672,6 +845,18 @@ class InsertionTask(BimanualTask):
         dist = (d[:, :2].norm(dim=1) * 3 + d[:, 2].abs())    # lateral weighted (precision)
         return -(dist / self.icfg.shaping_scale_m).clamp(max=5.)
 
+    def inhand_error(self, rel):
+        """(n, 6) reader-in-TCP pose minus the nominal grasp: mm (TCP axes), rotation vector deg."""
+        if not hasattr(self, '_inhand_nom'):
+            R0, p0 = inhand_pose(1, self.icfg, self.device, nominal=True)
+            self._inhand_nom = (R0[0], p0[0])
+        R0, p0 = self._inhand_nom
+        dr = K.rot_log(rel[:, :3, :3] @ R0.T) * 180 / math.pi
+        return torch.cat([(rel[:, :3, 3] - p0) * 1e3, dr], 1)
+
+    def _set_inhand_est(self, ids):
+        self.inhand_est[ids] = self.inhand_error(self.ref_rel[ids]) + self.inhand_noise[ids]
+
     def _reader_in_tcp(self):
         rt = self.runtime
         q = rt.q[:, rt.indices['right'][0]]
@@ -686,7 +871,7 @@ class InsertionTask(BimanualTask):
 
     @property
     def obs_dim(self):
-        return 62 + (18 if self.icfg.privileged_actor else 0)
+        return 62 + (6 if self.icfg.inhand_obs else 0) + (18 if self.icfg.privileged_actor else 0)
 
     def _actor_obs(self):
         o = self.observation()
@@ -704,6 +889,8 @@ class InsertionTask(BimanualTask):
             base = torch.cat(parts[:4], 1).clone()
             base[:, list(self.icfg.left_mask_idx())] = 0
             parts = [base] + parts[4:]
+        if self.icfg.inhand_obs:
+            parts.append(self.inhand_est)
         if self.icfg.privileged_actor:     # teacher only: plug pose in the live port frame, reader in the TCP
             p, R = self.runtime.plug_in_port()
             rel = self._reader_in_tcp()
