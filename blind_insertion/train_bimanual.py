@@ -41,6 +41,31 @@ def set_scale(env: InsertionTask, s: float):
     env.refresh_pool()
 
 
+def widen_obs(old, new, d_old):
+    """Load a checkpoint whose actor obs had d_old dims into a model with more obs dims (appended at the
+    end, e.g. inhand_obs): new input weights start at 0, the new normalizer dims at mean 0 / var 1."""
+    out = {}
+    for k, v in old.items():
+        t = new[k]
+        if v.shape == t.shape:
+            out[k] = v
+            continue
+        w = torch.zeros_like(t)
+        if k in ('obs_norm.mean',):
+            w[:d_old] = v
+        elif k == 'obs_norm.var':
+            w[:] = 1; w[:d_old] = v
+        elif k == 'encoder.net.0.weight' or k == 'actor.0.weight':     # obs at the end of the input
+            w[:, :v.shape[1]] = v
+        elif k == 'critic.0.weight':                                  # input = [obs, critic obs]
+            w[:, :d_old] = v[:, :d_old]
+            w[:, d_old + t.shape[1] - v.shape[1]:] = v[:, d_old:]
+        else:
+            raise ValueError(f'cannot widen {k}: {tuple(v.shape)} -> {tuple(t.shape)}')
+        out[k] = w
+    return out
+
+
 def make_env(args, nworld=None, seed=None):
     cfg = InsertionCfg()
     cfg.task.physics.nworld = nworld or args.nworld
@@ -91,7 +116,7 @@ def train(args):
         if vis and 'visual' not in ck0:      # proprio trunk from a blind checkpoint; camera head starts at 0
             ac.base.load_state_dict(ck0['model'])
         else:
-            ac.load_state_dict(ck0['model'])
+            ac.load_state_dict(widen_obs(ck0['model'], ac.state_dict(), ck0.get('obs_dim', env.obs_dim)))
         print(f'[{args.name}] initialized from {args.init}', flush=True)
         if env.icfg.mask_left_obs:   # masked (zeroed) left-arm inputs normalize to exactly 0
             idx = torch.tensor(env.icfg.left_mask_idx(), device=dev)

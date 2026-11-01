@@ -450,6 +450,12 @@ friction rows of the elliptic cones, resolved in the port frame), sampled at the
   (from perception) as an input, or the pick's in-hand spread kept within ~1.5 mm.
 - No policy meets the combined gate (live ≥ 99.5 %, push p99 ≤ 20 N, wide in-hand ≥ 99.5 %); best.pt stays
   gentle-D. Candidate for the chain if gentleness matters more than × 1.5 margin: `runs/gentle_h_31M.pt`.
+- Coordinator decision: the gate is measured on live hand-over states from the *estimated-pick* chain (the
+  approach servo removes most in-hand error; that chain had 5 insertion failures in 2042). In parallel:
+  **J** (`runs/P4-insert-inhand-j`, GPU 1, from H): 6-D in-hand estimate input (`InsertionCfg.inhand_obs`,
+  obs[62:68], mm / deg in the TCP frame, sigma 0.5 mm / 0.5° estimate error), 50 % wide in-hand starts,
+  scale 1.5, same force/speed penalties; new input weights start at 0 (`train_bimanual.widen_obs`).
+  **I** (`runs/P4-insert-gentle-i`, GPU 2, from H): blind, scale 1.5, 60 % wide in-hand. H stopped at 31 M.
 
 ### 2026-10-31 (mason) — Part 4 insertion: episode, grasp, contact DR, solver; training status
 
