@@ -40,8 +40,11 @@ ap.add_argument('--layout', default='results/usbc/policy/pick/task_layout.json')
 ap.add_argument('--enc_offset_deg', type=float, default=None, help='encoder-offset DR half range (deg, joints 2-5); default the task config (1.5)')
 ap.add_argument('--servo', default=None, help='wrist servo net (scripts/perception/train_reader_servo.py): grasp pose relative to the hand at the hover and at --servo_fracs of the descent')
 ap.add_argument('--servo_pos_only', action='store_true')
+ap.add_argument('--rehover_mm', type=float, default=0., help='re-hover and take another hover frame when the hover correction moves the grasp by more than this (0: off)')
+ap.add_argument('--rehover_max', type=int, default=2)
 ap.add_argument('--dump_servo', default=None, help='save the servo frames (224 px) with privileged labels (true grasp relative to the true hand) to this .pt (servo DAgger)')
 ap.add_argument('--dump_size', type=int, default=224)
+ap.add_argument('--servo_near_rot', default=None, help='6-DoF servo net used only for the rotation of the waypoint correction (position from --servo_near)')
 ap.add_argument('--servo_near', default=None, help='second servo net used for the waypoint frames (the hover frame keeps --servo)')
 ap.add_argument('--servo_fracs', type=float, nargs='*', default=[.5, .8])
 ap.add_argument('--believed_frame', action='store_true', help='expert plans/servos on encoder FK (encoder-offset errors hit the grasp, as on the real robot)')
@@ -121,6 +124,10 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
             if a.servo_near:
                 _cn = torch.load(a.servo_near, map_location=task.device)
                 NNET = _PN(_cn.get('n_out', 6), _cn['size'], width=_cn['width']).to(task.device).eval(); NNET.load_state_dict(_cn['net']); NSC = _cn['scale'].to(task.device)
+            RNET = None
+            if a.servo_near_rot:
+                _cr = torch.load(a.servo_near_rot, map_location=task.device)
+                RNET = _PN(_cr.get('n_out', 6), _cr['size'], width=_cr['width']).to(task.device).eval(); RNET.load_state_dict(_cr['net']); RSC = _cr['scale'].to(task.device)
         n_frames = torch.zeros(N, dtype=torch.long, device=task.device)
     g_err = torch.full((N, 2), float('nan'), device=task.device)
     for k in range(task.max_steps - 1):
@@ -150,7 +157,10 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
                         return torch.cat([d_, torch.full_like(d_, float('nan'))], 1) if d_.shape[1] == 3 else d_
                     delta = _run(SNET, SSC)
                     if NNET is not None and ex.need_frame.any():
-                        delta = torch.where(ex.need_frame[:, None], _run(NNET, NSC), delta)
+                        dn = _run(NNET, NSC)
+                        if RNET is not None:
+                            dn = torch.cat([dn[:, :3], _run(RNET, RSC)[:, 3:]], 1)
+                        delta = torch.where(ex.need_frame[:, None], dn, delta)
                 task.cfg.physics.render_rgb = False
                 if a.dump_servo:
                     _W = G.grasp_poses(*task.reader_pose(), ex.offset, ex.tilt.nan_to_num(G.TILT_DEG), flip=ex.flip)
@@ -158,8 +168,12 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
                     lab = torch.cat([(_R.transpose(1, 2) @ (_W['grasp'][0] - _p)[..., None])[..., 0], K.rot_log(_R.transpose(1, 2) @ _W['grasp'][1])], 1)
                     small = torch.nn.functional.interpolate(fr[want].permute(0, 3, 1, 2).float(), size=(a.dump_size, a.dump_size), mode='area').round().clamp(0, 255).byte().permute(0, 2, 3, 1)
                     DUMP['X'].append(small.cpu()); DUMP['Y'].append(lab[want].cpu()); DUMP['k'].append(torch.where(ex.need_frame, ex.servo_k, -1)[want].cpu())
+                hov = want & ~ex.need_frame; pg_old = ex.p_g.clone()
                 ex.servo_update(want, delta)
                 n_frames += want.long()
+                if a.rehover_mm > 0 and hov.any():
+                    big = hov & ((ex.p_g - pg_old).norm(dim=1) > a.rehover_mm * 1e-3) & (ex.hover_iters < a.rehover_max)
+                    if big.any(): ex.rehover(big)
         if a.reader_wrist:
             at_hover = (ex.phase == 1) & (prev == 0) & ~ex.refined
             if at_hover.any():

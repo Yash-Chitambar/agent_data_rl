@@ -29,7 +29,7 @@ from blind_insertion.perception.nets import PoseNet
 SCALE = torch.tensor([.05, .05, .10, .06, .06, .06])
 
 
-def generate(task, n, gen, size=192, f_min=0., f_max=.93, rot_deg=5.):
+def generate(task, n, gen, size=192, f_min=0., f_max=.93, rot_deg=5., e_max=.015):
     X, Y = [], []
     rt = task.runtime; dev = task.device
     while sum(len(x) for x in X) < n:
@@ -38,7 +38,7 @@ def generate(task, n, gen, size=192, f_min=0., f_max=.93, rot_deg=5.):
         ex = PickExpert(task); ex.reset()                        # privileged plan = true approach line
         f = f_min + torch.rand(N, device=dev, generator=gen) * (f_max - f_min)
         p_line = ex.p_pre + f[:, None] * (ex.p_g - ex.p_pre)
-        e = torch.clamp(.015 * (1 - f), min=.003)
+        e = torch.clamp(e_max * (1 - f), min=.003)
         dp = (torch.rand(N, 3, device=dev, generator=gen) * 2 - 1) * e[:, None]
         ax = torch.randn(N, 3, device=dev, generator=gen); ax = ax / ax.norm(dim=1, keepdim=True)
         ang = (torch.rand(N, device=dev, generator=gen) * 2 - 1) * math.radians(rot_deg)
@@ -78,23 +78,25 @@ def main():
     ap.add_argument('--pos_only', action='store_true', help='predict the grasp position relative to the hand only (3 outputs)')
     ap.add_argument('--f_min', type=float, default=0.); ap.add_argument('--f_max', type=float, default=.93)
     ap.add_argument('--extra', nargs='*', default=[], help='servo DAgger dumps (pick_expert_eval.py --dump_servo): frames + privileged labels, added to training')
+    ap.add_argument('--extra_k_max', type=int, default=99)
     ap.add_argument('--extra_k_min', type=int, default=0, help='use dump frames with waypoint index >= this (-1: hover frames too)')
     ap.add_argument('--init', default=None, help='initialise from this checkpoint (fine-tune)')
     ap.add_argument('--lr', type=float, default=2e-3)
+    ap.add_argument('--e_max', type=float, default=.015, help='hand offset from the true approach line at the hover (m, per axis), shrinking to 3 mm at the grasp')
     a = ap.parse_args()
     t0 = time.time(); dev = torch.device('cuda:0')
     torch.manual_seed(a.seed); gen = torch.Generator(device=dev); gen.manual_seed(a.seed)
     task = PickTask(PickTaskCfg(physics=BimanualCfg(nworld=256, device='cuda:0', render_rgb=True, visual_dr=True, camera_resolution=a.res,
                                                     measured_camera_cadence=False, task_layout='results/usbc/policy/pick/task_layout.json')))
-    X, Y = generate(task, a.n, gen, a.size, a.f_min, a.f_max)
+    X, Y = generate(task, a.n, gen, a.size, a.f_min, a.f_max, e_max=a.e_max)
     gen.manual_seed(999); torch.manual_seed(999)
-    Xt, Yt = generate(task, a.n_test, gen, a.size, a.f_min, a.f_max)
+    Xt, Yt = generate(task, a.n_test, gen, a.size, a.f_min, a.f_max, e_max=a.e_max)
     Y, Yt = Y.to(dev), Yt.to(dev)
     t_gen = time.time() - t0
     print(f'generated {len(X)}+{len(Xt)} in {t_gen:.0f} s', flush=True)
     del task; torch.cuda.empty_cache()
     for f_ in a.extra:
-        D = torch.load(f_); m_ = D['k'] >= a.extra_k_min
+        D = torch.load(f_); m_ = (D['k'] >= a.extra_k_min) & (D['k'] <= a.extra_k_max)
         X = torch.cat([X, D['X'][m_]]); Y = torch.cat([Y, D['Y'][m_].to(dev)])
         print(f'extra {f_}: {int(m_.sum())} frames', flush=True)
     no = 3 if a.pos_only else 6

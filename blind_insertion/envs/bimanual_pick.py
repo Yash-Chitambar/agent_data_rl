@@ -303,6 +303,7 @@ class PickExpert:
         self.refined = torch.zeros(N, dtype=torch.bool, device=dev)
         self.servo_k = torch.zeros(N, dtype=torch.long, device=dev)
         self.need_frame = torch.zeros(N, dtype=torch.bool, device=dev)
+        self.hover_iters = torch.zeros(N, dtype=torch.long, device=dev)
         dq = (self.q_pre - self.q0).abs().max(1).values
         self.move_n = torch.clamp((dq / self.js / self.dt).ceil(), min=10).long()
         self.q_cmd = self.q0.clone()
@@ -387,6 +388,20 @@ class PickExpert:
         self.p_pre[m] = (p_new - G.APPROACH_BACK * R_new[:, :, 2] + G.APPROACH_UP * upv)[m]
         self.p_lift[m] = (p_new + G.LIFT_HEIGHT * upv)[m]
         self.skip_frame(mask)
+
+    def rehover(self, mask):
+        """Go back to (the re-planned) pre-grasp hover in joint space and take another hover frame
+        (after a large hover correction: the reader was off-centre in the first frame)."""
+        q = self._q()
+        q_pre, pe, re = self._ik(self.p_pre, self.R_g, q, 80)
+        m = mask & (pe < 1e-3)
+        self.q_pre[m] = q_pre[m]; self.q0[m] = q[m]; self.q_cmd[m] = q[m]
+        self.p_cmd[m], self.R_cmd[m] = [x[m] for x in self.t.chain.fk(q)]
+        dq = (self.q_pre - self.q0).abs().max(1).values
+        self.move_n = torch.where(m, torch.clamp((dq / self.js / self.dt).ceil(), min=10).long(), self.move_n)
+        self.phase[m] = 0; self.timer[m] = 0; self.refined[m] = False; self.integ[m] = 0
+        self.hover_iters[m] += 1
+        return m
 
     def skip_frame(self, mask):
         at_way = mask & self.need_frame          # waypoint frames advance; the hover frame does not
