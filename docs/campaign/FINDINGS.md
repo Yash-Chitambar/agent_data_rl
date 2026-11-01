@@ -104,6 +104,32 @@ peg weight (5 cm sag) makes lifting costly, so pressing-and-sweeping dominates.
 
 ## Discoveries
 
+### 2026-11-01 (mason, `policy/approach-hold`) — Round 8: wrist nets for wide in-hand poses; in-hand estimate for Part 4 J
+
+- **ZED capture pose (round 7):** v1 is valid only at the reference pose: 10 % of the way to folded already gives
+  17 mm (sim, n = 512); the arm gate rejects it. `configs/zed_capture_pose.json`; the chain takes the frame there.
+- **In-hand distribution:** the chain's estimate-driven picks (`results/usbc/policy/chain/pickest_*.csv`, successful
+  picks, settled grasps), deviations stretched x U(0.8, 1.3) (`inhand.sample_chain_est`): p99 |d| 3.2 / 5.0 / 3.8 mm,
+  4.0 / 0.35 / 3.0 deg. Uniform +/-5 deg about every axis is not physical for the parallel pads: teleported, those
+  readers slid 10 mm in 1 s; the settled rows slide 0.07 mm.
+- **DAgger on it** (my eval, elliptic, 2 cm hold, n = 1024): v12 lateral p99 3.40 mm / tilt 2.28 deg -> v13 1.85 / 1.26 ->
+  v14 1.80 / 1.05 -> v14 + stop specialist v15ws 1.64 / 1.11. Nominal in-hand: v12 1.24 / 0.69, v14 + v15ws 1.36 / 0.67.
+- **Chain gate** (`eval_chain.py`, seed 6100, n = 512; pre-insert stats over successful picks):
+
+| Wrist nets | noisy_oracle 2,3 | noisy_oracle 4,5 | nominal pick |
+|---|---|---|---|
+| v12w + v12ws (chain's) | 1.86 / 1.39 (pickest_2_3, n = 256) | 3.51 / 2.11 (n = 256) | 1.09 / 0.67, 512/512 |
+| v13w + v13ws | 1.50 / 0.96 | -- | -- |
+| v14w + v14ws | 1.39 / 0.81 | 1.58 / 0.89 | 1.16 / 0.61, 512/512 |
+| **v14w + v15ws** | **1.32 / 0.69** | **1.64 / 0.87** | 1.17 / 0.62, 511/512 |
+
+  (lateral p99 mm / tilt p99 deg). Target 1.3 / 0.8: tilt met at 2,3; lateral 2,3 at the edge (1.32); 4,5 not met.
+  Nominal: no meaningful regression (1.09 -> 1.17 mm, tilt 0.67 -> 0.62).
+- **In-hand estimate for Part 4 J** (`runs/perception/inhand_ih1.pt`, wrist RGB at the 6 mm stop; output exactly
+  `InsertionTask.inhand_error`: reader-in-TCP minus the nominal grasp, mm and rotation vector deg on the TCP axes;
+  `inhand.inhand_error6`). Closed loop at the stop (n = 512 each), error std per axis (dx, dy, dz mm; rx, ry, rz deg):
+  wide in-hand 0.27 / 0.24 / 0.26, 0.24 / 0.11 / 0.16 (p99 |err| 1.01 / 0.96 / 0.95, 0.76 / 0.39 / 0.46); nominal
+  0.19 / 0.08 / 0.17, 0.08 / 0.06 / 0.03. Mean errors <= 0.02. J's sigma 0.5 mm / 0.5 deg covers it.
 ### 2026-10-31 (mason, `policy/chain`) — Perception-driven pick in the chain: 99.46 % (n = 2048); servo leak is the wrist estimator; pick wrist refine hurts in the chain
 
 **Chain with `--pick expert_estimated`** (Part 1 ZED reader estimator `reader_zed_cap.pt` on the reader capture frame:
