@@ -35,12 +35,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default='')
     ap.add_argument('--no-sim', action='store_true', help='skip the GPU sim comparison (rig PC without a free GPU)')
+    ap.add_argument('--config', default=str(ROOT / 'deploy/config/bimanual.json'))
     a = ap.parse_args()
     import rig
     from blind_insertion.scenes import physical_rig as Rig
     from deploy.bimanual.scene import SceneModel
     from deploy.run_bimanual import gripper_maps, load_cfg
-    cfg = load_cfg(ROOT / 'deploy/config/bimanual.json')
+    cfg = load_cfg(a.config)
     res, fails = {}, []
 
     def check(name, ok, **info):

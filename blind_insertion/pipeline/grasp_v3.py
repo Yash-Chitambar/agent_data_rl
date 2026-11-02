@@ -82,8 +82,10 @@ class GraspV3Cfg:
     # no touch-down: the close happens from the plan's settle ('press' keeps its target, 'measured' = measured + hold_offset_mm)
     hold_from: str = 'measured'
     hold_offset_mm: float = 0.0
-    # 'touchdown': no close (real commissioning), the hand rises after HOLD
+    # Real commissioning, jaws stay open and the hand rises after HOLD. 'touchdown': on the table. 'air': from the first
+    # wrist frame, on a plan raised by air_plan_up_mm: a slow free descent, no contact; the peak D measures the false-positive margin.
     test_mode: str | None = None
+    air_plan_up_mm: float = 30.0
 
     @classmethod
     def from_dict(cls, d):
@@ -173,6 +175,7 @@ class GraspV3Expert(PickExpert):
         self.t_grasp = z().fill_(float('nan'))
         self.k_act = 0
         self.lost_n = torch.zeros(N, dtype=torch.long, device=dev)
+        self.d_max = z()
         self.z_touch = z().fill_(float('nan'))
         self.roll_close_b = z().fill_(float('nan'))
 
@@ -218,6 +221,7 @@ class GraspV3Expert(PickExpert):
 
     def _enter_td(self, mask, q):
         self.td_mode[mask] = 0
+        self.d_max[mask] = 0
         self.det.reset(mask)
         self.integ0[mask] = self.integ[mask]
         self._go(mask, G_TD, 'td_start', z_plan=self.p_g[:, 2])
@@ -238,8 +242,11 @@ class GraspV3Expert(PickExpert):
         self.k_act += 1
         nf = len(self.servo_fracs)
         if c.touchdown:
-            enter = (self.g == G_NONE) & (self.phase == 1) & (self.servo_k >= nf) & (self.refined | (nf == 0)) & self.ik_ok
+            air = c.test_mode == 'air'
+            enter = (self.g == G_NONE) & (self.phase == 1) & (self.servo_k >= (min(1, nf) if air else nf)) & (self.refined | (nf == 0)) & self.ik_ok
             if enter.any():
+                if air:
+                    self.p_g[enter, 2] += c.air_plan_up_mm * 1e-3
                 self._enter_td(enter, None)
         pm = self.g == G_NONE
         a = torch.zeros(N, 14, device=t.device)
@@ -357,7 +364,7 @@ class GraspV3Expert(PickExpert):
         roll = torch.rad2deg(torch.asin(R_a[:, 2, 1].clamp(-1, 1)))
         # ---- touch-down
         touched, drop = self.det.update(self.p_cmd[:, 2], p_a[:, 2])
-        self.drop = drop
+        self.d_max = torch.where(descend, torch.max(self.d_max, drop), self.d_max)
         self.det.reset((g == G_TD) & ~descend)
         at_depth = descend & (dist < 2e-4) & (self.p_cmd[:, 2] < self.p_g[:, 2] - c.td_max_below_mm * 1e-3 + 1e-4)
         hit = descend & (touched | (at_depth & (drop > .5 * self.det.drop_m)))   # stalled, but the depth limit came first
@@ -389,11 +396,11 @@ class GraspV3Expert(PickExpert):
             self.rot_close[done] = e_r[done]
             self.roll_close_b[done] = roll[done]
             bad_roll = done & (roll.abs() > c.roll_gate_deg) if c.roll_gate_deg is not None else torch.zeros_like(done)
-            if c.test_mode == 'touchdown':
+            if c.test_mode is not None:
                 self.p_rise[done] = self.p_cmd[done] + torch.tensor([0., 0., c.rise_mm * 1e-3], device=p_a.device)
                 self.alpha_goal[done] = 0.
                 self.attempt[done] = c.max_attempts
-                self._go(done, G_RISE, 'test_rise', z=p_a[:, 2], rot_deg=e_r)
+                self._go(done, G_RISE, 'test_rise', z=p_a[:, 2], rot_deg=e_r, roll_deg=roll, d_max_mm=self.d_max * 1e3, td_mode=self.td_mode.float())
             else:
                 if bad_roll.any():
                     self._ev('roll_gate', bad_roll, roll_deg=roll, limit=float(c.roll_gate_deg))
