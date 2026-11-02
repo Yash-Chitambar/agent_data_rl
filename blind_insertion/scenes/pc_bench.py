@@ -174,7 +174,7 @@ def _free_pc_spec(spec, profile):
 
 def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                 support_mode='fixed', profile=None, bimanual=False, table_top=0.0, measured_support=False,
-                controller_profile=None, table_z=None, extra_spec=None):
+                controller_profile=None, table_z=None, extra_spec=None, reader_body_length=None):
     """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode.
     ``extra_spec(spec)`` runs last on the spec before compiling (e.g. visual_dr.add_assets).
 
@@ -201,6 +201,8 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
         # The new body_length measures the silver inset, not the full black housing.
         exposure = float(r['plug_protrusion']['value'])
         body_length = B.READER_TOTAL_LENGTH - exposure - float(r['neck_length']['value'])
+        if reader_body_length is not None:   # measured silver body (grasp fidelity): shorter from the back end
+            body_length = float(reader_body_length)
         variant = variant or B.reader_variant(body=(B.READER_BODY[0], B.READER_BODY[1], body_length),
                                                neck=tuple(float(r[k]['value']) for k in ('neck_width','neck_thickness','neck_length')),
                                                mass=float(r['mass']['value']), exposed_length=exposure)

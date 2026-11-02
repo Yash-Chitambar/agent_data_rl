@@ -147,6 +147,7 @@ def parse(argv=None):
                     help='right-wrist in-hand pose net (runs/perception/<name>.pt), used when the insertion policy reads a '
                          '6-D in-hand estimate (pol.meta obs_dim 68: obs[62:68] = env.inhand_est)')
     ap.add_argument('--policy', default=INSERT_CKPT)
+    ap.add_argument('--grasp-fidelity', default=None, help='realistic grasp contact: preset name (v1) or JSON path (docs/real/GRASP_FIDELITY.md); default baseline')
     ap.add_argument('--insert-s', type=float, default=10.)
     ap.add_argument('--visual-dr', type=int, default=1)
     ap.add_argument('--demo', type=int, default=0, help='render this many demo videos (success + failures) instead of the stats run')
@@ -181,6 +182,7 @@ class Chain:
         ph.nworld, ph.device = a.nworld, dev
         ph.render_rgb, ph.visual_dr, ph.camera_resolution, ph.measured_camera_cadence = True, bool(a.visual_dr) or None, 320, False
         ph.task_layout = PICK_LAYOUT
+        ph.grasp_fidelity = a.grasp_fidelity
         self.env = env = InsertionTask(icfg, seed=a.seed)
         self.rt = rt = env.runtime
         rt.cfg.render_rgb = False                 # task observations must not render every step

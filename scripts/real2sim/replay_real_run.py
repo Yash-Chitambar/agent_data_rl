@@ -31,13 +31,13 @@ SIDES = ('right', 'left')
 STAGES = ('0 capture', '1 pick', '2 hold', '3 transport', '4 approach', '5 insert', '6 release', '7 home', 'manual')
 
 
-def build(n, objects, port, device):
+def build(n, objects, port, device, grasp_fidelity=None):
     import mujoco_warp as mjw
     import warp as wp
     from blind_insertion.envs.bimanual_runtime import BimanualCfg, BimanualRuntime
     from blind_insertion.envs import kinematics as K
     rt = BimanualRuntime(BimanualCfg(nworld=n, device=device, task_layout='results/usbc/policy/pick/task_layout.json',
-                                     friction_scale_range=(1., 1.), gravity_scale_jitter=0.))
+                                     friction_scale_range=(1., 1.), gravity_scale_jitter=0., grasp_fidelity=grasp_fidelity))
     ids = torch.arange(n, device=rt.device)
     rt.reset(ids)
     fa, pa = rt.pc_qadr, rt.lay.peg_qadr
@@ -64,6 +64,7 @@ def main():
     ap.add_argument('--max-ticks', type=int, default=0)
     ap.add_argument('--out', default='')
     ap.add_argument('--device', default='cuda:0')
+    ap.add_argument('--grasp-fidelity', default=None, help='realistic grasp model preset or JSON')
     a = ap.parse_args()
     from deploy.bimanual.runlog import load_run
     from blind_insertion.envs import friction_comp as FC
@@ -85,7 +86,7 @@ def main():
         port = (p[0].numpy(), R[0].numpy())
     variants = [dict(friction=f, gravity=g, latency=l, kp=a.kp_scale) for f, g, l in itertools.product(a.friction, a.gravity, a.latency)]
     V = len(variants)
-    rt = build(V, a.objects, port, a.device)
+    rt = build(V, a.objects, port, a.device, a.grasp_fidelity)
     dev = rt.device
     fr = torch.tensor([v['friction'] for v in variants], device=dev)
     for k_, sd in enumerate(SIDES):

@@ -43,6 +43,9 @@ def chain_argv(cfg, policy, nworld=1, extra=()):
             '--stop-offset-mm', *[str(x) for x in c['stop_offset_mm']]]
     if c.get('believed_frame'):
         argv.append('--believed-frame')
+    gf = cfg.get('sim', {}).get('grasp_fidelity')
+    if gf:
+        argv += ['--grasp-fidelity', gf]
     return argv + list(extra)
 
 
@@ -125,6 +128,10 @@ class SimIO:
             tau, ramp = self.rt.comp['right']
             bq = np.asarray(q_motor[0], float) - self.read()['q'][0]
             ff[0] = FC.feedforward(bq, tau, ramp)
+        if self.rt.fidelity is not None:      # the real gripper is position controlled: a ramped close follows its target
+            if self.rt.grip_target is None:
+                self.rt.grip_target = torch.full((1,), float('nan'), device=self.dev)
+            self.rt.grip_target[0] = float(self.gmaps['right'].finger_m(grip[0])) if sign[0] > 0 else float('nan')
         self.h.step(b[0][None], sign[0], b[1][None], sign[1])
         self.t += self.dt
         self.k += 1

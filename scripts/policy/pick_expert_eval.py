@@ -62,7 +62,12 @@ ap.add_argument('--servo_fracs', type=float, nargs='*', default=[.5, .8])
 ap.add_argument('--wrist_cam_err', type=float, nargs=2, default=None, help='cap the right wrist-camera mount error DR at (mm, deg) (a calibrated mount); default the real-error DR')
 ap.add_argument('--believed_frame', action='store_true', help='expert plans/servos on encoder FK (encoder-offset errors hit the grasp, as on the real robot)')
 ap.add_argument('--wrist_rebase', choices=('true', 'encoder'), default='true', help='hand pose the wrist estimate is rebased on: true FK (privileged) or encoder FK (as on the real robot: encoder offset DR errors included)')
+ap.add_argument('--grasp_fidelity', default=None, help='realistic grasp contact: preset name (v1) or JSON path (docs/real/GRASP_FIDELITY.md); default baseline')
+ap.add_argument('--tip_floor_mm', type=float, default=None, help='real chain fingertip floor on the believed target (mm above the table; the chain: -13)')
+ap.add_argument('--press_mm', type=float, default=0., help='lower the grasp target by this much when the descent ends (real runs: the target tips reach the -13 mm floor)')
+ap.add_argument('--relief', default=None, help="real chain close press relief as JSON, or 'v3' for bimanual_pick2.json's values")
 a = ap.parse_args()
+RELIEF_V3 = {'lift_mm': -3., 'settle_s': .3, 'close_ramp_s': 1., 'dwell_s': .3, 'blend_s': .5}
 
 
 def wilson_lo(k, n, z=1.96):
@@ -72,6 +77,7 @@ def wilson_lo(k, n, z=1.96):
 
 
 cfg = PickTaskCfg(physics=BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout=a.layout), episode_s=(18. if a.reader_wrist else 21. if a.servo else 12.) + a.hold_s)
+cfg.physics.grasp_fidelity = a.grasp_fidelity
 if a.enc_offset_deg is not None:
     cfg.enc_offset_deg = a.enc_offset_deg
 if a.reader_est:
@@ -120,6 +126,9 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
     ex = PickExpert(task, seed=a.seed + batch, hold_s=a.hold_s, v_max=a.lift_v, integral_gain=a.ki, settle_max_s=a.settle_max_s,
                     pose_err=a.pose_err, reader_pose_fn=est_fn, hover_tol_m=.004 if (a.reader_wrist or a.servo) else None)
     ex.believed_frame = a.believed_frame
+    if a.tip_floor_mm is not None: ex.tip_floor = a.tip_floor_mm * 1e-3
+    ex.press_m = a.press_mm * 1e-3
+    if a.relief: ex.relief = RELIEF_V3 if a.relief == 'v3' else json.loads(a.relief)
     if a.servo: ex.servo_fracs = tuple(a.servo_fracs); ex.servo_rot = not a.servo_pos_only
     ex.reset()
     N = a.nworld
@@ -247,6 +256,11 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
          'grasp_err_mm': g_err[:, 0], 'grasp_err_deg': g_err[:, 1],
          'servo_frames': n_frames if a.servo else torch.zeros(N, device=task.device),
          'pad_mu': task.runtime.geom_friction[:, task.pads[0], 0], 'reader_mu': task.runtime.geom_friction[:, task.reader_geoms[0], 0]}
+    d.update(ex.diag)
+    d['final_finger_mm'] = task.runtime.q[:, task.finger_qadr].mean(1) * 1e3
+    d['held'] = final['lift_m'] > .06
+    if task.runtime.fidelity is not None:
+        d.update({'gf_' + k_: v_ for k_, v_ in task.runtime.fidelity.drawn.items()})
     for i, nm in enumerate('xyz'): d[f'inhand_d{nm}_mm'] = rel_p[:, i] * 1e3
     for i, nm in enumerate('xyz'): d[f'inhand_r{nm}_deg'] = torch.rad2deg(rel_r[:, i])
     d['inhand_p'] = final['inhand_p']; d['inhand_R'] = final['inhand_R']
@@ -283,6 +297,9 @@ if okm.any():
                                 'rot_deg': pc(np.sqrt(sum((df[f'inhand_r{c}_deg'].values[okm] - df[f'inhand_r{c}_deg'].values[okm].mean()) ** 2 for c in 'xyz'))),
                                 'about_nominal_pos_mm': pc(dpos), 'about_nominal_rot_deg': pc(drot),
                                 'hold_drift_mm': pc(df.hold_drift_mm.values[okm]), 'hold_rot_drift_deg': pc(df.hold_rot_drift_deg.values[okm]), 'hold_s': a.hold_s}
+_pq = lambda c: [float(x) for x in np.nanpercentile(df[c], (5, 50, 95))]   # noqa: E731
+summ['held'] = int(df.held.sum())
+summ['fidelity_check_p5_p50_p95'] = {c: _pq(c) for c in ('press_tip_mm', 'press_tip_true_mm', 'press_tgt_mm', 'press_rot_deg', 'press_ry', 'close_tip_mm', 'close_rot_deg', 'rise_mm', 'final_finger_mm') if df[c].notna().any()}
 print(json.dumps(summ, indent=1))
 (out.parent / f'{tag}.json').write_text(json.dumps(summ, indent=1) + '\n')
 if a.dump_servo:

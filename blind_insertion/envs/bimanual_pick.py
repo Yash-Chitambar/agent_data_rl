@@ -73,6 +73,11 @@ class PickTask(BimanualTask):
         self.chain = K.Chain(m, rt.lay.tcp_site, list(self.qadr), device=dev)
         self.pads = torch.tensor([g for g in range(m.ngeom) if m.geom(g).name.startswith(('left_pad_s', 'right_pad_s'))], device=dev)
         self.reader_geoms = torch.tensor(list(rt.lay.peg_slots), device=dev)
+        if rt.fidelity is not None:
+            if rt.fidelity.c.pad_friction is not None:
+                cfg.pad_friction_range = tuple(rt.fidelity.c.pad_friction)
+            if len(rt.fidelity.prims):
+                self.reader_geoms = torch.cat([self.reader_geoms, rt.fidelity.prims])
         self.table = m.geom('table').id
         self.table_top = float(m.geom('table').pos[2] + m.geom('table').size[2])
         if (cfg.pad_friction_range or cfg.reader_table_friction_range) and not hasattr(rt, 'geom_friction'):
@@ -95,6 +100,7 @@ class PickTask(BimanualTask):
         from blind_insertion.scenes import physical_rig as Rig
         d = mujoco.MjData(m); Rig.reference_pose(m, d, rt.lay); mujoco.mj_forward(m, d)
         self.hand = G.hand_geometry(m, d)
+        self.tip_verts = torch.as_tensor(self.hand['tip_vertices'], device=dev, dtype=torch.float32)
         # offsets[(tilt, flip)]: grasp_site in the reader frame for the normal and the flipped grasp
         self.offsets, self.pad_contact_height = {}, {}
         for tilt in (G.TILT_DEG, *G.TILT_FALLBACK_DEG):
@@ -176,6 +182,11 @@ class PickTask(BimanualTask):
     def tcp_pose(self):
         return self.chain.fk(self.q_true())
 
+    def tip_height(self, q):
+        """Lowest model fingertip point above the table (m) at joint angles q (N, 6); FlexChecker's measure."""
+        p, R = self.chain.fk(q)
+        return p[:, 2] + (self.tip_verts @ R.transpose(1, 2))[..., 2].min(1).values - self.table_top
+
     def inhand(self):
         """Reader pose in the grasp_site frame: p (N,3), R (N,3,3)."""
         p_r, R_r = self.reader_pose()
@@ -235,6 +246,14 @@ class PickExpert:
         self.servo_tol = (.0015, 1.0)    # settle at a waypoint: believed-FK error (m, deg), at most servo_wait_s
         self.servo_wait_s = 1.5
         self.servo_rot = True
+        # Real chain behaviour (deploy/bimanual/chain.py): fingertip floor (m above the table; the chain's is -0.013) on
+        # the believed target, and pick.close_press_relief as a dict (lift_mm, settle_s, close_ramp_s, dwell_s, blend_s).
+        self.tip_floor = None
+        # Lower the grasp target by this much (m) when the descent ends: the real runs' press. Its source there is the
+        # last servo correction on real images (target tips at the floor, -13 mm), absent with the oracle servo.
+        self.press_m = 0.
+        self.relief = None
+        self.close_finger_m = 0.0054    # finger position of the ramp's end: i2rt close target through the deploy gripper map
 
     def _q(self):
         """Joint angles the expert plans and servos with: true (privileged) or, with believed_frame,
@@ -311,6 +330,80 @@ class PickExpert:
         self.grip = torch.ones(N, device=dev)
         self.finger_prev = t.runtime.q[:, t.finger_qadr].sum(1)
         self.finger_still = torch.zeros(N, dtype=torch.long, device=dev)
+        self.rf_phase = torch.zeros(N, dtype=torch.long, device=dev)   # relief: 0 before, 1 hold, 2 blend, 3 off
+        self.rf_k = torch.zeros(N, dtype=torch.long, device=dev)
+        self.rf_q = torch.zeros(N, 6, device=dev)
+        self.diag_hist = []                                            # last 1 s of (tip, tip target, rot error)
+        self.diag = {k: torch.full((N,), float('nan'), device=dev) for k in
+                     ('press_tip_mm', 'press_tip_true_mm', 'press_tgt_mm', 'press_rot_deg', 'press_rx', 'press_ry', 'press_rz',
+                      'close_tip_mm', 'close_tip_true_mm', 'close_tgt_mm', 'close_rot_deg', 'close_z_m', 'rise_mm')}
+        if t.runtime.grip_target is None:
+            t.runtime.grip_target = torch.full((N,), float('nan'), device=dev)
+        t.runtime.grip_target[:] = float('nan')
+
+    def _diagnose(self, q_b, target_b, grip_before):
+        """Real-log quantities: tips at measured q and at the target, target relative to measured orientation
+        (grasp_site frame); recorded 1 s before the close and at it; the hand's rise after the close starts."""
+        t = self.t
+        _, Rm = t.chain.fk(q_b)
+        _, Rt = t.chain.fk(target_b)
+        rv = K.rot_log(Rm.transpose(1, 2) @ Rt)
+        rec = (t.tip_height(q_b) * 1e3, t.tip_height(target_b) * 1e3, rv, t.tip_height(t.q_true()) * 1e3)
+        self.diag_hist.append(rec)
+        if len(self.diag_hist) > 50: self.diag_hist.pop(0)
+        started = (self.phase >= 3) & (grip_before < 3)
+        if started.any():
+            old = self.diag_hist[0]; D = self.diag
+            D['press_tip_mm'][started], D['press_tgt_mm'][started], D['press_tip_true_mm'][started] = old[0][started], old[1][started], old[3][started]
+            D['press_rot_deg'][started] = torch.rad2deg(old[2].norm(dim=1))[started]
+            for i, c in enumerate(('press_rx', 'press_ry', 'press_rz')): D[c][started] = torch.rad2deg(old[2][:, i])[started]
+            D['close_tip_mm'][started], D['close_tgt_mm'][started], D['close_tip_true_mm'][started] = rec[0][started], rec[1][started], rec[3][started]
+            D['close_rot_deg'][started] = torch.rad2deg(rv.norm(dim=1))[started]
+            D['close_z_m'][started] = t.tcp_pose()[0][started, 2]
+        active = (self.phase == 3) & ~started
+        if active.any():
+            rise = (t.tcp_pose()[0][:, 2] - self.diag['close_z_m']) * 1e3
+            self.diag['rise_mm'] = torch.where(active & ~(rise <= self.diag['rise_mm']), rise, self.diag['rise_mm'])
+
+    def _apply_relief(self, believed, q_b, started):
+        """chain._close_press_relief (v3) on the believed target: from the close switch hold the measured position +
+        lift_mm with the planned orientation, jaws open settle_s, ramp the close, dwell, blend into the plan."""
+        r, t, rt = self.relief, self.t, self.t.runtime
+        n = lambda key, dflt: round(float(r.get(key, dflt)) / self.dt)   # noqa: E731
+        on = started & (self.rf_phase == 0)
+        if on.any():
+            pm, _ = t.chain.fk(q_b)
+            _, Rt = t.chain.fk(believed)
+            p = pm + torch.tensor([0., 0., float(r.get('lift_mm', 1.)) * 1e-3], device=pm.device)
+            q_h, _, _ = self._ik(p, Rt, q_b, 20)
+            self.rf_q[on] = q_h[on]; self.rf_phase[on] = 1; self.rf_k[on] = 0
+        hold, s_, c_, d_, b_ = self.rf_phase == 1, n('settle_s', .3), n('close_ramp_s', 0.), n('dwell_s', 0.), max(1, n('blend_s', 0.))
+        plan_z = t.chain.fk(believed)[0][:, 2]; hold_z = t.chain.fk(self.rf_q)[0][:, 2]
+        out = torch.where(hold[:, None], self.rf_q, believed)
+        k = self.rf_k.float()
+        open_ = hold & (self.rf_k < s_)
+        ramp = hold & (self.rf_k >= s_) & (self.rf_k < s_ + c_)
+        fo0 = t.cfg.finger_open if t.cfg.finger_open is not None else .0475
+        rt.grip_target[:] = float('nan')
+        rt.grip_target[ramp] = (fo0 + (self.close_finger_m - fo0) * (k - s_ + 1) / max(1, c_))[ramp]
+        to_blend = hold & (self.rf_k >= s_ + c_ + d_) & (plan_z >= hold_z)
+        self.rf_phase[to_blend] = 2; self.rf_k[to_blend] = -1
+        bl = self.rf_phase == 2
+        u = ((self.rf_k + 1).float() / b_).clamp(max=1.)
+        out = torch.where(bl[:, None], self.rf_q + (believed - self.rf_q) * u[:, None], out)
+        self.rf_phase[bl & (u >= 1.)] = 3
+        self.rf_k += (self.rf_phase > 0).long()
+        return out, open_
+
+    def _apply_floor(self, believed):
+        low = self.t.tip_height(believed)
+        under = low < self.tip_floor
+        if not under.any():
+            return believed
+        p, R = self.t.chain.fk(believed)
+        p = p.clone(); p[:, 2] = p[:, 2] + (self.tip_floor - low + 1e-4).clamp(min=0.)
+        q, _, _ = self._ik(p, R, believed, 8)
+        return torch.where(under[:, None], q, believed)
 
     def replan(self, mask, p_r, R_r):
         """New reader pose for the worlds in mask (e.g. a wrist-camera refinement at the hover, already
@@ -500,14 +593,23 @@ class PickExpert:
             self.settle_err = torch.zeros(N, 2, device=t.device)
         rec = (ph == 2) & adv
         self.settle_err[rec] = torch.stack([e_p, e_r], 1)[rec]
+        if self.press_m:
+            self.p_g[(ph == 1) & adv, 2] -= self.press_m
         self.phase = torch.where(adv & (ph < 6), ph + 1, ph)
         self.timer = torch.where(adv, torch.zeros_like(self.timer), self.timer)
         self.done = self.phase >= 6
         self.grip = torch.where(self.phase >= 3, -torch.ones_like(self.grip), torch.ones_like(self.grip))
         # absolute physical target -> believed-frame target -> normalized accumulate increment
         believed = q_phys if self.believed_frame else q_phys - t.enc_error[:, 0]
+        q_b = t._measured_model_angles()[:, 0]
+        hold_open = None
+        if self.relief is not None:
+            believed, hold_open = self._apply_relief(believed, q_b, self.phase >= 3)
+        if self.tip_floor is not None:
+            believed = self._apply_floor(believed)
+        self._diagnose(q_b, believed, ph)
         a = torch.zeros(N, 14, device=t.device)
         a[:, :6] = ((believed - t.joint_target[:, 0]) / t.cfg.action_scale_rad).clamp(-1, 1)
-        a[:, 6] = self.grip
+        a[:, 6] = self.grip if hold_open is None else torch.where(hold_open, torch.ones_like(self.grip), self.grip)
         a[:, 13] = 1.
         return a

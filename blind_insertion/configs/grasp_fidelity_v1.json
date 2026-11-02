@@ -1,0 +1,12 @@
+{
+ "_about": "First realistic reader-grasp model (envs/grasp_fidelity.py, docs/real/GRASP_FIDELITY.md). Ranges are bounds chosen to cover the real runs of 2026-11-01, not identified values.",
+ "tip_solref": [0.002, 1.0],
+ "tip_solimp": [0.99, 0.999, 0.001],
+ "tip_extend_m": [0.0026, 0.007],
+ "tip_friction": [0.6, 1.2],
+ "wrist_kp_scale": [0.7, 1.0],
+ "reader_fillet_m": [0.001, 0.002],
+ "reader_body_length_m": 0.0296,
+ "pad_friction": [0.8, 1.6],
+ "pad_timeconst": [0.002, 0.006]
+}
