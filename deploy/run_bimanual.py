@@ -76,6 +76,7 @@ def parse(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--stage', choices=STAGE_CHOICES, required=True)
     ap.add_argument('--dry-run', action='store_true', help='SimIO (eval_chain world) instead of the arms and cameras')
+    ap.add_argument('--grasp-fidelity', default=None, help='dry run only: realistic grasp model preset or JSON (docs/real/GRASP_FIDELITY.md)')
     ap.add_argument('--seed', type=int, default=7000, help='dry run: first episode seed (eval_chain seeds)')
     ap.add_argument('--episodes', type=int, default=1, help='dry run: episodes (seed, seed + 1, ...)')
     ap.add_argument('--name', default='', help='run id suffix')
@@ -133,6 +134,8 @@ class Runner:
             log.event('nets_preloaded', seconds=dt)
         if self.a.dry_run:
             from deploy.bimanual.io_sim import SimIO
+            if self.a.grasp_fidelity:
+                self.cfg.setdefault('sim', {})['grasp_fidelity'] = self.a.grasp_fidelity
             self.io = SimIO(self.cfg, self.gmaps, self.policy_path, device=str(self.dev))
             return
         import estop

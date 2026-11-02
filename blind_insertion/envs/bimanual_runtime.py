@@ -12,7 +12,7 @@ import mujoco_warp as mjw
 import numpy as np
 import torch
 import warp as wp
-from blind_insertion.envs import arm_residual as AR, friction_comp as FC, kinematics as K, visual_dr as VD
+from blind_insertion.envs import arm_residual as AR, friction_comp as FC, grasp_fidelity as GF, kinematics as K, visual_dr as VD
 from blind_insertion.scenes import pc_bench as S, physical_rig as R
 
 
@@ -93,6 +93,9 @@ class BimanualCfg:
     # PC mass and inertia scale (1 = measured 284 g). A large value (e.g. 1e3) pins the PC through
     # its feet friction: the "PC fixed" reference condition for insertion evaluations.
     pc_mass_scale: float = 1.0
+    # Realistic reader-grasp contact (envs/grasp_fidelity.py, docs/real/GRASP_FIDELITY.md): None (baseline), a preset
+    # name ('v1': configs/grasp_fidelity_v1.json), a JSON path or a dict. Not validated for training yet.
+    grasp_fidelity: object = None
 
 
 class BimanualRuntime:
@@ -109,10 +112,16 @@ class BimanualRuntime:
         self.comp = {side: FC.parse(getattr(c, side+'_fric_comp'), side=side) for side in ('right','left')}
         profile_path = Path(__file__).resolve().parents[2] / 'data/real_yam/usbc_lab_20261027/rig_profile_provisional_v0.json'
         self.visual_dr_cfg = VD.VisualDRCfg.make(c.visual_dr) if c.render_rgb else None
+        gf = GF.GraspFidelityCfg.make(c.grasp_fidelity)
+        def extra(sp):
+            if self.visual_dr_cfg is not None: VD.add_assets(sp)
+            if gf is not None: GF.add_spec(sp, gf)
         self.mjm, self.lay = S.build_scene(detailed=True, bimanual=True, measured_support=True,
             support_mode='free', profile=json.loads(profile_path.read_text()), controller_profile=c.controller_profile,
-            extra_spec=VD.add_assets if self.visual_dr_cfg is not None else None)
+            extra_spec=extra if (self.visual_dr_cfg is not None or gf is not None) else None,
+            reader_body_length=gf.reader_body_length_m if gf is not None else None)
         m = self.mjm
+        gf_geoms = GF.apply_model(m, self.lay, gf) if gf is not None else None
         self.profile = None
         if c.dynamics_profile:
             lo, hi = c.friction_scale_range
@@ -180,6 +189,7 @@ class BimanualRuntime:
             grip = [m.actuator(prefix+'grip_'+finger).id for finger in ('left','right')]
             limits = np.array([m.joint(prefix+f'joint{i}').range for i in range(1,7)])
             self.indices[side] = (q,v,act,grip,torch.tensor(limits,device=self.device,dtype=torch.float32))
+            if side == 'right': self.finger_qadr_right = [int(m.joint(f+'_finger').qposadr[0]) for f in ('left','right')]
             d.ctrl[act] = d.qpos[q]
         mujoco.mj_forward(m,d)
         self.initial_q = torch.tensor(d.qpos.copy(),device=self.device,dtype=torch.float32)
@@ -195,12 +205,16 @@ class BimanualRuntime:
                       ({'geom_friction': c.nworld, 'geom_solref': c.nworld, 'actuator_gainprm': c.nworld}
                        if c.contact_dr else {}) | \
                       ({'actuator_gainprm': c.nworld, 'actuator_biasprm': c.nworld} if c.batch_arm_gains else {}) | \
-                      {k: c.nworld for k in VD.batch_fields(self.visual_dr_cfg)}
+                      {k: c.nworld for k in VD.batch_fields(self.visual_dr_cfg)} | \
+                      ({k: c.nworld for k in GF.batch_fields(gf)} if gf is not None else {})
             self.m = mjw.put_model(m, batch_sizes=batched or None)
             self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=c.nconmax,njmax=c.njmax)
         self._graph = None
         # Optional per-world gripper force scale (nworld,) set by task layers for grasp DR; None = 1.
         self.grip_scale = None
+        # Optional per-world right finger position target (m, NaN = sign command): position-mode close (the real
+        # gripper is position controlled; a ramped close cannot be expressed as a force sign).
+        self.grip_target = None
         self.q = wp.to_torch(self.d.qpos)
         self.v = wp.to_torch(self.d.qvel)
         self.ctrl = wp.to_torch(self.d.ctrl)
@@ -234,6 +248,7 @@ class BimanualRuntime:
             self.gravity_scale = self.gravity_scale_base.expand(c.nworld,2,6).clone()
             self.driver_gravity = AR.DriverGravity(self.device)
             self._sample_dynamics(torch.arange(c.nworld,device=self.device))
+        self.fidelity = GF.GraspFidelity(self, gf, gf_geoms) if gf is not None else None
         if c.render_rgb:
             ids = [m.camera(name).id for name in self.camera_names]
             active = [i in ids for i in range(m.ncam)]
@@ -269,6 +284,8 @@ class BimanualRuntime:
         if self.profile: self._sample_dynamics(ids)
         if self.cfg.pc_friction_range: self._sample_pc_friction(ids)
         if self.cfg.contact_dr: self._sample_contact(ids)
+        if self.fidelity is not None: self.fidelity.sample(ids)
+        if self.grip_target is not None: self.grip_target[ids] = float('nan')
         if self.layout: self._sample_layout(ids)
         if self.cfg.render_rgb: self.visual.sample(ids)
         if forward:
@@ -288,6 +305,11 @@ class BimanualRuntime:
             squeeze = torch.where(action[:,offset+6]>0,self.cfg.grip_open,self.cfg.grip_close)
             if self.grip_scale is not None: squeeze = squeeze*self.grip_scale
             self.ctrl[:,grip] = squeeze[:,None]
+            if side == 'right' and self.grip_target is not None:
+                pos = ~torch.isnan(self.grip_target)
+                if pos.any():
+                    f = (2000.*(self.grip_target[:,None]-self.q[:,self.finger_qadr_right])).clamp(self.cfg.grip_close,self.cfg.grip_open)
+                    self.ctrl[:,grip] = torch.where(pos[:,None],f,self.ctrl[:,grip])
             if self.comp[side] is not None:
                 tau,ramp = self.comp[side]
                 self.force[:,v] = FC.feedforward(target-self.q[:,q],tau,ramp)

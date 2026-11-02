@@ -1,0 +1,66 @@
+{
+ "_about": "v2: table contact unchanged (baseline; log analysis: true sim tips do not sink). Closing-axis roll from the servo, bootstrapped from the real target poses of 2026-11-01 (n = 11 closes, [roll, tilt - 55] deg). Rounded body, 29.6 mm body, pad ranges are assumed bounds. Wrist scale from 0.86 deg/N measured vs 0.74 deg/N for kp alone.",
+ "wrist_kp_scale": [
+  0.75,
+  1.0
+ ],
+ "reader_fillet_m": [
+  0.001,
+  0.002
+ ],
+ "reader_body_length_m": 0.0296,
+ "pad_friction": [
+  0.8,
+  1.6
+ ],
+ "pad_timeconst": [
+  0.002,
+  0.006
+ ],
+ "servo_err": [
+  [
+   -4.76,
+   5.24
+  ],
+  [
+   1.66,
+   4.24
+  ],
+  [
+   -2.45,
+   4.48
+  ],
+  [
+   -5.61,
+   4.47
+  ],
+  [
+   -5.43,
+   1.0
+  ],
+  [
+   -3.35,
+   5.44
+  ],
+  [
+   -4.92,
+   5.38
+  ],
+  [
+   -5.57,
+   5.57
+  ],
+  [
+   -4.52,
+   0.92
+  ],
+  [
+   0.46,
+   0.35
+  ],
+  [
+   -3.38,
+   0.73
+  ]
+ ]
+}
