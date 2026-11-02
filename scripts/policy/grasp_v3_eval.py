@@ -39,6 +39,7 @@ MODES = {
     's3_gentle_hold': {**OFF, 'hold_from': 'measured', 'gentle_close': True, 'holddown_mm': 3.},
     's4_retry': {**OFF, 'max_attempts': 3},
     'level_gentle': {**OFF, 'level_roll': True, 'hold_from': 'measured', 'gentle_close': True, 'holddown_mm': 3.},
+    's1_touchdown_gentle': {**OFF, 'touchdown': True, 'gentle_close': True, 'holddown_mm': 8.},
     'combined_nowrist': dict(wrist_kp=None, wrist_kd=None, td_friction_ff=False),
     'combined': dict(td_friction_ff=False),
 }

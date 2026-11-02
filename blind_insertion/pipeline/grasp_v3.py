@@ -60,7 +60,7 @@ class GraspV3Cfg:
     wrist_kd: tuple | None = (1.5, 2., 2.)
     wrist_ramp_s: float = 0.3
     # 3. hold-down and gentle close
-    holddown_mm: float = 3.0          # below the hold point, while the jaws close
+    holddown_mm: float = 8.0          # below the hold point, while the jaws close (~2 N at the real ~0.24 N/mm; 3 mm let the hand rise: 66 % vs 95 % in the realistic sim)
     gentle_close: bool = True
     gentle_rate: float = 0.2          # i2rt reading units per s: the target runs down at this rate ...
     gentle_delta: float = 0.12        # ... and stays at most this far below the reading (low force on a position-PD gripper)

@@ -57,7 +57,7 @@
     2.0
    ],
    "wrist_ramp_s": 0.3,
-   "holddown_mm": 3.0,
+   "holddown_mm": 8.0,
    "gentle_close": true,
    "gentle_rate": 0.2,
    "gentle_delta": 0.12,

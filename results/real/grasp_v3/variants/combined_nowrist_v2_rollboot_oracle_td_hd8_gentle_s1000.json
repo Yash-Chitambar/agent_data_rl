@@ -1,0 +1,45 @@
+{
+ "mode": "combined_nowrist",
+ "servo": "oracle",
+ "fidelity": "v2",
+ "servo_roll_deg": null,
+ "z_bias_mm": [
+  3.0,
+  13.0
+ ],
+ "press_mm": 16.0,
+ "n": 512,
+ "success": 486,
+ "rate": 0.94921875,
+ "wilson95": [
+  0.9266335552752796,
+  0.965113058413884
+ ],
+ "first": 486,
+ "first_rate": 0.94921875,
+ "first_wilson95": [
+  0.9266335552752796,
+  0.965113058413884
+ ],
+ "attempts_mean": 1.0,
+ "t_grasp_s_p50": 17.479999542236328,
+ "t_grasp_s_p99": 18.961198806762695,
+ "press_N_p50": 11.266307830810547,
+ "press_N_p99": 18.539962768554688,
+ "rot_close_deg_p50": 0.38074207305908203,
+ "rot_close_deg_p99": 0.8931008577346802,
+ "roll_close_deg_p5": -0.2666492462158203,
+ "roll_close_deg_p50": 0.008570017293095589,
+ "roll_close_deg_p95": 0.2552943825721741,
+ "roll_true_deg_p5": -0.29788872599601746,
+ "roll_true_deg_p50": 0.010050812736153603,
+ "roll_true_deg_p95": 0.2900083661079407,
+ "rise_mm_p50": -0.17100200057029724,
+ "rise_mm_p99": 3.823678970336914,
+ "tip_true_mm_p50": -0.00459328293800354,
+ "tip_true_mm_p99": 4.809554100036621,
+ "overrides": {
+  "max_attempts": 1,
+  "holddown_mm": 8
+ }
+}
