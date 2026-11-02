@@ -61,6 +61,18 @@ lowered at the end of the descent: on the robot the last servo correction causes
 
 ## Results
 
-Validation is running. Preliminary (stiff-tip test build), n = 256, oracle servo, 24 mm, press 16 mm: 33 % held with the
-real roll draws; roll 0-1.5 deg nearly all held, 3-4 deg about half, beyond 4 deg almost none. Not yet reproduced: the
-hand's rise during the close (real 4-7.8 mm when empty).
+Validation is running. Oracle servo, 24 mm, press 16 mm, `--servo_roll_deg`, n = 256 per roll. `held` = lifted > 60 mm:
+
+| Commanded roll (true roll at the close, deg) | Held | 95 % CI |
+|---|---|---|
+| 0 (-0.40) | 249/256 | 0.945-0.987 |
+| -1.5 (-1.91) | 247/256 | 0.935-0.981 |
+| -3 (-3.39) | 233/256 | 0.869-0.939 |
+| -3.8 (-4.19) | 127/256 | 0.435-0.557 |
+
+Real target: holds up to ~3 deg, rides over from ~3.8 deg. Press rotation 2.8-3.3 deg (real 3.4); high pad above the low tip
+7.4 mm at -3, 7.9-8.1 mm at -3.8 (real held <= 7.15, empty >= 7.76).
+
+**Limit of v2: the sim hand does not rise.** Median rise close to stall is ~0 mm, real 1.2-2.8 mm held and 4-7.8 mm empty, and
+no 3-6 mm jump appears. Empty closes end in the same state but through a different path. Do not trust v2 for anything that
+depends on the hand rising, or on an unpressed close.
