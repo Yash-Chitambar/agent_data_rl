@@ -22,6 +22,7 @@ class BimanualCfg:
     device: str = 'cuda:0'
     substeps: int = 20
     controller_profile: str = 'native_free_settle_20261028'
+    batch_arm_gains: bool = False   # per-world actuator gain and bias (grasp_v3 eval: wrist gains change per world)
     # Identified real-arm dynamics (scripts/real2sim/identify_arm_dynamics.py, per arm): the
     # driver's own gravity feedforward replaces perfect gravity cancellation, the plant
     # gravity is the scene's scaled per joint, and joint friction is the measured Coulomb
@@ -193,6 +194,7 @@ class BimanualRuntime:
                       ({'geom_friction': c.nworld} if c.pc_friction_range else {}) | \
                       ({'geom_friction': c.nworld, 'geom_solref': c.nworld, 'actuator_gainprm': c.nworld}
                        if c.contact_dr else {}) | \
+                      ({'actuator_gainprm': c.nworld, 'actuator_biasprm': c.nworld} if c.batch_arm_gains else {}) | \
                       {k: c.nworld for k in VD.batch_fields(self.visual_dr_cfg)}
             self.m = mjw.put_model(m, batch_sizes=batched or None)
             self.d = mjw.put_data(m,d,nworld=c.nworld,nconmax=c.nconmax,njmax=c.njmax)

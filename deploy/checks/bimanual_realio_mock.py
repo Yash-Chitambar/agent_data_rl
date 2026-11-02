@@ -33,6 +33,9 @@ class FakeRobot:
         self._kd = np.array([5, 5, 5, 1.5, 1.5, 1.5, .5], float)
         self.target = np.asarray(q7, float).copy()
 
+    def update_kp_kd(self, kp, kd):
+        self._kp, self._kd = np.asarray(kp, float).copy(), np.asarray(kd, float).copy()
+
     def get_joint_pos(self):
         with self._state_lock:
             return self._joint_state.pos.copy()
@@ -136,6 +139,11 @@ def main():
     sent, ff = io.send(s['q'] + 0.01, np.array([0.5, 1.0]), (cfg['fric_comp_right']['tau'], cfg['fric_comp_right']['ramp']))
     res['ff_right_nm'] = ff[0].round(4).tolist()
     res['ff_written_to_command'] = bool(np.allclose(io.arms['right'].robot._commands.torques[:6], ff[0]))
+    r_ = io.arms['right'].robot
+    g0 = r_._kp.copy(), r_._kd.copy()
+    io.set_gains('right', [80, 80, 80, 40, 30, 30], [5, 5, 5, 1.5, 2, 9.])
+    res['set_gains'] = bool(r_._kp[5] == 30 and r_._kd[5] == 5. and r_._kp[6] == g0[0][6] and r_._kd[6] == g0[1][6])   # kd capped; gripper untouched
+    io.set_gains('right', g0[0][:6], g0[1][:6])
     fr = io.frames(('top', 'wrist_right', 'wrist_left'))
     res['frames'] = {k: [list(v[0].shape), str(v[0].dtype)] for k, v in fr.items()}
     res['can_rows'] = {k: len(v) for k, v in io.drain_can().items()}
@@ -161,7 +169,7 @@ def main():
     res['log_streams'] = {k: len(next(iter(v.values()))) for k, v in st.items()}
     res['log_frames'] = len(frs)
     res['dropped'] = meta['dropped']
-    ok_all = res['ff_written_to_command'] and 'Stop' in res['torque_guard'] and 'ticks' in st and 'moves_right' in st
+    ok_all = res['set_gains'] and res['ff_written_to_command'] and 'Stop' in res['torque_guard'] and 'ticks' in st and 'moves_right' in st
     res['ok'] = bool(ok_all)
     print(json.dumps(res, indent=1, default=str))
     raise SystemExit(0 if ok_all else 1)

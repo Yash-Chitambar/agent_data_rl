@@ -48,6 +48,9 @@ class FakeIO:
         self.k += 1
         return np.concatenate([self.q, self.g[:, None]], 1), np.zeros((2, 6))
 
+    def set_gains(self, side, kp, kd):
+        pass
+
     def start_clock(self):
         pass
 
@@ -87,6 +90,7 @@ def main():
     ap.add_argument('--net-device', default='cuda:0' if torch.cuda.is_available() else 'cpu')
     ap.add_argument('--threads', type=int, default=2)
     ap.add_argument('--out', default='')
+    ap.add_argument('--config', default=str(ROOT / 'deploy/config/bimanual.json'))
     a = ap.parse_args()
     import cv2
     torch.set_num_threads(a.threads)
@@ -98,7 +102,7 @@ def main():
     from deploy.bimanual.runlog import RunLogger
     from deploy.bimanual.scene import SceneModel
     from deploy.run_bimanual import gripper_maps, load_cfg
-    cfg = load_cfg(ROOT / 'deploy/config/bimanual.json')
+    cfg = load_cfg(a.config)
     snap = ROOT / 'data/sim_ref/2026-10-25_scene'
     frames = {'top': real_top_policy_image(cv2.imread(str(snap / 'pointed_zed_left.png')), 320),
               'wrist_right': real_policy_image(cv2.imread(str(snap / 'pointed_wrist_right.png')), load_spec(rig.SPEC), 320, 'right')}
