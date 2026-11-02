@@ -38,6 +38,7 @@ class GraspV3Cfg:
     # 0. closing axis horizontal: the servo rotation keeps tilt and yaw, its roll is limited to level_roll_max_deg
     level_roll: bool = True
     level_roll_max_deg: float = 0.0
+    tilt_fix: bool = False            # also put the tilt back to the plan's (only yaw and position stay from the servo)
     roll_gate_deg: float | None = 2.5  # measured roll above this at the end of HOLD: no close, next attempt
     # 1. guarded touch-down (rule: results/real/pick_20261101_analysis.md; margin 1.31 mm, not validated on a slow descent)
     touchdown: bool = True
@@ -218,6 +219,10 @@ class GraspV3Expert(PickExpert):
         ax = torch.linalg.cross(y, zv)                         # as grasp_fidelity.apply_servo_err: changes asin(R[2,1]) by the angle
         ax = ax / ax.norm(dim=1, keepdim=True).clamp(min=1e-9)
         Rl = K.axis_angle_mat(ax, change) @ R
+        if c.tilt_fix:      # y is horizontal now: turn about it until the tool axis has the planned tilt from vertical
+            cur = torch.acos((-Rl[:, 2, 2]).clamp(-1, 1))
+            y0 = torch.tensor([0., 1., 0.], device=R.device, dtype=R.dtype).expand(len(R), 3)
+            Rl = Rl @ K.axis_angle_mat(y0, cur - torch.deg2rad(self.tilt.nan_to_num(55.)))
         self.R_g = torch.where(m[:, None, None], Rl, R)
         upv = torch.tensor([0., 0., 1.], device=R.device, dtype=R.dtype)
         # the approach line follows the levelled tool (the frame's position correction stays)

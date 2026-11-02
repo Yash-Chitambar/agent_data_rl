@@ -41,6 +41,7 @@ MODES = {
     'level_gentle': {**OFF, 'level_roll': True, 'hold_from': 'measured', 'gentle_close': True, 'holddown_mm': 3.},
     's1_touchdown_gentle': {**OFF, 'touchdown': True, 'gentle_close': True, 'holddown_mm': 8.},
     'combined': dict(td_friction_ff=False),                                                      # the deploy default
+    'combined_tilt': dict(td_friction_ff=False, tilt_fix=True),
     'combined_wrist': dict(td_friction_ff=False, wrist_kp=(40., 30., 30.), wrist_kd=(1.5, 2., 2.)),
 }
 RELIEF_V3 = {'lift_mm': -3., 'settle_s': .3, 'close_ramp_s': 1., 'dwell_s': .3, 'blend_s': .5}
@@ -120,6 +121,7 @@ def main():
     ap.add_argument('--servo', default='oracle', choices=('oracle', 'nets'))
     ap.add_argument('--fidelity', default='v2')
     ap.add_argument('--servo_roll_deg', type=float, default=None)
+    ap.add_argument('--no_inject', action='store_true', help='no servo_err: the nets alone (or the oracle alone)')
     ap.add_argument('--z_bias_mm', type=float, nargs=2, default=(3., 13.))
     ap.add_argument('--press_mm', type=float, default=16.)
     ap.add_argument('--enc_offset_deg', type=float, default=.25)
@@ -135,6 +137,8 @@ def main():
     phys.grasp_fidelity = GFC.make(a.fidelity)
     if a.servo_roll_deg is not None:
         phys.grasp_fidelity.servo_err, phys.grasp_fidelity.servo_err_jitter_deg = [[a.servo_roll_deg, 0.]], 0.
+    if a.no_inject:
+        phys.grasp_fidelity.servo_err = None
     legacy = a.mode in ('baseline', 'relief_v3')
     cfg = PickTaskCfg(physics=phys, episode_s=a.episode_s if not legacy else 30., finger_open=.024, enc_offset_deg=a.enc_offset_deg)
     nets = None
@@ -174,7 +178,7 @@ def main():
         z_bias = (torch.rand(N, device=task.device) * (a.z_bias_mm[1] - a.z_bias_mm[0]) + a.z_bias_mm[0]) * 1e-3 if guarded else torch.zeros(N, device=task.device)
         dev = task.device
         F_press, rot_close, rise, tip_close = torch.zeros(N, device=dev), torch.full((N,), float('nan'), device=dev), torch.full((N,), float('nan'), device=dev), torch.full((N,), float('nan'), device=dev)
-        roll_true, roll_b = rot_close.clone(), rot_close.clone()
+        roll_true, roll_b, cen_y, cen_x, tilt_c = rot_close.clone(), rot_close.clone(), rot_close.clone(), rot_close.clone(), rot_close.clone()
         z0 = torch.full((N,), float('nan'), device=dev)
         steps = torch.zeros(N, dtype=torch.long, device=dev)
         kp_nom = wp.to_torch(task.runtime.m.actuator_gainprm)[:, list(task.runtime.indices['right'][2]), 0].clone()
@@ -223,6 +227,12 @@ def main():
             roll_b = torch.where(cl, torch.rad2deg(torch.asin(R_a[:, 2, 1].clamp(-1, 1))), roll_b)
             roll_true = torch.where(cl, torch.rad2deg(torch.asin(task.tcp_pose()[1][:, 2, 1].clamp(-1, 1))), roll_true)
             z0 = torch.where(cl, p_a[:, 2], z0)
+            if cl.any():    # true xy centring at the first close, hand frame (y: closing axis, x: across)
+                W_ = G.grasp_poses(*task.reader_pose(), ex.offset, ex.tilt.nan_to_num(G.TILT_DEG), flip=ex.flip)
+                pT_, RT_ = task.tcp_pose()
+                eh = (RT_.transpose(1, 2) @ (W_['grasp'][0] - pT_)[..., None])[..., 0] * 1e3
+                cen_y, cen_x = torch.where(cl, eh[:, 1], cen_y), torch.where(cl, eh[:, 0], cen_x)
+                tilt_c = torch.where(cl, torch.rad2deg(torch.acos((-RT_[:, 2, 2]).clamp(-1, 1))), tilt_c)
             first_rec |= cl
             if closed.any():
                 ok_r = closed & torch.isnan(rise)
@@ -251,7 +261,7 @@ def main():
             first, att, t_grasp = phys_ok.clone(), torch.ones(N, device=dev), steps.float() * task.dt
         tip_true_mm = tip_close * 1e3
         rows.append({k: v.detach().cpu().numpy() for k, v in dict(
-            success=phys_ok, first=first, attempts=att, t_grasp_s=t_grasp, steps=steps, press_N=F_press, rot_close_deg=rot_close, roll_close_deg=roll_b, roll_close_true_deg=roll_true, rise_mm=rise,
+            success=phys_ok, first=first, attempts=att, t_grasp_s=t_grasp, steps=steps, press_N=F_press, rot_close_deg=rot_close, roll_close_deg=roll_b, roll_close_true_deg=roll_true, rise_mm=rise, centre_y_mm=cen_y, centre_x_mm=cen_x, tilt_close_deg=tilt_c,
             tip_true_mm=tip_true_mm, z_bias_mm=z_bias * 1e3, failed=task.failed, lift_mm=m['lift_m'] * 1e3).items()})
         print(f'batch {batch}: success {int(phys_ok.sum())}/{N} first {int(first.sum())} t={time.time() - t0:.0f}s', flush=True)
     df = pd.DataFrame({k: np.concatenate([r[k] for r in rows])[:a.episodes] for k in rows[0]})
@@ -262,10 +272,13 @@ def main():
              t_grasp_s_p50=pc('t_grasp_s', 50), t_grasp_s_p99=pc('t_grasp_s', 99), press_N_p50=pc('press_N', 50), press_N_p99=pc('press_N', 99),
              rot_close_deg_p50=pc('rot_close_deg', 50), rot_close_deg_p99=pc('rot_close_deg', 99), roll_close_deg_p5=pc('roll_close_deg', 5), roll_close_deg_p50=pc('roll_close_deg', 50), roll_close_deg_p95=pc('roll_close_deg', 95),
              roll_true_deg_p5=pc('roll_close_true_deg', 5), roll_true_deg_p50=pc('roll_close_true_deg', 50), roll_true_deg_p95=pc('roll_close_true_deg', 95), rise_mm_p50=pc('rise_mm', 50), rise_mm_p99=pc('rise_mm', 99),
+             centre_y_abs_mm_p50=float(np.nanpercentile(df.centre_y_mm.abs(), 50)), centre_y_abs_mm_p95=float(np.nanpercentile(df.centre_y_mm.abs(), 95)),
+             centre_x_abs_mm_p50=float(np.nanpercentile(df.centre_x_mm.abs(), 50)), centre_x_abs_mm_p95=float(np.nanpercentile(df.centre_x_mm.abs(), 95)),
+             tilt_close_deg_p5=pc('tilt_close_deg', 5), tilt_close_deg_p50=pc('tilt_close_deg', 50), tilt_close_deg_p95=pc('tilt_close_deg', 95),
              tip_true_mm_p50=pc('tip_true_mm', 50), tip_true_mm_p99=pc('tip_true_mm', 99), overrides=json.loads(a.overrides))
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    rt_ = 'boot' if a.servo_roll_deg is None else f'{a.servo_roll_deg:g}'
+    rt_ = 'none' if a.no_inject else 'boot' if a.servo_roll_deg is None else f'{a.servo_roll_deg:g}'
     tag = f'{a.mode}_{a.fidelity}_roll{rt_}_{a.servo}{a.tag}_s{a.seed}'
     df.to_parquet(out / f'{tag}.parquet')
     (out / f'{tag}.json').write_text(json.dumps(s, indent=1) + '\n')
