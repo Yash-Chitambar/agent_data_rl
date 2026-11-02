@@ -48,7 +48,7 @@ class GraspV3Cfg:
     td_follow_frac: float = 0.2       # anchor reset: the measured TCP followed more than this share of D ...
     td_eps_mm: float = 0.5            # ... plus this
     td_step_mm_s: float = 30.0        # anchor reset: the target moved faster than this
-    td_tip_max_mm: float = 6.5        # fingertip FK height at the trigger above this: the hand is on the reader, not the table
+    td_tip_max_mm: float | None = None  # optional: fingertip FK height at the trigger above this = on the reader (FK height has a run-to-run bias: off by default)
     td_lift_mm: float = 0.5
     td_friction_ff: bool = True
     hold_settle_tol: tuple = (6e-4, 0.5)   # m, deg
@@ -369,16 +369,18 @@ class GraspV3Expert(PickExpert):
         at_depth = descend & (dist < 2e-4) & (self.p_cmd[:, 2] < self.p_g[:, 2] - c.td_max_below_mm * 1e-3 + 1e-4)
         hit = descend & (touched | (at_depth & (drop > .5 * self.det.drop_m)))   # stalled, but the depth limit came first
         blocked = torch.zeros_like(hit)
-        if hit.any() and c.td_tip_max_mm is not None:
-            tip = self.t.tip_height(self._q(), 0.)
-            blocked = hit & (tip > c.td_tip_max_mm * 1e-3)
-            hit = hit & ~blocked
+        tip = None
+        if hit.any():
+            tip = self.t.tip_height(self._q(), 0.)      # logged for the rig; a gate only if td_tip_max_mm is set
+            if c.td_tip_max_mm is not None:
+                blocked = hit & (tip > c.td_tip_max_mm * 1e-3)
+                hit = hit & ~blocked
         deep = at_depth & ~hit & ~blocked
         if hit.any():
             self.td_mode[hit] = 1
             self.z_touch[hit] = p_a[:, 2][hit]
             self._hold_from_touch(hit, p_a)
-            self._go(hit, G_HOLD, 'touchdown', z_touch=p_a[:, 2], z_plan=self.p_g[:, 2], d_mm=drop * 1e3)
+            self._go(hit, G_HOLD, 'touchdown', z_touch=p_a[:, 2], z_plan=self.p_g[:, 2], d_mm=drop * 1e3, tip_fk_mm=tip * 1e3)
         if deep.any():
             self.td_mode[deep] = 2
             self._hold_from_touch(deep, p_a)

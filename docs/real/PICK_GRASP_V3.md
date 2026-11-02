@@ -18,7 +18,7 @@ Code: `blind_insertion/pipeline/grasp_v3.py`, hooks in `deploy/bimanual/chain.py
 | Level | Each servo rotation keeps tilt and yaw. Its roll goes to 0. | `level_roll`, `level_roll_max_deg` | `roll_fix` |
 | Touch-down | At the last wrist frame the hand settles, then descends at 10 mm/s. The integral is frozen. Friction feed-forward is on. | `touchdown`, `td_speed_m_s`, `td_max_below_mm`, `td_friction_ff` | `td_start` |
 | Detect | D = target fall since an anchor. The anchor resets when the hand follows. Contact at D >= 8 mm. | `td_drop_mm`, `td_follow_frac`, `td_eps_mm`, `td_step_mm_s` | `touchdown`, `touchdown_fallback` |
-| On the reader? | Fingertip FK above 6.5 mm at the trigger: no close, next attempt. | `td_tip_max_mm` | `td_blocked` |
+| On the reader? | Off by default: FK height has a run-to-run bias. Set a limit to skip the close when fingertip FK at the trigger is above it. `touchdown` logs `tip_fk_mm`. | `td_tip_max_mm` | `td_blocked` |
 | Hold | Measured height + 0.5 mm, planned xy and orientation, bounded integral. | `td_lift_mm`, `hold_*` | `hold_settled` |
 | Roll gate | Measured |roll| above 2.5 deg: no close, next attempt. | `roll_gate_deg` | `roll_gate` |
 | Close | Hold-down 3 mm. Target runs down at 0.2 /s, at most 0.12 below the reading, until the reading stalls. | `holddown_mm`, `gentle_close`, `gentle_rate`, `gentle_delta`, `stall_*`, `close_*` | `close_start`, `close_stall`, `close_fell_through` |
@@ -84,7 +84,7 @@ Set up first: bases clamped, `scripts/real/estop.py` in a second terminal, `expo
 | `touchdown` too early or in air | `td_drop_mm` up (the free-motion peak in the logs was 6.69 mm), or `td_speed_m_s` up to at most 0.015 |
 | Touch-down presses too hard or turns the hand | `td_drop_mm` down, but stay above the air-test peak |
 | Touch-down is unreliable | `touchdown: false`. The pick then uses the old descent and holds at the measured pose. The roll fix stays on. |
-| `td_blocked` on a good pose | `td_tip_max_mm` up (FK height has a run-to-run bias) |
+| `td_blocked` on a good pose | Remove `td_tip_max_mm` (FK height has a run-to-run bias) |
 | `roll_gate` often | Check `hold_settled.roll_deg`. Raise `roll_gate_deg` to at most 3. |
 | Roll is 0 and the close is still empty | `td_lift_mm` to 0, `holddown_mm` to 4, `gentle_rate` down |
 | Hand rises in the close | `holddown_mm` up (stiffness is only ~0.24 N/mm) |

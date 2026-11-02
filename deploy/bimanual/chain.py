@@ -654,6 +654,8 @@ class RealChain:
                 self.grasp_hooks.restore()
         ok = bool(res['done'][0]) and not bool(res['failed'][0])
         present = self.reader_in_hand()
+        if bool(getattr(getattr(stage, 'expert', None), 'gave_up', torch.zeros(1, dtype=torch.bool))[0]):
+            present = False       # open jaws read inside the wide band
         log.update(pick_done=bool(res['done'][0]), pick_failed=bool(res['failed'][0]), pick_reader_present=present,
                    pick_est_ok=bool(res.get('est_ok', torch.ones(1))[0]))
         self.log_event('pick_result', ok=ok, present=present, **{k: (v[0].tolist() if torch.is_tensor(v) else v) for k, v in res.items()})

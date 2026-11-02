@@ -75,7 +75,6 @@
    "roll_gate_deg": 2.5,
    "td_follow_frac": 0.2,
    "td_step_mm_s": 30.0,
-   "td_tip_max_mm": 6.5,
    "lost_ticks": 5
   }
  },
