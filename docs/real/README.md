@@ -21,3 +21,4 @@ into `main` when the sim uses them; large raw captures go to a `data/<name>` bra
 The single-arm task-H deploy path uses `pc_bench.build_scene(table_z=REAL_TABLE_Z)`. The bimanual
 USB-C chain runner is `deploy/run_bimanual.py` (`deploy/bimanual/`). The first rig test is described in
 [BIMANUAL_DEPLOY](BIMANUAL_DEPLOY.md).
+- [PICK_GRASP_V3.md](PICK_GRASP_V3.md): new right-arm pick, real test batches A-D, sim results and their limits.

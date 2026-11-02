@@ -1,0 +1,49 @@
+{
+ "mode": "level_gentle",
+ "servo": "oracle",
+ "fidelity": "v2",
+ "servo_roll_deg": null,
+ "z_bias_mm": [
+  3.0,
+  13.0
+ ],
+ "press_mm": 16.0,
+ "n": 512,
+ "success": 496,
+ "rate": 0.96875,
+ "wilson95": [
+  0.9498435216776453,
+  0.9806746839110471
+ ],
+ "first": 496,
+ "first_rate": 0.96875,
+ "first_wilson95": [
+  0.9498435216776453,
+  0.9806746839110471
+ ],
+ "attempts_mean": 1.0,
+ "t_grasp_s_p50": 17.8799991607666,
+ "t_grasp_s_p99": 19.137800216674805,
+ "press_N_p50": 46.89952850341797,
+ "press_N_p99": 68.33610534667969,
+ "rot_close_deg_p50": 1.8154685497283936,
+ "rot_close_deg_p99": 2.7611262798309326,
+ "roll_close_deg_p5": -1.2878581285476685,
+ "roll_close_deg_p50": -0.6625975370407104,
+ "roll_close_deg_p95": -0.16367781162261963,
+ "roll_true_deg_p5": -1.2907490730285645,
+ "roll_true_deg_p50": -0.6605638265609741,
+ "roll_true_deg_p95": -0.16743366420269012,
+ "rise_mm_p50": -0.025315210223197937,
+ "rise_mm_p99": 0.3372798562049866,
+ "centre_y_abs_mm_p50": 1.1334195137023926,
+ "centre_y_abs_mm_p95": 2.7369890213012695,
+ "centre_x_abs_mm_p50": 1.3124985694885254,
+ "centre_x_abs_mm_p95": 2.333360195159912,
+ "tilt_close_deg_p5": 56.587894439697266,
+ "tilt_close_deg_p50": 61.02696228027344,
+ "tilt_close_deg_p95": 62.991676330566406,
+ "tip_true_mm_p50": -0.024655833840370178,
+ "tip_true_mm_p99": -0.006946362555027008,
+ "overrides": {}
+}
