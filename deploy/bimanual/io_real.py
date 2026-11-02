@@ -131,6 +131,14 @@ class RealIO:
         self.k += 1
         return sent, ff
 
+    def set_gains(self, side, kp, kd):
+        """Arm joint gains (6,) from the next command on (i2rt update_kp_kd; gripper gains unchanged; kd capped at the
+        DM MIT limit). Used by the guarded grasp for the wrist during the close."""
+        r = self.arms[side].robot
+        kp7, kd7 = r._kp.copy(), r._kd.copy()
+        kp7[:6], kd7[:6] = np.asarray(kp, float), np.minimum(np.asarray(kd, float), self.D.DM_KD_MAX)
+        r.update_kp_kd(kp7, kd7)
+
     def start_clock(self):
         self.t_next = time.monotonic()
 

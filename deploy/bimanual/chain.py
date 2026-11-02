@@ -132,6 +132,80 @@ class RealPickTask:
         self.previous_action.copy_(a)
 
 
+class ChainHooks:
+    """pipeline/grasp_v3 hooks on the chain (one world), real and dry run: gains, gripper, feed-forward, logs."""
+
+    def __init__(self, chain, gc):
+        self.ch, self.gc = chain, gc
+        self.kp0, self.kd0 = chain.scene.kp[0].cpu().numpy().astype(float), chain.scene.kd[0].cpu().numpy().astype(float)
+        self.alpha = 0.
+        self.tgt = None
+        self.g = chain.gmaps['right']
+
+    def grip_reading(self):
+        return torch.tensor([float(self.ch.state['grip'][0])], dtype=torch.float32, device=self.ch.dev)
+
+    def wrist(self, alpha):
+        a = float(alpha[0])
+        if a == self.alpha:
+            return
+        if self.alpha == 0. or a == 0. or a == 1.:
+            self.ch.log_event('grasp_v3', event='wrist_gains', alpha=a, tick=self.ch.k)
+        self.alpha = a
+        self.apply(a)
+
+    def apply(self, a):
+        kp, kd = self.kp0.copy(), self.kd0.copy()
+        kp[3:6] += a * (np.asarray(self.gc.wrist_kp, float) - kp[3:6])
+        kd[3:6] += a * (np.asarray(self.gc.wrist_kd, float) - kd[3:6])
+        self.ch.io.set_gains('right', kp, kd)
+        if self.ch.guards is not None:
+            self.ch.guards.kp[0] = kp             # the torque guard follows the gains in force
+
+    def grip(self, mode, u):
+        m, ch, dt = int(mode[0]), self.ch, self.ch.dt
+        io = ch.io
+        if m == 0:
+            self.tgt, ch._grip_target_right = None, None
+            if hasattr(io, 'set_grip_force'):
+                io.set_grip_force(None)
+            return
+        rd = float(ch.state['grip'][0])
+        if self.tgt is None:
+            self.tgt = min(ch.grip_cmd('right', 1.), rd)
+        if m == 1:      # gentle: run down at a low rate, never further than gentle_delta below the reading
+            self.tgt = min(self.tgt, max(self.tgt - self.gc.gentle_rate * dt, rd - self.gc.gentle_delta))
+            self.t_gentle = self.tgt
+        else:           # squeeze: linear from where the gentle close ended to the final target
+            self.tgt = self.t_gentle + (self.g.close - self.t_gentle) * float(u[0])
+        tgt = max(self.tgt, self.g.close)
+        ch._grip_target_right = float(tgt)
+        if hasattr(io, 'set_grip_force'):
+            ref = max(float(ch.cfg['gripper']['right']['g_reader'] or .32) - self.g.close, 1e-3)
+            io.set_grip_force(float(np.clip((rd - tgt) / ref, .05, 1.)))
+
+    def friction_ff(self, mask):
+        self.ch.rt.comp['right'] = self.ch.fric if bool(mask[0]) else None
+
+    def tick(self, ex):
+        lg = self.ch.logger
+        if lg is not None and int(ex.g[0]) != 0:
+            lg.row('grasp', k=self.ch.k, g=int(ex.g[0]), attempt=int(ex.attempt[0]), alpha=float(ex.alpha[0]), drop=float(ex.det.drop[0]),
+                   z_low=float(ex.det.z_low[0]), z_cmd=float(ex.p_cmd[0, 2]), reading=float(self.ch.state['grip'][0]),
+                   grip_target=float(getattr(self.ch, '_grip_target_right', None) or np.nan))
+
+    def restore(self):
+        """Nominal gains, gripper command and feed-forward, whatever ended the pick."""
+        if self.alpha != 0.:
+            self.alpha = 0.
+            self.apply(0.)
+            self.ch.log_event('grasp_v3', event='wrist_gains', alpha=0., tick=self.ch.k, restored=True)
+        self.ch._grip_target_right = None
+        self.ch.rt.comp['right'] = None
+        if hasattr(self.ch.io, 'set_grip_force'):
+            self.ch.io.set_grip_force(None)
+
+
 class _TrackedHold(LeftHold):
     """LeftHold that registers itself with the chain (force estimate and latch state for the logs and guards)."""
     owner = None
@@ -314,6 +388,8 @@ class RealChain:
         """Sim gripper sign -> i2rt target: open = the sim's finger limit (right: the 24 mm approach opening),
         close = the squeeze target."""
         g = self.gmaps[side]
+        if side == 'right' and getattr(self, '_grip_target_right', None) is not None:
+            return float(np.clip(self._grip_target_right, g.close, g.open))   # guarded grasp: gentle close, squeeze ramp
         if side == 'right' and getattr(self, '_grip_override_right', None) is not None:
             return float(np.clip(self._grip_override_right, g.close, g.open))   # _close_press_relief ramp
         if sign > 0:
@@ -526,9 +602,28 @@ class RealChain:
             return _LogNet(net, sc, name), sc.to(self.dev), k
         hv, nr = dn(pc['hover_net']), dn(pc['near_net'])
         rt_ = dn(pc['rot_net']) if pc.get('rot_net') else None
+        make_expert = None
+        self.grasp_hooks = None
+        if pc.get('grasp_v3'):
+            from blind_insertion.pipeline.grasp_v3 import GraspV3Cfg, GraspV3Expert
+            if pc.get('close_press_relief'):
+                raise ValueError('pick.grasp_v3 replaces pick.close_press_relief: use one')
+            gd = dict(pc['grasp_v3'])
+            if getattr(self, 'pick_test', None):
+                gd['test_mode'] = self.pick_test
+            gc = GraspV3Cfg.from_dict(gd)
+            self.grasp_hooks = ChainHooks(self, gc)
+            self.log_event('grasp_v3', event='config', tick=self.k, **gc.to_dict())
+
+            def ev(kind, world, **kw):
+                self.log_event('grasp_v3', event=kind, **kw)
+                print(f'grasp: {kind} ' + ' '.join(f'{k}={v:.4g}' if isinstance(v, float) else f'{k}={v}' for k, v in kw.items()), flush=True)
+
+            def make_expert(task, **kw):
+                return GraspV3Expert(task, cfg=gc, hooks=self.grasp_hooks, on_event=ev, **kw)
         return ServoPick(estimator, hv, nr, rt_, fracs=pc['fracs'], rehover_mm=pc['rehover_mm'], rehover_max=pc['rehover_max'],
                          settle_max_s=pc['settle_max_s'], hold_s=pc['hold_s'], v_max=.10 * self.speed,
-                         joint_speed=1.2 * self.speed, on_frame=on_frame)
+                         joint_speed=1.2 * self.speed, on_frame=on_frame, make_expert=make_expert)
 
     def stage_pick(self, log, mode='servo'):
         """Servo-descent pick from the capture pose. mode 'expert': pick_stage.ExpertPick with the ZED reader
@@ -548,7 +643,11 @@ class RealChain:
             stage = ExpertPick(est)
             self.pick.max_steps = math.ceil(13. / self.dt)
         self.label = '1 pick'
-        res = stage.run(self)
+        try:
+            res = stage.run(self)
+        finally:
+            if getattr(self, 'grasp_hooks', None) is not None:
+                self.grasp_hooks.restore()
         ok = bool(res['done'][0]) and not bool(res['failed'][0])
         present = self.reader_in_hand()
         log.update(pick_done=bool(res['done'][0]), pick_failed=bool(res['failed'][0]), pick_reader_present=present,

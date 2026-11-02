@@ -64,6 +64,8 @@ class SimIO:
         self.pending = {}
         self.t, self.k = 0.0, 0
         self.dt = self.ch.dt
+        self.grip_frac = None
+        self._grip_base = None
 
     def reset(self, seed):
         """eval_chain.Chain.run_batch's episode start for one seed (layout, DR draws, left arm parked)."""
@@ -87,6 +89,8 @@ class SimIO:
         h.fresh[:] = True
         h.xfrc.zero_()
         self.pending = {}
+        self.grip_frac = None
+        self._grip_base = None
         self.t, self.k = 0.0, 0
         p, R = h.pc_pose()
         self.truth0 = {'pc_p': p[0].cpu().numpy(), 'pc_R': R[0].cpu().numpy(),
@@ -119,6 +123,15 @@ class SimIO:
         self._restore_fingers()
         b = torch.as_tensor(np.asarray(q_motor, float) + self.off, dtype=torch.float32, device=self.dev)
         sign = [1. if grip[i] > self.gmaps[s].close + 0.05 else -1. for i, s in enumerate(SIDES)]
+        if self.grip_frac is not None:          # guarded grasp: the real position-PD force follows the target error
+            if self._grip_base is None:
+                gs = self.rt.grip_scale
+                self._grip_none = gs is None
+                self._grip_base = torch.ones(1, device=self.dev) if gs is None else gs.clone()
+            self.rt.grip_scale = self._grip_base * self.grip_frac
+            sign[0] = -1.
+        elif self._grip_base is not None:
+            self.rt.grip_scale, self._grip_base = (None if self._grip_none else self._grip_base), None
         self.rt.comp['right'] = FC.parse(ff_right, side='right') if isinstance(ff_right, dict) else ff_right
         ff = np.zeros((2, 6))
         if self.rt.comp['right'] is not None:
@@ -130,6 +143,21 @@ class SimIO:
         self.k += 1
         sent = np.concatenate([np.asarray(q_motor, float), np.asarray(grip, float)[:, None]], 1)
         return sent, ff
+
+    def set_gains(self, side, kp, kd):
+        """Arm joint gains (6,), one world: the same PD change RealIO.set_gains makes (kd capped at the DM MIT limit)."""
+        import warp as wp
+        act = self.rt.indices[side][2]
+        gain, bias = wp.to_torch(self.rt.m.actuator_gainprm), wp.to_torch(self.rt.m.actuator_biasprm)
+        kp = torch.as_tensor(np.asarray(kp, float), dtype=gain.dtype, device=gain.device)
+        kd = torch.as_tensor(np.minimum(np.asarray(kd, float), 5.0), dtype=gain.dtype, device=gain.device)
+        gain[:, act, 0] = kp
+        bias[:, act, 1] = -kp
+        bias[:, act, 2] = -kd
+
+    def set_grip_force(self, frac):
+        """Fraction of the squeeze force for the right gripper; None = the plain sign command."""
+        self.grip_frac = frac
 
     def start_clock(self):
         pass

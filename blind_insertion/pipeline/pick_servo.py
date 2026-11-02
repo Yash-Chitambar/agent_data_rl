@@ -46,7 +46,7 @@ class ServoPick:
 
     def __init__(self, estimator, hover, near, rot=None, fracs=(.5, .8, .92), rehover_mm=8., rehover_max=2,
                  settle_max_s=3., hold_s=1., v_max=.10, joint_speed=1.2, integral_gain=.03, hover_tol_m=.004,
-                 believed_frame=True, on_frame=None):
+                 believed_frame=True, on_frame=None, make_expert=None):
         """estimator(chain) -> (p (N,3), R (N,3,3), ok (N,)) reader pose (pick_stage.ZedReader); hover / near / rot:
         (net, scale, n_out) from load_servo_net (rot may be None)."""
         self.estimator, self.hover, self.near, self.rot = estimator, hover, near, rot
@@ -54,6 +54,7 @@ class ServoPick:
         self.kw = dict(hold_s=hold_s, v_max=v_max, joint_speed=joint_speed, integral_gain=integral_gain,
                        settle_max_s=settle_max_s, hover_tol_m=hover_tol_m)
         self.believed_frame, self.on_frame = believed_frame, on_frame
+        self.make_expert = make_expert or PickExpert      # grasp_v3.GraspV3Expert: guarded grasp with retries
 
     def frame_delta(self, fr, need_frame):
         """Servo estimate per world: hover net, or (at a waypoint) near-net position + rot-net rotation."""
@@ -73,7 +74,7 @@ class ServoPick:
         for k_, v_ in getattr(chain, 'reader_est_info', {}).items():
             extra['est_' + k_] = v_
         fn = lambda: (p_est.clone(), R_est.clone())       # noqa: E731
-        ex = PickExpert(task, seed=chain.seed, reader_pose_fn=fn, **self.kw)
+        ex = self.make_expert(task, seed=chain.seed, reader_pose_fn=fn, **self.kw)
         ex.believed_frame = self.believed_frame
         ex.servo_fracs, ex.servo_rot = self.fracs, True
         ex.reset()
@@ -106,4 +107,5 @@ class ServoPick:
         extra.update(steps=torch.full((n,), k + 1, device=dev), ik_ok=ex.ik_ok, servo_frames=n_frames,
                      hover_iters=ex.hover_iters)
         failed = getattr(task, 'failed', torch.zeros(n, dtype=torch.bool, device=dev))
-        return dict(done=ex.done, failed=failed | ~ok, **extra)
+        gave_up = getattr(ex, 'gave_up', torch.zeros(n, dtype=torch.bool, device=dev))
+        return dict(done=ex.done, failed=failed | ~ok | gave_up, **extra)

@@ -86,6 +86,7 @@ def parse(argv=None):
     ap.add_argument('--hold-force', type=float, default=None, help='left press force (N); config default 25; 15 allowed')
     ap.add_argument('--hold-seconds', type=float, default=5.0, help='stage hold: keep the press this long')
     ap.add_argument('--pick-mode', choices=('servo', 'expert'), default='servo', help="'expert' = eval_chain's default pick (no servo): dry-run equivalence only")
+    ap.add_argument('--pick-test', choices=('touchdown',), default=None, help='commissioning, stage pick with pick.grasp_v3: guarded touch-down and hold, jaws stay open, the hand rises')
     ap.add_argument('--yes', action='store_true', help='answer every prompt with Enter (dry runs default to this)')
     ap.add_argument('--pause-in-press', action='store_true', help='also prompt between hold, transport, approach and insertion (the press keeps running; a watchdog unloads at hold_max_s)')
     ap.add_argument('--device', default='cpu', help='kinematics, controllers and the insertion policy (one world: CPU is faster than GPU launches)')
@@ -206,6 +207,7 @@ class Runner:
                                          'method': 'sim truth (dry run)', 'unc_mm': 0.0})
         ch = self.make_chain(log)
         ch.seed = seed or 0
+        ch.pick_test = a.pick_test
         res = {}
         out = dict(stage=a.stage, completed=False)
         try:
@@ -296,6 +298,9 @@ class Runner:
             q_lift, ok = ch.stage_pick(log, a.pick_mode)
             res['pick_ok'] = ok
             print(f'pick: done {log.get("pick_done")}, reader present (gripper) {log.get("pick_reader_present")}', flush=True)
+            if a.pick_test:
+                self.finish(ch)
+                return res
             if not ok:
                 raise GuardStop('pick failed (no grasp or no reader between the fingers)')
             if st == 'pick':
