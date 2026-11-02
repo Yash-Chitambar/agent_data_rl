@@ -61,18 +61,35 @@ lowered at the end of the descent: on the robot the last servo correction causes
 
 ## Results
 
-Validation is running. Oracle servo, 24 mm, press 16 mm, `--servo_roll_deg`, n = 256 per roll. `held` = lifted > 60 mm:
+`results/usbc/policy/pick/grasp_fidelity/`, summary `acceptance.json`. `held` = lifted > 60 mm. CI: Wilson 95 %.
 
-| Commanded roll (true roll at the close, deg) | Held | 95 % CI |
-|---|---|---|
-| 0 (-0.40) | 249/256 | 0.945-0.987 |
-| -1.5 (-1.91) | 247/256 | 0.935-0.981 |
-| -3 (-3.39) | 233/256 | 0.869-0.939 |
-| -3.8 (-4.19) | 127/256 | 0.435-0.557 |
+Roll sweep, oracle servo, 24 mm, press 16 mm, n = 256 per roll (true roll = commanded - 0.4 deg):
 
-Real target: holds up to ~3 deg, rides over from ~3.8 deg. Press rotation 2.8-3.3 deg (real 3.4); high pad above the low tip
-7.4 mm at -3, 7.9-8.1 mm at -3.8 (real held <= 7.15, empty >= 7.76).
+| True roll at the close (deg) | -0.40 | -1.91 | -3.39 | -4.19 | -4.90 | -6.01 |
+|---|---|---|---|---|---|---|
+| Held of 256 | 249 | 247 | 233 | 127 | 15 | 0 |
 
-**Limit of v2: the sim hand does not rise.** Median rise close to stall is ~0 mm, real 1.2-2.8 mm held and 4-7.8 mm empty, and
-no 3-6 mm jump appears. Empty closes end in the same state but through a different path. Do not trust v2 for anything that
-depends on the hand rising, or on an unpressed close.
+Real: held up to 2.87 deg, lost at 3.2 deg, empty from 3.78 deg. High pad above the low tip: 7.4 mm at -3.39, 7.9-8.1 mm at
+-4.19 (real held <= 7.15 mm, empty >= 7.76 mm).
+
+Bootstrap of the real rolls, n = 512, see `acceptance.json` for the latest: oracle 24 mm 169 held (33 %, CI 29-37), oracle 26 mm
+167 held (33 %, CI 29-37), nets 24 mm 99 held (19 %, CI 16-23). Real: 2 of 8 closes.
+
+Open-loop replay of the real commands (`scripts/real2sim/replay_real_run.py --objects none`, baseline table, n = 2 runs, 1 s
+before the close): rotation 3.58-3.55 deg about y, real 3.65-3.60; roll -4.22/-4.63 deg, real -4.20/-4.53; FK tip 3.56/3.88 mm, real 2.44/2.57.
+
+Logged servo commands (`scripts/real2sim/servo_roll_bias.py`): target roll at the last waypoint: real -3.28 +/- 1.92 deg (n = 10),
+sim dry runs +1.74 +/- 0.25 deg (n = 14, only two seeds). Over the three waypoints the real target moves +0.63, -1.14, -3.28 deg for one reader on one
+table, sim +0.04, +0.57, +1.74. This supports a net error on real near frames. It does not prove it: no ground truth exists for real roll.
+
+## Limits
+
+- **26 mm is not worse than 24 mm in the sim** (167 vs 169). The real evidence is only pick4.
+- **The sim hand does not rise.** Median rise close to stall ~0 mm when empty (real 4-7.8), held ~0 (real 1.2-2.8), and no 3-6 mm jump.
+  In sim empty closes the low finger pushes the reader aside (median 13 mm); on the robot the fingers shut over the body. Bigger fillets
+  (3-3.5 mm) and contact spheres at the tip end did not create a rise, and the tip spheres raised the hold rate at high roll.
+- So **v2 cannot show a failure caused by the rise**. A strategy that scores well through press or hold-down on v2 may
+  look better than it is: an unpressed close and a light hold-down are not tested for the rise the operator saw.
+- Sim stall 19.0 mm is unchanged (reading 0.32; real 0.30-0.305).
+- Roll is injected: the sim nets do not produce it. `nets` + `servo_err` adds their own error (true roll median -7.7 deg vs real about -4.2), so it is pessimistic.
+- `reader_fillet_m`, `pad_friction` and `pad_timeconst` are assumed ranges, and the outcome/roll ordering on the robot is post-hoc on 10 closes.

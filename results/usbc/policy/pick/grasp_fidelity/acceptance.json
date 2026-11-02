@@ -1,0 +1,92 @@
+{
+ "nets_open24_servo_believed_enc0.25_s1000": {
+  "n": 512,
+  "held": 99,
+  "held_ci": [
+   0.161,
+   0.23
+  ],
+  "success": 92,
+  "success_ci": [
+   0.149,
+   0.215
+  ],
+  "roll_true": -7.69,
+  "press_rot": 3.7,
+  "press_ry": 3.22,
+  "press_tip_believed": 0.0,
+  "press_tip_true": -0.02,
+  "press_tgt": -16.67,
+  "high_pad_held": 6.5,
+  "high_pad_empty": 13.0,
+  "rise_held": -0.02,
+  "rise_empty": 0.0,
+  "jump_empty": 0.78,
+  "moved_empty": null,
+  "stall_held_mm": 18.99,
+  "roll_p5p95": [
+   -13.99,
+   2.24
+  ]
+ },
+ "oracle_open24_servo_oracle_believed_enc0.25_s1000": {
+  "n": 512,
+  "held": 169,
+  "held_ci": [
+   0.291,
+   0.372
+  ],
+  "success": 164,
+  "success_ci": [
+   0.281,
+   0.362
+  ],
+  "roll_true": -5.1,
+  "press_rot": 3.35,
+  "press_ry": 2.97,
+  "press_tip_believed": -0.03,
+  "press_tip_true": -0.02,
+  "press_tgt": -15.01,
+  "high_pad_held": 6.21,
+  "high_pad_empty": 9.58,
+  "rise_held": -0.0,
+  "rise_empty": 0.62,
+  "jump_empty": 0.64,
+  "moved_empty": null,
+  "stall_held_mm": 18.99,
+  "roll_p5p95": [
+   -6.85,
+   0.74
+  ]
+ },
+ "oracle_open26_servo_oracle_believed_enc0.25_s1000": {
+  "n": 512,
+  "held": 167,
+  "held_ci": [
+   0.287,
+   0.368
+  ],
+  "success": 165,
+  "success_ci": [
+   0.283,
+   0.364
+  ],
+  "roll_true": -5.09,
+  "press_rot": 3.39,
+  "press_ry": 3.0,
+  "press_tip_believed": -0.0,
+  "press_tip_true": -0.02,
+  "press_tgt": -15.2,
+  "high_pad_held": 6.22,
+  "high_pad_empty": 9.58,
+  "rise_held": -0.0,
+  "rise_empty": 0.36,
+  "jump_empty": 0.63,
+  "moved_empty": 13.16,
+  "stall_held_mm": 18.99,
+  "roll_p5p95": [
+   -6.86,
+   0.78
+  ]
+ }
+}
