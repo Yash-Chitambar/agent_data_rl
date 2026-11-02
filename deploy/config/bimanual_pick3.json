@@ -40,11 +40,10 @@
   "grasp_v3": {
    "_about": "blind_insertion/pipeline/grasp_v3.GraspV3Cfg; docs/real/PICK_GRASP_V3.md lists the knobs.",
    "touchdown": true,
-   "td_speed_m_s": 0.008,
+   "td_speed_m_s": 0.01,
    "td_max_below_mm": 8.0,
-   "td_drop_mm": 5.0,
+   "td_drop_mm": 8.0,
    "td_eps_mm": 0.5,
-   "td_accept_above_mm": 6.0,
    "td_lift_mm": 0.5,
    "td_friction_ff": true,
    "wrist_kp": [
@@ -58,7 +57,7 @@
     2.0
    ],
    "wrist_ramp_s": 0.3,
-   "holddown_mm": 2.5,
+   "holddown_mm": 3.0,
    "gentle_close": true,
    "gentle_rate": 0.2,
    "gentle_delta": 0.12,
@@ -67,10 +66,17 @@
    "max_attempts": 3,
    "test_lift_mm": 15.0,
    "held_band": [
-    0.25,
-    0.4
+    0.275,
+    0.36
    ],
-   "rise_mm": 40.0
+   "rise_mm": 40.0,
+   "level_roll": true,
+   "level_roll_max_deg": 0.0,
+   "roll_gate_deg": 2.5,
+   "td_follow_frac": 0.2,
+   "td_step_mm_s": 30.0,
+   "td_tip_max_mm": 6.5,
+   "lost_ticks": 5
   }
  },
  "insert": {

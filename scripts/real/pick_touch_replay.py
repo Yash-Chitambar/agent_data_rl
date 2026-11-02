@@ -6,7 +6,7 @@ The first 1.2 s of each descent is skipped (the left swing arrives at speed; the
 Contact: the right arm from the last pick waypoint to the close (2026-11-01): first detection, tip height there.
 Limit: the right descent there runs at 50 mm/s and then creeps on the integral, not at the deployed 8 mm/s.
 
-    PYTHONPATH=. .venv/bin/python scripts/real/pick_touch_replay.py --drop-mm 5 --eps-mm 0.5 --out results/real/touch_replay.json
+    PYTHONPATH=. .venv/bin/python scripts/real/pick_touch_replay.py --drop-mm 8 --eps-mm 0.5 --out results/real/touch_replay.json
 """
 import argparse
 import glob
@@ -27,7 +27,7 @@ def replay(zc, zm, drop, eps):
     det = TouchDetector(1, drop, eps, 'cpu')
     out, hit = [], None
     for i in range(len(zc)):
-        t, d = det.update(torch.tensor([zc[i]]), torch.tensor([zm[i]]))
+        t, d = det.update(torch.tensor([zc[i]], dtype=torch.float32), torch.tensor([zm[i]], dtype=torch.float32))
         out.append(float(d[0]))
         if hit is None and bool(t[0]):
             hit = i
@@ -37,7 +37,7 @@ def replay(zc, zm, drop, eps):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--root', default='data/real_runs/2026-11-01')
-    ap.add_argument('--drop-mm', type=float, default=5.0)
+    ap.add_argument('--drop-mm', type=float, default=8.0)
     ap.add_argument('--eps-mm', type=float, default=0.5)
     ap.add_argument('--out', default='')
     a = ap.parse_args()
@@ -61,12 +61,11 @@ def main():
             if len(idx) >= 20:
                 a0, b0 = idx[0] + 60, idx[-1]       # 1.2 s after the swing: the deployed descent starts settled
                 dr, hit = replay(zc[a0:b0 + 1], zm[a0:b0 + 1], a.drop_mm * 1e-3, a.eps_mm * 1e-3)
-                # contact = the last stretch of the descent where the measured height stops falling for good
+                # the hand stops ~drop / 10 mm/s before the hit; a true contact keeps the measured height flat from there on
                 z_end = zm[a0:b0 + 1]
-                contact = int(np.argmax(z_end <= z_end.min() + 1e-3))
-                res['left_free'].append(dict(run=os.path.basename(d), n=int(b0 - a0), contact_i=contact, hit_i=hit,
-                                             early_by_ticks=None if hit is None else contact - hit,
-                                             free_drop_max_mm=float(dr[:max(contact - 5, 1)].max() * 1e3), final_drop_mm=float(dr[-1] * 1e3)))
+                res['left_free'].append(dict(run=os.path.basename(d), n=int(b0 - a0), hit_i=hit, z_at_hit_mm=None if hit is None else float(z_end[hit] * 1e3),
+                                             meas_fall_after_hit_mm=None if hit is None else float((z_end[hit] - z_end[hit:].min()) * 1e3),
+                                             cmd_fall_after_hit_mm=None if hit is None else float((zc[a0:b0 + 1][hit] - zc[a0:b0 + 1].min()) * 1e3)))
                 print('L', res['left_free'][-1], flush=True)
         ev = [json.loads(x) for x in open(d + '/events.jsonl')]
         fr = [e for e in ev if e['kind'] == 'servo_frame' and e.get('frame_kind') == 'waypoint']

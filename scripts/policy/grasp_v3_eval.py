@@ -1,11 +1,11 @@
 """Batched sim evaluation of the guarded grasp (blind_insertion/pipeline/grasp_v3.py) against the current expert.
 
-The stock sim grasps ~100 % at every tilt and opening (docs/real/PICK_GRASP_SIM_HANDOFF_20261101.md): its contact does
-not fail the way the robot fails. So this eval adds pessimistic perturbations:
-  --wrist_soft s      all right-wrist gains x s (calibrated so the baseline press turns the hand about the real 3.5 deg)
-  --z_bias_mm a b     the plan sits b ~ U(a, b) mm too low (real tips stop 0.7..4.3 mm above the plan)
-and reports the mechanism at the close next to physics success: hand rotation against the plan, PD press force,
-hand rise, true fingertip height. `proxy_ok` is an ASSUMED geometric pass (--proxy rot rise tip), not measured physics.
+Physics: the realistic grasp model (BimanualCfg.grasp_fidelity, docs/real/GRASP_FIDELITY.md, first version, under validation).
+Injected, from the real logs (results/real/pick_20261101_analysis.md):
+  servo roll     --servo_roll_deg r on every world; default the model's bootstrap of the 11 real target poses
+  plan too low   --z_bias_mm a b on the guarded modes: the real servo plan sits 3-13 mm below the height where the hand stops
+  press          --press_mm on the modes without touch-down (the model's way to reproduce the same real press)
+Held = done, not failed, lifted > 60 mm. Attempt 1 alone = `first`; after retries = `success`.
 
     CUDA_VISIBLE_DEVICES=3 PYTHONPATH=. .venv/bin/python scripts/policy/grasp_v3_eval.py --mode combined --episodes 512 --out results/real/grasp_v3/oracle
 """
@@ -27,17 +27,22 @@ sys.path.insert(0, str(ROOT))
 from blind_insertion.envs import kinematics as K  # noqa: E402
 from blind_insertion.envs.bimanual_pick import PickExpert, PickTask, PickTaskCfg  # noqa: E402
 from blind_insertion.envs.bimanual_runtime import BimanualCfg  # noqa: E402
-from blind_insertion.pipeline.grasp_v3 import G_CLOSE, G_DONE, G_HOLD, G_SQUEEZE, G_TEST, GraspV3Cfg, GraspV3Expert  # noqa: E402
+from blind_insertion.pipeline.grasp_v3 import G_CLOSE, G_HOLD, G_SQUEEZE, G_TD, G_TEST, GraspV3Cfg, GraspV3Expert  # noqa: E402
 from blind_insertion.scenes import reader_grasp as G  # noqa: E402
 from deploy.conventions import GripperMap  # noqa: E402
 
+OFF = dict(level_roll=False, roll_gate_deg=None, touchdown=False, hold_from='press', wrist_kp=None, wrist_kd=None, gentle_close=False, holddown_mm=0., max_attempts=1, td_friction_ff=False)
 MODES = {
-    's1_touchdown': dict(touchdown=True, wrist_kp=None, wrist_kd=None, gentle_close=False, holddown_mm=0., max_attempts=1, td_friction_ff=False),
-    's2_wrist': dict(touchdown=False, hold_from='press', gentle_close=False, holddown_mm=0., max_attempts=1),
-    's3_gentle_hold': dict(touchdown=False, hold_from='measured', hold_offset_mm=0., wrist_kp=None, wrist_kd=None, holddown_mm=3., max_attempts=1),
-    's4_retry': dict(touchdown=False, hold_from='press', wrist_kp=None, wrist_kd=None, gentle_close=False, holddown_mm=0., max_attempts=3),
+    's0_level': {**OFF, 'level_roll': True},
+    's1_touchdown': {**OFF, 'touchdown': True},
+    's2_wrist': {**OFF, 'wrist_kp': (40., 30., 30.), 'wrist_kd': (1.5, 2., 2.)},
+    's3_gentle_hold': {**OFF, 'hold_from': 'measured', 'gentle_close': True, 'holddown_mm': 3.},
+    's4_retry': {**OFF, 'max_attempts': 3},
+    'level_gentle': {**OFF, 'level_roll': True, 'hold_from': 'measured', 'gentle_close': True, 'holddown_mm': 3.},
+    'combined_nowrist': dict(wrist_kp=None, wrist_kd=None, td_friction_ff=False),
     'combined': dict(td_friction_ff=False),
 }
+RELIEF_V3 = {'lift_mm': -3., 'settle_s': .3, 'close_ramp_s': 1., 'dwell_s': .3, 'blend_s': .5}
 
 
 def wilson(k, n, z=1.96):
@@ -49,47 +54,54 @@ def wilson(k, n, z=1.96):
 
 
 class SimHooks:
-    """grasp_v3 hooks on the batched PickTask: same reading map and force rule as deploy/bimanual ChainHooks + SimIO."""
+    """grasp_v3 hooks on the batched PickTask: the same reading map and position-mode jaws as deploy/bimanual ChainHooks + SimIO."""
 
-    def __init__(self, task, gc, gmap, soft):
-        self.t, self.gc, self.gmap, self.soft = task, gc, gmap, soft
-        rt = task.runtime
+    def __init__(self, task, gc, gmap):
+        self.t, self.gc, self.gmap = task, gc, gmap
+        rt, dev = task.runtime, task.device
         self.act = list(rt.indices['right'][2])
         self.gain, self.bias = wp.to_torch(rt.m.actuator_gainprm), wp.to_torch(rt.m.actuator_biasprm)
-        if not hasattr(task, '_gains0'):      # nominal gains, once: a later batch must not scale them again
-            task._gains0 = (self.gain[:, self.act, 0].clone(), -self.bias[:, self.act, 2].clone())
-        self.kp0, self.kd0 = task._gains0
-        self.base = rt.grip_scale.clone() if rt.grip_scale is not None else torch.ones(rt.cfg.nworld, device=task.device)
-        self.apply(torch.zeros(len(self.kp0), device=task.device))
+        self.kp0, self.kd0 = self.gain[:, self.act, 0].clone(), -self.bias[:, self.act, 2].clone()     # this episode's weak-wrist draw
+        m = rt.mjm
+        nom = torch.tensor(m.actuator_gainprm[self.act, 0], device=dev, dtype=self.kp0.dtype)
+        self.scale = self.kp0[:, 3:6] / nom[3:6]
+        self.kp = self.kp0.clone()
+        N = len(self.kp0)
+        if rt.grip_target is None:
+            rt.grip_target = torch.full((N,), float('nan'), device=dev)
+        self.tgt = torch.full((N,), float('nan'), device=dev)
+        self.tg0 = self.tgt.clone()
 
-    def apply(self, alpha):
+    def wrist(self, alpha):
+        if self.gc.wrist_kp is None:
+            return
         kp, kd = self.kp0.clone(), self.kd0.clone()
-        if self.gc is not None and self.gc.wrist_kp is not None:
-            sk, sd = (torch.tensor(x, device=kp.device, dtype=kp.dtype) for x in (self.gc.wrist_kp, self.gc.wrist_kd))
-            kp[:, 3:6] += alpha[:, None] * (sk - kp[:, 3:6])
-            kd[:, 3:6] += alpha[:, None] * (sd - kd[:, 3:6])
-        kp[:, 3:6] *= self.soft
-        kd[:, 3:6] *= math.sqrt(self.soft)
+        sk, sd = (torch.tensor(x, device=kp.device, dtype=kp.dtype) for x in (self.gc.wrist_kp, self.gc.wrist_kd))
+        kp[:, 3:6] += alpha[:, None] * (sk * self.scale - kp[:, 3:6])
+        kd[:, 3:6] += alpha[:, None] * (sd * self.scale - kd[:, 3:6])
         self.gain[:, self.act, 0] = kp
         self.bias[:, self.act, 1] = -kp
         self.bias[:, self.act, 2] = -kd
         self.kp = kp
-
-    def wrist(self, alpha):
-        self.apply(alpha)
 
     def grip_reading(self):
         fo = self.t.runtime.q[:, self.t.finger_qadr].mean(1)
         return (fo - self.gmap.b) / self.gmap.a
 
     def grip(self, mode, u):
-        rt = self.t.runtime
-        frac = torch.ones_like(u)
-        low = self.gc.gentle_delta / .32
-        frac[mode == 1] = low
+        rt, c, dt = self.t.runtime, self.gc, self.t.dt
+        rd = self.grip_reading()
+        off = mode == 0
+        self.tgt[off] = float('nan')
+        new = (mode > 0) & torch.isnan(self.tgt)
+        self.tgt[new] = rd[new]
+        m = mode == 1
+        run = torch.max(self.tgt - c.gentle_rate * dt, rd - c.gentle_delta)
+        self.tgt = torch.where(m, torch.min(self.tgt, run), self.tgt)
+        self.tg0 = torch.where(m | new, self.tgt, self.tg0)
         sq = mode == 2
-        frac[sq] = low + (1 - low) * u[sq]
-        rt.grip_scale = self.base * frac
+        self.tgt = torch.where(sq, self.tg0 * (1 - u), self.tgt)
+        rt.grip_target[:] = self.tgt * self.gmap.a + self.gmap.b       # NaN: the plain sign command
 
     def friction_ff(self, mask):
         pass
@@ -100,14 +112,16 @@ class SimHooks:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--mode', choices=('baseline', *MODES), default='combined')
+    ap.add_argument('--mode', choices=('baseline', 'relief_v3', *MODES), default='combined')
     ap.add_argument('--episodes', type=int, default=512)
     ap.add_argument('--nworld', type=int, default=512)
     ap.add_argument('--seed', type=int, default=1000)
     ap.add_argument('--servo', default='oracle', choices=('oracle', 'nets'))
-    ap.add_argument('--wrist_soft', type=float, default=1.)
-    ap.add_argument('--z_bias_mm', type=float, nargs=2, default=(0., 0.))
-    ap.add_argument('--proxy', type=float, nargs=3, default=(2., 1.5, 3.), help='assumed pinch pass: rotation deg, rise mm, true tip height mm')
+    ap.add_argument('--fidelity', default='v2')
+    ap.add_argument('--servo_roll_deg', type=float, default=None)
+    ap.add_argument('--z_bias_mm', type=float, nargs=2, default=(3., 13.))
+    ap.add_argument('--press_mm', type=float, default=16.)
+    ap.add_argument('--enc_offset_deg', type=float, default=.25)
     ap.add_argument('--episode_s', type=float, default=80.)
     ap.add_argument('--g_reader', type=float, default=.32)
     ap.add_argument('--tag', default='')
@@ -116,7 +130,12 @@ def main():
     a = ap.parse_args()
     gmap = GripperMap(1., 0., .048, a.g_reader, .019)
     phys = BimanualCfg(nworld=a.nworld, device='cuda:0', task_layout='results/usbc/policy/pick/task_layout.json', batch_arm_gains=True)
-    cfg = PickTaskCfg(physics=phys, episode_s=a.episode_s if a.mode != 'baseline' else 25.)
+    from blind_insertion.envs.grasp_fidelity import GraspFidelityCfg as GFC
+    phys.grasp_fidelity = GFC.make(a.fidelity)
+    if a.servo_roll_deg is not None:
+        phys.grasp_fidelity.servo_err, phys.grasp_fidelity.servo_err_jitter_deg = [[a.servo_roll_deg, 0.]], 0.
+    legacy = a.mode in ('baseline', 'relief_v3')
+    cfg = PickTaskCfg(physics=phys, episode_s=a.episode_s if not legacy else 30., finger_open=.024, enc_offset_deg=a.enc_offset_deg)
     nets = None
     if a.servo == 'nets':
         from blind_insertion.pipeline.pick_servo import load_servo_net, run_net
@@ -128,32 +147,36 @@ def main():
     if a.servo == 'nets':
         nets = {k: load_servo_net(P / f'reader_servo_{v}.pt', task.device) for k, v in (('hover', 'hover'), ('near', 'near'), ('rot', 'near6'))}
     gc = None
-    if a.mode != 'baseline':
+    if not legacy:
         gc = GraspV3Cfg(**{**MODES[a.mode], **json.loads(a.overrides)})
     torch.manual_seed(a.seed)
     rows = []
     up = torch.tensor([0., 0., 1.], device=task.device)
-    from deploy.safety_task import FlexChecker  # noqa: F401
-    fq = task.finger_qadr
-    tips = (lambda q: None)
     for batch in range(math.ceil(a.episodes / a.nworld)):
         phys.render_rgb = a.servo == 'nets'
         task.reset()
         phys.render_rgb = False
         N = a.nworld
-        hooks = SimHooks(task, gc, gmap, a.wrist_soft)
+        hooks = SimHooks(task, gc, gmap) if gc is not None else None
         if gc is not None:
             ex = GraspV3Expert(task, seed=a.seed + batch, hold_s=1., settle_max_s=3., hover_tol_m=.004, cfg=gc, hooks=hooks)
         else:
             ex = PickExpert(task, seed=a.seed + batch, hold_s=1., settle_max_s=3., hover_tol_m=.004)
         ex.believed_frame = True
+        guarded = gc is not None and gc.touchdown
+        ex.tip_floor = -.013
+        ex.press_m = 0. if guarded else a.press_mm * 1e-3
+        if a.mode == 'relief_v3':
+            ex.relief = RELIEF_V3
         ex.servo_fracs, ex.servo_rot = (.5, .8, .92), True
         ex.reset()
-        z_bias = (torch.rand(N, device=task.device) * (a.z_bias_mm[1] - a.z_bias_mm[0]) + a.z_bias_mm[0]) * 1e-3
+        z_bias = (torch.rand(N, device=task.device) * (a.z_bias_mm[1] - a.z_bias_mm[0]) + a.z_bias_mm[0]) * 1e-3 if guarded else torch.zeros(N, device=task.device)
         dev = task.device
         F_press, rot_close, rise, tip_close = torch.zeros(N, device=dev), torch.full((N,), float('nan'), device=dev), torch.full((N,), float('nan'), device=dev), torch.full((N,), float('nan'), device=dev)
+        roll_true, roll_b = rot_close.clone(), rot_close.clone()
         z0 = torch.full((N,), float('nan'), device=dev)
         steps = torch.zeros(N, dtype=torch.long, device=dev)
+        kp_nom = wp.to_torch(task.runtime.m.actuator_gainprm)[:, list(task.runtime.indices['right'][2]), 0].clone()
         first_rec = torch.zeros(N, dtype=torch.bool, device=dev)
         tip_off = None
         for k in range(task.max_steps - 1):
@@ -193,18 +216,19 @@ def main():
             else:
                 closing = (ex.g >= G_CLOSE) & (ex.g <= G_SQUEEZE) & ~((gprev >= G_CLOSE) & (gprev <= G_SQUEEZE))
                 closed = (ex.g >= G_TEST) & (gprev >= G_CLOSE) & (gprev <= G_SQUEEZE)
-                near = (ex.g >= G_HOLD) & (ex.g <= G_SQUEEZE) | ((ex.g == 1) & (ex.gt > 10))
+                near = ((ex.g >= G_HOLD) & (ex.g <= G_SQUEEZE)) | ((ex.g == G_TD) & (ex.gt > 10))
             cl = closing & ~first_rec
             rot_close = torch.where(cl, e_r, rot_close)
+            roll_b = torch.where(cl, torch.rad2deg(torch.asin(R_a[:, 2, 1].clamp(-1, 1))), roll_b)
+            roll_true = torch.where(cl, torch.rad2deg(torch.asin(task.tcp_pose()[1][:, 2, 1].clamp(-1, 1))), roll_true)
             z0 = torch.where(cl, p_a[:, 2], z0)
             first_rec |= cl
-            q_t = task.q_true()
             if closed.any():
                 ok_r = closed & torch.isnan(rise)
                 rise = torch.where(ok_r, (p_a[:, 2] - z0) * 1e3, rise)
-                pads = task.runtime.q  # noqa: F841
-                tip_close = torch.where(ok_r, task.tcp_pose()[0][:, 2], tip_close)
-            tau = hooks.kp * (task.joint_target[:, 0] - q)
+                tip_close = torch.where(ok_r, task.tip_height(task.q_true()), tip_close)
+            kp_ = hooks.kp if hooks is not None else task.runtime.m and kp_nom
+            tau = kp_ * (task.joint_target[:, 0] - q)
             JJt = J @ J.transpose(1, 2) + 1e-4 * torch.eye(6, device=dev)
             f = torch.linalg.solve(JJt, (J @ tau[..., None]))[..., 0]
             F_press = torch.where(near, torch.max(F_press, -f[:, 2]), F_press)
@@ -216,7 +240,7 @@ def main():
         m = task.pick_metrics()
         lifted = m['lift_m'] > .06
         done = ex.done
-        phys_ok = done & ~task.failed & m['finite'] & lifted & (m['tilt_deg'] < 3)
+        phys_ok = done & ~task.failed & m['finite'] & lifted
         if gc is not None:
             phys_ok &= ~ex.gave_up
             first = (ex.first_held == 1) & (ex.attempt == 1) & phys_ok
@@ -224,25 +248,24 @@ def main():
             t_grasp = ex.t_grasp
         else:
             first, att, t_grasp = phys_ok.clone(), torch.ones(N, device=dev), steps.float() * task.dt
-        tip_true_mm = (tip_close - task.table_top) * 1e3
+        tip_true_mm = tip_close * 1e3
         rows.append({k: v.detach().cpu().numpy() for k, v in dict(
-            success=phys_ok, first=first, attempts=att, t_grasp_s=t_grasp, steps=steps, press_N=F_press, rot_close_deg=rot_close, rise_mm=rise,
-            tcp_above_table_mm=tip_true_mm, z_bias_mm=z_bias * 1e3, failed=task.failed, lift_mm=m['lift_m'] * 1e3).items()})
+            success=phys_ok, first=first, attempts=att, t_grasp_s=t_grasp, steps=steps, press_N=F_press, rot_close_deg=rot_close, roll_close_deg=roll_b, roll_close_true_deg=roll_true, rise_mm=rise,
+            tip_true_mm=tip_true_mm, z_bias_mm=z_bias * 1e3, failed=task.failed, lift_mm=m['lift_m'] * 1e3).items()})
         print(f'batch {batch}: success {int(phys_ok.sum())}/{N} first {int(first.sum())} t={time.time() - t0:.0f}s', flush=True)
     df = pd.DataFrame({k: np.concatenate([r[k] for r in rows])[:a.episodes] for k in rows[0]})
-    pr = a.proxy
-    tcp0 = float(df.tcp_above_table_mm.quantile(.01))     # lowest TCP height over the run = tips about on the table
-    df['proxy_ok'] = df.success & (df.rot_close_deg < pr[0]) & (df.rise_mm.abs() < pr[1]) & (df.tcp_above_table_mm - tcp0 < pr[2])
-    n, k, kf, kp_ = len(df), int(df.success.sum()), int(df['first'].sum()), int(df.proxy_ok.sum())
+    n, k, kf = len(df), int(df.success.sum()), int(df['first'].sum())
     pc = lambda c, q: float(np.nanpercentile(df[c], q))   # noqa: E731
-    s = dict(mode=a.mode, servo=a.servo, wrist_soft=a.wrist_soft, z_bias_mm=list(a.z_bias_mm), n=n, success=k, rate=k / n, wilson95=wilson(k, n), first=kf, first_rate=kf / n,
-             first_wilson95=wilson(kf, n), proxy_ok=kp_, proxy_rate=kp_ / n, proxy_wilson95=wilson(kp_, n), proxy_assumed=list(pr), attempts_mean=float(df.attempts.mean()),
+    s = dict(mode=a.mode, servo=a.servo, fidelity=a.fidelity, servo_roll_deg=a.servo_roll_deg, z_bias_mm=list(a.z_bias_mm), press_mm=a.press_mm, n=n, success=k, rate=k / n, wilson95=wilson(k, n),
+             first=kf, first_rate=kf / n, first_wilson95=wilson(kf, n), attempts_mean=float(df.attempts.mean()),
              t_grasp_s_p50=pc('t_grasp_s', 50), t_grasp_s_p99=pc('t_grasp_s', 99), press_N_p50=pc('press_N', 50), press_N_p99=pc('press_N', 99),
-             rot_close_deg_p50=pc('rot_close_deg', 50), rot_close_deg_p99=pc('rot_close_deg', 99), rise_mm_p50=pc('rise_mm', 50), rise_mm_p99=pc('rise_mm', 99),
-             tcp_above_table_mm_p50=pc('tcp_above_table_mm', 50), tcp_above_table_mm_p99=pc('tcp_above_table_mm', 99), overrides=json.loads(a.overrides))
+             rot_close_deg_p50=pc('rot_close_deg', 50), rot_close_deg_p99=pc('rot_close_deg', 99), roll_close_deg_p5=pc('roll_close_deg', 5), roll_close_deg_p50=pc('roll_close_deg', 50), roll_close_deg_p95=pc('roll_close_deg', 95),
+             roll_true_deg_p5=pc('roll_close_true_deg', 5), roll_true_deg_p50=pc('roll_close_true_deg', 50), roll_true_deg_p95=pc('roll_close_true_deg', 95), rise_mm_p50=pc('rise_mm', 50), rise_mm_p99=pc('rise_mm', 99),
+             tip_true_mm_p50=pc('tip_true_mm', 50), tip_true_mm_p99=pc('tip_true_mm', 99), overrides=json.loads(a.overrides))
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
-    tag = f'{a.mode}_soft{a.wrist_soft:g}_z{a.z_bias_mm[0]:g}-{a.z_bias_mm[1]:g}_{a.servo}{a.tag}_s{a.seed}'
+    rt_ = 'boot' if a.servo_roll_deg is None else f'{a.servo_roll_deg:g}'
+    tag = f'{a.mode}_{a.fidelity}_roll{rt_}_{a.servo}{a.tag}_s{a.seed}'
     df.to_parquet(out / f'{tag}.parquet')
     (out / f'{tag}.json').write_text(json.dumps(s, indent=1) + '\n')
     print(json.dumps(s, indent=1), flush=True)

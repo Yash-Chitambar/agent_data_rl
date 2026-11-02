@@ -116,6 +116,11 @@ class RealPickTask:
     def q_true(self):
         raise Privileged('true joint angles')
 
+    def tip_height(self, q, finger=None):
+        """Lowest fingertip above the table (m) at believed angles q (1, 6): FlexChecker FK (fingers at 0), the chain's floor measure."""
+        h = self.owner.floor_chk.heights(q[0].cpu().numpy().astype(float))
+        return torch.tensor([min(h['left_finger'], h['right_finger']) - self.owner.scene.table_top], dtype=torch.float32, device=q.device)
+
     def pick_metrics(self):
         """Privileged in the sim (lift, tilt, in-hand pose): NaN here; the runner judges the grasp by the gripper."""
         nan = lambda *s: torch.full((1, *s), float('nan'), device=self.device)   # noqa: E731
@@ -167,8 +172,8 @@ class ChainHooks:
         io = ch.io
         if m == 0:
             self.tgt, ch._grip_target_right = None, None
-            if hasattr(io, 'set_grip_force'):
-                io.set_grip_force(None)
+            if hasattr(io, 'set_grip_position'):
+                io.set_grip_position(False)
             return
         rd = float(ch.state['grip'][0])
         if self.tgt is None:
@@ -180,9 +185,8 @@ class ChainHooks:
             self.tgt = self.t_gentle + (self.g.close - self.t_gentle) * float(u[0])
         tgt = max(self.tgt, self.g.close)
         ch._grip_target_right = float(tgt)
-        if hasattr(io, 'set_grip_force'):
-            ref = max(float(ch.cfg['gripper']['right']['g_reader'] or .32) - self.g.close, 1e-3)
-            io.set_grip_force(float(np.clip((rd - tgt) / ref, .05, 1.)))
+        if hasattr(io, 'set_grip_position'):
+            io.set_grip_position(True)
 
     def friction_ff(self, mask):
         self.ch.rt.comp['right'] = self.ch.fric if bool(mask[0]) else None
@@ -191,7 +195,7 @@ class ChainHooks:
         lg = self.ch.logger
         if lg is not None and int(ex.g[0]) != 0:
             lg.row('grasp', k=self.ch.k, g=int(ex.g[0]), attempt=int(ex.attempt[0]), alpha=float(ex.alpha[0]), drop=float(ex.det.drop[0]),
-                   z_low=float(ex.det.z_low[0]), z_cmd=float(ex.p_cmd[0, 2]), reading=float(self.ch.state['grip'][0]),
+                   z_cmd=float(ex.p_cmd[0, 2]), reading=float(self.ch.state['grip'][0]),
                    grip_target=float(getattr(self.ch, '_grip_target_right', None) or np.nan))
 
     def restore(self):
@@ -202,8 +206,8 @@ class ChainHooks:
             self.ch.log_event('grasp_v3', event='wrist_gains', alpha=0., tick=self.ch.k, restored=True)
         self.ch._grip_target_right = None
         self.ch.rt.comp['right'] = None
-        if hasattr(self.ch.io, 'set_grip_force'):
-            self.ch.io.set_grip_force(None)
+        if hasattr(self.ch.io, 'set_grip_position'):
+            self.ch.io.set_grip_position(False)
 
 
 class _TrackedHold(LeftHold):
