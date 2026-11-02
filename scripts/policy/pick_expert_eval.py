@@ -265,6 +265,8 @@ for batch in range(math.ceil(a.episodes / a.nworld)):
          'pad_mu': task.runtime.geom_friction[:, task.pads[0], 0], 'reader_mu': task.runtime.geom_friction[:, task.reader_geoms[0], 0]}
     d.update(ex.diag)
     d['final_finger_mm'] = task.runtime.q[:, task.finger_qadr].mean(1) * 1e3
+    d['reader_moved_mm'] = (task.reader_pose_q()[:, :2] - task.reader0[:, :2]).norm(dim=1) * 1e3
+    d['reader_yaw_moved_deg'] = torch.rad2deg(K.rot_log(K.quat_to_mat(task.reader_pose_q()[:, 3:]) @ K.quat_to_mat(task.reader0[:, 3:]).transpose(1, 2)).norm(dim=1))
     d['held'] = final['lift_m'] > .06
     if task.runtime.fidelity is not None:
         d.update({'gf_' + k_: v_ for k_, v_ in task.runtime.fidelity.drawn.items()})
