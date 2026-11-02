@@ -18,6 +18,9 @@ Fields (per-world ranges are uniform (lo, hi), resampled on reset; None keeps th
                           distribution, so vision nets trained on the old length see a different part.
   pad_friction            pad/reader mu (per world), replaces PickTaskCfg.pad_friction_range
   pad_timeconst           pad contact time constant (per world, s): pad compliance
+  servo_err               [[roll_deg, tilt_deg], ...]: per world one row is drawn (+ servo_err_jitter_deg) and composed
+                          on the rotation of every servo correction. Roll tips the closing axis from horizontal, so one
+                          finger stands on the table and the other's pads ride high. Bootstrap of the real target poses.
 """
 from __future__ import annotations
 
@@ -47,6 +50,8 @@ class GraspFidelityCfg:
     reader_body_length_m: float | None = None
     pad_friction: tuple | None = None
     pad_timeconst: tuple | None = None
+    servo_err: list | None = None
+    servo_err_jitter_deg: float = 0.3
 
     @staticmethod
     def make(x):
@@ -147,7 +152,8 @@ def batch_fields(c):
 
 class GraspFidelity:
     """Per-world sampling on the Warp model; `drawn` holds this episode's values for logging."""
-    KEYS = ('tip_extend_m', 'tip_friction', 'wrist_kp_scale', 'wrist_friction_nm', 'reader_fillet_m', 'pad_timeconst')
+    KEYS = ('tip_extend_m', 'tip_friction', 'wrist_kp_scale', 'wrist_friction_nm', 'reader_fillet_m', 'pad_timeconst',
+            'servo_roll_deg', 'servo_tilt_deg')
 
     def __init__(self, rt, c, geoms):
         self.rt, self.c, self.dev = rt, c, rt.device
@@ -180,11 +186,30 @@ class GraspFidelity:
         self.wrist_dofs = torch.tensor(rt.indices['right'][1][3:], device=dev)
         self.sample(torch.arange(self.nworld, device=dev))
 
+    def apply_servo_err(self, R):
+        """R (N, 3, 3) grasp_site orientations with this episode's error: tilt about the closing axis y (more tilt: the
+        reader_grasp convention), then roll about the horizontal axis normal to y so that asin(R[2, 1]) changes by the
+        drawn roll (the analysis' closing_axis_from_horizontal_deg)."""
+        from blind_insertion.envs import kinematics as K
+        tilt = torch.deg2rad(self.drawn['servo_tilt_deg']).to(R.dtype)
+        y = torch.tensor([0., 1., 0.], device=R.device, dtype=R.dtype).expand(len(R), 3)
+        R = R @ K.axis_angle_mat(y, -tilt)
+        Y = R[:, :, 1]
+        ax = torch.linalg.cross(Y, torch.tensor([0., 0., 1.], device=R.device, dtype=R.dtype).expand(len(R), 3))
+        ax = ax / ax.norm(dim=1, keepdim=True).clamp(min=1e-9)
+        return K.axis_angle_mat(ax, torch.deg2rad(self.drawn['servo_roll_deg']).to(R.dtype)) @ R
+
     def _u(self, r, n):
         return torch.rand(n, device=self.dev) * (r[1] - r[0]) + r[0]
 
     def sample(self, ids):
         c, n = self.c, len(ids)
+        if c.servo_err is not None:
+            rows = torch.as_tensor(c.servo_err, device=self.dev, dtype=torch.float32)
+            d = rows[torch.randint(len(rows), (n,), device=self.dev)]
+            j = torch.randn(n, 2, device=self.dev) * c.servo_err_jitter_deg
+            self.drawn['servo_roll_deg'][ids] = d[:, 0] + j[:, 0]
+            self.drawn['servo_tilt_deg'][ids] = d[:, 1] + j[:, 1]
         if c.tip_extend_m is not None:
             x = self._u(c.tip_extend_m, n)
             self.drawn['tip_extend_m'][ids] = x

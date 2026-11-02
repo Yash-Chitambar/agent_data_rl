@@ -182,10 +182,14 @@ class PickTask(BimanualTask):
     def tcp_pose(self):
         return self.chain.fk(self.q_true())
 
-    def tip_height(self, q):
-        """Lowest model fingertip point above the table (m) at joint angles q (N, 6); FlexChecker's measure."""
+    def tip_height(self, q, finger=None):
+        """Lowest model fingertip point above the table (m) at joint angles q (N, 6). finger: opening per finger (m, the
+        vertices were taken fully open): None = the current true opening; 0. = closed, FlexChecker's floor measure."""
         p, R = self.chain.fk(q)
-        return p[:, 2] + (self.tip_verts @ R.transpose(1, 2))[..., 2].min(1).values - self.table_top
+        f = self.runtime.q[:, self.finger_qadr].mean(1) if finger is None else torch.full((len(p),), float(finger), device=p.device)
+        v = self.tip_verts[None].expand(len(p), -1, -1).clone()
+        v[..., 1] = v[..., 1] - torch.sign(v[..., 1]) * (.0475 - f[:, None])
+        return p[:, 2] + (v @ R.transpose(1, 2))[..., 2].min(1).values - self.table_top
 
     def inhand(self):
         """Reader pose in the grasp_site frame: p (N,3), R (N,3,3)."""
@@ -253,6 +257,7 @@ class PickExpert:
         # last servo correction on real images (target tips at the floor, -13 mm), absent with the oracle servo.
         self.press_m = 0.
         self.relief = None
+        self.log_diag = False           # sim diagnostics in act() (needs PickTask; the real chain's task lacks them)
         self.close_finger_m = 0.0054    # finger position of the ramp's end: i2rt close target through the deploy gripper map
 
     def _q(self):
@@ -336,10 +341,11 @@ class PickExpert:
         self.diag_hist = []                                            # last 1 s of (tip, tip target, rot error)
         self.diag = {k: torch.full((N,), float('nan'), device=dev) for k in
                      ('press_tip_mm', 'press_tip_true_mm', 'press_tgt_mm', 'press_rot_deg', 'press_rx', 'press_ry', 'press_rz',
-                      'close_tip_mm', 'close_tip_true_mm', 'close_tgt_mm', 'close_rot_deg', 'close_z_m', 'rise_mm')}
-        if t.runtime.grip_target is None:
-            t.runtime.grip_target = torch.full((N,), float('nan'), device=dev)
-        t.runtime.grip_target[:] = float('nan')
+                      'close_tip_mm', 'close_tip_true_mm', 'close_tgt_mm', 'close_rot_deg', 'close_z_m', 'rise_mm', 'close_roll_deg', 'close_tilt_deg', 'close_roll_true_deg', 'high_pad_mm', 'jump_mm')}
+        if self.relief is not None:      # sim only (the real chain has its own relief)
+            if t.runtime.grip_target is None:
+                t.runtime.grip_target = torch.full((N,), float('nan'), device=dev)
+            t.runtime.grip_target[:] = float('nan')
 
     def _diagnose(self, q_b, target_b, grip_before):
         """Real-log quantities: tips at measured q and at the target, target relative to measured orientation
@@ -360,7 +366,23 @@ class PickExpert:
             D['close_tip_mm'][started], D['close_tgt_mm'][started], D['close_tip_true_mm'][started] = rec[0][started], rec[1][started], rec[3][started]
             D['close_rot_deg'][started] = torch.rad2deg(rv.norm(dim=1))[started]
             D['close_z_m'][started] = t.tcp_pose()[0][started, 2]
+            D['close_roll_deg'][started] = torch.rad2deg(torch.asin(Rm[:, 2, 1].clamp(-1, 1)))[started]
+            pT, RT = t.tcp_pose()
+            D['close_roll_true_deg'][started] = torch.rad2deg(torch.asin(RT[:, 2, 1].clamp(-1, 1)))[started]
+            D['close_tilt_deg'][started] = torch.rad2deg(torch.acos((-RT[:, 2, 2]).clamp(-1, 1)))[started]
+            # the analysis' high pad above the low tip, true FK, fingers at the reader's 19 mm
+            pads = torch.as_tensor(t.hand['pad_centres'], device=t.device, dtype=RT.dtype)
+            tips = t.tip_verts
+            at = lambda v, f: v * torch.tensor([1., 0., 1.], device=t.device) + torch.tensor([0., 1., 0.], device=t.device) * (v[:, 1:2] - torch.sign(v[:, 1:2]) * (.0475 - f))   # noqa: E731
+            hp = (at(pads, .019) @ RT.transpose(1, 2))[..., 2]
+            sgn = pads[:, 1] > 0
+            lo = torch.stack([hp[:, sgn].min(1).values, hp[:, ~sgn].min(1).values], 1).max(1).values
+            tl = (at(tips, .019) @ RT.transpose(1, 2))[..., 2].min(1).values
+            D['high_pad_mm'][started] = ((lo - tl) * 1e3)[started]
+        h3 = self.diag_hist[-4][3] if len(self.diag_hist) >= 4 else rec[3]
         active = (self.phase == 3) & ~started
+        jump = rec[3] - h3
+        self.diag['jump_mm'] = torch.where(active & ~(jump <= self.diag['jump_mm']), jump, self.diag['jump_mm'])
         if active.any():
             rise = (t.tcp_pose()[0][:, 2] - self.diag['close_z_m']) * 1e3
             self.diag['rise_mm'] = torch.where(active & ~(rise <= self.diag['rise_mm']), rise, self.diag['rise_mm'])
@@ -396,7 +418,7 @@ class PickExpert:
         return out, open_
 
     def _apply_floor(self, believed):
-        low = self.t.tip_height(believed)
+        low = self.t.tip_height(believed, 0.)    # as the chain's FlexChecker: finger joints at 0
         under = low < self.tip_floor
         if not under.any():
             return believed
@@ -473,6 +495,11 @@ class PickExpert:
         rv = delta[:, 3:].nan_to_num(0.)
         R_new = R_h @ K.axis_angle_mat(rv / rv.norm(dim=1, keepdim=True).clamp(min=1e-9), rv.norm(dim=1))
         keep = torch.isnan(delta[:, 3:]).any(1) | (not self.servo_rot)   # position-only correction: keep the planned tool orientation
+        # Realistic servo pose error (grasp_fidelity.servo_err): the waypoint rotation net's error on real images,
+        # the source of the real closing-axis roll (results/real/pick_20261101_analysis.md)
+        fid = getattr(self.t.runtime, 'fidelity', None)
+        if fid is not None and fid.c.servo_err is not None:
+            R_new = fid.apply_servo_err(R_new)
         R_new = torch.where(keep[:, None, None], self.R_g, R_new)
         p_new = p_h + (R_h @ delta[:, :3, None])[..., 0]
         upv = torch.tensor([0., 0., 1.], device=q.device)
@@ -601,13 +628,13 @@ class PickExpert:
         self.grip = torch.where(self.phase >= 3, -torch.ones_like(self.grip), torch.ones_like(self.grip))
         # absolute physical target -> believed-frame target -> normalized accumulate increment
         believed = q_phys if self.believed_frame else q_phys - t.enc_error[:, 0]
-        q_b = t._measured_model_angles()[:, 0]
         hold_open = None
         if self.relief is not None:
-            believed, hold_open = self._apply_relief(believed, q_b, self.phase >= 3)
+            believed, hold_open = self._apply_relief(believed, t._measured_model_angles()[:, 0], self.phase >= 3)
         if self.tip_floor is not None:
             believed = self._apply_floor(believed)
-        self._diagnose(q_b, believed, ph)
+        if self.log_diag:
+            self._diagnose(t._measured_model_angles()[:, 0], believed, ph)
         a = torch.zeros(N, 14, device=t.device)
         a[:, :6] = ((believed - t.joint_target[:, 0]) / t.cfg.action_scale_rad).clamp(-1, 1)
         a[:, 6] = self.grip if hold_open is None else torch.where(hold_open, torch.ones_like(self.grip), self.grip)
