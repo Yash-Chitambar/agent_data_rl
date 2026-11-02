@@ -18,6 +18,9 @@ Fields (per-world ranges are uniform (lo, hi), resampled on reset; None keeps th
                           distribution, so vision nets trained on the old length see a different part.
   pad_friction            pad/reader mu (per world), replaces PickTaskCfg.pad_friction_range
   pad_timeconst           pad contact time constant (per world, s): pad compliance
+  tip_spheres             contact spheres at the fingertip end, in the pads' plane, this far (m) behind the end. The
+                          baseline's tip hull does not touch the reader, so a raised finger passes through it; on the
+                          robot the raised finger's tip end meets the side face and wedges up.
   servo_err               [[roll_deg, tilt_deg], ...]: per world one row is drawn (+ servo_err_jitter_deg) and composed
                           on the rotation of every servo correction. Roll tips the closing axis from horizontal, so one
                           finger stands on the table and the other's pads ride high. Bootstrap of the real target poses.
@@ -50,6 +53,7 @@ class GraspFidelityCfg:
     reader_body_length_m: float | None = None
     pad_friction: tuple | None = None
     pad_timeconst: tuple | None = None
+    tip_spheres: float | None = None
     servo_err: list | None = None
     servo_err_jitter_deg: float = 0.3
 
@@ -74,6 +78,12 @@ class GraspFidelityCfg:
 def add_spec(spec, c):
     """pc_bench.build_scene(extra_spec=...): collision primitives of the rounded reader body. Sizes are placeholders,
     set by apply_model (the layout's body box) and per world."""
+    if c.tip_spheres is not None:
+        for f in ('left', 'right'):
+            body = next(b for b in spec.bodies if b.name == f + '_finger')
+            for j in range(4):
+                body.add_geom(name=f'{f}_tipc_s{j}', type=mujoco.mjtGeom.mjGEOM_SPHERE, size=[.0012, 0, 0], mass=0,
+                              rgba=[0, 0, 0, 0], group=3)
     if c.reader_fillet_m is None:
         return
     body = next(b for b in spec.bodies if b.name == 'peg')
@@ -113,6 +123,27 @@ def apply_model(m, lay, c):
         m.geom_solref[out['tips'], :2] = c.tip_solref
     if c.tip_solimp is not None:
         m.geom_solimp[out['tips'], :3] = c.tip_solimp
+    out['tip_spheres'] = []
+    if c.tip_spheres is not None:
+        s_ = m.site('grasp_site').id
+        d = mujoco.MjData(m)
+        mujoco.mj_kinematics(m, d)
+        Rs, ps = d.site_xmat[s_].reshape(3, 3), d.site_xpos[s_]
+        for f in ('left', 'right'):
+            for j in range(4):
+                g, pad = m.geom(f'{f}_tipc_s{j}').id, m.geom(f'{f}_pad_s0{j}').id
+                pad_site = (d.geom_xpos[pad] - ps) @ Rs                     # rows run along the site z, row 0 nearest?
+                pad3 = (d.geom_xpos[m.geom(f'{f}_pad_s3{j}').id] - ps) @ Rs
+                ref = pad if pad_site[2] > pad3[2] else m.geom(f'{f}_pad_s3{j}').id
+                p = (d.geom_xpos[ref] - ps) @ Rs
+                p[2] = -c.tip_spheres
+                b = m.geom_bodyid[g]
+                m.geom_pos[g] = (ps + Rs @ p - d.xpos[b]) @ d.xmat[b].reshape(3, 3)
+                for attr in ('geom_contype', 'geom_conaffinity', 'geom_condim', 'geom_priority', 'geom_solref', 'geom_solimp', 'geom_friction', 'geom_size'):
+                    getattr(m, attr)[g] = getattr(m, attr)[ref]
+                m.geom_rbound[g] = m.geom_rbound[ref]
+                m.geom_sameframe[g] = 0
+                out['tip_spheres'].append(g)
     if c.reader_fillet_m is not None:
         slots = list(lay.peg_slots)
         body_slot = slots[int(np.argmax(m.geom_rbound[slots]))]
@@ -163,7 +194,8 @@ class GraspFidelity:
         self.tips = torch.tensor([m.geom('right_tip_hull').id, m.geom('left_tip_hull').id], device=dev)
         self.prims = torch.tensor(geoms['prims'], device=dev, dtype=torch.long)
         self.box = rt.lay.variants[0].peg_boxes[0]
-        self.pads = torch.tensor([g for g in range(m.ngeom) if m.geom(g).name.startswith(('left_pad_s', 'right_pad_s'))], device=dev)
+        self.pads = torch.tensor([g for g in range(m.ngeom) if m.geom(g).name.startswith(('left_pad_s', 'right_pad_s'))] + geoms['tip_spheres'], device=dev)
+        self.tip_spheres = torch.tensor(geoms['tip_spheres'], device=dev, dtype=torch.long)
         arr = lambda n: wp.to_torch(getattr(wm, n)) if n in batch_fields(c) else None   # noqa: E731
         self.geom_pos, self.geom_size, self.geom_aabb, self.geom_rbound = (arr(n) for n in ('geom_pos', 'geom_size', 'geom_aabb', 'geom_rbound'))
         self.geom_friction, self.geom_solref = arr('geom_friction'), arr('geom_solref')
@@ -191,13 +223,13 @@ class GraspFidelity:
         reader_grasp convention), then roll about the horizontal axis normal to y so that asin(R[2, 1]) changes by the
         drawn roll (the analysis' closing_axis_from_horizontal_deg)."""
         from blind_insertion.envs import kinematics as K
-        tilt = torch.deg2rad(self.drawn['servo_tilt_deg']).to(R.dtype)
+        tilt = torch.deg2rad(self.drawn['servo_tilt_deg']).to(R)
         y = torch.tensor([0., 1., 0.], device=R.device, dtype=R.dtype).expand(len(R), 3)
         R = R @ K.axis_angle_mat(y, -tilt)
         Y = R[:, :, 1]
         ax = torch.linalg.cross(Y, torch.tensor([0., 0., 1.], device=R.device, dtype=R.dtype).expand(len(R), 3))
         ax = ax / ax.norm(dim=1, keepdim=True).clamp(min=1e-9)
-        return K.axis_angle_mat(ax, torch.deg2rad(self.drawn['servo_roll_deg']).to(R.dtype)) @ R
+        return K.axis_angle_mat(ax, torch.deg2rad(self.drawn['servo_roll_deg']).to(R)) @ R
 
     def _u(self, r, n):
         return torch.rand(n, device=self.dev) * (r[1] - r[0]) + r[0]

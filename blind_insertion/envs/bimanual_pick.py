@@ -76,6 +76,8 @@ class PickTask(BimanualTask):
         if rt.fidelity is not None:
             if rt.fidelity.c.pad_friction is not None:
                 cfg.pad_friction_range = tuple(rt.fidelity.c.pad_friction)
+            if len(rt.fidelity.tip_spheres):
+                self.pads = torch.cat([self.pads, rt.fidelity.tip_spheres])
             if len(rt.fidelity.prims):
                 self.reader_geoms = torch.cat([self.reader_geoms, rt.fidelity.prims])
         self.table = m.geom('table').id

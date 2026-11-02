@@ -534,6 +534,8 @@ class RealChain:
         """Servo-descent pick from the capture pose. mode 'expert': pick_stage.ExpertPick with the ZED reader
         estimate and no servo (eval_chain's default pick; used for the dry-run equivalence check)."""
         self.pick = RealPickTask(self, self.cfg['pick']['episode_s'] if mode == 'servo' else 13.)
+        if getattr(self.io, 'is_sim', False):   # dry run: the grasp model's servo error reaches the expert (None on the robot)
+            self.pick.runtime.fidelity = self.io.rt.fidelity
         if mode == 'servo':
             stage = self.make_pick()
         else:
