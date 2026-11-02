@@ -73,7 +73,7 @@ def main():
         print(f'\n## Batch {b}\n\n| try | ' + ' | '.join(cols) + ' |\n|---|' + '---|' * len(cols))
         for i, r in enumerate(sel, 1):
             print(f'| {i} | ' + ' | '.join(fmt(r[c]) for c in cols) + ' |')
-        k, n = sum(r['outcome'] == 'held' for r in sel), len(sel)
+        k, n = sum(r['outcome'] == 'held' for r in sel), sum(r['outcome'] != 'none' for r in sel)      # none: --pick-test, no close
         lo, hi = wilson(k, n)
         cnt = {o: sum(r['outcome'] == o for r in sel) for o in sorted({r['outcome'] for r in sel})}
         print(f'\nheld {k} of {n} (Wilson 95 % {lo * 100:.0f}-{hi * 100:.0f} %); {cnt}')
