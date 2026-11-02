@@ -46,16 +46,8 @@
    "td_eps_mm": 0.5,
    "td_lift_mm": 0.5,
    "td_friction_ff": true,
-   "wrist_kp": [
-    40.0,
-    30.0,
-    30.0
-   ],
-   "wrist_kd": [
-    1.5,
-    2.0,
-    2.0
-   ],
+   "wrist_kp": null,
+   "wrist_kd": null,
    "wrist_ramp_s": 0.3,
    "holddown_mm": 8.0,
    "gentle_close": true,
@@ -75,7 +67,10 @@
    "roll_gate_deg": 2.5,
    "td_follow_frac": 0.2,
    "td_step_mm_s": 30.0,
-   "lost_ticks": 5
+   "lost_ticks": 5,
+   "press_from_attempt": 3,
+   "holddown_speed_m_s": 0.02,
+   "holddown_wait_s": 0.2
   }
  },
  "insert": {

@@ -31,7 +31,7 @@ from blind_insertion.pipeline.grasp_v3 import G_CLOSE, G_HOLD, G_SQUEEZE, G_TD, 
 from blind_insertion.scenes import reader_grasp as G  # noqa: E402
 from deploy.conventions import GripperMap  # noqa: E402
 
-OFF = dict(level_roll=False, roll_gate_deg=None, touchdown=False, hold_from='press', wrist_kp=None, wrist_kd=None, gentle_close=False, holddown_mm=0., max_attempts=1, td_friction_ff=False)
+OFF = dict(press_from_attempt=None, level_roll=False, roll_gate_deg=None, touchdown=False, hold_from='press', wrist_kp=None, wrist_kd=None, gentle_close=False, holddown_mm=0., max_attempts=1, td_friction_ff=False)
 MODES = {
     's0_level': {**OFF, 'level_roll': True},
     's1_touchdown': {**OFF, 'touchdown': True},
@@ -40,8 +40,8 @@ MODES = {
     's4_retry': {**OFF, 'max_attempts': 3},
     'level_gentle': {**OFF, 'level_roll': True, 'hold_from': 'measured', 'gentle_close': True, 'holddown_mm': 3.},
     's1_touchdown_gentle': {**OFF, 'touchdown': True, 'gentle_close': True, 'holddown_mm': 8.},
-    'combined_nowrist': dict(wrist_kp=None, wrist_kd=None, td_friction_ff=False),
-    'combined': dict(td_friction_ff=False),
+    'combined': dict(td_friction_ff=False),                                                      # the deploy default
+    'combined_wrist': dict(td_friction_ff=False, wrist_kp=(40., 30., 30.), wrist_kd=(1.5, 2., 2.)),
 }
 RELIEF_V3 = {'lift_mm': -3., 'settle_s': .3, 'close_ramp_s': 1., 'dwell_s': .3, 'blend_s': .5}
 
@@ -166,7 +166,7 @@ def main():
         ex.believed_frame = True
         guarded = gc is not None and gc.touchdown
         ex.tip_floor = -.013
-        ex.press_m = 0. if guarded else a.press_mm * 1e-3
+        ex.press_m = 0. if guarded else a.press_mm * 1e-3       # guarded configs: the fallback press comes from the plan's z bias
         if a.mode == 'relief_v3':
             ex.relief = RELIEF_V3
         ex.servo_fracs, ex.servo_rot = (.5, .8, .92), True

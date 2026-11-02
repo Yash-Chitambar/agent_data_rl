@@ -56,11 +56,13 @@ class GraspV3Cfg:
     hold_max_s: float = 1.5
     hold_integ_cap_rad: float = 0.02
     # 2. wrist gains from HOLD to the end of TEST
-    wrist_kp: tuple | None = (40., 30., 30.)
-    wrist_kd: tuple | None = (1.5, 2., 2.)
+    wrist_kp: tuple | None = None     # e.g. (40., 30., 30.): no clear gain in the sim, run-time gain change not yet tried on the arm
+    wrist_kd: tuple | None = None     # e.g. (1.5, 2., 2.)
     wrist_ramp_s: float = 0.3
     # 3. hold-down and gentle close
     holddown_mm: float = 8.0          # below the hold point, while the jaws close (~2 N at the real ~0.24 N/mm; 3 mm let the hand rise: 66 % vs 95 % in the realistic sim)
+    holddown_speed_m_s: float = 0.02   # the jaws start only when the hold-down has arrived (+ holddown_wait_s): pads load ~0.5 s into a close
+    holddown_wait_s: float = 0.2
     gentle_close: bool = True
     gentle_rate: float = 0.2          # i2rt reading units per s: the target runs down at this rate ...
     gentle_delta: float = 0.12        # ... and stays at most this far below the reading (low force on a position-PD gripper)
@@ -72,6 +74,7 @@ class GraspV3Cfg:
     dwell_s: float = 0.3
     # 4. automatic retry
     max_attempts: int = 3
+    press_from_attempt: int | None = 3  # from this attempt: no touch-down, close from the plan's levelled press (reaches lower)
     test_lift_mm: float = 15.0
     test_v_m_s: float = 0.02
     test_dwell_s: float = 0.3
@@ -175,6 +178,10 @@ class GraspV3Expert(PickExpert):
         self.t_grasp = z().fill_(float('nan'))
         self.k_act = 0
         self.lost_n = torch.zeros(N, dtype=torch.long, device=dev)
+        self.n_wait0 = round((self.gc.holddown_mm * 1e-3 / max(self.gc.holddown_speed_m_s, 1e-3) + self.gc.holddown_wait_s) / self.dt) if self.gc.gentle_close else 0
+        self.n_wait_w = torch.full((N,), self.n_wait0, dtype=torch.long, device=dev)
+        self.hd = torch.full((N,), self.gc.holddown_mm * 1e-3, device=dev)
+        self.use_td = torch.zeros(N, dtype=torch.bool, device=dev)
         self.d_max = z()
         self.z_touch = z().fill_(float('nan'))
         self.roll_close_b = z().fill_(float('nan'))
@@ -241,9 +248,11 @@ class GraspV3Expert(PickExpert):
         dt, N = self.dt, len(self.phase)
         self.k_act += 1
         nf = len(self.servo_fracs)
-        if c.touchdown:
+        pf = c.press_from_attempt
+        self.use_td = torch.full_like(self.gave_up, c.touchdown) if pf is None else (self.attempt < pf) & c.touchdown
+        if self.use_td.any():
             air = c.test_mode == 'air'
-            enter = (self.g == G_NONE) & (self.phase == 1) & (self.servo_k >= (min(1, nf) if air else nf)) & (self.refined | (nf == 0)) & self.ik_ok
+            enter = self.use_td & (self.g == G_NONE) & (self.phase == 1) & (self.servo_k >= (min(1, nf) if air else nf)) & (self.refined | (nf == 0)) & self.ik_ok
             if enter.any():
                 if air:
                     self.p_g[enter, 2] += c.air_plan_up_mm * 1e-3
@@ -260,15 +269,17 @@ class GraspV3Expert(PickExpert):
                     cur = getattr(self, k)
                     m = ~pm
                     setattr(self, k, torch.where(m.view(-1, *([1] * (cur.dim() - 1))), v, cur))
-            if not c.touchdown:      # the plan's settle ended: this tick its close starts, here from the chosen hold
-                ent = pm & (self.phase >= 3)
-                if ent.any():
+            ent = pm & (self.phase >= 3) & ~self.use_td     # the plan's settle ended: this tick its close starts, here from the chosen hold
+            if ent.any():
+                if True:     # noqa: SIM
                     q = self._q()
                     p_a, _ = t.chain.fk(q)
-                    if c.hold_from == 'press':
-                        self.p_hold[ent] = self.p_cmd[ent]
-                    else:
-                        self.p_hold[ent] = p_a[ent] + torch.tensor([0., 0., c.hold_offset_mm * 1e-3], device=q.device)
+                    press = torch.full_like(ent, c.hold_from == 'press') | c.touchdown      # fallback attempt of a touch-down config: always the press
+                    self.p_hold = torch.where((ent & press)[:, None], self.p_cmd, self.p_hold)
+                    meas = p_a + torch.tensor([0., 0., c.hold_offset_mm * 1e-3], device=q.device)
+                    self.p_hold = torch.where((ent & ~press)[:, None], meas, self.p_hold)
+                    self.hd = torch.where(ent & press & torch.full_like(ent, c.touchdown), torch.zeros_like(self.hd), self.hd)
+                    self.n_wait_w = torch.where(ent & press & torch.full_like(ent, c.touchdown), torch.zeros_like(self.n_wait_w), self.n_wait_w)
                     self.integ0[ent] = self.integ[ent]
                     self.alpha_goal[ent] = 1.
                     self._ev('close_from_settle', ent, z=p_a[:, 2])
@@ -313,8 +324,8 @@ class GraspV3Expert(PickExpert):
         p_wp = torch.where(m[:, None], hold_pt, p_wp)
         v = torch.where(m, torch.full_like(v, .02), v)
         m = (g == G_CLOSE) | (g == G_SQUEEZE)
-        p_wp = torch.where(m[:, None], hold_pt - up * c.holddown_mm * 1e-3, p_wp)
-        v = torch.where(m, torch.full_like(v, .01), v)
+        p_wp = torch.where(m[:, None], hold_pt - up[None] * self.hd[:, None], p_wp)
+        v = torch.where(m, torch.full_like(v, c.holddown_speed_m_s), v)
         m = g == G_TEST
         p_wp = torch.where(m[:, None], hold_pt + up * c.test_lift_mm * 1e-3, p_wp)
         v = torch.where(m, torch.full_like(v, c.test_v_m_s), v)
@@ -350,6 +361,7 @@ class GraspV3Expert(PickExpert):
         self.rd_hist = torch.cat([self.rd_hist[:, 1:], reading[:, None]], 1)
         self._transitions(gm, descend, p_a, R_a, e_r, dist, ang, reading)
         self.grip = torch.where((self.g >= G_CLOSE) & (self.g <= G_END), -torch.ones_like(self.grip), torch.ones_like(self.grip))
+        self.grip = torch.where((self.g == G_CLOSE) & (self.gt < self.n_wait_w), torch.ones_like(self.grip), self.grip)
         self.grip = torch.where(self.g == G_DONE, -torch.ones_like(self.grip), self.grip)
         a = torch.zeros(N, 14, device=dev)
         believed = q_phys if self.believed_frame else q_phys - t.enc_error[:, 0]
@@ -413,9 +425,10 @@ class GraspV3Expert(PickExpert):
         m = g == G_CLOSE
         win = self.rd_hist.shape[1]
         moved = (self.rd_hist[:, 0] - reading).abs()
-        stall = m & (self.gt >= round(c.close_min_s / dt)) & (self.gt >= win) & (moved < c.stall_eps)
-        late = m & (self.gt >= round(c.close_max_s / dt))
-        through = m & (reading < c.held_band[0]) & (self.gt >= win)     # jaws passed the reader: pads over it
+        tc = self.gt - self.n_wait_w          # time since the jaws started
+        stall = m & (tc >= round(c.close_min_s / dt)) & (tc >= win) & (moved < c.stall_eps)
+        late = m & (tc >= round(c.close_max_s / dt))
+        through = m & (reading < c.held_band[0]) & (tc >= 0)            # jaws passed the reader: pads over it
         if through.any():
             self._ev('close_fell_through', through, reading=reading)
             self._close_record(through, p_a, e_r)
@@ -473,6 +486,7 @@ class GraspV3Expert(PickExpert):
             again = go & ~last
             if again.any():
                 self.attempt[again] += 1
+                self._ev('retry', again, mode_press=(self.attempt >= (c.press_from_attempt or 10 ** 6)).float())
                 self.g[again] = G_NONE
                 self.gt[again] = 0
                 self.servo_k[again] = 0
@@ -506,7 +520,7 @@ class GraspV3Expert(PickExpert):
             self.hooks.wrist(self.alpha)
         mode = torch.zeros_like(self.g)
         u = torch.zeros_like(self.alpha)
-        mode[self.g == G_CLOSE] = 1
+        mode[(self.g == G_CLOSE) & (self.gt >= self.n_wait_w)] = 1
         sq = self.g == G_SQUEEZE
         if c.gentle_close:
             mode[sq] = 2

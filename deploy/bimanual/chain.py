@@ -620,6 +620,12 @@ class RealChain:
             self.log_event('grasp_v3', event='config', tick=self.k, **gc.to_dict())
 
             def ev(kind, world, **kw):
+                tr = self.truth()
+                if tr is not None:      # dry run only: true roll of the closing axis (the encoder-offset DR hides it from FK)
+                    Rt = self.scene.chain['right'].fk(torch.as_tensor(tr['q_true'][0], dtype=torch.float32)[None].to(self.scene.device))[1]
+                    kw['roll_true_deg'] = math.degrees(math.asin(float(Rt[0, 2, 1])))
+                    h_ = self.floor_chk.heights(np.asarray(tr['q_true'][0], float))
+                    kw['tip_true_mm'] = (min(h_['left_finger'], h_['right_finger']) - self.scene.table_top) * 1e3
                 self.log_event('grasp_v3', event=kind, **kw)
                 print(f'grasp: {kind} ' + ' '.join(f'{k}={v:.4g}' if isinstance(v, float) else f'{k}={v}' for k, v in kw.items()), flush=True)
 
