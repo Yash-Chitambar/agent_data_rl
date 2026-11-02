@@ -664,6 +664,13 @@ class RealChain:
         present = self.reader_in_hand()
         if bool(getattr(getattr(stage, 'expert', None), 'gave_up', torch.zeros(1, dtype=torch.bool))[0]):
             present = False       # open jaws read inside the wide band
+        ex_ = getattr(stage, 'expert', None)
+        if hasattr(ex_, 'outcome'):
+            out_ = ex_.outcome()
+            log.update(pick_outcome=out_, pick_attempts=int(ex_.attempt[0]))
+            self.log_event('pick_outcome', outcome=out_, attempts=int(ex_.attempt[0]), batch=self.cfg['pick'].get('batch'),
+                           open_m=self.cfg['gripper']['right_approach_open_m'], grasp_v3=self.cfg['pick'].get('grasp_v3'))
+            print(f'pick outcome: {out_} ({int(ex_.attempt[0])} attempt(s))', flush=True)
         log.update(pick_done=bool(res['done'][0]), pick_failed=bool(res['failed'][0]), pick_reader_present=present,
                    pick_est_ok=bool(res.get('est_ok', torch.ones(1))[0]))
         self.log_event('pick_result', ok=ok, present=present, **{k: (v[0].tolist() if torch.is_tensor(v) else v) for k, v in res.items()})

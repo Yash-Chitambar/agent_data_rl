@@ -71,6 +71,80 @@
    "press_from_attempt": 3,
    "holddown_speed_m_s": 0.02,
    "holddown_wait_s": 0.2
+  },
+  "batches": {
+   "_about": "Real test batches, one change at a time (docs/real/PICK_GRASP_V3.md). One attempt per try: no retry, so each try is one count. A, B, C still press in the plan's descent: the pick2 clearances on the commanded pose. D: no press, the default clearances.",
+   "A": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": false,
+     "hold_from": "press",
+     "holddown_mm": 0.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    }
+   },
+   "B": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "hold_from": "press",
+     "holddown_mm": 0.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    }
+   },
+   "C": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "hold_from": "measured",
+     "hold_offset_mm": 0.0,
+     "holddown_mm": 8.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    }
+   },
+   "D": {
+    "grasp_v3": {
+     "touchdown": true,
+     "level_roll": true,
+     "roll_gate_deg": 2.5,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "holddown_mm": 8.0
+    }
+   }
   }
  },
  "insert": {

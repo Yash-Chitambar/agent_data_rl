@@ -50,6 +50,24 @@ def load_cfg(path):
     return {k: v for k, v in cfg.items() if not k.startswith('_')}
 
 
+def apply_overrides(cfg, batch=None, open_mm=None, grasp_set=()):
+    """--batch (config pick.batches.<name>: grasp_v3 keys, body_clearance), --open-mm, --grasp-set key=json. Logged in meta.json."""
+    pc = cfg['pick']
+    bs = pc.pop('batches', {})
+    if batch is not None:
+        if batch not in bs:
+            raise SystemExit(f'batch {batch}: not in pick.batches ({sorted(bs)})')
+        pc['batch'] = batch
+        pc.setdefault('grasp_v3', {}).update({k: v for k, v in bs[batch].get('grasp_v3', {}).items()})
+        cfg['safety']['body_clearance'].update(bs[batch].get('body_clearance', {}))
+    if open_mm is not None:
+        cfg['gripper']['right_approach_open_m'] = float(open_mm) * 1e-3
+    for kv in grasp_set:
+        k, v = kv.split('=', 1)
+        pc.setdefault('grasp_v3', {})[k] = json.loads(v)
+    return cfg
+
+
 def gripper_maps(cfg):
     out = {}
     for s in SIDES:
@@ -87,6 +105,9 @@ def parse(argv=None):
     ap.add_argument('--hold-force', type=float, default=None, help='left press force (N); config default 25; 15 allowed')
     ap.add_argument('--hold-seconds', type=float, default=5.0, help='stage hold: keep the press this long')
     ap.add_argument('--pick-mode', choices=('servo', 'expert'), default='servo', help="'expert' = eval_chain's default pick (no servo): dry-run equivalence only")
+    ap.add_argument('--batch', default=None, help='real test batch from pick.batches in the config (docs/real/PICK_GRASP_V3.md)')
+    ap.add_argument('--open-mm', type=float, default=None, help='descent opening per finger (mm): overrides gripper.right_approach_open_m (24, 25, 26)')
+    ap.add_argument('--grasp-set', action='append', default=[], metavar='KEY=JSON', help='override one pick.grasp_v3 key, e.g. --grasp-set max_attempts=3')
     ap.add_argument('--pick-test', choices=('touchdown', 'air'), default=None, help="commissioning, stage pick with pick.grasp_v3, jaws stay open, the hand rises: 'air' = slow free descent above the plan (no contact expected), 'touchdown' = guarded touch-down and hold on the table")
     ap.add_argument('--yes', action='store_true', help='answer every prompt with Enter (dry runs default to this)')
     ap.add_argument('--pause-in-press', action='store_true', help='also prompt between hold, transport, approach and insertion (the press keeps running; a watchdog unloads at hold_max_s)')
@@ -103,7 +124,7 @@ def parse(argv=None):
 class Runner:
     def __init__(self, a):
         self.a = a
-        self.cfg = load_cfg(a.config)
+        self.cfg = apply_overrides(load_cfg(a.config), a.batch, a.open_mm, a.grasp_set)
         self.dev = torch.device(a.device)
         bundle = ROOT / self.cfg['bundle_dir']
         bad = BU.verify(argparse.Namespace(out=str(bundle)), quiet=True)
@@ -157,7 +178,8 @@ class Runner:
 
     def new_logger(self, seed=None):
         a = self.a
-        rid = time.strftime('%H%M%S') + ('_dry' if a.dry_run else '') + (f'_s{seed}' if seed is not None else '') + (f'_{a.name}' if a.name else '')
+        name = a.name or (f'batch{a.batch}' if a.batch else '')
+        rid = time.strftime('%H%M%S') + ('_dry' if a.dry_run else '') + (f'_s{seed}' if seed is not None else '') + (f'_{name}' if name else '')
         d = Path(a.out) / time.strftime('%Y-%m-%d') / f'{a.stage}_{rid}'
         meta = dict(stage=a.stage, dry_run=a.dry_run, seed=seed, args=vars(a), git=git_state(), config=self.cfg,
                     bundle_manifest=self.bundle_manifest, bundle_verified=True, config_matches_bundle=self.config_matches_bundle, chain_constants=self.consts,

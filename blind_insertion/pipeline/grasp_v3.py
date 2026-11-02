@@ -179,6 +179,8 @@ class GraspV3Expert(PickExpert):
         self.t_grasp = z().fill_(float('nan'))
         self.k_act = 0
         self.lost_n = torch.zeros(N, dtype=torch.long, device=dev)
+        self.fail_why = ['' for _ in range(N)]      # the last failure: 'closed_empty', 'lost_in_lift', 'roll_gate', 'on_reader'
+        self.in_band = torch.zeros(N, dtype=torch.bool, device=dev)
         self.n_wait0 = round((self.gc.holddown_mm * 1e-3 / max(self.gc.holddown_speed_m_s, 1e-3) + self.gc.holddown_wait_s) / self.dt) if self.gc.gentle_close else 0
         self.n_wait_w = torch.full((N,), self.n_wait0, dtype=torch.long, device=dev)
         self.hd = torch.full((N,), self.gc.holddown_mm * 1e-3, device=dev)
@@ -299,11 +301,22 @@ class GraspV3Expert(PickExpert):
         self._apply_hooks()
         return a
 
+    def outcome(self, w=0):
+        """One of held / lost_in_lift / closed_empty (or roll_gate, on_reader: no close happened; none: test mode)."""
+        if bool(self.gave_up[w]):
+            return self.fail_why[w] or 'none'
+        return 'held' if int(self.g[w]) == G_DONE else 'none'
+
+    def _why(self, mask, why):
+        for w in torch.where(mask)[0].tolist():
+            self.fail_why[w] = why
+
     def _start_close(self, mask, p_a):
         c = self.gc
         self.z_close0[mask] = p_a[:, 2][mask]
         self.rd_hist[mask] = 0
-        self._go(mask, G_CLOSE if c.gentle_close else G_SQUEEZE, 'close_start' if c.gentle_close else 'squeeze_start', z=p_a[:, 2])
+        roll = torch.rad2deg(torch.asin(self.t.chain.fk(self._q())[1][:, 2, 1].clamp(-1, 1)))
+        self._go(mask, G_CLOSE if c.gentle_close else G_SQUEEZE, 'close_start' if c.gentle_close else 'squeeze_start', z=p_a[:, 2], roll_deg=roll)
 
     def _guarded(self, gm):
         c, t = self.gc, self.t
@@ -403,6 +416,7 @@ class GraspV3Expert(PickExpert):
             self._hold_from_touch(deep, p_a)
             self._go(deep, G_HOLD, 'touchdown_fallback', z_meas=p_a[:, 2], z_plan=self.p_g[:, 2])
         if blocked.any():
+            self._why(blocked, 'on_reader')
             self._ev('td_blocked', blocked, z_meas=p_a[:, 2], z_plan=self.p_g[:, 2], d_mm=drop * 1e3)
             self._after_empty(blocked, p_a)
         # ---- hold
@@ -422,6 +436,7 @@ class GraspV3Expert(PickExpert):
                 self._go(done, G_RISE, 'test_rise', z=p_a[:, 2], rot_deg=e_r, roll_deg=roll, d_max_mm=self.d_max * 1e3, td_mode=self.td_mode.float())
             else:
                 if bad_roll.any():
+                    self._why(bad_roll, 'roll_gate')
                     self._ev('roll_gate', bad_roll, roll_deg=roll, limit=float(c.roll_gate_deg))
                     self._after_empty(bad_roll, p_a)
                 if (done & ~bad_roll).any():
@@ -435,7 +450,8 @@ class GraspV3Expert(PickExpert):
         late = m & (tc >= round(c.close_max_s / dt))
         through = m & (reading < c.held_band[0]) & (tc >= 0)            # jaws passed the reader: pads over it
         if through.any():
-            self._ev('close_fell_through', through, reading=reading)
+            self._why(through, 'closed_empty')
+            self._ev('close_fell_through', through, reading=reading, roll_deg=roll, rise_mm=(p_a[:, 2] - self.z_close0) * 1e3)
             self._close_record(through, p_a, e_r)
             self._after_empty(through, p_a)
         go = (stall | late) & ~through
@@ -447,6 +463,7 @@ class GraspV3Expert(PickExpert):
         go = m & (self.gt >= round((c.squeeze_s + c.dwell_s) / dt))
         if go.any():
             self._close_record(go, p_a, e_r)
+            self.in_band = torch.where(go, (reading >= c.held_band[0]) & (reading <= c.held_band[1]), self.in_band)
             self._ev('squeeze_end', go, reading=reading, rot_deg=e_r, roll_deg=roll, rise_mm=(p_a[:, 2] - self.z_close0) * 1e3)
             self._go(go, G_TEST, 'test_lift', reading=reading)
         # ---- test lift
@@ -462,12 +479,15 @@ class GraspV3Expert(PickExpert):
                 self.t_grasp = torch.where(ok & torch.isnan(self.t_grasp), torch.full_like(self.t_grasp, self.k_act * dt), self.t_grasp)
                 self._go(ok, G_LIFT, 'lift')
             if no.any():
+                self._why(no & self.in_band, 'lost_in_lift')      # the jaws stalled on the reader, then lost it
+                self._why(no & ~self.in_band, 'closed_empty')
                 self._after_empty(no, p_a)
         # ---- lift, end: keep checking (pick11 stalled at 0.301 and lost the reader 2.26 s after the lift start)
         m = (g == G_LIFT) | (g == G_END)
         self.lost_n = torch.where(m & (reading < c.held_band[0]), self.lost_n + 1, torch.zeros_like(self.lost_n))
         lost = m & (self.lost_n >= c.lost_ticks)
         if lost.any():
+            self._why(lost, 'lost_in_lift')
             self._ev('lost_in_lift', lost, reading=reading)
             self.lost_n[lost] = 0
             self._after_empty(lost, p_a)
