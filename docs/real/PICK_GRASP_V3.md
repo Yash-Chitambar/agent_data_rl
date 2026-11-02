@@ -123,7 +123,7 @@ Script: `scripts/policy/grasp_v3_eval.py`, data in `results/real/grasp_v3/final/
 | Slow close + hold-down only | oracle | real draws | 173 (30-38) | 173 | -5.06 [-6.9, 0.5] |
 | Retry only | oracle | real draws | 103 (17-24) | 91 | -5.07 [-6.8, 0.5] |
 | **Level roll only (A)** | oracle | real draws | **484 (92-96)** | 484 | -0.66 [-1.3, -0.2] |
-| Level + slow close (B-like) | oracle | real draws | 496 (95-98) | 496 | -0.66 [-1.3, -0.2] |
+| Level + slow close + 3 mm hold-down | oracle | real draws | 496 (95-98) | 496 | -0.66 [-1.3, -0.2] |
 | All, 3 attempts | oracle | real draws | 503 (97-99) | 502 | 0.02 [-0.3, 0.3] |
 | All + wrist gains | oracle | real draws | 504 (97-99) | 502 | 0.05 [-0.3, 0.3] |
 | All, 3 attempts | oracle | -3 / -4.5 / -5.6 deg | 502 / 506 / 502 | 500 / 503 / 501 | 0.04 [-0.2, 0.3] |
@@ -137,13 +137,13 @@ Script: `scripts/policy/grasp_v3_eval.py`, data in `results/real/grasp_v3/final/
 
 Reference, other harness (`GRASP_FIDELITY.md`): v2 nets + injection 99 (16-23); nets, no injection 431 (81-87).
 
-The `All` rows of the real-nets configs also inject a plan 3-13 mm too low. Time to grasp: p50 about 17-18 s, first attempt, in every row. PD press estimate in the last second before the close, p50 / p99, sim projection (use only to compare rows): baseline 24 / 45 N, level only 47 / 69 N, all 11 / 19 N.
+All `All` rows also inject a plan 3-13 mm too low. Batches B, C and D as configured (one attempt, 8 mm hold-down) have no n = 512 row: they have dry runs only. Time to grasp: p50 about 17-18 s, first attempt, in every row. Largest PD press estimate near the table up to the end of the squeeze, p50 / p99, sim projection (use only to compare rows): baseline 24 / 45 N, level only 47 / 69 N, all 11 / 19 N.
 
 **What these results show and do not show**
 
 - Roll: v2 can show it, and it is the largest effect. With the real rolls the fix takes oracle held from 137 to 484. The real run shows this only as a post-hoc order on 10 closes.
 - With unbiased nets, levelling costs about 8 points (424 to 381). The real nets are biased (real target -3.28 +- 1.92 deg against sim +1.74 +- 0.25). The robot decides which case applies: batch A.
-- With the sim nets, 65 % is the ceiling here, and it is below the 95 % target. The main losses are net outliers on the new body: position across the jaws > 10 mm or tilt > 60 deg. The nets trained on the 41.3 mm body. The cause of the shortfall is not separated. Do not read the "All" nets rows as a real prediction.
+- With the sim nets the full stack reaches 65 %, below the 95 % target. The main losses are net outliers on the new body: position across the jaws > 10 mm or tilt > 60 deg. The nets trained on the 41.3 mm body. The cause of the shortfall is not separated. Do not read the "All" nets rows as a real prediction.
 - Hand rise: v2 does not reproduce it (median ~0 mm; real 1.2-2.8 held, 4-7.8 empty), nor the 3-6 mm ride-over jump. So **every gain from hold-down or slow close above proves nothing about rise**. That includes the 8 mm hold-down. Only batches B and C can answer this.
 - Opening: v2 is not sensitive to 24 / 26 mm and its stall reads 0.32 (real 0.30-0.305). Only the robot can choose the opening.
 - Wrist gains: no clear gain in the sim (503 against 504). The press error comes from joints 2-4 more than 5-6. Run-time gain changes have not run on the arm. So they are off by default. Switch: `--grasp-set 'wrist_kp=[40,30,30]' --grasp-set 'wrist_kd=[1.5,2,2]'`.
