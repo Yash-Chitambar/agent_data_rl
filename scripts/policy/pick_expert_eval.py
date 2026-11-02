@@ -77,6 +77,12 @@ if a.enc_offset_deg is not None:
 if a.reader_est:
     cfg.physics.render_rgb = True; cfg.physics.visual_dr = visual_dr_wrist(a.wrist_cam_err); cfg.physics.measured_camera_cadence = False
     cfg.physics.camera_resolution = torch.load(a.reader_est, map_location='cpu')['res']
+elif (a.servo and a.servo != 'oracle') or a.reader_wrist:
+    # wrist nets without the ZED estimator: the render context must exist at construction (it is built
+    # only when render_rgb is set; the loop toggles render_rgb around each wrist frame)
+    cfg.physics.render_rgb = True; cfg.physics.visual_dr = visual_dr_wrist(a.wrist_cam_err); cfg.physics.measured_camera_cadence = False
+    _ck0 = torch.load(a.servo if a.servo and a.servo != 'oracle' else a.reader_wrist, map_location='cpu')
+    cfg.physics.camera_resolution = int(_ck0.get('res', _ck0.get('cam_res', 320)))
 if a.impratio is not None: cfg.impratio = a.impratio
 if a.finger_open >= 0: cfg.finger_open = a.finger_open or None
 if a.grip_range: cfg.grip_force_scale_range = tuple(a.grip_range)
