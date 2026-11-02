@@ -1,0 +1,14 @@
+[
+ {
+  "tilt_deg": 55.0,
+  "open_mm": 24.0,
+  "returncode": 0,
+  "seconds": 34.3,
+  "n": 256,
+  "success": 145,
+  "rate": 0.56640625,
+  "wilson95_lo": 0.5051595111047826,
+  "seed": 1000,
+  "dr": true
+ }
+]

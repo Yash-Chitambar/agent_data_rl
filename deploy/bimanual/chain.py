@@ -192,13 +192,12 @@ class RealChain:
             raise RuntimeError(f'IO joint offsets {io.off} differ from the scene calibration {self.off}')
         # nets (eval_chain.wrist_loader reads runs/perception/<name>.pt = links into the verified bundle)
         from blind_insertion.envs.inhand import measured_mean
-        from blind_insertion.perception.zed_estimator import ZedEstimator
         from blind_insertion.eval_insertion import load_insertion_policy
-        P = EC.ROOT / 'runs/perception'
-        self.zed = ZedEstimator(str(self.ndev), pose=str(P / 'zed.pt'), presence=str(P / f'{a.zed_gate}.pt'))
+        from deploy.bimanual import netcache as NC     # loaded before the arms connect (Runner.open_io)
+        self.zed = NC.zed(self.ndev, a.zed_gate)
         cap = json.loads((EC.ROOT / 'blind_insertion/configs/zed_capture_pose.json').read_text())['model_frame_rad']
         self.zed_q = {s: np.asarray(cap[s], float) for s in SIDES}
-        w, f, ih = (EC.wrist_loader(x, self.ndev) for x in (a.wrist_net, a.fine_net, a.inhand_net))
+        w, f, ih = (NC.wrist(x, self.ndev) for x in (a.wrist_net, a.fine_net, a.inhand_net))
         self.wrist = (_LogNet(w[0], w[1], a.wrist_net, self), w[1].to(self.dev), w[2])
         self.fine = (_LogNet(f[0], f[1], a.fine_net, self), f[1].to(self.dev), f[2])
         self.inhand_net = (_LogNet(ih[0], ih[1], a.inhand_net, self), ih[1].to(self.dev), ih[2])
@@ -236,12 +235,91 @@ class RealChain:
         self.rt.q[0, self.scene.finger_qadr] = float(fm[0])
         return s
 
+    def _close_press_relief(self, label, tb, grip_r):
+        """pick.close_press_relief (real runs 2026-11-01): the servo pick closes while its right target still presses
+        ~16-30 mm into the table (accumulate PD). On the real arm the pressed fingertips rotate the hand ~3.5 deg away
+        from the planned orientation (sim ~0.5 deg; pick4-9), so the pads are not parallel to the reader's sides and
+        ride over it. Without any press (relief v2, pick9) the squeezing pads push the hand UP and still ride over.
+        From the open -> close switch of the right gripper in '1 pick':
+          hold  = measured TCP position + lift_mm (negative: a light press), PLANNED orientation;
+          jaws  = open for settle_s, then ramp to the close target over close_ramp_s, then dwell_s;
+          after = blend from the hold to the plan's target over blend_s, then follow the plan.
+        Config: true or {"lift_mm", "settle_s", "close_ramp_s", "dwell_s", "blend_s", "orient": "plan"|"measured"}.
+        Returns (targets, grip_r); a ramped close sets self._grip_override_right (an i2rt reading)."""
+        rc = self.cfg['pick'].get('close_press_relief')
+        if not rc or label != '1 pick':
+            self._relief = None
+            self._prev_grip_r = None
+            self._grip_override_right = None
+            return tb, grip_r
+        rc = rc if isinstance(rc, dict) else {}
+        prev, self._prev_grip_r = getattr(self, '_prev_grip_r', None), grip_r
+        ch_ = self.scene.chain['right']
+        dev = self.scene.device
+        fk = lambda q: ch_.fk(torch.as_tensor(q, dtype=torch.float32)[None].to(dev))  # noqa: E731
+        n = lambda key, dflt: int(round(float(rc.get(key, dflt)) / self.dt))  # noqa: E731
+        r = getattr(self, '_relief', None)
+        if r is None:
+            if not (prev is not None and prev > 0 and grip_r < 0):
+                return tb, grip_r
+            qm = self.q_b[0].cpu().numpy().astype(float).copy()
+            pm, Rm = fk(qm)
+            pt, Rt = fk(tb[0])
+            R = Rt if rc.get('orient', 'plan') == 'plan' else Rm
+            p = pm + torch.tensor([[0., 0., float(rc.get('lift_mm', 1.0)) * 1e-3]], device=dev)
+            q, _, _ = ch_.ik(p, R, torch.as_tensor(qm, dtype=torch.float32)[None].to(dev), iters=20)
+            q = q[0].cpu().numpy().astype(float)
+            from scipy.spatial.transform import Rotation as _Rot
+            dth = float(np.degrees(np.linalg.norm(_Rot.from_matrix((Rm[0].T @ Rt[0]).cpu().numpy()).as_rotvec())))
+            k0 = self.k
+            t_close = k0 + n('settle_s', 0.3)
+            t_closed = t_close + n('close_ramp_s', 0.0)
+            t_blend = t_closed + n('dwell_s', 0.0)
+            g_open = self.grip_cmd('right', 1.)
+            r = self._relief = dict(q=q, close=t_close, closed=t_closed, blend=t_blend, nb=max(1, n('blend_s', 0.0)),
+                                    g_open=g_open, phase='hold')
+            self.log_event('close_press_relief', tick=self.k, state='on', press_mm=float(pm[0, 2] - pt[0, 2]) * 1e3,
+                           orient_fix_deg=dth, **{k: rc[k] for k in rc if k != 'orient'})
+        k = self.k
+        if r['phase'] == 'hold':
+            plan_q = tb[0].copy()             # the expert's target this tick (its lift starts when it rises above the hold)
+            tb = tb.copy()
+            tb[0] = r['q']
+            if k < r['close']:
+                grip_r = 1.
+                self._grip_override_right = None
+            elif k < r['closed']:
+                u = (k - r['close'] + 1) / max(1, r['closed'] - r['close'])
+                self._grip_override_right = float(r['g_open'] + (self.gmaps['right'].close - r['g_open']) * u)
+            else:
+                self._grip_override_right = None      # sim close target from here
+            if k >= r['blend'] and float(fk(plan_q)[0][0, 2]) >= float(fk(r['q'])[0][0, 2]):
+                r['phase'], r['b0'] = 'blend', k
+                self.log_event('close_press_relief', tick=k, state='blend')
+        elif r['phase'] == 'blend':
+            u = min(1., (k - r['b0'] + 1) / r['nb'])
+            plan = tb[0].copy()
+            tb = tb.copy()
+            tb[0] = r['q'] + (plan - r['q']) * u
+            grip_r = -1.
+            self._grip_override_right = None
+            if u >= 1.:
+                self.log_event('close_press_relief', tick=k, state='off')
+                r['phase'] = 'done'
+        else:
+            grip_r = -1. if grip_r < 0 else grip_r
+        return tb, grip_r
+
     def grip_cmd(self, side, sign):
         """Sim gripper sign -> i2rt target: open = the sim's finger limit (right: the 24 mm approach opening),
         close = the squeeze target."""
         g = self.gmaps[side]
+        if side == 'right' and getattr(self, '_grip_override_right', None) is not None:
+            return float(np.clip(self._grip_override_right, g.close, g.open))   # _close_press_relief ramp
         if sign > 0:
             w = self.cfg['gripper']['right_approach_open_m'] if side == 'right' else self.cfg['gripper']['full_open_m']
+            if side == 'right' and getattr(self, 'right_open_override_m', None) is not None:
+                w = self.right_open_override_m        # retreat_right: insert.release_open_m
             return float(np.clip(g.reading(w), g.close, g.open))
         return float(g.close)
 
@@ -258,6 +336,7 @@ class RealChain:
             pl, _ = self.scene.chain['left'].fk(tgt[1:2].to(self.scene.device))
             self.guards.check_target(pr[0].cpu().numpy(), pl[0].cpu().numpy())
         tb = tgt.cpu().numpy().astype(float)
+        tb, grip_r = self._close_press_relief(label, tb, grip_r)
         low = np.inf
         if self.guards is None or pr[0, 2] < self.scene.table_top + 0.08:     # fingertip heights only near the table
             h = self.floor_chk.heights(tb[0])
@@ -420,11 +499,10 @@ class RealChain:
 
     # ------------------------------------------------------------------ stage 1: pick
     def make_pick(self):
-        from blind_insertion.pipeline.pick_servo import ServoPick, load_servo_net
-        from blind_insertion.pipeline.pick_stage import ZedReader
+        from blind_insertion.pipeline.pick_servo import ServoPick
+        from deploy.bimanual import netcache as NC
         pc = self.cfg['pick']
-        P = EC.ROOT / 'runs/perception'
-        zr = ZedReader(str(P / f'{pc["reader_estimator"]}.pt'), self.dev, retries=pc['reader_retries'])
+        zr = NC.zed_reader(pc['reader_estimator'], self.dev, pc['reader_retries'])
         chain = self
 
         def estimator(ch):
@@ -444,7 +522,7 @@ class RealChain:
             chain.log_event('servo_frame', frame_kind=kind, frame_tag=chain.last_frame_tag, delta=delta[0].tolist(),
                             phase=int(ex.phase[0]), servo_k=int(ex.servo_k[0]), hover_iters=int(ex.hover_iters[0]))
         def dn(name):       # servo net on the net device, called with chain-device frames
-            net, sc, k = load_servo_net(P / f'{name}.pt', self.ndev)
+            net, sc, k = NC.servo(name, self.ndev)
             return _LogNet(net, sc, name), sc.to(self.dev), k
         hv, nr = dn(pc['hover_net']), dn(pc['near_net'])
         rt_ = dn(pc['rot_net']) if pc.get('rot_net') else None
@@ -459,9 +537,9 @@ class RealChain:
         if mode == 'servo':
             stage = self.make_pick()
         else:
-            from blind_insertion.pipeline.pick_stage import ExpertPick, ZedReader
-            zr = ZedReader(str(EC.ROOT / 'runs/perception' / f'{self.cfg["pick"]["reader_estimator"]}.pt'), self.dev,
-                           retries=self.cfg['pick']['reader_retries'])
+            from blind_insertion.pipeline.pick_stage import ExpertPick
+            from deploy.bimanual import netcache as NC
+            zr = NC.zed_reader(self.cfg['pick']['reader_estimator'], self.dev, self.cfg['pick']['reader_retries'])
 
             def est(ch):
                 p, R, ok = zr(ch)
@@ -489,8 +567,17 @@ class RealChain:
     # ------------------------------------------------------------------ stage 2: hold (eval_chain.Chain.stage_hold)
     def stage_hold(self, qr, ep, eR, log):
         _TrackedHold.owner = self
+        spd, HC = self.speed, EC.HoldCfg
+
+        def hold_cfg(**kw):
+            # the park -> stand-off swing (HoldCfg.move_s 1.5 s at speed 1) is scripted motion: scale it by --speed
+            # like pick/transport/approach (real run 2026-11-01 hold_160051: 1.5 s gave 2.1 rad/s on left joint 4).
+            # The guarded descent (1 cm/s) and the press are unchanged.
+            c = HC(**kw)
+            c.move_s = c.move_s / spd
+            return c
         try:
-            with _patch(EC, 'LeftHold', _TrackedHold):
+            with _patch(EC, 'LeftHold', _TrackedHold), _patch(EC, 'HoldCfg', hold_cfg):
                 self.pressing = True
                 q_hold = self._stage_hold(qr, ep, eR, log)
         finally:
@@ -541,6 +628,12 @@ class RealChain:
         ic = self.cfg['insert']
         ql = self.q_b[1].clone()
         qr = self.q_b[0].clone()
+        # release opening: the sim's right finger limit (24 mm) by default. Real run 2026-11-01 ai4: the jaws opened
+        # 0.31 -> 0.38 only and dragged the seated reader during the retreat; insert.release_open_m (e.g. full open)
+        # opens wider before backing out.
+        self.right_open_override_m = ic.get('release_open_m')
+        if self.right_open_override_m is not None:
+            self.log_event('release_open', open_m=float(self.right_open_override_m))
         for _ in range(int(round(ic['release_open_s'] / self.dt))):
             self.hstep(qr, ql, '6 release', grip_r=1., grip_l=-1.)
         ch = self.scene.chain['right']
@@ -553,6 +646,7 @@ class RealChain:
             u = u * u * (3 - 2 * u)
             q, _, _ = ch.ik(p0 + z * ic['retreat_m'] * u, R0, q, iters=10)
             self.hstep(q[0], ql, '6 release', grip_r=1., grip_l=-1.)
+        self.right_open_override_m = None
 
     def home(self):
         """Back to the pose at connect, slow and checked (left first: it is the one near the PC)."""

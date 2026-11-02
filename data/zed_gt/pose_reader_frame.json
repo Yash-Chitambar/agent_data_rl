@@ -1,0 +1,19 @@
+{
+ "_about": "the runner's reader frame (deploy/bimanual/chain.py park_left / pick_stage.ZedReader): left parked, right at the ZED capture pose",
+ "right": [
+  1.75994,
+  0.62009,
+  0.62581,
+  -1.2895,
+  1.00347,
+  1.57111
+ ],
+ "left": [
+  0.0,
+  0.80905,
+  0.29719,
+  -0.02662,
+  -0.72954,
+  -0.78
+ ]
+}

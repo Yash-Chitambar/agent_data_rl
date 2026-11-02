@@ -3,6 +3,17 @@
 Running log for `docs/archive/RESEARCH_PLAN_single_arm.md`. Dated entries; newest first within each section.
 Figures and data referenced here live in `results/<phase>/`.
 
+## 2026-11-01 (Pacific): first real bimanual session (duchamp3, `real/bimanual-deploy`)
+
+ZED PC net passes on real frames (2 placements: 3.0-4.8 mm, gates correct). Left hold 15 / 25 N latched (estimate
+70-78 % of the command, left joint 2 <= 6.8 N m). **Approach + insertion inserted the reader** (ai4, reader placed in
+the jaws by hand); FK-advance seated detector unreliable (false seats). **Servo pick reaches the reader but the
+grasp is marginal (2 of 8 closes held):** the pressed fingertips turn the real hand ~3.5 deg (sim ~0.5 deg) and the
+pads ride over the reader; the sim grasps 100 % at every tilt / opening tried on the robot, so it must be fixed in
+the sim first. Rig fixes: ZED-open and GIL stalls tripped the motors' CAN watchdog (fixed), hold swing scaled by
+--speed, press relief at the close (`pick.close_press_relief`). Details: `docs/real/SESSION_20261101_duchamp3.md`,
+`docs/real/PICK_GRASP_SIM_HANDOFF_20261101.md`.
+
 ## 2026-10-25 (Pacific): physical Task H reconstruction
 
 On `codex/physical-yam-scene`, integrated `real-yam-setup` e7b843e. Both arms now

@@ -1,0 +1,38 @@
+{
+ "spot1": {
+  "port_xy": [
+   0.235,
+   0.378
+  ],
+  "yaw_deg": 1.25,
+  "method": "x: tape (23.5 cm, operator); y, yaw: case top-face outline fitted to ZED edges with the calibrated ZED (fit_pc_edges.py, frames folded/parked, top z 0.012-0.018 m -> x 0.2335-0.2375); operator tape y unreliable (2.2 cm off)",
+  "unc_mm": 2.0
+ },
+ "spot2": {
+  "port_xy": [
+   0.215,
+   0.3785
+  ],
+  "yaw_deg": 2.0,
+  "method": "case top-face outline fitted to ZED edges with the calibrated ZED (fit_pc_edges.py, top z 0.015 m; 0.012 gives x 0.2125), readerframe frames; PC slid 2 cm toward the arms from spot1",
+  "unc_mm": 2.5
+ },
+ "spot2_repeat": {
+  "port_xy": [
+   0.215,
+   0.3785
+  ],
+  "yaw_deg": 2.0,
+  "method": "case top-face outline fitted to ZED edges with the calibrated ZED (fit_pc_edges.py, top z 0.015 m; 0.012 gives x 0.2125), readerframe frames; PC slid 2 cm toward the arms from spot1; same placement re-imaged (PC not moved), edge fit 0.215, 0.3785, 2.0 deg",
+  "unc_mm": 2.5
+ },
+ "spot2_repeat2": {
+  "port_xy": [
+   0.215,
+   0.3785
+  ],
+  "yaw_deg": 2.0,
+  "method": "case top-face outline fitted to ZED edges with the calibrated ZED (fit_pc_edges.py, top z 0.015 m; 0.012 gives x 0.2125), readerframe frames; PC slid 2 cm toward the arms from spot1; same PC placement re-imaged again (PC not moved, reader moved slightly), edge fit 0.215, 0.3785, 2.0 deg",
+  "unc_mm": 2.5
+ }
+}

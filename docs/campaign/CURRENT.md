@@ -4,6 +4,10 @@ Task: right YAM picks the SanDisk USB-C SD reader and inserts it into port 2 of 
 mini PC; left YAM holds the PC. Recipe and question: [README](../../README.md),
 [research direction](../research/RESEARCH_DIRECTION.md). Dated detail: [FINDINGS](FINDINGS.md).
 
+**Real rig (2026-11-01):** approach + insertion inserted on the robot; the servo pick grasp is marginal (2/8) because
+the sim does not model the fingertip-table press (hand turns ~3.5 deg) and pad-reader contact. Next: fix that in the
+sim ([handoff](../real/PICK_GRASP_SIM_HANDOFF_20261101.md)), then test `full` on the rig.
+
 ## Plan
 
 - **Long term:** a vision + proprioception bimanual policy, trained only in simulation,

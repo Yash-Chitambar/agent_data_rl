@@ -1,0 +1,164 @@
+[
+ {
+  "dir": "data/zed_gt/spot2",
+  "tag": "capture_noreader",
+  "pose": "capture",
+  "port_xy": [
+   0.2162686139345169,
+   0.3818807303905487
+  ],
+  "yaw_deg": 3.1599317376628044,
+  "pc_gate": true,
+  "pc_arm_ok": 1.0,
+  "pc_presence": 0.9999998807907104,
+  "pc_mahalanobis": 13.336374282836914,
+  "pc_sigma_xy_mm": 0.0,
+  "pc_sigma_yaw_deg": 0.0,
+  "pc_disagree_xy_mm": 0.0,
+  "pc_disagree_yaw_deg": 0.0,
+  "reader_xy": [
+   0.13586091995239258,
+   0.3666614592075348
+  ],
+  "reader_yaw_deg": 88.4730044324951,
+  "reader_gate": false,
+  "reader_presence": 0.9989559650421143,
+  "pc_err_xy_mm": 3.610916682565531,
+  "pc_err_yaw_deg": 1.1599317376628044
+ },
+ {
+  "dir": "data/zed_gt/spot2",
+  "tag": "capture_noreaderB",
+  "pose": "capture",
+  "port_xy": [
+   0.2162541151046753,
+   0.38203489780426025
+  ],
+  "yaw_deg": 3.1351471155989437,
+  "pc_gate": true,
+  "pc_arm_ok": 1.0,
+  "pc_presence": 0.9999998807907104,
+  "pc_mahalanobis": 13.579177856445312,
+  "pc_sigma_xy_mm": 0.0,
+  "pc_sigma_yaw_deg": 0.0,
+  "pc_disagree_xy_mm": 0.0,
+  "pc_disagree_yaw_deg": 0.0,
+  "reader_xy": [
+   0.1333160698413849,
+   0.3629513680934906
+  ],
+  "reader_yaw_deg": 88.70582509073333,
+  "reader_gate": false,
+  "reader_presence": 0.9944819211959839,
+  "pc_err_xy_mm": 3.750774211058121,
+  "pc_err_yaw_deg": 1.1351471155989437
+ },
+ {
+  "dir": "data/zed_gt/spot2",
+  "tag": "capture_reader",
+  "pose": "capture",
+  "port_xy": [
+   0.2165532410144806,
+   0.38194596767425537
+  ],
+  "yaw_deg": 3.0174516436988115,
+  "pc_gate": true,
+  "pc_arm_ok": 1.0,
+  "pc_presence": 0.9999998807907104,
+  "pc_mahalanobis": 13.346872329711914,
+  "pc_sigma_xy_mm": 0.0,
+  "pc_sigma_yaw_deg": 0.0,
+  "pc_disagree_xy_mm": 0.0,
+  "pc_disagree_yaw_deg": 0.0,
+  "reader_xy": [
+   0.13752853870391846,
+   0.3648228049278259
+  ],
+  "reader_yaw_deg": 84.91508376175459,
+  "reader_gate": false,
+  "reader_presence": 1.0,
+  "pc_err_xy_mm": 3.779847994440736,
+  "pc_err_yaw_deg": 1.0174516436988115
+ },
+ {
+  "dir": "data/zed_gt/spot2",
+  "tag": "readerframe_noreader",
+  "pose": "data/zed_gt/pose_reader_frame.json",
+  "port_xy": [
+   0.21680264174938202,
+   0.3788812756538391
+  ],
+  "yaw_deg": 3.4196759343921617,
+  "pc_gate": false,
+  "pc_arm_ok": 0.0,
+  "pc_presence": 1.0,
+  "pc_mahalanobis": 13.868417739868164,
+  "pc_sigma_xy_mm": 0.0,
+  "pc_sigma_yaw_deg": 0.0,
+  "pc_disagree_xy_mm": 0.0,
+  "pc_disagree_yaw_deg": 0.0,
+  "reader_xy": [
+   0.12809716165065765,
+   0.3829305171966553
+  ],
+  "reader_yaw_deg": 83.1792458257092,
+  "reader_gate": false,
+  "reader_presence": 2.4753489924478345e-08,
+  "pc_err_xy_mm": 1.8425222931692082,
+  "pc_err_yaw_deg": 1.4196759343921617
+ },
+ {
+  "dir": "data/zed_gt/spot2",
+  "tag": "readerframe_noreaderB",
+  "pose": "data/zed_gt/pose_reader_frame.json",
+  "port_xy": [
+   0.21690042316913605,
+   0.37885138392448425
+  ],
+  "yaw_deg": 3.4448895777132638,
+  "pc_gate": false,
+  "pc_arm_ok": 0.0,
+  "pc_presence": 1.0,
+  "pc_mahalanobis": 13.958334922790527,
+  "pc_sigma_xy_mm": 0.0,
+  "pc_sigma_yaw_deg": 0.0,
+  "pc_disagree_xy_mm": 0.0,
+  "pc_disagree_yaw_deg": 0.0,
+  "reader_xy": [
+   0.12965966761112213,
+   0.38171523809432983
+  ],
+  "reader_yaw_deg": 83.14932276695538,
+  "reader_gate": false,
+  "reader_presence": 7.683367719835132e-09,
+  "pc_err_xy_mm": 1.9326352175656594,
+  "pc_err_yaw_deg": 1.4448895777132638
+ },
+ {
+  "dir": "data/zed_gt/spot2",
+  "tag": "readerframe_reader",
+  "pose": "data/zed_gt/pose_reader_frame.json",
+  "port_xy": [
+   0.21662455797195435,
+   0.37839266657829285
+  ],
+  "yaw_deg": 3.4166166499742303,
+  "pc_gate": false,
+  "pc_arm_ok": 0.0,
+  "pc_presence": 1.0,
+  "pc_mahalanobis": 13.56884479522705,
+  "pc_sigma_xy_mm": 0.0,
+  "pc_sigma_yaw_deg": 0.0,
+  "pc_disagree_xy_mm": 0.0,
+  "pc_disagree_yaw_deg": 0.0,
+  "reader_xy": [
+   0.1316869854927063,
+   0.3871161639690399
+  ],
+  "reader_yaw_deg": 90.69283640331675,
+  "reader_gate": true,
+  "reader_presence": 1.0,
+  "pc_err_xy_mm": 1.6280998334425913,
+  "pc_err_yaw_deg": 1.4166166499742303
+ }
+]

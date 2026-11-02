@@ -1,0 +1,19 @@
+{
+ "_about": "left at the Part 1 park (PickTaskCfg.left_park_q - left joint offsets), right at folded rest: snapshot.py 'parked --side left' frame, but with both arms' joints logged",
+ "right": [
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0
+ ],
+ "left": [
+  0.0,
+  0.80905,
+  0.29719,
+  -0.02662,
+  -0.72954,
+  -0.78
+ ]
+}

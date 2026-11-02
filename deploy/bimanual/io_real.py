@@ -39,6 +39,13 @@ class RealIO:
         from deploy import conventions as C
         self.off = np.stack([C.joint_offsets(s) for s in SIDES])
         self.cams = {}
+        # GIL convoy: i2rt's motor threads release/re-take the GIL on every CAN send/receive; while the control loop
+        # runs NumPy-heavy code (FastChain IK, the hold plan) each re-take waits up to the switch interval (5 ms
+        # default). Real run 2026-11-01 hold_160735: 250-270 ms without CAN readings during the hold plan. Offline
+        # (14 I/O calls per motor cycle vs a NumPy loop): cycle p50 61 ms at 5 ms, 7 ms at 0.5 ms.
+        import sys
+        self.gil_switch_s = float(cfg.get('gil_switch_s', 0.0005))
+        sys.setswitchinterval(self.gil_switch_s)
         self._open_cameras(cams)          # blocking SDK init before the motors take commands
         sc = cfg['safety']
         self.arms = {}
@@ -65,6 +72,7 @@ class RealIO:
                   '(the approach then sags; the sim chain used it)', flush=True)
         if log is not None:
             log.event('ff_support', ok=self.ff_ok)
+            log.event('gil_switch_interval', seconds=self.gil_switch_s)
         self.can_idx = {s: 0 for s in SIDES}
         self.k = 0
         self.t_next = None
@@ -215,12 +223,20 @@ class RealIO:
         return None
 
     def close(self, read_line=input):
-        """Cameras off; arms hold powered until the operator types SUPPORTED (deploy/recovery.py rule), then torque off."""
-        for c in self.cams.values():
-            try:
-                c.close()
-            except Exception:  # noqa: BLE001
-                pass
+        """Arms hold powered until the operator types SUPPORTED (deploy/recovery.py rule), then torque off; cameras
+        off LAST. pyzed's Camera.close holds the GIL ~0.2 s (open ~1.7 s, measured 2026-11-01): with the arms
+        powered, i2rt's motor thread stops sending and the DM motors trip their CAN watchdog (0xD, torque off)."""
+        try:
+            self._close_arms(read_line)
+        finally:
+            for c in self.cams.values():
+                try:
+                    c.close()
+                except Exception:  # noqa: BLE001
+                    pass
+            self.cams = {}
+
+    def _close_arms(self, read_line):
         if not getattr(self, 'arms', None):
             return
         self.hold()

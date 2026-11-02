@@ -39,29 +39,49 @@ def T_pose(p):
     return calib.T_from(R.reshape(3, 3), np.asarray(p["pos"], float))
 
 
-def grab_zed(out, tag):
-    import pyzed.sl as sl
-    share = camshare.claim("zed")
-    cam = sl.Camera()
-    p = sl.InitParameters()
-    p.camera_resolution = sl.RESOLUTION.HD1080
-    # no depth: the SDK's neural depth model is not installed on duchamp3 ("CORRUPTED SDK
-    # INSTALLATION"), and reopening after a failed open segfaults. The stereo pair is saved.
-    p.depth_mode = sl.DEPTH_MODE.NONE
-    assert cam.open(p) == sl.ERROR_CODE.SUCCESS, "ZED open failed (USB 3? another process?)"
-    try:
-        img = sl.Mat()
-        for _ in range(15):   # let auto exposure and the depth network settle
-            cam.grab()
-        cam.retrieve_image(img, sl.VIEW.LEFT)
-        share.publish(img.get_data()[:, :, :3])
+class Zed:
+    """The ZED, opened once. pyzed's Camera.open holds the GIL for ~1.7 s and close for ~0.2 s
+    (measured 2026-11-01): with the arms connected in this process, i2rt's motor thread stops sending
+    and the DM motors trip their CAN watchdog (error 0xD "loss communication": torque off until i2rt
+    re-enables them). So open it BEFORE the arms connect and close it AFTER they are closed."""
+
+    def __init__(self):
+        import pyzed.sl as sl
+        self.sl = sl
+        self.share = camshare.claim("zed")
+        self.cam = sl.Camera()
+        p = sl.InitParameters()
+        p.camera_resolution = sl.RESOLUTION.HD1080
+        # no depth: the SDK's neural depth model is not installed on duchamp3 ("CORRUPTED SDK
+        # INSTALLATION"), and reopening after a failed open segfaults. The stereo pair is saved.
+        p.depth_mode = sl.DEPTH_MODE.NONE
+        if self.cam.open(p) != sl.ERROR_CODE.SUCCESS:
+            self.share.release()
+            raise AssertionError("ZED open failed (USB 3? another process?)")
+
+    def grab(self, out, tag):
+        sl, img = self.sl, self.sl.Mat()
+        for _ in range(15):   # let auto exposure settle
+            self.cam.grab()
+        self.cam.retrieve_image(img, sl.VIEW.LEFT)
+        self.share.publish(img.get_data()[:, :, :3])
         cv2.imwrite(str(out / f"{tag}_zed_left.png"), img.get_data()[:, :, :3])
-        cam.retrieve_image(img, sl.VIEW.RIGHT)
+        self.cam.retrieve_image(img, sl.VIEW.RIGHT)
         cv2.imwrite(str(out / f"{tag}_zed_right.png"), img.get_data()[:, :, :3])
         print("ZED: saved", flush=True)
+
+    def close(self):
+        self.cam.close()
+        self.share.release()
+
+
+def grab_zed(out, tag):
+    """Open, grab, close. Only without connected arms (see Zed)."""
+    z = Zed()
+    try:
+        z.grab(out, tag)
     finally:
-        cam.close()
-        share.release()
+        z.close()
 
 
 def grab_wrists(out, tag, spec):
@@ -213,6 +233,7 @@ def cmd_pose(a):
     kin, checker = calib.Kin(), calib.calib_checker(calib.PLAN_CLEARANCE)
     if estop.stopped():
         raise SystemExit(f"{estop.STOP_FILE} is set: clear it in estop.py first")
+    zed = None if a.move_only else Zed()   # before the arms connect (see Zed)
     movers, rest = {}, {}
     try:
         for side in sides:
@@ -228,7 +249,7 @@ def cmd_pose(a):
             movers[side].move_to(np.asarray(enc[side], float))
         q_now = {s: movers[s].joints() for s in sides}
         if not a.move_only:
-            grab_zed(out, a.tag)
+            zed.grab(out, a.tag)
             grab_wrists(out, a.tag, spec)
             write_meta(out, a.tag, spec, q_now, {"pose": a.pose})
         if a.hold:
@@ -245,6 +266,8 @@ def cmd_pose(a):
             m.go_home(rest[side][:6])
         for m in movers.values():
             m.close()
+        if zed is not None:
+            zed.close()                         # after the arms are closed (see Zed)
 
 
 if __name__ == "__main__":

@@ -124,6 +124,12 @@ class Runner:
 
     # ------------------------------------------------------------------ setup
     def open_io(self, log):
+        # every perception net BEFORE the arms connect: loading holds the GIL up to ~0.2 s (deploy/bimanual/netcache.py)
+        from deploy.bimanual import netcache as NC
+        dt = NC.preload(self.cfg, self.dev, self.a.net_device or str(self.dev))
+        print(f'nets loaded in {dt:.1f} s (before the arms connect)', flush=True)
+        if log is not None:
+            log.event('nets_preloaded', seconds=dt)
         if self.a.dry_run:
             from deploy.bimanual.io_sim import SimIO
             self.io = SimIO(self.cfg, self.gmaps, self.policy_path, device=str(self.dev))
@@ -273,9 +279,8 @@ class Runner:
         res['zed_ok'] = ok
         if st == 'capture':
             ch.park_left()
-            from blind_insertion.pipeline.pick_stage import ZedReader
-            zr = ZedReader(str(ROOT / 'runs/perception' / f'{self.cfg["pick"]["reader_estimator"]}.pt'), ch.dev,
-                           retries=self.cfg['pick']['reader_retries'])
+            from deploy.bimanual import netcache as NC
+            zr = NC.zed_reader(self.cfg['pick']['reader_estimator'], ch.dev, self.cfg['pick']['reader_retries'])
             from deploy.bimanual.chain import RealPickTask
             ch.pick = RealPickTask(ch, 1.0)
             p, R, okr = zr(ch)
