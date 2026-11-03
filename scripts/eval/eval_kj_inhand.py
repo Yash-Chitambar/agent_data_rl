@@ -78,6 +78,7 @@ def main():
     ap.add_argument('--envs', nargs='+', default=['realistic', 'base'])
     ap.add_argument('--out', default='results/real/inhand_real/kj_inhand.csv')
     ap.add_argument('--preset', default='v1', help='real grasp preset; other than v1 the grasp column reads real_<preset>')
+    ap.add_argument('--only_exact', action='store_true')
     ap.add_argument('--grasps', default='real:true,real:net,part1:true', help='grasp:obs cells')
     a = ap.parse_args()
     dev = 'cuda:0'
@@ -101,8 +102,8 @@ def main():
         env = make_env(args)
         print('env', name, 'obs', env.obs_dim, flush=True)
         for grasp, obs in (x.split(':') for x in a.grasps.split(',')):
-            for ox, oy in OFFSETS:
-                label = grasp if grasp == 'part1' or a.preset == 'v1' else f'{grasp}_{a.preset}'
+            for ox, oy in (OFFSETS[:1] if a.only_exact else OFFSETS):
+                label = grasp if grasp == 'part1' or a.preset == 'v1' else f'{grasp}_{Path(a.preset).stem}'
                 key = (name, label, obs, str(ox), str(oy), str(a.gap_mm), str(a.angle))
                 if key in have:
                     continue
