@@ -32,7 +32,7 @@ import torch.nn.functional as F  # noqa: E402
 
 MANIFEST = 'data/real_training/port_v1/manifest.jsonl'
 BLOCK = 15
-HOLDOUT_BLOCKS = (1, 4, 7, 9)      # of the 10 blocks of the collect sweep; see block_table() and docs/real/WRIST_NETS_REAL.md
+HOLDOUT_BLOCKS = (1, 4, 7, 9)      # of the 10 blocks of the collect sweep; chosen before any training: docs/real/WRIST_NETS_REAL.md
 GUARD = 1
 GAP_BANDS = ((0., 10.), (10., 25.), (25., 70.), (0., 70.))
 AXES = ('across', 'up', 'gap')

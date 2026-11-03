@@ -600,33 +600,65 @@
  },
  "other_runs": {
   "ai4": {
-   "n": 53,
-   "across": {
-    "slope": -0.077,
-    "ci_frames": [
-     -0.14,
-     1.046
-    ],
-    "label_sd": 10.88,
-    "resid_sd": 12.21
+   "all": {
+    "n": 53,
+    "across": {
+     "slope": -0.077,
+     "ci_frames": [
+      -0.14,
+      1.046
+     ],
+     "label_sd": 10.88,
+     "resid_sd": 12.21
+    },
+    "up": {
+     "slope": 0.498,
+     "ci_frames": [
+      0.178,
+      0.75
+     ],
+     "label_sd": 12.67,
+     "resid_sd": 7.43
+    },
+    "gap": {
+     "slope": 0.687,
+     "ci_frames": [
+      0.503,
+      0.944
+     ],
+     "label_sd": 18.76,
+     "resid_sd": 7.91
+    }
    },
-   "up": {
-    "slope": 0.498,
-    "ci_frames": [
-     0.178,
-     0.75
-    ],
-    "label_sd": 12.67,
-    "resid_sd": 7.43
-   },
-   "gap": {
-    "slope": 0.687,
-    "ci_frames": [
-     0.503,
-     0.944
-    ],
-    "label_sd": 18.76,
-    "resid_sd": 7.91
+   "settled_in_range": {
+    "n": 38,
+    "across": {
+     "slope": 1.051,
+     "ci_frames": [
+      1.003,
+      1.134
+     ],
+     "label_sd": 2.39,
+     "resid_sd": 0.42
+    },
+    "up": {
+     "slope": 0.718,
+     "ci_frames": [
+      0.655,
+      0.79
+     ],
+     "label_sd": 2.79,
+     "resid_sd": 0.97
+    },
+    "gap": {
+     "slope": 1.012,
+     "ci_frames": [
+      0.987,
+      1.029
+     ],
+     "label_sd": 9.61,
+     "resid_sd": 0.46
+    }
    },
    "net_at_last_5_frames": [
     5.670000076293945,
@@ -640,33 +672,65 @@
    ]
   },
   "A+A2": {
-   "n": 102,
-   "across": {
-    "slope": -0.05,
-    "ci_frames": [
-     -0.119,
-     0.971
-    ],
-    "label_sd": 8.48,
-    "resid_sd": 9.33
+   "all": {
+    "n": 102,
+    "across": {
+     "slope": -0.05,
+     "ci_frames": [
+      -0.119,
+      0.971
+     ],
+     "label_sd": 8.48,
+     "resid_sd": 9.33
+    },
+    "up": {
+     "slope": 0.514,
+     "ci_frames": [
+      0.295,
+      0.695
+     ],
+     "label_sd": 11.19,
+     "resid_sd": 6.34
+    },
+    "gap": {
+     "slope": 0.726,
+     "ci_frames": [
+      0.545,
+      0.9
+     ],
+     "label_sd": 17.49,
+     "resid_sd": 6.69
+    }
    },
-   "up": {
-    "slope": 0.514,
-    "ci_frames": [
-     0.295,
-     0.695
-    ],
-    "label_sd": 11.19,
-    "resid_sd": 6.34
-   },
-   "gap": {
-    "slope": 0.726,
-    "ci_frames": [
-     0.545,
-     0.9
-    ],
-    "label_sd": 17.49,
-    "resid_sd": 6.69
+   "settled_in_range": {
+    "n": 81,
+    "across": {
+     "slope": 0.884,
+     "ci_frames": [
+      0.765,
+      0.961
+     ],
+     "label_sd": 2.51,
+     "resid_sd": 0.99
+    },
+    "up": {
+     "slope": 0.65,
+     "ci_frames": [
+      0.623,
+      0.679
+     ],
+     "label_sd": 7.4,
+     "resid_sd": 2.73
+    },
+    "gap": {
+     "slope": 0.92,
+     "ci_frames": [
+      0.902,
+      0.938
+     ],
+     "label_sd": 10.68,
+     "resid_sd": 1.41
+    }
    }
   }
  }

@@ -3,6 +3,10 @@
 Running log for `docs/archive/RESEARCH_PLAN_single_arm.md`. Dated entries; newest first within each section.
 Figures and data referenced here live in `results/<phase>/`.
 
+## 2026-11-03 (Pacific): wrist nets on real frames, root cause and new nets (offline)
+
+The nets had not seen the real PC. Same poses in sim with panel and lid textures from real frames: `wrist_v14w` slope 0.94, 0.88, 0.98 -> 0.44, 0.33, 0.59; real frames 0.50, 0.32, 0.59. Preprocessing is correct. New nets `runs/perception_real/wrist_r10{f,w}_ft_abs.pt`, hold-out real frames (contiguous blocks, n = 60): slope 0.97, 0.94, 0.97 and 0.98, 0.96, 0.99. A2 - A height 5.3 and 5.6 mm (FK 6.8, vision 3.9). One run, one reader spot, one PC, no closed loop; 1.5 mm across disagreement with vision at A, A2 is open. Details: `docs/real/WRIST_NETS_REAL.md`.
+
 ## 2026-11-02 (Pacific): real pick fixed, wrist alignment is the next problem (duchamp3)
 
 Level roll alone (batch A, `bimanual_pick3.json`): 10 of 10 picks held (Wilson 95 % 72-100 %, one reader spot), against 2 of 8 on 2026-11-01. `full`: pick, press, transport and approach ran; 0 of 2 inserted, the plug stops too high. Same grasp, PC not moved: the hand height differs by 6.3 mm between runs and `wrist_v18ws` moves 1.3 mm. On 150 real labeled frames its slope against the label is 0.34 across, 0.17 up, 0.35 gap. The real stop gap is 11-12 mm, so the seat detector's 6 mm gap gives false seats. Label caveat: the recheck differs by 4.5 mm in height (the reader pitches in the jaws when pushed), so absolute y of the collect run is open; slopes do not depend on it. Operator requests for the sim side: real in-hand pose (butt angled out of the gripper, < 10 deg), port edge detection as an extra check. Details: `docs/real/SESSION_20261102_duchamp3.md`.
