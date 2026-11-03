@@ -29,7 +29,7 @@ DEFAULTS = dict(
     frames=5, min_good=3, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
     max_cycles=40, max_time_s=90.0, max_lat_mm=20.0, max_advance_mm=16.0,
     drift_mm=1.0, drift_n=2, pred_mm=2.5, pred_n=2, grow_margin_mm=.5, grow_n=4, grow_abs_mm=9.0, grip_change=.02,
-    probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_min_motion_mm=1.5,
+    probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_early=[.25, 2.0], slope_min_motion_mm=1.5,
     inhand_refresh=True, settle_s=.3, settle_max_s=1.5, still_rad_s=.02, move_tol_mm=.3, step_timeout_s=3.0, stuck_n=3,
     lead_rate_rad_s=[.02, .04, .04, .02, .05, .05], lead_max_rad=[.02, .045, .045, .012, .06, .06], eps_rad=[.001, .001, .001, .002, .003, .003],
     heavy=[False, True, True, False, False, False], ki_per_s=1.0, move_eps_rad=.0005, release=.3,
@@ -306,6 +306,9 @@ class AlignLogic:
         if self.probing:          # the first cycle after the probes starts the divergence count
             self.probing = False
             self.last_e, self.best_e = e, e
+            for i, sl in enumerate(self.slope()):      # a camera that does not follow the hand stops here, before any correction (loose: one probe, noisy; the hand-over gate is tighter)
+                if self.sxx[i] >= c['slope_min_motion_mm'] ** 2 and not (c['slope_early'][0] <= sl <= c['slope_early'][1]):
+                    return self.fail(f'scale gate after the probes: {AXES[i]} measurement moves {sl:.2f} mm per mm of FK motion', err=err)
         if self.last_e is not None:
             if e > self.last_e + c['grow_margin_mm']:
                 self.grow += 1

@@ -67,7 +67,7 @@ After the run, show:
 .venv/bin/python scripts/real/align_log.py data/real_runs/$(date +%F)/full_*measure1
 ```
 
-Check: frames measured (`ok`), spread between measurements, and the values against what the operator sees. Expected at the stop, from the last runs: gap about 9-12 mm, up about +2 to +8 mm. **Before step 3: the measurements must be steady (spread below about 1.5 mm in up and gap, 3 mm across), and at least half of the cycles must have a measurement.** If not, stop and report. Do not run step 3. Ask the port vision agent.
+Check: `align: shell depth` printed a number (no number: the grasp is refused, and the stage stops, which is correct), frames measured (`ok`), spread between measurements, and the values against what the operator sees. Expected at the stop, from port vision on the last runs: gap about 8-9 mm, up about +5 to +9 mm, across -5 to 0 mm. **Before step 3: the measurements must be steady (spread below about 1 mm: the arm does not move, and port vision noise at rest was under 0.12 mm offline), and at least half of the cycles must have a measurement.** This is also the first time port vision runs live. Compare the printed time per measurement: about 82 ms offline. If not, stop and report. Do not run step 3. Ask the port vision agent.
 
 Repeat once with a new pick (`--name measure2`). The values should agree within about 1-2 mm, unless the operator saw a different grasp.
 
@@ -121,7 +121,7 @@ Go on with `align_full2`, and so on, one go per try, for about 5 tries. Then sto
 
 Keep each item short: what, why, the command. Merge order matters: put your branch name here.
 
-- **Port vision (`real/port-vision`):** _(open)_ constants, detection rate, sigma values for `align`; any camera check to add to step 1.
+- **Port vision (`real/port-vision`):** merged at d1eb4d0. Its own wish list for the session is in [PORT_VISION.md](PORT_VISION.md), section "What the next rig session should collect". Items 3 (grasp spread) and 4 (still noise) come free from step 2 repeated; items 1, 2, 5, 6 need an operator decision.
 - **Wrist nets (`policy/wrist-real`):** _(open)_ whether a net can be a second source (`align.secondary`), and its real slope.
 - **Sim grasp (`sim/grasp-real`):** _(open)_ in-hand preset; any change to K-J or the in-hand net.
 - **Re-collect with a light-contact anchor:** _(open, needs a decision)_. The 2026-11-02 anchor was a full push, and the reader pitched in the jaws: the labels' height is not known within about 4.5 mm. A new `collect` run with the anchor at light contact (plug in by 1-2 mm, no push, `anchor 1.5`) would fix the constant for the port vision and the nets. Cost: about 20 min of the rig, with the operator's hand on the PC. Command, if it is wanted (one go):

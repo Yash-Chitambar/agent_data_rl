@@ -119,7 +119,7 @@ def run(env, pol, a, guard_on):
     g0_true, lat0_true = p[:, 2].clone() * 1e3, p[:, :2].clone() * 1e3
     gn = torch.randn(N, 3, device=dev)
     g0 = g0_true + gn[:, 2] * a.sig_gap
-    lat0 = lat0_true + gn[:, :2] * a.sig_lat
+    lat0 = lat0_true + gn[:, :2] * torch.tensor(a.sig_lat, device=dev)
     det2 = SeatDetector2(N, dev, g0, lat0, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate)
     det2b = SeatDetector2(N, dev, g0_true, lat0_true, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate)
     old = [SeatDetector(pR[i].cpu(), .006, .0058, .001, .2, .005, env.dt) for i in range(min(N, a.old_n))]
@@ -152,8 +152,9 @@ def run(env, pol, a, guard_on):
                 if alive[i]:
                     if d.update(pn[i])[2] and told[i] < 0:
                         told[i] = t
-            max_lat = torch.where(alive[:, None], torch.maximum(max_lat, rm[:, :2].abs()), max_lat)
-            depth_max = torch.where(alive, torch.maximum(depth_max, -rm[:, 2]), depth_max)
+            before = alive & ~latch          # after the true seat the policy runs untrained (episodes ended at the seat in training): not part of the bound
+            max_lat = torch.where(before[:, None], torch.maximum(max_lat, rm[:, :2].abs()), max_lat)
+            depth_max = torch.where(before, torch.maximum(depth_max, -rm[:, 2]), depth_max)
             st = gd.stop.clone()
             nw = alive & (tstop < 0) & (st > 0)
             tstop[nw], stop_kind[nw] = t, st[nw]
@@ -170,11 +171,16 @@ def run(env, pol, a, guard_on):
     k = int(ok.sum())
     tr_s = t_true.cpu().numpy() >= 0
     tr_ok = ok.cpu().numpy()
+    tt_true = t_true.cpu().numpy()
+
     def det(tt):
-        d = tt.cpu().numpy() >= 0
+        ta = tt.cpu().numpy()
+        d = ta >= 0
+        early = d & tr_ok & (ta < tt_true - 25)         # more than 0.5 s before the sim's seated hold
+        d = d & (~tr_ok | (ta <= tt_true + 150))         # the robot stops at the detection: 3 s window after the seat
         tp = int((d & tr_ok).sum())
         fp = int((d & ~tr_ok).sum())
-        return dict(detected=int(d.sum()), true_seat=tp, false_seat=fp, missed=int((~d & tr_ok).sum()), false_rate=fp / max((~tr_ok).sum(), 1), false_ci=wilson(fp, int((~tr_ok).sum())), miss_rate=int((~d & tr_ok).sum()) / max(tr_ok.sum(), 1), miss_ci=wilson(int((~d & tr_ok).sum()), int(tr_ok.sum())))
+        return dict(early=int(early.sum()), detected=int(d.sum()), true_seat=tp, false_seat=fp, missed=int((~d & tr_ok).sum()), false_rate=fp / max((~tr_ok).sum(), 1), false_ci=wilson(fp, int((~tr_ok).sum())), miss_rate=int((~d & tr_ok).sum()) / max(tr_ok.sum(), 1), miss_ci=wilson(int((~d & tr_ok).sum()), int(tr_ok.sum())))
     tr_old_ok = tr_ok[:len(old)]
     d_old = told[:len(old)].cpu().numpy() >= 0
     out = dict(set=a.set, guard=guard_on, n=n, k=k, rate=k / n, wilson=wilson(k, n), stops={str(j): int((stop_kind == j).sum()) for j in (1, 2)}, stop_before_seat=int(((tstop >= 0) & ((t_true < 0) | (tstop < t_true))).sum()), clamped_worlds=int((gd.clamped > 0).sum()),
@@ -195,9 +201,9 @@ if __name__ == '__main__':
     ap.add_argument('--stall_eps', type=float, default=.3)
     ap.add_argument('--lead_min', type=float, default=3.)
     ap.add_argument('--gate', type=float, nargs=2, default=(3., 6.))
-    ap.add_argument('--margin', type=float, default=1.2)
-    ap.add_argument('--sig_gap', type=float, default=1.)
-    ap.add_argument('--sig_lat', type=float, default=.5)
+    ap.add_argument('--margin', type=float, default=1.5)
+    ap.add_argument('--sig_gap', type=float, default=.63, help='port vision residual 0.49 + run constant 0.4')
+    ap.add_argument('--sig_lat', type=float, nargs=2, default=(.39, .95), help='across 0.25 + 0.3, up 0.74 + 0.6')
     ap.add_argument('--friction', default='')
     ap.add_argument('--windup', action='store_true')
     ap.add_argument('--enc_offset_deg', type=float, default=None)

@@ -26,7 +26,7 @@ def check(name, ok, info=''):
         FAILED.append(name)
 
 
-def M(a, u, g, conf=1., sig=.5):
+def M(a, u, g, conf=1., sig=.5):  # noqa: N802
     return PortMeasure(True, 't', conf, a, u, g, sig)
 
 
@@ -60,6 +60,10 @@ def main():
     lg = logic(probe_mm=[2, 2, 2])
     d, p = drive(lg, (1.5, 7., 11.5), plant_slope=(.34, .17, .35))
     check('net slope rejected', d['kind'] == 'fail' and 'scale' in d['reason'], d.get('reason'))
+    # a frozen camera stops right after the probes
+    lg = logic(probe_mm=[2, 2, 2])
+    d, p = drive(lg, (1.5, 7., 11.5), plant_slope=(0, 0, 0))
+    check('frozen measurement stops after the probes', d['kind'] == 'fail' and 'after the probes' in d['reason'] and lg.cycle <= 7, f"{d.get('reason')} cycle {lg.cycle}")
     # already aligned with no motion: the scale cannot be checked
     lg = logic(probe_mm=[0, 0, 0])
     d, p = drive(lg, (0., 0., 6.))
