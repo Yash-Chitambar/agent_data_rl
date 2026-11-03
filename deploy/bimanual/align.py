@@ -559,6 +559,7 @@ class AlignStage:
         self.R0, self.tip0 = R0, (p0 - R0 @ self.s).numpy().astype(float)
         self.creep.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
         out = dict(ok=False, reason='', cycles=0, gap_mm=None, lat_mm=None)
+        self.sim_truth_angle()
         self.still()
         if hasattr(self.src, 'prepare'):
             pr = self.src.prepare(ch, self.creep.tick)
@@ -617,6 +618,33 @@ class AlignStage:
             else:
                 last = None
 
+    def sim_truth_angle(self):
+        """Dry-run experiment only: turn the hand so that the plug has the wanted rotation against the port by sim truth (config sim_truth_angle: [rx, ry, rz] deg, axes selectable)."""
+        c, ch = self.c, self.ch
+        want = c.get('sim_truth_angle')
+        if want is None or not getattr(ch.io, 'is_sim', False):
+            return
+        from blind_insertion.envs import kinematics as K
+        tr = ch.truth()
+        rv_now = torch.deg2rad(torch.as_tensor(np.asarray(tr['plug_rot_deg'], float), dtype=torch.float32))
+        rv_want = torch.deg2rad(torch.as_tensor(np.asarray(want, float), dtype=torch.float32))
+        pR = torch.as_tensor(tr['pc_R'], dtype=torch.float32)
+        def mat(v):
+            a = v.norm()
+            return torch.eye(3) if float(a) < 1e-9 else K.axis_angle_mat(v / a, a)
+        dR = pR @ mat(rv_want) @ mat(rv_now).T @ pR.T      # world rotation that brings the plug there
+        self.R0 = dR @ self.R0
+        d = self.goal_of(np.zeros(3))
+        if d is not None:
+            self.creep.goal = d
+            for _ in range(int(2. / ch.dt)):
+                self.creep.tick()
+        self.still()
+        ch.log_event('align_sim_truth_angle', want=list(want), before=tr['plug_rot_deg'], after=ch.truth()['plug_rot_deg'])
+        p0, R0 = self.fk(ch.q_b[0])
+        self.R0, self.tip0 = R0, (p0 - R0 @ self.s).numpy().astype(float)
+        self.creep.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
+
     def handover(self, log):
         """Stage succeeded: target lead into the range K-J saw, press back on, last measurement. Returns (cmd for run_insertion or None, dict)."""
         c, ch = self.c, self.ch
@@ -653,7 +681,18 @@ class AlignStage:
             img = F.interpolate(fr.permute(0, 3, 1, 2).float(), size=(192, 192), mode='area').round().byte().permute(0, 2, 3, 1)
             with torch.no_grad():
                 new = net(img) * scale
-            ch.log_event('align_inhand', before=ch.inhand_est6.reshape(-1).tolist(), after=new.reshape(-1).tolist())
+            rec = dict(before=ch.inhand_est6.reshape(-1).tolist(), after=new.reshape(-1).tolist())
+            tr = ch.truth()
+            if tr is not None:        # dry run: the K-J input against the true in-hand pose
+                from blind_insertion.envs.inhand import inhand_error6, nominal_reader_in_site
+                R0_, p0_ = nominal_reader_in_site(torch.device('cpu'))
+                ip, iR = torch.as_tensor(tr['inhand_p'], dtype=torch.float32), torch.as_tensor(tr['inhand_R'], dtype=torch.float32)
+                from blind_insertion.envs import kinematics as K
+                true6 = torch.cat([(ip - p0_.float().reshape(3)) * 1e3, torch.rad2deg(K.rot_log(iR[None] @ R0_.float().reshape(1, 3, 3).transpose(1, 2))[0])])
+                rec['true6'] = true6.tolist()
+                if c.get('sim_truth_inhand'):
+                    new = true6[None].to(new.device)
+            ch.log_event('align_inhand', **rec)
             ch.inhand_est6 = new
         q = ch.q_b[0].cpu().numpy().astype(float)
         cmd = torch.as_tensor(q + self.creep.lead, dtype=torch.float32, device=ch.dev)

@@ -208,6 +208,8 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     if tr is not None:
         res['true_seated_end'] = bool(tr['seated'])
         res['true_depth_mm_end'] = tr['tip_depth_mm']
+        res['true_rot_deg_end'] = np.asarray(tr['plug_rot_deg'], float).tolist()
+        res['true_p_mm_end'] = np.asarray(tr['plug_in_port_mm'], float).tolist()
     chain.log_event('insert_result', **res)
     log.update({f'insert_{k}': v for k, v in res.items()})
     return res

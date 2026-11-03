@@ -206,6 +206,12 @@ class SimIO:
         from blind_insertion.envs.inhand import measured_mean
         rt, ch = self.rt, self.ch
         R_sr, p_sr = measured_mean(device=self.dev)            # grasp_site in the reader frame
+        preset = self.cfg.get('sim', {}).get('inhand_preset')  # fair dry run: one measured real grasp per episode (envs/inhand_real.py), not the sim's Part 1 mean
+        if preset:
+            from blind_insertion.envs import inhand_real as IR
+            R_sr, p_sr, d = IR.sample_real(1, preset, device=str(self.dev))
+            R_sr, p_sr = R_sr[0], p_sr[0]
+            self.last_inhand_delta = d[0].cpu().numpy()
         p_t, R_t = ch.pick.chain.fk(rt.q[:, rt.indices['right'][0]])
         R_r = R_t @ R_sr.T
         p_r = p_t - (R_r @ p_sr[:, None])[..., 0]
