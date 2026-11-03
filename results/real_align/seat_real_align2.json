@@ -1,0 +1,312 @@
+[
+ {
+  "run": "2026-11-02/full_174850_full_A",
+  "truth": "not seated (operator)",
+  "old": {
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end_mm": 4.088801067261066
+  },
+  "port_vision": [
+   -0.87,
+   5.41,
+   8.42
+  ],
+  "pv_frames": [
+   4,
+   4
+  ],
+  "fk_label": [
+   1.57,
+   7.26,
+   12.04
+  ],
+  "new_fk_label_gap": {
+   "g0": 12.035013547356069,
+   "lat0": [
+    1.5721899159337749,
+    7.259342819452286
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": -2.0615263584138876,
+   "depth_max": -1.8026402375545203,
+   "lat_end": [
+    -3.72,
+    8.91
+   ]
+  },
+  "new_port_vision": {
+   "g0": 8.42,
+   "lat0": [
+    -0.87,
+    5.41
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 1.5534871889421815,
+   "depth_max": 1.8123733098015489,
+   "lat_end": [
+    -6.16,
+    7.06
+   ]
+  },
+  "new_old_gap_assumption": {
+   "g0": 6.0,
+   "lat0": [
+    0.0,
+    0.0
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 3.9734871889421814,
+   "depth_max": 4.232373309801549,
+   "lat_end": [
+    -5.29,
+    1.65
+   ]
+  },
+  "new_port_vision_doc_values": {
+   "g0": 8.4,
+   "lat0": [
+    -0.3,
+    5.0
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 1.573487188942181,
+   "depth_max": 1.8323733098015484,
+   "lat_end": [
+    -5.59,
+    6.65
+   ]
+  }
+ },
+ {
+  "run": "2026-11-02/full_175742_full_A2",
+  "truth": "not seated (operator)",
+  "old": {
+   "seated": true,
+   "t_seat_s": 8.84,
+   "depth_end_mm": 5.764188676401499
+  },
+  "port_vision": [
+   -4.24,
+   7.46,
+   8.94
+  ],
+  "pv_frames": [
+   4,
+   4
+  ],
+  "fk_label": [
+   -3.27,
+   14.11,
+   10.61
+  ],
+  "new_fk_label_gap": {
+   "g0": 10.612653276800202,
+   "lat0": [
+    -3.2666926856015355,
+    14.108552597463131
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 0.9886867494415963,
+   "depth_max": 0.9886867494415963,
+   "lat_end": [
+    -8.28,
+    28.33
+   ]
+  },
+  "new_port_vision": {
+   "g0": 8.94,
+   "lat0": [
+    -4.24,
+    7.46
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 2.661340026241799,
+   "depth_max": 2.661340026241799,
+   "lat_end": [
+    -9.25,
+    21.68
+   ]
+  },
+  "new_old_gap_assumption": {
+   "g0": 6.0,
+   "lat0": [
+    0.0,
+    0.0
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 5.6013400262417985,
+   "depth_max": 5.6013400262417985,
+   "lat_end": [
+    -5.01,
+    14.22
+   ]
+  },
+  "new_port_vision_doc_values": {
+   "g0": 8.0,
+   "lat0": [
+    -5.2,
+    8.9
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 3.6013400262417985,
+   "depth_max": 3.6013400262417985,
+   "lat_end": [
+    -10.21,
+    23.12
+   ]
+  }
+ },
+ {
+  "run": "2026-11-01/approach_insert_171123_ai4",
+  "truth": "seated (operator, 2026-11-01)",
+  "old": {
+   "seated": true,
+   "t_seat_s": 1.18,
+   "depth_end_mm": 11.94597885311866
+  },
+  "port_vision": [
+   2.19,
+   -2.39,
+   9.55
+  ],
+  "pv_frames": [
+   4,
+   4
+  ],
+  "fk_label_own_seat": [
+   5.02,
+   0.59,
+   12.3
+  ],
+  "new_own_seat_label": {
+   "g0": 12.302452477071338,
+   "lat0": [
+    5.0212027349808235,
+    0.586850568652153
+   ],
+   "seated": true,
+   "t_seat_s": 4.0200000000000005,
+   "depth_end": 5.800000000000001,
+   "depth_max": 6.248565374993142,
+   "lat_end": [
+    0.0,
+    0.0
+   ]
+  },
+  "new_port_vision": {
+   "g0": 9.55,
+   "lat0": [
+    2.19,
+    -2.39
+   ],
+   "seated": true,
+   "t_seat_s": 3.84,
+   "depth_end": 8.552452477071338,
+   "depth_max": 9.001017852064479,
+   "lat_end": [
+    -2.83,
+    -2.98
+   ]
+  }
+ },
+ {
+  "run": "2026-11-02/collect_182100_collect1",
+  "truth": "jogged in, anchor",
+  "advance_to_seat_mm": [
+   -1.53,
+   -6.99,
+   -16.86
+  ],
+  "port_vision_stop": [
+   -0.19,
+   3.11,
+   8.2
+  ],
+  "pv_frames": [
+   5,
+   5
+  ],
+  "label_stop": [
+   1.53,
+   6.99,
+   11.06
+  ],
+  "grip_stop": 0.3028818852924478,
+  "grip_seat": 0.292944349801249,
+  "new_label_to_anchor": {
+   "g0": 11.061634606028917,
+   "lat0": [
+    1.5271184335389552,
+    6.992560811340809
+   ],
+   "seated": true,
+   "t_seat_s": 63.84,
+   "depth_end": 5.800000000000001,
+   "depth_max": 6.589919290966865,
+   "lat_end": [
+    0.0,
+    0.0
+   ]
+  },
+  "new_port_vision_to_anchor": {
+   "g0": 8.2,
+   "lat0": [
+    -0.19,
+    3.11
+   ],
+   "seated": true,
+   "t_seat_s": 59.82,
+   "depth_end": 8.661634606028919,
+   "depth_max": 9.451553896995783,
+   "lat_end": [
+    -1.72,
+    -3.88
+   ]
+  },
+  "recheck_advance_from_stop_mm": [
+   -1.54,
+   -9.14,
+   -17.5
+  ],
+  "new_label_to_recheck": {
+   "g0": 11.061634606028917,
+   "lat0": [
+    1.5271184335389552,
+    6.992560811340809
+   ],
+   "seated": true,
+   "t_seat_s": 8.14,
+   "depth_end": 6.438459607820619,
+   "depth_max": 6.438459607820619,
+   "lat_end": [
+    -0.02,
+    -2.15
+   ]
+  },
+  "new_port_vision_to_recheck": {
+   "g0": 8.2,
+   "lat0": [
+    -0.19,
+    3.11
+   ],
+   "seated": true,
+   "t_seat_s": 4.76,
+   "depth_end": 9.300094213849537,
+   "depth_max": 9.300094213849537,
+   "lat_end": [
+    -1.73,
+    -6.03
+   ]
+  },
+  "grip_recheck": 0.2692362294151055
+ }
+]
