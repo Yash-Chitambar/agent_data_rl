@@ -32,7 +32,7 @@ DEFAULTS = dict(
     probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_early=[.25, 2.0], slope_min_motion_mm=1.5,
     inhand_refresh=True, settle_s=.3, settle_max_s=1.5, still_rad_s=.02, move_tol_mm=.3, step_timeout_s=3.0, stuck_n=3,
     lead_rate_rad_s=[.02, .04, .04, .02, .05, .05], lead_max_rad=[.02, .045, .045, .012, .06, .06], eps_rad=[.001, .001, .001, .002, .003, .003],
-    heavy=[False, True, True, False, False, False], ki_per_s=1.0, move_eps_rad=.0005, release=.3,
+    heavy=[False, True, True, False, False, False], ki_per_s=1.0, relax=.1, move_eps_rad=.0005, release=.3,
     handover_lead_rad=[[-.0004, .0004], [-.0051, .0156], [-.011, .0129], [-.0024, .0013], [.0144, .0279], [-.0058, .0019]],
     source=dict(kind='stub'), sim_source=dict(kind='sim_truth'), secondary=None, secondary_sim=None, disagree_mm=[2.0, 2.0, 3.0], disagree_mode='gate',
     on_fail='back_off', back_off_mm=15.0, back_off_v_mm_s=10.0, press_release=True, repress_s=1.0, post_press_tol_factor=1.5,
@@ -362,13 +362,15 @@ class AlignLogic:
 
 def creep_state(lead):
     lead = np.asarray(lead, float)
-    return dict(lead=lead.copy())
+    return dict(lead=lead.copy(), brk_pos=np.full(lead.shape, np.nan), brk_neg=np.full(lead.shape, np.nan), rest=np.zeros(lead.shape, bool))
 
 
 def creep_law(q, prev, goal, st, c, dt):
     """Joint targets of one control tick; arrays (..., 6), so the batched sim eval runs the same law. st: creep_state, updated in place. Returns the target.
     Target = goal + lead on every joint: the position error always pulls toward the goal, so the hand cannot run away (a target that follows the measured joint let it climb 20 mm in the batched eval).
-    High-friction joints: the lead ramps while the joint is off its goal and is cut as soon as the joint moves, so that little stored torque is left when it breaks free; at the goal the lead stays (it carries the load).
+    High-friction joints: the lead ramps while the joint is off its goal and is cut as soon as the joint moves, so that little stored torque is left when it breaks free. Breaks from rest in both directions give the
+    middle of the friction band (the constant load: real joint 2 about -0.87 N m); that is the holding lead. At the goal the lead relaxes to it: a lead kept at the edge of the band slips later (dry run: 2.5 mm per cycle), a lead of zero
+    springs back against the load (dry run: 0.7 mm per 1 mm step).
     Low friction: a slow integral (joint 5 carries about 0.2 N m)."""
     heavy = np.asarray(c['heavy'], bool)
     eps, rate, lim = np.asarray(c['eps_rad'], float), np.asarray(c['lead_rate_rad_s'], float), np.asarray(c['lead_max_rad'], float)
@@ -376,8 +378,18 @@ def creep_law(q, prev, goal, st, c, dt):
     e = goal - q
     moved = (q - prev) * np.sign(e)
     off = np.abs(e) > eps
-    h = np.where(moved >= c['move_eps_rad'], lead * c['release'], np.where(lead * e < 0, 0., lead + np.sign(e) * rate * dt))
-    h = np.where(off, h, lead)
+    broke = off & (moved >= c['move_eps_rad'])
+    fresh = broke & st['rest']
+    st['brk_pos'] = np.where(fresh & (e > 0), lead + e, st['brk_pos'])
+    st['brk_neg'] = np.where(fresh & (e < 0), lead + e, st['brk_neg'])
+    st['rest'] = np.abs(q - prev) < c['move_eps_rad'] * .5
+    hold = .5 * (st['brk_pos'] + st['brk_neg'])
+    known = np.isfinite(hold) & (st['brk_pos'] > st['brk_neg'])
+    base = np.where(known, hold, 0.)
+    cut = np.where(known, hold, lead * c['release'])
+    ramp = np.where((lead - base) * e < 0, base, lead + np.sign(e) * rate * dt)      # goal now on the other side: start again from the holding lead
+    h = np.where(broke, cut, ramp)
+    h = np.where(off, h, lead + (base - lead) * c['relax'])
     lo = lead + c['ki_per_s'] * e * dt
     st['lead'] = np.clip(np.where(heavy, h, lo), -lim, lim)
     return goal + st['lead']
