@@ -15,12 +15,12 @@ Fair dry run = r10 nets, real PC look, in-hand from the `v2` preset, encoder off
 | Fair, angle = 0 by truth (`F2`) | 18/29 | 12/18 = 67 % [44, 84] | 1.09 | 1.0, 0.3, 0.1 |
 | Fair, both (`F4`) | 17/29 | 12/17 = 71 % [47, 87] | 1.31 | 1.1, 0.3, 0.1 |
 | Left hold at 3.5 cm, no angle fix (`X2`) | 34/36 | 19/34 = 56 % [39, 71] | 2.56 | 1.1, 1.8, 1.6 |
-| **align2: angle from vision model, guard** (`X1`) | 30/34 [73, 95] | **25/30 = 83 % [66, 93]** | 1.52 | 0.6, 0.4, 1.4 |
-| align2, press abort after 6 s, not 3 s (`X1s`) | 24/29 | 23/24 = 96 % [80, 99] | 1.34 | 0.7, 0.2, 1.1 |
-| align2, no guard (`X1n`) | 31/34 | 27/31 = 87 % [71, 95] | 1.22 | 0.6, 0.3, 1.5 |
+| **align2: angle from vision model, guard** (`X1`) | 32/36 [75, 96] | **27/32 = 84 % [68, 93]** | 1.52 | 0.6, 0.4, 1.2 |
+| align2, press abort after 6 s, not 3 s (`X1s`) | 30/36 | 29/30 = 97 % [83, 99] | 1.34 | 0.7, 0.2, 1.1 |
+| align2, no guard (`X1n`) | 33/36 | 29/33 = 88 % [73, 95] | 1.22 | 0.6, 0.3, 1.5 |
 | Old slopes 0.34, 0.17, 0.35, gates on (`Y`) | **0/12** [0, 24] | | | stops: scale 12 |
 
-Reference: `sim/grasp-real`, K-J at exact hand-over with `v2` and net input: 94.1 % [92.5, 95.4]; up to 2 deg per axis 59.5 %. **Acceptance: with the guard as it was, 83 % [66, 93] is not shown equal to 94 %.** The intervals just miss. With the press abort at 6 s it reaches 96 % [80, 99], but this makes a guard looser: I left it at 3 s in the config. **Decision for the operator:** `insert.guard.stall_s` 3 or 6. Press force in A and A2 was low (PD estimate about 2 N axial, up to 11 N up); a stalled push also meets the 10 s limit. n is 24-34 per row. Not the same physics as their test: see above.
+Reference: `sim/grasp-real`, K-J at exact hand-over with `v2` and net input: 94.1 % [92.5, 95.4]; up to 2 deg per axis 59.5 %. **Acceptance: with the guard as it was, 84 % [68, 93] is not shown equal to 94 %.** The intervals just miss. With the press abort at 6 s it reaches 97 % [83, 99], but this makes a guard looser: I left it at 3 s in the config. **Decision for the operator:** `insert.guard.stall_s` 3 or 6. Press force in A and A2 was low (PD estimate about 2 N axial, up to 11 N up); a stalled push also meets the 10 s limit. n is 24-34 per row. Not the same physics as their test: see above.
 
 **Explaining the gap (0 of 12, 52 %, 94 %):**
 
@@ -34,7 +34,7 @@ Reference: `sim/grasp-real`, K-J at exact hand-over with `v2` and net input: 94.
 4. **Hand-over target, press off, gains: no sign of a problem.** `L0` runs the same path at 17/17 on the old look, and first seat 0.78 s as in the batch. Clip and press-off are in that path.
 5. **The rest.** Truth angle gives only 67-71 % (with the guard, n 17-18) and many stops before the hand-over; n too small to split further. Rz is not corrected (p50 1.4 deg).
 
-**Criterion, the first 0-of-12 runs (n = 13 with one more run), by depth:** at the end, 6 of 13 deeper than 4 mm (3.7-5.7): 5.7 seated; 5.5, 5.4, 5.3 at the sim's limit of 5.55 mm; 4.5, 4.4. Only one seated by the test. Tilt was not logged then. Not counted as success. In `X1`, 5 never seated: 4 stalled on the case at -1.3 to -1.9 mm with tilt 1.7-6.9 deg, 1 at 5.2 mm. "Seated at the end of the run" is lower than the hold (13 of 30 in `X1`): when the push stops, the plug relaxes to about 5.5 mm, under the 5.55 limit. Sim fingers do not yield as real ones do.
+**Criterion, the first 0-of-12 runs (n = 13 with one more run), by depth:** at the end, 6 of 13 deeper than 4 mm (3.7-5.7): 5.7 seated; 5.5, 5.4, 5.3 at the sim's limit of 5.55 mm; 4.5, 4.4. Only one seated by the test. Tilt was not logged then. Not counted as success. In `X1`, 5 never seated: 4 stalled on the case at -1.3 to -1.9 mm with tilt 1.7-6.9 deg, 1 at 5.2 mm. "Seated at the end of the run" is lower than the hold (15 of 32 in `X1`): when the push stops, the plug relaxes to about 5.5 mm, under the 5.55 limit. Sim fingers do not yield as real ones do.
 
 **Press abort ended runs that could still succeed:** `F1`: 7 of 11 guard stops are abort at 3.4-5 s, on the case, depth steady; K-J's search can take over 6 s (one seat at 6.4 s). So `X1` against `X1s`.
 
@@ -51,7 +51,7 @@ Reference: `sim/grasp-real`, K-J at exact hand-over with `v2` and net input: 94.
 
 **Real plug at the old stops: pitched about -3 deg, yawed about -2 to -3 deg, by two independent methods** (n = 2). No claim on sign in the world beyond the axes above: the runbook asks for a side photo. K-J's training: rx -0.01, SD 0.32; ry 0.04, SD 0.14; rz 0.10, SD 0.23 deg (`starts_round3_plus_chain.npz`), times up to 2: so the target is 0, from its training. ZED yaw is not in this estimate of ry (panel against camera).
 
-**Stage (config `align.angle`):** a turn of at most 0.75 deg per cycle about the plug tip, rx and ry, fused over the last 6 cycles against the applied turn, tolerance 1 deg, total at most 7 deg, no angle measurement: stop. Sim model: truth + pose residual 0.8, 0.3 deg + grasp 0.6, 0.4 deg. **Achieved (`X1`, n = 30): rx abs p50, p95 0.6, 1.7; ry 0.4, 0.9; rz 1.4, 2.6 deg, uncorrected.** Position: across 0.3, 0.8; up 0.7, 1.8; gap 4.8, 6.1, 6.8 mm. Against the targets (1 mm, 1 deg, 6 mm): rz and the p95 of up are past them.
+**Stage (config `align.angle`):** a turn of at most 0.75 deg per cycle about the plug tip, rx and ry, fused over the last 6 cycles against the applied turn, tolerance 1 deg, total at most 7 deg, no angle measurement: stop. Sim model: truth + pose residual 0.8, 0.3 deg + grasp 0.6, 0.4 deg. **Achieved (`X1`, n = 32): rx abs p50, p95 0.6, 1.6; ry 0.4, 0.8; rz 1.2, 2.6 deg, uncorrected.** Position: across 0.3, 0.8; up 0.7, 1.8; gap p5, p50, p95 4.5, 6.1, 6.9 mm. Against the targets (1 mm, 1 deg, 6 mm): rz and the p95 of up are past them.
 
 **Not verified on the arm:** port vision's panel rotation has not run live; its absolute angle rests on the model and the mount. A wrong constant would turn the plug by that much with no gate noticing. Hence the side photo in the runbook before any turn.
 
@@ -64,9 +64,13 @@ Reference: `sim/grasp-real`, K-J at exact hand-over with `v2` and net input: 94.
 
 **Harness.** `--believed-frame` with the expert pick (no servo) plans on encoder FK with a +-1.5 deg error: 17 of 32 lifted. Without it: 32 of 32. With `expert_servo`, as the real chain: 64 of 64. `eval_align_batch.py` now uses it. Not a real problem. Its first-pass numbers below used the other pick and excluded those worlds.
 
+### Full stage dry run with align2
+
+`--stage full`, Part 1 in-hand from the sim's own pick (not `v2`), real look, r10, n = 4, no crash: press abort 2, guard bound 1, seat detected 1 (sim says not seated after the release). Code path check only: this grasp is not what r10 trained on.
+
 ### Limits of this pass
 
-- `grasp_fidelity_v2_real` physics did not run in the chain (reader falls in the hold). So 83 % is on stiffer sim fingers than the 94.1 % test. The trend comparison holds; the size does not transfer.
+- `grasp_fidelity_v2_real` physics did not run in the chain (reader falls in the hold). So 84 % is on stiffer sim fingers than the 94.1 % test. The trend comparison holds; the size does not transfer.
 - The dry-run grasp has no 1.45 mm image offset of the reader (the pads centre it): this alone gives the net +3.2 deg of rz error on its frames. Stage decisions do not use the net's rz.
 - Sim-only: the angle model. r10 nets not retrained. No real frames with a different hold.
 - K-J fine-tuning: not started. The evidence so far does not make K-J the limit.
