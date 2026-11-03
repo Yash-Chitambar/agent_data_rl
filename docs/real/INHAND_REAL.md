@@ -66,7 +66,7 @@ Port vision (`docs/real/PORT_VISION.md`, branch `real/port-vision`) found that A
 | Pitch | -1.27 deg | not an output |
 
 - The difference exists before the transport: no slip on the way. FK tilt at the close: A 58.44, A2 59.52 deg, so it comes from the servo's tilt at the close.
-- A and A2 are the two extremes of the 13 for pitch (A2 close to the top) and for the shell row. Spread over the 13 picked grasps (SD): x 0.67 mm, z 0.48 mm, pitch 0.59 deg, tip row 3.5 px. x and pitch are coupled, r = -0.88.
+- A and A2 are the lowest and highest of the 13 for the shell row. Their pitch lies inside the range (3.0 to 5.0 deg). Spread over the 13 picked grasps (SD): x 0.67 mm, z 0.48 mm, pitch 0.59 deg, tip row 3.5 px. x and pitch are coupled, r = -0.88.
 - **`v1`'s box:** covers A and A2, but not the lowest z of the 13 (-1.12 mm against -0.69). Its draws are independent, so x and pitch lose their coupling. **`v2`** draws one measured grasp, stretched about the mean by U(1, 1.25), plus jitter at the within-grasp SD: it covers all 13 and keeps the coupling (checked in `tests/test_inhand_real.py`).
 - Left out: ai1 to ai5, hand-placed (ai1 rolled edge-on, ai3 with the shell above the window). A real pick cannot be assumed to stay in this range at another reader spot.
 
@@ -85,6 +85,65 @@ Preset spread: uniform, half range = 2 SD over grasps. Real spread may be larger
 | Old pose and look | 52.7 px | 60.1 px | 56.5 px |
 | `inhand_real_v1` | 5.3 px | 7.0 px | 6.3 px |
 
-The preset was fitted on the same frames: this shows agreement, not a held-out test. In image scale 1 px is about 0.17 mm at the silver plate and 0.18 mm at the plug.
+`v1` was fitted on the same frames: this shows agreement, not a held-out test. Leave-one-grasp-out (`v2`, the mean of the other 12 grasps, `--mode loo`): plug 5.4 px, silver 7.2 px. Each grasp's own row (`--mode own`): 3.8 and 4.3 px. In image scale 1 px is about 0.17 mm at the silver plate and 0.18 mm at the plug. Tip silhouette IoU 0.73 with this script's fixed colour mask; the tips do not depend on the preset.
+
+Side view: `results/real/inhand_real/side_real_sim.jpg` (phone photo `IMG_8786`, sim at A's joints). The phone is uncalibrated, so this is a check by eye and one angle: tip lower edge against the reader's neck, about 7-9 deg in the photo (+-3 deg guess, perspective). The sim's edge sits 13.7 deg from the reader axis at the nominal grasp, and pitch closes it: 13.7 - 4.1 = 9.6 deg. Old pose: 13.7 deg. The operator's "under 10 deg at the butt" fits 4.1 deg; "lines up exactly in sim" is not literally so.
 
 `render_lateral_mm = 1.45`: in the real image the reader lies 1.45 mm from the sim's centre between the fingers. I did not separate a real offset from a camera offset. It is used for rendering only; in `InsertionTask` the pads centre the reader.
+
+## The reader under push
+
+The camera is rigid to the hand, so a change of the shell row is a change of the plug in the hand. `scripts/real2sim/inhand_push.py`, with port vision's shell detector and depth from shell width (the medians of shell width scatter by about 0.5 px, about 1.3 mm in depth, so height here is rough), still frames:
+
+| Collect run | Grip reading | Shell row | Shell width | Tip in the hand, from free |
+|---|---|---|---|---|
+| Free | 0.304-0.298 | 537-535 | 46.3-45.9 px | - |
+| After the first seat | 0.292-0.290 | 531 | 47.5 px | up about 2-4 mm: about 2-4 deg more pitch (port vision: 2.3 mm) |
+| After the second seat | 0.282-0.278 | 526 | 48.0-49.1 px | larger |
+| Before the release | 0.270 | 521 | 49.6 px | up about 7 mm, back about 1 mm: about 7 deg (+-2 deg guess) |
+
+- It does not spring back when the push ends: the reading and the row hold through the sweep.
+- A reading drop of 0.01 is 0.47 mm per finger (`gripper_map`). The real fingers yield. In the sim the fingers barely move (see the K-J table).
+- A: reading steady at 0.312-0.310 through the stop, shell row 531-532, no change at the stop. A2: 0.304, 544. Their frames near the push are few (the arm is moving); the drop of the reader in `IMG_8784` is near 31 s, and I did not resolve the moment in the logs.
+- Port vision reports vision and FK differ by 0.9-1.3 mm along the panel normal under load and agree free. That is the arm or PC giving. It is separate from the in-hand move above, which uses no FK.
+- A free 6-dof fit on the silver corners alone falls into the planar ambiguity (37 deg): I did not use it.
+
+## Roll bias of the servo net
+
+`reader_servo_near6` gives the waypoint rotation (hover and near nets give no rotation in this config). Base: 13 grasps, last waypoint, target roll -3.08 deg, SD 0.70 from the saved frames (logged -3.09 on these frames; the session note gives -3.21, and I did not trace the 0.12 deg). `scripts/real2sim/servo_roll_source.py`, results `results/real/inhand_real/roll_source_paste.json`.
+
+| Test (mean target roll over 13 frames, deg) | Result | Reading |
+|---|---|---|
+| Sim render, same joints, reader at the measured table pose | +0.29 (new look +0.64) | The bias does not come from the geometry of this view |
+| Whole real image turned, -6 to +6 deg | -2.0 to -3.8 with no trend (slope 0.03 deg/deg); to reach 0 it would take about 90 deg | **Camera mount roll excluded** |
+| Principal point +-8 px, bilinear resize, distortion x0.8 | -2.6 to -3.2 | Crop excluded |
+| Distortion k2 = 0 (a gross error) | +0.36 | The net reacts, but such an error would show at the plug |
+| Real + sim tips; real, tips grey | -3.68; -2.72 | **Fingertips excluded** |
+| Sim, reader yaw +-3 deg; roll +-3 deg | -0.37 to +0.65; +0.19 to +0.63 | Reader's rest pose excluded (in sim) |
+| Real + sim reader | -0.02 | **Bias gone: the real reader's pixels carry it** |
+| Sim + real reader | -1.29 | Reader alone gives part; the real scene adds |
+| Real scene + sim tips and reader | -0.26 | Scene alone does not |
+| Real, reader mirrored left-right | +1.81 | Sign flips: it reads a left-right asymmetry |
+| Mirror neck and plug only; body only | +2.14; -4.29 | **In the neck and plug, not the body** |
+| Symmetrized neck and plug only; body only | +1.57; -3.82 | Same |
+| Reader dimmed x0.6 | -2.85 | Not brightness |
+
+**Conclusion: the bias comes from the real neck and plug's left-right appearance in the frame. Not the camera mount, not the crop, not the fingertips, not the plate.** How sure: high on the exclusions and on "neck and plug" (several edits agree), moderate on what in the neck. Shading on one side of the neck, or the sim's plain rectangular neck, are guesses; the mirror edit also moves the neck if it sits off the mask's centre, and these are unnatural inputs on one reader spot, n = 13. The sim value here (+0.29, CPU render, nominal look) is not the +1.74 of the earlier note (Warp, DR); I did not reproduce that. Level roll stays. If the servo nets are retrained: use the real neck shape and randomize its shading.
+
+## Camera roll in the port frames: no
+
+Sim render against real frame at the same joints (`scripts/real2sim/camera_roll_check.py`; atan2 in the image):
+
+| Probe | Real minus sim | n |
+|---|---|---|
+| Table-side rail edge (held frames) | +0.05 deg, SD 0.21 over runs | 8 frames, 6 runs. The backdrop was partly fitted on wrist frames, so this may not be fully independent |
+| PC panel line (port approach frames) | +1.48 deg, SD 0.17 over runs | 61 frames, 3 runs |
+| Fingertips (mask fit) | -1.40 deg, SD 0.19 | 13 |
+
+The three do not fit one camera roll: a camera roll turns all of them the same way. What fits:
+
+- **The panel's 1.48 deg is the PC's yaw estimate.** Changing the sim's PC yaw moves this line by 0.83 deg per deg; the difference reaches zero at ZED yaw - 1.8 deg (all 3 runs: -1.8, -1.7, -2.1). So the real panel is about 1.8 deg off the ZED's 3.9 deg (one PC placement, 3 runs). **The graph and wrist work should expect this.** The earlier 3-4 deg plug error in ai4 may be related (a guess: hand-placed grasp, other day's PC estimate).
+- **The tips and the reader turn together against the camera** by about 1.4-1.6 deg in the same sense (the reader's yaw is measured independently). The likely reading is that the fingers sit turned on the real hand against the CAD, so the plug's lateral offset (about 1.5 mm at the tip) is physical. This rests on the rail probe, n = 8 frames: moderate confidence. Joint 6's offset is not observable by hand-eye (spec `arms`), and would not change the tips in the frame.
+- **Wrist nets:** turning real collect frames (gap under 10 mm, n = 88) by +-1.5 deg moves `wrist_v18ws` by at most 0.3 mm and `wrist_v14w` up to 0.7 mm, and 1.5 mm on gap in one direction: a small part of their error (`camera_roll.json`). A camera roll is not what makes them read low.
+
+Also for the wrist retrain: the sim's camera differs from hand-eye by the tip fit (1.5 mm, -2 mm), see "Frame choice".

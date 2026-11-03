@@ -346,9 +346,27 @@ def main():
                 return np.where(ma[..., None], cv2.warpAffine(r_, Rm2, r_.shape[1::-1], borderMode=cv2.BORDER_REPLICATE), r_)
             return fn
 
+        def mirrored(r_, ma):
+            xs_ = np.where(ma.any(0))[0]
+            return np.roll(r_[:, ::-1], (xs_[0] + xs_[-1]) - r_.shape[1] + 1, axis=1)
+
+        def symm(r_, ma):
+            return np.where(ma[..., None], ((r_.astype(np.float32) + mirrored(r_, ma)) / 2).astype(np.uint8), r_)
+
+        def part(fn, which):     # apply only to the body or only to the neck and plug: split at the sim's body front row
+            def f2(r_, ma):
+                ys_ = np.where(ma.any(1))[0]
+                wide = ma.sum(1) > .6 * ma.sum(1).max()
+                y_split = int(np.where(wide)[0][0])
+                keep = np.zeros_like(ma)
+                keep[y_split:] = True
+                m2 = ma & (keep if which == 'body' else ~keep)
+                return fn(r_, m2 if m2.any() else ma)
+            return f2
+
         rep['reader_edits'] = {}
         for nm, fn in (('dim x0.8', dim(.8)), ('dim x0.6', dim(.6)), ('mirror L-R', mirror), ('shift -6 px', shift(-6)), ('shift +6 px', shift(6)),
-                       ('turn +3 deg', rot_patch(3)), ('turn -3 deg', rot_patch(-3)), ('turn +6 deg', rot_patch(6)), ('turn -6 deg', rot_patch(-6))):
+                       ('symmetrized', symm), ('mirror body only', part(mirror, 'body')), ('mirror neck and plug only', part(mirror, 'neck')), ('symmetrized body only', part(symm, 'body')), ('symmetrized neck and plug only', part(symm, 'neck')), ('turn +3 deg', rot_patch(3)), ('turn -3 deg', rot_patch(-3)), ('turn +6 deg', rot_patch(6)), ('turn -6 deg', rot_patch(-6))):
             r = roll_of(edit(fn))
             rep['reader_edits'][nm] = dict(mean=float(r.mean()), sd=float(r.std(ddof=1)))
             print(nm, rep['reader_edits'][nm], flush=True)
