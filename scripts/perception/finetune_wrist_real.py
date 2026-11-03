@@ -4,8 +4,9 @@
         --lateral .014 --gap .002 .022 --rot 5
 
 Training frames (scripts/real/wrist_net_real_eval.py fixes the split; its hold-out and A, A2, ai4 are never loaded here):
-  collect training blocks: across and gap against the label; up only as differences between frames of the batch (the run's constant
-    height offset is not known: docs/real/SESSION_20261102_duchamp3.md); rotation as differences, low weight.
+  collect training blocks: across and gap against the label; up as differences between frames of the batch (the run's constant
+    height offset: docs/real/SESSION_20261102_duchamp3.md), or absolute with --label-offset (port vision's estimate, applied to all three axes);
+    rotation as differences, low weight.
   ai1, ai2, ai3, ai5 (`unlabeled`, settled frames): FK differences within a run only, all axes. They bring other grasps and another day.
   sim renders (same generator as train_approach_estimators, measured in-hand preset v1, real reader and PC look): all axes absolute. They fix the absolute
     height, which the real loss leaves free.
@@ -114,6 +115,7 @@ def main():
     ap.add_argument('--n-sim', type=int, default=40000)
     ap.add_argument('--bs', type=int, nargs=3, default=(48, 32, 32), help='sim, collect, relative frames per batch')
     ap.add_argument('--w-real', type=float, default=1.)
+    ap.add_argument('--label-offset', type=float, nargs=3, default=None, help='true = manifest + offset for the collect run (mm). With it, across, up and gap are absolute; without, up is relative')
     ap.add_argument('--gap-max', type=float, default=1e9, help='collect frames with a label gap above this are not used (mm)')
     ap.add_argument('--no-rel', action='store_true', help='without the ai1-ai5 differences')
     ap.add_argument('--val-blocks', type=int, nargs='*', default=[], help='blocks of the sweep left out for selection (not hold-out blocks)')
@@ -135,6 +137,8 @@ def main():
     trn = trn[gaps[trn] <= a.gap_max]
     val = val[gaps[val] <= a.gap_max]
     Yc = np.array([r['p_mm'] + r['rv_deg'] for r in co], dtype=np.float32)
+    if a.label_offset:
+        Yc[:, :3] += np.array(a.label_offset, dtype=np.float32)
     Xc = np.stack([W.read_rgb(co[i]['image']) for i in range(len(co))])
     net, sc, ck = W.load_net(a.init, dev)
     Xc_in = W.net_input(torch.as_tensor(Xc, device=dev), ck).cpu()
@@ -196,7 +200,11 @@ def main():
         yc = Yc_t[i_c].to(dev)
         e = (oc - yc) / sc
         lc = F.smooth_l1_loss(e[:, [0, 2]], torch.zeros_like(e[:, [0, 2]]), beta=.05)
-        ey = e[:, [1, 3, 4, 5]] - e[:, [1, 3, 4, 5]].mean(0, keepdim=True)    # up, rotation: differences within the batch
+        ey = e[:, [1, 3, 4, 5]].clone()
+        if a.label_offset:                    # up absolute (offset from port vision); rotation still as differences
+            ey[:, 1:] = ey[:, 1:] - ey[:, 1:].mean(0, keepdim=True)
+        else:                                 # up, rotation: differences within the batch
+            ey = ey - ey.mean(0, keepdim=True)
         lc = lc + F.smooth_l1_loss(ey[:, 0], torch.zeros_like(ey[:, 0]), beta=.05) + ROT_W * ey[:, 1:].abs().mean()
         lr_ = torch.zeros((), device=dev)
         if not a.no_rel:

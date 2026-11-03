@@ -13,7 +13,8 @@ Data: data/real_training/port_v1/manifest.jsonl (scripts/real/build_port_dataset
 Reports, for any net:
   - slope (least squares, net output per mm of label) of across, up, gap on the held-out collect frames, by gap band, with a
     bootstrap interval over frames, and over the held-out blocks;
-  - A and A2 height and sideways difference at their stops, against the FK difference;
+  - A and A2 height and sideways difference at their stops, against the FK difference and the vision tip difference (no independent
+    truth separates them: vision sees a different plug position in the frame between the runs);
   - residual SD after removing a constant per axis.
 A slope is not sensitive to a constant label offset. Absolute y is not used: docs/real/SESSION_20261102_duchamp3.md, "Label quality".
 """
@@ -36,6 +37,10 @@ GUARD = 1
 GAP_BANDS = ((0., 10.), (10., 25.), (25., 70.), (0., 70.))
 AXES = ('across', 'up', 'gap')
 A, A2 = 'full_174850_full_A', 'full_175742_full_A2'
+# real/port-vision d1eb4d0, results/real/port_vision/label_offset.json, docs/real/PORT_VISION.md (an estimate: about 0.6 mm 1 sigma, a guess)
+COLLECT_OFFSET_MM = (-.54, -2.29, -1.67)          # true = manifest + offset, collect run; y range -3.21 to -1.58
+VISION_STOP = {A: (-.3, 5., 8.4), A2: (-5.2, 8.9, 8.)}      # vision plug tip at the stops, across, up, gap
+VISION_AI4_STOP = (4.3, -2.4, 9.9)
 STOP_MM = .6                       # stop frames of A, A2: within this of the run's last frame, per axis
 
 
@@ -154,7 +159,13 @@ def ab_report(rs, predict_rows):
     Pa, Pb = predict_rows(st[A]), predict_rows(st[A2])
     Ya, Yb = (np.array([r['p_mm'] for r in st[k]]) for k in (A, A2))
     d_net, d_fk = Pb.mean(0)[:3] - Pa.mean(0)[:3], Yb.mean(0) - Ya.mean(0)
+    va, vb = np.array(VISION_STOP[A]), np.array(VISION_STOP[A2])
+    g = np.random.default_rng(0)
+    bd = [Pb[g.integers(0, len(Pb), len(Pb))].mean(0)[:3] - Pa[g.integers(0, len(Pa), len(Pa))].mean(0)[:3] for _ in range(2000)]
     return dict(n=[len(st[A]), len(st[A2])], label_diff_A2_minus_A=dict(zip(AXES, d_fk.round(2).tolist())), net_diff_A2_minus_A=dict(zip(AXES, d_net.round(2).tolist())),
+                net_diff_ci_frames=np.percentile(bd, [2.5, 97.5], axis=0).T.round(2).tolist(),
+                vision_tip_diff_A2_minus_A=dict(zip(AXES, (vb - va).round(2).tolist())), vision_at_A=va.tolist(), vision_at_A2=vb.tolist(),
+                net_minus_vision_at_A=(Pa.mean(0)[:3] - va).round(2).tolist(), net_minus_vision_at_A2=(Pb.mean(0)[:3] - vb).round(2).tolist(),
                 net_at_A=Pa.mean(0)[:3].round(2).tolist(), net_at_A2=Pb.mean(0)[:3].round(2).tolist(), label_at_A=Ya.mean(0).round(2).tolist(), label_at_A2=Yb.mean(0).round(2).tolist(),
                 net_sd_at_A=Pa.std(0)[:3].round(2).tolist(), net_sd_at_A2=Pb.std(0)[:3].round(2).tolist())
 
@@ -172,13 +183,19 @@ def evaluate(net_path, dev='cuda:0', rs=None, tf=None):
     P = pr(co)
     tr, ho, gb = split_collect(len(co))
     rep = dict(net=str(net_path), split=dict(train=len(tr), holdout=len(ho), blocks=list(HOLDOUT_BLOCKS)),
-               holdout_collect=band_report(Y[ho], P[ho], gb), train_collect=band_report(Y[tr], P[tr]), all_collect=band_report(Y, P), ab=ab_report(rs, pr))
+               holdout_collect=band_report(Y[ho], P[ho], gb),
+               holdout_mean_err_vs_offset_labels=(P[ho, :3] - (Y[ho] + np.array(COLLECT_OFFSET_MM))).mean(0).round(2).tolist(),
+               train_collect=band_report(Y[tr], P[tr]), all_collect=band_report(Y, P), ab=ab_report(rs, pr))
     other = {}
     for src, nm in (('self', 'ai4'), ('same_spot', 'A+A2')):
         s = [r for r in rs if r['source'] == src and 'p_mm' in r]
         Ys, Ps = np.array([r['p_mm'] for r in s]), pr(s)
         other[nm] = dict(n=len(s), **{ax: dict(slope=round(slope(Ys[:, i], Ps[:, i]), 3), ci_frames=boot(Ys[:, i], Ps[:, i]), label_sd=round(float(Ys[:, i].std()), 2),
                                                resid_sd=round(float((Ps[:, i] - Ys[:, i]).std()), 2)) for i, ax in enumerate(AXES)})
+    ai = [r for r in rs if r['source'] == 'self' and 'p_mm' in r]
+    Pi = pr(ai[-5:])
+    other['ai4']['net_at_last_5_frames'] = Pi.mean(0)[:3].round(2).tolist()
+    other['ai4']['vision_at_stop'] = list(VISION_AI4_STOP)
     rep['other_runs'] = other
     return rep, dict(Y=Y, P=P)
 
