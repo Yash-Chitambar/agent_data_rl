@@ -198,7 +198,7 @@ class AlignChain(EC.Chain):
         for w in np.where(ok1)[0]:
             lg = logic[w]
             lg.cycle = max(0, c['max_cycles'] - c['post_press_cycles'])
-            lg.confirm, lg.last_m, lg.last_e = 0, None, None
+            lg.confirm, lg.last_m, lg.last_e, lg.fused = -1, None, None, []
             phase[w], cnt[w], ok[w], reason[w] = 1, 0, False, 'after the press'
         run_phase(c['post_press_cycles'] * 3.5)
         tp, trv = self.rel_pose()
