@@ -124,7 +124,7 @@ def main():
     ap.add_argument('--rot', type=float, default=6.)
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position (mm)')
-    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est', 'servo_pick'), default='measured', help='render in-hand pose distribution')
+    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est', 'servo_pick', 'real_fit'), default='measured', help='render in-hand pose distribution')
     ap.add_argument('--tilt', type=float, default=60., help='grasp tilt from vertical (deg)')
     ap.add_argument('--states', nargs='*', default=[], help='DAgger: npz files of recorded in-loop qpos (eval_approach --save-states)')
     ap.add_argument('--n-states', type=int, default=0, help='training samples rendered from --states (added to --n)')
@@ -142,6 +142,11 @@ def main():
     ap.add_argument('--task-layout', default=None, help='BimanualCfg.task_layout (e.g. results/usbc/policy/pick/task_layout.json: reader on the Part 1 strip)')
     ap.add_argument('--wrist-mode', choices=('resize', 'crop', 'full'), default='resize', help='320 px wrist frame -> 192 px: resize or full-resolution centre crop')
     ap.add_argument('--tag', default='', help='suffix of the saved estimator name (e.g. _fine)')
+    ap.add_argument('--real-fit', default=None, help="--inhand-mode real_fit: geometry fit JSON (tip_shift_tcp_mm), results/real/wrist_nets/geometry_fit.json")
+    ap.add_argument('--pc-real-look', default=None, help='directory of real PC panel and lid textures (BimanualCfg.pc_real_look)')
+    ap.add_argument('--reader-body', type=float, default=None, help='silver body length of the rendered reader (m); 0.0296 is the real one')
+    ap.add_argument('--blur', type=float, nargs=2, default=None, help='VisualDRCfg.blur_sigma_px range (px at 320)')
+    ap.add_argument('--out-dir', default=None, help='weights go to <out-dir>/ and the report to <out-dir>/estimator_*.json (default: runs/perception and results/usbc/policy/approach)')
     a = ap.parse_args()
     dev = torch.device('cuda:0')
     MODE['wrist'] = a.wrist_mode
@@ -157,12 +162,17 @@ def main():
                    shininess_range=(0., .5), texture_prob=.15, real_texture_prob=1., light_elevation_deg=(55., 90.),
                    light_intensity=(.5, .85), light_kelvin=(4000., 6000.), shadow_prob=.3, fill_scale=(.6, 1.2),
                    ambient_scale=(.8, 1.2))
-    r = ApproachRenderer(nworld=a.nworld, seed=a.seed, task_layout=a.task_layout, pc_pose_range=a.pc_range, visual_dr=vdr)
+    if a.blur:
+        vdr = dict(vdr, blur_sigma_px=tuple(a.blur)) if isinstance(vdr, dict) else dict(blur_sigma_px=tuple(a.blur))
+    r = ApproachRenderer(nworld=a.nworld, seed=a.seed, task_layout=a.task_layout, pc_pose_range=a.pc_range, visual_dr=vdr,
+                         grasp_fidelity=None if a.reader_body is None else {'reader_body_length_m': a.reader_body}, pc_real_look=a.pc_real_look)
     torch.manual_seed(a.seed)
     r.ins.cfg.inhand_rot_deg = a.inhand_rot
     r.ins.cfg.inhand_pos_mm = a.inhand_pos
     r.ins.cfg.tilt_deg = a.tilt
     r.ins.cfg.inhand = a.inhand_mode
+    if a.real_fit:
+        r.ins.cfg.real_fit_tip_mm = tuple(json.load(open(a.real_fit))['tip_shift_tcp_mm'])
     if a.servo_stretch:
         r.ins.cfg.servo_stretch = tuple(a.servo_stretch)
     cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot)
@@ -229,15 +239,16 @@ def main():
     with torch.no_grad():
         pred = torch.cat([mean_of(net(Xt[i:i + 256].to(dev))) for i in range(0, len(Xt), 256)]) * sc
         pn = torch.cat([mean_of(net(Xn[i:i + 256].to(dev))) for i in range(0, len(Xn), 256)]) * sc
-    Path('runs/perception').mkdir(parents=True, exist_ok=True)
+    ckdir = Path(a.out_dir or 'runs/perception')
+    ckdir.mkdir(parents=True, exist_ok=True)
     torch.save({'net': net.state_dict(), 'which': a.which, 'hetero': a.hetero, 'n_out': nout, 'vary_arms': a.vary_arms, 'scale': sc.cpu(), 'size': size, 'zed_crop': ZED_CROP,
-                'width': a.width, 'mask_arms': a.mask_arms, 'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'two_view': a.two_view, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, f'runs/perception/{a.which}{a.tag}.pt')
+                'width': a.width, 'mask_arms': a.mask_arms, 'wrist_size': WRIST_SIZE, 'wrist_mode': a.wrist_mode, 'two_view': a.two_view, 'wrist_crop': WRIST_CROP, 'sample_cfg': vars(cfg)}, ckdir / f'{a.which}{a.tag}.pt')
     rep = {'estimator': a.which + a.tag, 'method': __doc__.strip(), 'n_train': len(X), 'n_test_dr': len(Xt), 'n_test_nominal_look': len(Xn),
            'sample_cfg': vars(cfg), 'args': vars(a), 'test_set': 'held-out in-loop states' if St is not None else 'random poses',
            'held_out_dr_abs_error': errors(a.which, pred, Yt.to(dev)),
            'held_out_nominal_look_abs_error': errors(a.which, pn, Yn.to(dev)), 'generate_s': t_gen, 'total_s': time.time() - t0,
            'note': 'visual DR = policy/v1 defaults incl. camera pose/intrinsics error at real scale; labels exact (sim)'}
-    out = Path(f'results/usbc/policy/approach/estimator_{a.which}{a.tag}.json')
+    out = (Path(a.out_dir) if a.out_dir else Path('results/usbc/policy/approach')) / f'estimator_{a.which}{a.tag}.json'
     out.write_text(json.dumps(rep, indent=1) + '\n')
     np.savez_compressed(out.with_suffix('.npz'), pred=pred.cpu().numpy(), target=Yt.cpu().numpy())
     print(json.dumps(rep['held_out_dr_abs_error'], indent=1))

@@ -30,8 +30,12 @@ class SampleCfg:
 
 
 class ApproachRenderer:
-    def __init__(self, nworld=256, res=320, visual_dr=True, device='cuda:0', seed=0, task_layout=None, pc_pose_range=None):
+    def __init__(self, nworld=256, res=320, visual_dr=True, device='cuda:0', seed=0, task_layout=None, pc_pose_range=None, grasp_fidelity=None, pc_real_look=None):
         kw = {} if task_layout is None else {'task_layout': task_layout}
+        if grasp_fidelity is not None:      # e.g. {'reader_body_length_m': .0296}: the reader's look in the renders
+            kw['grasp_fidelity'] = grasp_fidelity
+        if pc_real_look is not None:        # real PC panel and lid textures (BimanualCfg.pc_real_look)
+            kw['pc_real_look'] = pc_real_look
         if pc_pose_range is not None:
             kw['pc_pose_range'] = tuple(pc_pose_range)
         self.rt = BimanualRuntime(BimanualCfg(nworld=nworld, device=device, render_rgb=True, visual_dr=visual_dr,
