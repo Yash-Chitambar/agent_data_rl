@@ -88,6 +88,7 @@ def test_real_distribution_matches_preset():
     # the reader's mid-plane passes through the pad centroid
     pad = torch.tensor([0., 0., -IR.PAD_BEHIND_SITE])
     assert abs(float((R[0].T @ (pad - p[0]))[0])) < 1e-3
+    assert (IR.reader_in_site(IR.sample_delta(3, 'v2'))[1]).shape == (3, 3)
     d = IR.sample_delta(2000, 'v1')
     h = torch.tensor(c['half_range_mm'] + c['half_range_deg'])
     assert ((d - d.mean(0)).abs() <= h + .05).all()
@@ -95,3 +96,14 @@ def test_real_distribution_matches_preset():
 
 if __name__ == '__main__':
     pytest.main([__file__, '-q'])
+
+
+def test_v2_rows_cover_the_picked_grasps():
+    from blind_insertion.envs import inhand_real as IR
+    c = IR.load('v2')['inhand']
+    assert len(c['rows']) == c['n_grasps'] == 13
+    d = IR.sample_delta(20000, 'v2').numpy()
+    R = np.array(c['rows'])
+    assert (d[:, [0, 2, 4]].min(0) <= R[:, [0, 2, 4]].min(0)).all() and (d[:, [0, 2, 4]].max(0) >= R[:, [0, 2, 4]].max(0)).all()
+    assert np.corrcoef(d[:, 0], d[:, 4])[0, 1] > .5    # x and pitch stay coupled
+    assert abs(IR.sample_delta(100, 'v2', spread=0.)[:, 0].std()) < 1e-6

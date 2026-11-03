@@ -93,11 +93,13 @@ def yellow(im):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--preset', default='v1')
+    ap.add_argument('--mode', default='loo', choices=('loo', 'own', 'mean'), help="with a rows preset: the mean of the other grasps, the grasp's own row, or the mean")
     ap.add_argument('--dy', type=float, default=None, help='override the closing-axis delta (mm)')
     a = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     c = IR.load(a.preset)['inhand']
-    delta = np.array(c['mean_mm'] + c['mean_rotvec_deg'], float)
+    rows_ = np.array(c['rows'], float) if 'rows' in c else None
+    delta = rows_.mean(0) if rows_ is not None else np.array(c['mean_mm'] + c['mean_rotvec_deg'], float)
     if a.dy is not None:
         delta[1] = a.dy
     fit = json.loads((ROOT / 'results/usbc/gripper_sweep/sweep_20261030/fit.json').read_text())['arms']['right']['gripper_map']
@@ -134,6 +136,9 @@ def main():
             grip = float(z['grip'][i, 0]) if 'grip' in z else .31
             ev = next((json.loads(x) for x in open(run / 'events.jsonl') if '"est": "zed_pc"' in x), None)
             pc = (ev['port_xy'], ev['yaw_deg']) if ev else None
+            if name == 'new' and rows_ is not None and a.mode != 'mean':
+                i_ = c['runs'].index(run.name)
+                dl = rows_[i_] if a.mode == 'own' else np.delete(rows_, i_, 0).mean(0)     # loo: the mean of the other 12 grasps
             place(m, d, lay, q, dl, fit['slope'] * grip + fit['intercept'], pc, c.get('render_lateral_mm', 0.) if name == 'new' else 0.)
             rd.update_scene(d, camera='wrist_cam')
             sim = rd.render()[:, :, ::-1].copy()
@@ -160,7 +165,7 @@ def main():
         print(name, 'n', len(df), 'fails', df['fail'].notna().sum() if 'fail' in df else 0)
         cols = [c_ for c_ in df.columns if c_ not in ('run', 'fail')]
         print(df[cols].agg(['mean', 'std']).T.round(2).to_string())
-        df.to_csv(OUT / f'pixel_error_{name}.csv', index=False)
+        df.to_csv(OUT / f'pixel_error_{name}{"_" + a.preset + "_" + a.mode if name == "new" else ""}.csv', index=False)
         rd.close()
 
 

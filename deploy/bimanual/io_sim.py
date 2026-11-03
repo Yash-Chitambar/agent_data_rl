@@ -46,6 +46,8 @@ def chain_argv(cfg, policy, nworld=1, extra=()):
     gf = cfg.get('sim', {}).get('grasp_fidelity')
     if gf:
         argv += ['--grasp-fidelity', gf]
+    if cfg.get('sim', {}).get('phys_json'):
+        argv += ['--sim-phys', cfg['sim']['phys_json']]
     return argv + list(extra)
 
 

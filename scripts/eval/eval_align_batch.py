@@ -34,7 +34,7 @@ class AlignChain(EC.Chain):
         c = self.acfg
         seed = self.seed
         tp0, _ = self.rel_pose()
-        in_hand0 = (tp0[:, :2].norm(dim=1) < .03).cpu().numpy()      # the pick lost the reader: not this stage's business, reported apart
+        in_hand0 = (tp0[:, :2].norm(dim=1) < .015).cpu().numpy()      # the pick lost the reader: not this stage's business, reported apart
         g = np.random.default_rng(seed + 991)
         sm = c['sim_source']
         slope, bias, frame_s, pose_s, run_s = (np.asarray(sm.get(k, d), float) for k, d in (('slope', [1, 1, 1]), ('bias_mm', [0, 0, 0]), ('sigma_mm', [.1, .1, .1]), ('pose_sigma_mm', [.25, .74, .49]), ('run_bias_sigma_mm', [.3, .6, .4])))
@@ -93,7 +93,9 @@ class AlignChain(EC.Chain):
         t_end = np.zeros(n)
         n0, nmax, ntime = int(c['settle_s'] / dt), int(c['settle_max_s'] / dt), int(c['step_timeout_s'] / dt)
         entered = np.zeros(n, bool)
-        for tk in range(int((c['max_time_s'] + 60) / dt)):
+        def run_phase(max_s):
+          nonlocal entered, cnt
+          for tk in range(int(max_s / dt)):
             rel = tip_rel()
             # entry steps
             for w in np.where((phase == 0) & (cnt == 0))[0]:
@@ -168,6 +170,7 @@ class AlignChain(EC.Chain):
             tick()
             if (phase == 3).all():
                 break
+        run_phase(c['max_time_s'] + 60)
         for w in np.where(phase != 3)[0]:
             reason[w] = 'time limit (sim loop)'
         tp, trv = self.rel_pose()
@@ -189,13 +192,19 @@ class AlignChain(EC.Chain):
             cs['lead'] = np.clip(cs['lead'], lo[:, 0], lo[:, 1])
             prev = qq
             self.hstep(torch.as_tensor(tgt, dtype=torch.float32, device=dev), q_hold, 'align')
+        # as AlignStage.handover: a few cycles under the press
+        ql0 = q_hold.expand(n, 6).clone()
+        ok1 = ok.copy()
+        for w in np.where(ok1)[0]:
+            lg = logic[w]
+            lg.cycle = max(0, c['max_cycles'] - c['post_press_cycles'])
+            lg.confirm, lg.last_m, lg.last_e = 0, None, None
+            phase[w], cnt[w], ok[w], reason[w] = 1, 0, False, 'after the press'
+        run_phase(c['post_press_cycles'] * 3.5)
         tp, trv = self.rel_pose()
         post = tp.cpu().numpy() * 1e3
         rot = torch.rad2deg(trv).cpu().numpy()
-        tol = np.asarray(c['tol_mm'], float) * c['post_press_tol_factor']
-        tv = post + rb                       # the last measurement: no new pose noise, the run constant stays
-        final_ok = (np.abs(slope * post + bias + rb + pose_err - np.asarray(c['target_mm'], float)) <= tol).all(1)
-        handed = ok & final_ok
+        handed = ok1 & ok
         cmd2 = torch.as_tensor(q().cpu().numpy().astype(float) + cs['lead'], dtype=torch.float32, device=dev)
         self.ff_was_on = False
         # in-hand net at the hand-over gap, as AlignStage.handover
@@ -232,6 +241,7 @@ def main():
     ap.add_argument('--grasp-fidelity', default=None)
     ap.add_argument('--friction', type=float, default=1., help='x friction on right joints 2, 3 from the hand-over stage on (real band about x2.4 on joint 2)')
     ap.add_argument('--enc-offset-deg', type=float, default=1.5)
+    ap.add_argument('--sim_phys', default='')
     A = ap.parse_args()
     A.entry = json.loads(A.entry)
     cfg = {k: v for k, v in json.loads(Path(A.config).read_text()).items() if not k.startswith('_')}
@@ -242,6 +252,8 @@ def main():
         c[k] = json.loads(v)
     if A.grasp_fidelity:
         cfg.setdefault('sim', {})['grasp_fidelity'] = A.grasp_fidelity
+    if A.sim_phys:
+        cfg.setdefault('sim', {})['phys_json'] = A.sim_phys
     pol = ROOT / 'deploy/bundle/models/insert_KJ.pt'
     a = EC.parse(chain_argv(cfg, pol, A.nworld, ['--enc-offset-deg', str(A.enc_offset_deg), '--pick', 'expert_privileged']))
     AlignChain.A = A

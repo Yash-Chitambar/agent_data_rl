@@ -149,6 +149,7 @@ def parse(argv=None):
     ap.add_argument('--policy', default=INSERT_CKPT)
     ap.add_argument('--grasp-fidelity', default=None, help='realistic grasp contact: preset name (v1) or JSON path (docs/real/GRASP_FIDELITY.md); default baseline')
     ap.add_argument('--insert-s', type=float, default=10.)
+    ap.add_argument('--sim-phys', default='', help='JSON: BimanualCfg fields set in the runtime (default none)')
     ap.add_argument('--visual-dr', type=int, default=1)
     ap.add_argument('--demo', type=int, default=0, help='render this many demo videos (success + failures) instead of the stats run')
     ap.add_argument('--demo-worlds', type=int, default=24)
@@ -183,6 +184,8 @@ class Chain:
         ph.render_rgb, ph.visual_dr, ph.camera_resolution, ph.measured_camera_cadence = True, bool(a.visual_dr) or None, 320, False
         ph.task_layout = PICK_LAYOUT
         ph.grasp_fidelity = a.grasp_fidelity
+        for k_, v_ in json.loads(a.sim_phys or '{}').items():     # e.g. pc_real_look, inhand_real (fair dry run of the r10 wrist nets)
+            setattr(ph, k_, v_)
         self.env = env = InsertionTask(icfg, seed=a.seed)
         self.rt = rt = env.runtime
         rt.cfg.render_rgb = False                 # task observations must not render every step

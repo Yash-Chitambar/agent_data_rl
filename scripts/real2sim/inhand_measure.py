@@ -91,12 +91,12 @@ def _isect(v, h):
     return np.array([mv * y + cv_, y])
 
 
-def detect(und, debug=None):
+def detect(und, debug=None, silver_only=False, dark=85, min_v=130):
     """Feature pixels of a held reader: dict with 'pts' (8, 2) in model_points order, or None and a reason."""
     g = cv2.GaussianBlur(cv2.cvtColor(und, cv2.COLOR_BGR2GRAY), (3, 3), 0).astype(np.float32)
     hsv = cv2.cvtColor(und, cv2.COLOR_BGR2HSV)
     x0, x1, y0, y1 = 430, 860, 700, CANVAS[1]
-    mask = ((hsv[..., 2] > 130) & (hsv[..., 1] < 55))[y0:y1, x0:x1].astype(np.uint8)   # the silver is bright and grey; the tips are yellow
+    mask = ((hsv[..., 2] > min_v) & (hsv[..., 1] < 55))[y0:y1, x0:x1].astype(np.uint8)   # the silver is bright and grey; the tips are yellow
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((9, 9), np.uint8))
     n, lab, st, _c = cv2.connectedComponentsWithStats(mask)
     cand = [i for i in range(1, n) if st[i, 4] > 12000 and abs(st[i, 0] + st[i, 2] / 2 + x0 - 640) < 110]
@@ -109,7 +109,7 @@ def detect(und, debug=None):
     M = lab == i
     # edges: walk out of the silver to the black housing gap (the silver reflects the yellow tips, so a colour or plain
     # gradient test stops too early), then take the largest gradient just before the gap
-    def walk(p, c, step, dark=85):
+    def walk(p, c, step, dark=dark):
         k, n_ = int(c), len(p)
         while 0 < k < n_ - 1 and p[k] > dark:
             k += step
@@ -128,12 +128,20 @@ def detect(und, debug=None):
     if None in (L, R, T):
         return None, 'silver edge fit'
     cTL, cTR = _isect(L, T), _isect(R, T)
+    if silver_only:
+        pts = np.full((8, 2), np.nan)
+        pts[:2] = cTL, cTR
+        if B:
+            pts[2:4] = _isect(L, B), _isect(R, B)
+        return {'pts': pts, 'silver_px_w': float(cTR[0] - cTL[0]), 'plug_px_w': float('nan')}, ''
     # plug: bright along the central column above the silver
     xc = (cTL[0] + cTR[0]) / 2
     col = g[:, int(xc) - 12:int(xc) + 13].mean(1)
     top = int(cTL[1]) - 80
     lo = max(0, top - 480)
     seg = col[lo:top]
+    if len(seg) < 30:
+        return None, 'silver too high'
     bg = np.median(seg)
     if seg.max() - bg < 25:
         return None, 'no plug'
