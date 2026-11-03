@@ -25,7 +25,7 @@ from deploy.bimanual import port_vision as PV  # noqa: E402
 from deploy.bimanual.align import DEFAULTS, AlignLogic, PortMeasure  # noqa: E402
 
 D = ROOT / 'data/real_runs'
-RUNS = ['2026-11-02/full_174850_full_A', '2026-11-02/full_175742_full_A2', '2026-11-01/approach_insert_171123_ai4', '2026-11-01/approach_insert_173731_ai5', '2026-11-01/approach_insert_163444_ai1']
+RUNS = ['2026-11-02/full_174850_full_A', '2026-11-02/full_175742_full_A2', '2026-11-01/approach_insert_171123_ai4', '2026-11-01/approach_insert_173731_ai5', '2026-11-01/approach_insert_164528_ai2', '2026-11-01/approach_insert_165634_ai3']
 COLLECT = '2026-11-02/collect_182100_collect1'
 
 

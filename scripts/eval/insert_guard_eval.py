@@ -195,7 +195,7 @@ if __name__ == '__main__':
     ap.add_argument('--stall_eps', type=float, default=.3)
     ap.add_argument('--lead_min', type=float, default=3.)
     ap.add_argument('--gate', type=float, nargs=2, default=(3., 6.))
-    ap.add_argument('--margin', type=float, default=1.)
+    ap.add_argument('--margin', type=float, default=1.2)
     ap.add_argument('--sig_gap', type=float, default=1.)
     ap.add_argument('--sig_lat', type=float, default=.5)
     ap.add_argument('--friction', default='')

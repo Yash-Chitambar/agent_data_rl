@@ -143,6 +143,13 @@ def main():
     if not hasattr(ch, 'inhand_est6'):
         ch.inhand_est6 = torch.zeros(1, 6)
     cmd = cmd if cmd is not None else ch.q_b[0][None].clone()
+    from deploy.bimanual.align import align_cfg, run_align
+    ac = align_cfg(cfg)
+    if ac is not None:      # stub source: creep ticks and the back-off; the guard needs a hand-over gap
+        stage('align', lambda: run_align(ch, cmd, q_hold, ep, eR, lg, dict(ac, source=dict(kind='stub'), mode='align')))
+        ch.align_result = dict(gap_mm=6., lat_mm=[0., 0.])
+        if ch.cfg['insert'].get('guard'):       # the perfect fake arm follows every target: keep the guard computing, without its stop
+            ch.cfg['insert']['guard'] = dict(ch.cfg['insert']['guard'], bound_mm=[1e3, 1e3], stall_s=1e3)
     stage('insert', lambda: ch.stage_insert(cmd, q_hold, lg))
     log.close()
     t = dict(np.load(tmp / 'ticks.npz'))

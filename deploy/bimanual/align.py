@@ -6,7 +6,7 @@ FK is used only for small relative moves and for checking the measurement; the a
 
 Real arm (results/real_align/tracking.json, collect run 2026-11-02): joint 2 friction band about 1.3 N m at kp 80. A small target step does nothing, then the joint breaks
 free and jumps (operator jogs: asked 0.5-1 mm, moved 0, then 4-11 mm). So this stage does not ramp the target and wait: Creep raises the joint's target lead slowly, and cuts it the
-moment the joint moves. Joints with low friction (1, 4, 5, 6) carry a constant lead (their load) and act as a plain integrator.
+moment the joint moves. Joints with low friction (1, 4, 5, 6) keep a plain position target at the goal plus a slow integral (their load).
 
 On any failure: hold, then (on_fail "back_off") straight out along the port axis with closed jaws. A failed stage never hands to RL.
 """
@@ -30,9 +30,9 @@ DEFAULTS = dict(
     max_cycles=40, max_time_s=90.0, max_lat_mm=20.0, max_advance_mm=16.0,
     drift_mm=1.0, drift_n=2, pred_mm=2.5, pred_n=2, grow_margin_mm=.5, grow_n=4, grow_abs_mm=9.0, grip_change=.02,
     probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_min_motion_mm=1.5,
-    settle_s=.3, settle_max_s=1.5, still_rad_s=.02, move_tol_mm=.3, step_timeout_s=3.0, stuck_n=3,
+    inhand_refresh=True, settle_s=.3, settle_max_s=1.5, still_rad_s=.02, move_tol_mm=.3, step_timeout_s=3.0, stuck_n=3,
     lead_rate_rad_s=[.02, .04, .04, .02, .05, .05], lead_max_rad=[.02, .045, .045, .012, .06, .06], eps_rad=[.001, .001, .001, .002, .003, .003],
-    heavy=[False, True, True, False, False, False], move_eps_rad=.0005, release=.3,
+    heavy=[False, True, True, False, False, False], ki_per_s=1.0, move_eps_rad=.0005, release=.3,
     handover_lead_rad=[[-.0004, .0004], [-.0051, .0156], [-.011, .0129], [-.0024, .0013], [.0144, .0279], [-.0058, .0019]],
     source=dict(kind='stub'), sim_source=dict(kind='sim_truth'), secondary=None, secondary_sim=None, disagree_mm=[2.0, 2.0, 3.0], disagree_mode='gate',
     on_fail='back_off', back_off_mm=15.0, back_off_v_mm_s=10.0, press_release=True, repress_s=1.0, post_press_tol_factor=1.5,
@@ -330,20 +330,25 @@ class Creep:
         q = ch.q_b[0].cpu().numpy().astype(float)
         e = self.goal - q
         moved = (q - self.prev) * np.sign(e)
+        tgt = q.copy()
         for j in range(6):
-            if abs(e[j]) > self.eps[j]:
-                if self.heavy[j] and moved[j] >= c['move_eps_rad']:
-                    self.lead[j] *= c['release']                   # it broke free: drop the stored torque
-                elif self.lead[j] * e[j] < 0 and self.heavy[j]:
-                    self.lead[j] = 0.
+            if self.heavy[j]:      # target = measured + lead: torque ramps until the joint breaks free, then drops
+                if abs(e[j]) > self.eps[j]:
+                    if moved[j] >= c['move_eps_rad']:
+                        self.lead[j] *= c['release']
+                    elif self.lead[j] * e[j] < 0:
+                        self.lead[j] = 0.
+                    else:
+                        self.lead[j] += math.copysign(self.rate[j] * ch.dt, e[j])
                 else:
-                    self.lead[j] += math.copysign(self.rate[j] * ch.dt, e[j])
-            elif self.heavy[j]:
-                self.lead[j] *= .9
-        self.lead = np.clip(self.lead, -self.lim, self.lim)
+                    self.lead[j] *= .9
+                self.lead[j] = np.clip(self.lead[j], -self.lim[j], self.lim[j])
+                tgt[j] = q[j] + self.lead[j]
+            else:                  # low friction: plain position target at the goal + a slow integral (carries the joint's load, e.g. joint 5)
+                self.lead[j] = np.clip(self.lead[j] + c['ki_per_s'] * e[j] * ch.dt, -self.lim[j], self.lim[j])
+                tgt[j] = self.goal[j] + self.lead[j]
         self.prev = q
-        tgt = torch.as_tensor(q + self.lead, dtype=torch.float32, device=ch.dev)
-        ch.hstep(tgt, self.ql, 'align')
+        ch.hstep(torch.as_tensor(tgt, dtype=torch.float32, device=ch.dev), self.ql, 'align')
 
 
 class AlignStage:
@@ -534,9 +539,7 @@ class AlignStage:
         """Stage succeeded: target lead into the range K-J saw, press back on, last measurement. Returns (cmd for run_insertion or None, dict)."""
         c, ch = self.c, self.ch
         lo = np.asarray(c['handover_lead_rad'], float)
-        lead = np.clip(self.creep.lead, lo[:, 0], lo[:, 1])
-        q = ch.q_b[0].cpu().numpy().astype(float)
-        self.creep.lead = lead
+        self.creep.lead = np.clip(self.creep.lead, lo[:, 0], lo[:, 1])
         n = int(round(c['repress_s'] / ch.dt))
         if c['press_release']:
             ql0, ql1 = self.ql.clone(), self.q_hold
@@ -555,6 +558,15 @@ class AlignStage:
         err = (m.vec() - np.asarray(c['target_mm'], float)) if m.ok else None
         ok = bool(m.ok and (np.abs(err) <= tol).all())
         self.log_m(m, ms, None, tip, dict(kind='done' if ok else 'fail', reason='final check after the press' if ok else 'moved out of tolerance after the press'), ch.k * ch.dt)
+        if c.get('inhand_refresh', True) and ok:        # the in-hand net trained at the 6 mm stop: read it again at the hand-over
+            import torch.nn.functional as F
+            net, scale, _ = ch.inhand_net
+            fr = ch.render(('wrist_right',), tag='align_inhand')['wrist_cam']
+            img = F.interpolate(fr.permute(0, 3, 1, 2).float(), size=(192, 192), mode='area').round().byte().permute(0, 2, 3, 1)
+            with torch.no_grad():
+                new = net(img) * scale
+            ch.log_event('align_inhand', before=ch.inhand_est6.reshape(-1).tolist(), after=new.reshape(-1).tolist())
+            ch.inhand_est6 = new
         q = ch.q_b[0].cpu().numpy().astype(float)
         cmd = torch.as_tensor(q + self.creep.lead, dtype=torch.float32, device=ch.dev)
         res = dict(ok=ok, gap_mm=float(m.gap_mm) if m.ok else None, lat_mm=[float(m.across_mm), float(m.up_mm)] if m.ok else None, sigma_mm=m.sigma_mm, lead=self.creep.lead.tolist())
@@ -600,8 +612,8 @@ def run_align(ch, cmd, q_hold, ep, eR, log, c):
             ch.align_result = h
     if out['ok'] and c['mode'] != 'full':
         out['reason'] = 'aligned; mode ' + c['mode'] + ': no insertion'
-    if (not out['ok'] or c['mode'] != 'full') and c['mode'] != 'measure':
-        if c['on_fail'] == 'back_off':
+    if not out['ok'] or c['mode'] != 'full':
+        if c['on_fail'] == 'back_off' or c['mode'] != 'full':
             st.back_off()
     ch.log_event('align_result', **{k: v for k, v in out.items() if k not in ('cmd', 'q_left')}, tick=ch.k)
     print(f'align: {"OK" if out["ok"] else "STOP"} {out["reason"]} ({out["cycles"]} cycles, {out.get("seconds", 0):.1f} s, slope {out.get("slope")})', flush=True)

@@ -163,7 +163,7 @@
   "wrong_port_mm": null,
   "_wrong_port": "log only: in the dry runs (+/-1.5 deg offset DR) the FK lateral of good approaches reached 15 mm, a neighbouring-port lock 11 mm; set a limit only with calibrated offsets",
   "seat2": {
-   "margin_mm": 1.0,
+   "margin_mm": 1.2,
    "gate_mm": [
     3.0,
     6.0
