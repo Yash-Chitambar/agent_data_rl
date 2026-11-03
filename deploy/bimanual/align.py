@@ -25,7 +25,7 @@ AXES = ('across', 'up', 'gap')
 DEFAULTS = dict(
     enabled=False, mode='full',
     target_mm=[0.0, 0.0, 6.0], tol_mm=[1.0, 1.0, 1.0], confirm_n=2,
-    step_mm=[1.0, 1.0, 1.0], gain=1.0, fuse_n=6, funnel_lat_mm=2.0, gap_hold_mm=9.0, min_clear_mm=3.0,
+    step_mm=[1.0, 1.0, 1.0], angle=None, gain=1.0, min_clear_fail_mm=None, fuse_n=6, funnel_lat_mm=2.0, gap_hold_mm=9.0, min_clear_mm=3.0,
     frames=5, min_good=3, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
     max_cycles=60, max_time_s=120.0, post_press_cycles=6, max_lat_mm=20.0, max_advance_mm=16.0,
     drift_mm=1.0, drift_n=2, pred_mm=2.5, pred_n=2, grow_margin_mm=.5, grow_n=4, grow_abs_mm=9.0, grip_change=.02,
@@ -60,6 +60,7 @@ class PortMeasure:
     gap_mm: float | None = None
     sigma_mm: float | None = None
     extra: dict = field(default_factory=dict)
+    rv_deg: object = None         # plug against the port (rx pitch about across, ry yaw about up, rz roll), or None
 
     def vec(self):
         return np.array([self.across_mm, self.up_mm, self.gap_mm], float)
@@ -83,6 +84,7 @@ class PortVisionSource:
         self.kw = {k: v for k, v in spec.items() if k not in ('kind', 'depth_frames', 'plug_z_range_mm')}
         self.n_depth = int(spec.get('depth_frames', 9))
         self.z_range = spec.get('plug_z_range_mm', [113.5, 123.5])
+        self.R_cs_T_R_rs = None
         self.plug_z = None
         try:
             from deploy.bimanual import port_vision
@@ -125,11 +127,27 @@ class PortVisionSource:
         m = self.fn(raw, side='right', plug_z_mm=self.plug_z, **self.kw)
         sig = None if m.sigma_mm is None else float(np.max(m.sigma_mm))
         out = PortMeasure(bool(m.ok), str(m.reason), float(m.conf), m.across_mm, m.up_mm, m.gap_mm, sig)
-        R = (m.debug or {}).get('R')          # camera against the panel: logged for later, the stage does not act on angle (yaw about 1 deg, plug in hand unknown: docs/real/ALIGN_STAGE.md)
+        R = (m.debug or {}).get('R')          # panel in the camera
         if R is not None:
             from scipy.spatial.transform import Rotation
             out.extra['panel_rv_deg'] = np.degrees(Rotation.from_matrix(np.asarray(R, float)).as_rotvec()).round(3).tolist()
+            out.rv_deg = Rotation.from_matrix(np.asarray(R, float).T @ self.plug_in_camera()).as_rotvec(degrees=True)
         return out
+
+    def plug_in_camera(self):
+        """Reader in the camera: calibrated mount, mean of the measured real grasps (preset v2). Per-grasp pitch spread SD 0.6 deg stays as an error."""
+        if self.R_cs_T_R_rs is None:
+            import sys
+            from pathlib import Path
+            root = Path(__file__).resolve().parents[2]
+            sys.path.append(str(root / 'scripts/real2sim'))
+            import inhand_measure as IM
+            from blind_insertion.envs import inhand_real as IR
+            hand = IM.Hand()
+            d = np.mean(np.asarray(IR.load('v2')['inhand']['rows'], float), 0)
+            Rrs = IR.reader_in_site(torch.tensor(d[None], dtype=torch.float32), 'cpu')[0][0].numpy().astype(float)
+            self.R_cs_T_R_rs = hand.R_cs.T @ Rrs
+        return self.R_cs_T_R_rs
 
 
 class WristNetSource:
@@ -175,10 +193,14 @@ class SimTruthSource:
         self.run_bias = np.asarray(spec.get('run_bias_sigma_mm', [0., 0., 0.]), float)
         self.pose_sigma = np.asarray(spec.get('pose_sigma_mm', [0., 0., 0.]), float)       # same at one pose, new at the next (port vision: frame noise < 0.12 mm, residual over poses larger)
         self.pose_err, self.pose_at = np.zeros(3), None
+        self.rot_sigma = np.asarray(spec.get('rot_sigma_deg', [.8, .3, .6]), float)    # pose residual of the panel rotation, real sweep near the port
+        self.rot_run = self.g_rot_run = np.asarray(spec.get('rot_run_sigma_deg', [.6, .4, .6]), float)   # per-grasp pitch spread and the mount
         self.drop = float(spec.get('drop_p', 0.))
         self.conf = float(spec.get('conf', 1.0))
         self.g = np.random.default_rng(int(spec.get('seed', ch.seed or 0)) + 12345)
         self.rb = self.g.normal(0, 1, 3) * self.run_bias
+        self.rrb = self.g.normal(0, 1, 3) * self.rot_run
+        self.rot_err = np.zeros(3)
 
     def measure(self, ch, tag):
         tr = ch.truth()
@@ -187,8 +209,10 @@ class SimTruthSource:
         p = np.asarray(tr['plug_in_port_mm'], float)
         if self.pose_at is None or np.linalg.norm(p - self.pose_at) > .3:
             self.pose_err, self.pose_at = self.g.normal(0, 1, 3) * self.pose_sigma, p
+            self.rot_err = self.g.normal(0, 1, 3) * self.rot_sigma
         v = self.slope * p + self.bias + self.rb + self.pose_err + self.g.normal(0, 1, 3) * self.sigma
-        return PortMeasure(True, 'sim', self.conf, float(v[0]), float(v[1]), float(v[2]), float(max(self.sigma.max(), self.pose_sigma.max())), extra=dict(truth=p.tolist()))
+        return PortMeasure(True, 'sim', self.conf, float(v[0]), float(v[1]), float(v[2]), float(max(self.sigma.max(), self.pose_sigma.max())), extra=dict(truth=p.tolist()),
+                           rv_deg=np.asarray(tr['plug_rot_deg'], float) + self.rrb + self.rot_err)
 
 
 SOURCES = dict(stub=StubSource, port_vision=PortVisionSource, wrist_net=WristNetSource, sim_truth=SimTruthSource)
@@ -226,6 +250,10 @@ class AlignLogic:
         self.grip0 = None
         self.fused = []
         self.last_fused = None
+        self.a = c.get('angle') or None      # {axes: [0, 1], tol_deg, step_deg, max_deg, required}
+        self.fused_rv = []
+        self.rot_applied = np.zeros(3)
+        self.last_rv = None
 
     def slope(self):
         """Measurement against FK motion, per axis: regression on the levels of all cycles at their poses (differences would double the pose noise)."""
@@ -328,10 +356,22 @@ class AlignLogic:
         self.fused.append(v - tip)
         vf = np.median(self.fused[-int(c['fuse_n']):], 0) + tip
         self.last_fused = vf
+        rot_err = None
+        if self.a:
+            if getattr(m, 'rv_deg', None) is not None:
+                self.fused_rv.append(np.asarray(m.rv_deg, float) - self.rot_applied)
+            if self.fused_rv:
+                self.last_rv = np.median(self.fused_rv[-int(c['fuse_n']):], 0) + self.rot_applied
+                rot_err = self.last_rv[self.a['axes']]
         err = vf - self.t
         e = float(np.linalg.norm(err))
-        if min(v[2], vf[2]) < c['min_clear_mm']:
-            return self.fail(f'gap {min(v[2], vf[2]):.1f} mm below the {c["min_clear_mm"]} mm limit')
+        g_ = min(v[2], vf[2])
+        floor_ = c['min_clear_fail_mm'] if c.get('min_clear_fail_mm') is not None else c['min_clear_mm']
+        if g_ < floor_:
+            return self.fail(f'gap {g_:.1f} mm below the {floor_} mm limit')
+        if g_ < c['min_clear_mm']:         # too close but free: out first
+            self.moved_since = True
+            return dict(kind='step', delta=np.array([0., 0., float(self.step_cap[2])]), reason='too close: back out', err=err, e=e)
         if self.pending_probe:
             kind, d = self.pending_probe.pop(0)
             self.moved_since = True
@@ -352,7 +392,16 @@ class AlignLogic:
             if self.grow >= c['grow_n'] or e > self.best_e + c['grow_abs_mm']:
                 return self.fail(f'correction grows: {e:.1f} mm, best {self.best_e:.1f} mm, {self.grow} cycles', err=err)
         self.last_e, self.best_e = e, min(self.best_e, e)
-        if (np.abs(err) <= self.tol).all():
+        rot_off = None
+        if self.a:
+            if rot_err is None:
+                if self.a.get('required', True):
+                    return self.fail('no angle measurement')
+            elif np.abs(self.rot_applied).max() > self.a['max_deg']:
+                return self.fail(f'angle correction above {self.a["max_deg"]} deg: {self.rot_applied.round(1).tolist()}')
+            elif (np.abs(rot_err) > self.a['tol_deg']).any():
+                rot_off = rot_err
+        if (np.abs(err) <= self.tol).all() and rot_off is None:
             self.confirm += 1
             self.moved_since = False
             if self.confirm >= c['confirm_n']:
@@ -388,7 +437,13 @@ class AlignLogic:
         d = np.clip(d, -self.step_cap, self.step_cap)
         d[2] = max(d[2], c['min_clear_mm'] - vf[2])       # never plan below the clearance
         self.moved_since = True
-        return dict(kind='step', delta=d, err=err, e=e, reason='correct')
+        dec = dict(kind='step', delta=d, err=err, e=e, reason='correct')
+        if rot_off is not None:
+            r = np.zeros(3)
+            r[self.a['axes']] = np.clip(-rot_off, -self.a['step_deg'], self.a['step_deg'])
+            self.rot_applied = self.rot_applied + r
+            dec['rot_deg'] = r
+        return dec
 
 
 def creep_state(lead):
@@ -525,6 +580,8 @@ class AlignStage:
         out = PortMeasure(True, f'{len(good)}/{len(ms)} frames', float(np.median([m.conf for m in good])), float(med[0]), float(med[1]), float(med[2]),
                           None if good[0].sigma_mm is None else float(np.median([m.sigma_mm for m in good])))
         out.spread = float((V.max(0) - V.min(0)).max())
+        rvs = [m.rv_deg for m in good if m.rv_deg is not None]
+        out.rv_deg = np.median(np.stack(rvs), 0) if rvs else None
         if len(good) < min(int(c['min_good']), len(ms)):
             out.ok, out.reason = False, f'{len(good)} of {len(ms)} frames measured'
         return out, ms
@@ -534,13 +591,20 @@ class AlignStage:
         rec = dict(cycle=self.logic.cycle, tick=self.ch.k, t_stage=t, ok=m.ok, reason=m.reason, conf=m.conf, across=m.across_mm, up=m.up_mm, gap=m.gap_mm, sigma=m.sigma_mm, spread=getattr(m, 'spread', None),
                    frames=[dict(ok=x.ok, reason=x.reason, conf=x.conf, v=[x.across_mm, x.up_mm, x.gap_mm], ms=x.extra.get('ms'), truth=x.extra.get('truth'), panel_rv_deg=x.extra.get('panel_rv_deg')) for x in ms],
                    tip_rel=tip.tolist(), q_b=self.ch.q_b[0].tolist(), lead=self.creep.lead.tolist(), grip=float(self.ch.state['grip'][0]), decision=dec['kind'], decision_reason=dec.get('reason'), delta=np.asarray(dec.get('delta', np.zeros(3))).tolist(),
-                   fused=None if self.logic.last_fused is None else self.logic.last_fused.tolist(), slope=self.logic.slope(), second=None if m2 is None else dict(ok=m2.ok, v=[m2.across_mm, m2.up_mm, m2.gap_mm]))
+                   rv_deg=None if m.rv_deg is None else np.asarray(m.rv_deg).tolist(), rv_fused=None if self.logic.last_rv is None else self.logic.last_rv.tolist(), rot_applied=self.logic.rot_applied.tolist(), fused=None if self.logic.last_fused is None else self.logic.last_fused.tolist(), slope=self.logic.slope(), second=None if m2 is None else dict(ok=m2.ok, v=[m2.across_mm, m2.up_mm, m2.gap_mm]))
         tr = self.ch.truth()
         if tr is not None:
             rec['truth_mm'] = np.asarray(tr['plug_in_port_mm'], float).tolist()
             rec['truth_rot_deg'] = np.asarray(tr['plug_rot_deg'], float).tolist()
         self.ch.log_event('align_measure', **rec)
         print(f'align {self.logic.cycle:2d}: m {m.across_mm} {m.up_mm} {m.gap_mm} -> {dec["kind"]} {np.round(dec.get("delta", np.zeros(3)), 2).tolist()} {dec.get("reason", "")}', flush=True)
+
+    def turn(self, rot_deg):
+        """New orientation goal: rotate the hand by rot_deg (port axes) about the tip; the next step takes it there."""
+        from scipy.spatial.transform import Rotation
+        Rw = self.eR @ Rotation.from_rotvec(np.asarray(rot_deg, float), degrees=True).as_matrix() @ self.eR.T
+        self.R0 = torch.as_tensor(Rw, dtype=torch.float32) @ self.R0
+        self.ch.log_event('align_turn', rot_deg=np.asarray(rot_deg, float).tolist(), tick=self.ch.k)
 
     def step(self, delta):
         """One capped move, verified on FK. Returns dict: moved (3), fraction of the asked motion, timed out."""
@@ -645,6 +709,8 @@ class AlignStage:
                 out.update(ok=True, reason=dec['reason'])
                 break
             if dec['kind'] == 'step':
+                if dec.get('rot_deg') is not None:
+                    self.turn(dec['rot_deg'])
                 last = self.step(dec['delta'])
             else:
                 last = None
@@ -697,6 +763,7 @@ class AlignStage:
         self.logic.confirm = -1                               # three in a row under the press
         self.logic.last_m, self.logic.last_e = None, None
         self.logic.fused = []                                 # the press moved the plug against the port (dry run: 0.6 mm up), old cycles do not count
+        self.logic.fused_rv = []
         res0 = dict(ok=False, reason='')
         self.loop(res0, ch.k * ch.dt)
         ok = res0['ok']

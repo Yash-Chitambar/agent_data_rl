@@ -316,6 +316,19 @@
    3.5,
    2.5
   ],
-  "_disagree_mm": "GUESS, never run in a loop: net against vision near the port, SD 0.25, 0.71-0.88, 0.46 mm (n = 26), constant across 1.4-1.8, up 1.5-2.0 at A2 (docs/real/WRIST_NETS_REAL.md). Limit = constant + about 2 SD. Checked at the hand-over only. Port vision alone gives the numbers the stage acts on."
+  "_disagree_mm": "GUESS, never run in a loop: net against vision near the port, SD 0.25, 0.71-0.88, 0.46 mm (n = 26), constant across 1.4-1.8, up 1.5-2.0 at A2 (docs/real/WRIST_NETS_REAL.md). Limit = constant + about 2 SD. Checked at the hand-over only. Port vision alone gives the numbers the stage acts on.",
+  "min_clear_fail_mm": 1.0,
+  "_min_clear": "measured gap under 3 mm: back out 1 mm per cycle; stop under 1 mm",
+  "angle": {
+   "axes": [
+    0,
+    1
+   ],
+   "tol_deg": 1.0,
+   "step_deg": 0.75,
+   "max_deg": 7.0,
+   "required": true,
+   "_about": "rx pitch and ry yaw of the plug against the panel: port_vision panel pose + camera mount + mean real grasp. rz (roll) is not corrected: its slope on real frames is 0.39."
+  }
  }
 }

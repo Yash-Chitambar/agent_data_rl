@@ -162,6 +162,22 @@ def main():
         r = det.update(torch.tensor([[.2, .3, -11.7]]))
     check('seat 2: plug at depth, on axis', bool(r['seated'][0]))
 
+    # angle
+    a_ = dict(axes=[0, 1], tol_deg=1., step_deg=.75, max_deg=7., required=True)
+    lg = logic(angle=a_, slope_se_max=1e9, extra_probes=0)
+    d = lg.update(M(0, 0, 6), None, np.zeros(3))
+    check('angle required, none measured: stops', d['kind'] == 'fail' and 'angle' in d['reason'], d.get('reason'))
+    lg = logic(angle=a_, slope_se_max=1e9, extra_probes=0)
+    m_ = M(0, 0, 6)
+    m_.rv_deg = np.array([-3., 0., 0.])
+    d = lg.update(m_, None, np.zeros(3))
+    check('angle off: a capped turn the right way', d['kind'] == 'step' and abs(d['rot_deg'][0] - .75) < 1e-6, str(d.get('rot_deg')))
+    lg = logic(angle=dict(a_, max_deg=1.), slope_se_max=1e9, extra_probes=0)
+    for _ in range(4):
+        m_ = M(0, 0, 6)
+        m_.rv_deg = np.array([-5., 0., 0.]) + lg.rot_applied
+        d = lg.update(m_, None, np.zeros(3))
+    check('angle correction limit stops', d['kind'] == 'fail' and 'angle' in d['reason'], d.get('reason'))
     # configs
     pick3 = json.loads((ROOT / 'deploy/config/bimanual_pick3.json').read_text())
     base = json.loads((ROOT / 'deploy/config/bimanual.json').read_text())
