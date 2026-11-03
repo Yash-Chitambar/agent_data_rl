@@ -1,6 +1,6 @@
 # Real in-hand pose and real reader look in the sim
 
-Status: v1. Off by default. Measured on 13 real grasps of 2026-11-02, one reader spot. Results below grow as work continues.
+Status: v2. Off by default. Measured on 13 real grasps of 2026-11-02, one reader spot. Results below grow as work continues.
 
 ## How to enable
 
@@ -8,11 +8,11 @@ Presets: `blind_insertion/configs/inhand_real_v2.json` (use this; one row per me
 
 | What | Setting | Effect |
 |---|---|---|
-| Reader look | `BimanualCfg.inhand_real = 'v1'` | Silver plate and shoulder as on the real reader. Visual only: no change to the collision shape or mass. |
-| In-hand pose, insertion | `InsertionCfg.grasp = 'real'` (`grasp_real = 'v1'`, `grasp_real_spread = 1`) | Reader drawn from the measured grasp. The reference pose stays the Part 1 nominal, so the policy's in-hand input keeps its meaning. |
+| Reader look | `BimanualCfg.inhand_real = 'v2'` | Silver plate and shoulder as on the real reader. Visual only: no change to the collision shape or mass. |
+| In-hand pose, insertion | `InsertionCfg.grasp = 'real'` (`grasp_real = 'v2'`, `grasp_real_spread = 1`) | Reader drawn from the measured grasp. The reference pose stays the Part 1 nominal, so the policy's in-hand input keeps its meaning. |
 | In-hand pose, render data | `InsertCfg.inhand = 'real'` (`RightInserter`) | The same draw, for wrist and in-hand data. |
-| Wrist net training | `scripts/perception/train_approach_estimators.py --inhand-mode real --reader-look v1` | Both of the above. |
-| Direct use | `inhand_real.sample_real(n, 'v1', device=dev)` | Site in reader, the signature of `inhand.sample_measured`. |
+| Wrist net training | `scripts/perception/train_approach_estimators.py --inhand-mode real --reader-look v2` | Both of the above. |
+| Direct use | `inhand_real.sample_real(n, 'v2', device=dev)` | Site in reader, the signature of `inhand.sample_measured`. |
 
 Do not set `reader_body_length_m` (see Reader): the body stays 41.26 mm.
 
@@ -147,3 +147,49 @@ The three do not fit one camera roll: a camera roll turns all of them the same w
 - **Wrist nets:** turning real collect frames (gap under 10 mm, n = 88) by +-1.5 deg moves `wrist_v18ws` by at most 0.3 mm and `wrist_v14w` up to 0.7 mm, and 1.5 mm on gap in one direction: a small part of their error (`camera_roll.json`). A camera roll is not what makes them read low.
 
 Also for the wrist retrain: the sim's camera differs from hand-eye by the tip fit (1.5 mm, -2 mm), see "Frame choice".
+
+## K-J on the real grasp
+
+`scripts/eval/eval_kj_inhand.py`. Realistic sim = K-J's env + `grasp_fidelity_v2_real` (pad friction and time constant, weak wrist, rounded body; body 41.26 mm). n = 1024 per cell, 95 % Wilson, one seed. Hand-over at 6 mm gap, no rotation error, unless stated. `true` = true in-hand pose + K-J's training noise. `net` = the constant the real in-hand net gave on 3 real grasps (+3.6, 0, -2.0, -0.65, -0.75, +1.0), which is what the robot feeds today.
+
+| Hand-over offset (across, up; mm) | Old grasp, true | `v2`, true | `v2`, net |
+|---|---|---|---|
+| 0, 0 | 97.2 (96.0-98.0) | 95.8 (94.4-96.9) | 94.1 (92.5-95.4) |
+| 1, 0 | 95.5 (94.1-96.6) | 85.9 (83.7-87.9) | 90.2 (88.3-91.9) |
+| -1, 0 | 92.0 (90.2-93.5) | 88.8 (86.7-90.6) | 92.3 (90.5-93.8) |
+| 2, 0 | 94.8 (93.3-96.0) | 76.3 (73.6-78.8) | 80.2 (77.6-82.5) |
+| -2, 0 | 89.6 (87.6-91.4) | 82.6 (80.2-84.8) | 91.3 (89.4-92.9) |
+| 0, 1 | 95.0 (93.5-96.2) | 90.0 (88.0-91.7) | 94.7 (93.2-95.9) |
+| 0, -1 | 94.5 (93.0-95.8) | 92.8 (91.0-94.2) | 89.6 (87.6-91.4) |
+| 0, 2 | 92.8 (91.0-94.2) | 82.5 (80.1-84.7) | 92.2 (90.4-93.7) |
+| 0, -2 | 93.1 (91.3-94.5) | 85.4 (83.0-87.4) | 69.7 (66.8-72.5) |
+| 0, 0, gap 8 mm | 95.6 (94.2-96.7) | 87.7 (85.5-89.6) | 88.3 (86.2-90.1) |
+| 0, 0, gap 11 mm | 93.8 (92.1-95.1) | 87.5 (85.3-89.4) | 58.5 (55.5-61.5) |
+| 0, 0, rotation up to 2 deg per axis | 80.2 (77.6-82.5) | 66.7 (63.7-69.5) | 59.5 (56.4-62.4) |
+
+Failures: mainly `grasp_slip` (reader moved over 10 mm or 15 deg in the hand), then `lateral_miss`. Full classes: `kj_inhand_v2.csv`. Base sim (no fidelity), old grasp: 98.9-99.6 % over 8 cells; the new grasp was not run in the base sim.
+
+**Reading.** At an exact hand-over at 6 mm, K-J is robust to this grasp: `v2` net 94.1 %, against 97.2 % for the old grasp. It gets worse than the old grasp as the hand-over gets worse. Gap and rotation matter as much as the offset: at 11 mm with today's input it falls to 58.5 %, and with up to 2 deg of rotation per axis to 59.5 % (old grasp 80.2 %). Vision reads the real stop at about 8 mm (`PORT_VISION.md`).
+
+**Recommendation (no training was run):** make the graph hold the hand-over within about 1 mm, about 1 deg (not tested at 1 deg; a guess between the exact and 2 deg cells) and about 6 mm gap first, and do not fine-tune K-J for that case. Fine-tune on `v2` if the graph cannot, or if the real runs stay slip-limited. Do not feed the true in-hand pose without fine-tuning: x +8 mm is outside K-J's training range (about +-3.7 mm), and `true` is often not better than the wrong `net` value (for example -2, 0: 82.6 against 91.3).
+
+**Why these numbers are optimistic:** sim fingers do not yield. Sim finger closure in a push: median 0.01-0.05 mm; real: 0.3-0.5 mm at the first seat, 1.3 mm by the end. Sim reader pitch at exact hand-over: median 0.8 deg, p90 1.6 deg; real: about 2-4 deg at the first seat. The sim's success rates are therefore likely optimistic: read them as a comparison between grasps, not as a forecast of the real rate. I did not reproduce the real drop of `IMG_8784` as a specific event.
+
+**Breakdown, exact hand-over, `kj_inhand_parts.csv`:** pitch only 99.4 % (true), 89.5 % (net); `v1` mean without spread 97.2 %; `v1` mean position and pitch with `v1`'s independent box 71.6 %. So `v1`'s box costs 25 points; `v1` total 71.5 %, net 69.0 %. Which axis of the box does this was not separated. Use `v2`. Position only: 0 of 1024, ended before any motion was logged: an invalid setup (a guess: the reader off the pads), ignore it.
+
+## Not verified
+
+- One reader spot, one PC placement, one session. 13 grasps.
+- Roll about the reader's axis in the hand: not resolved by the camera. Yaw and the 1.45 mm lateral offset: not separated from the camera to tip geometry with certainty.
+- Position along the plug axis: within about 2.5 mm (tip fit against hand-eye).
+- The silver sizes come from a blown-out edge plus the caliper values. The neck is the old rectangle, slightly wider than real and without taper; the real shoulder is approximated. The look was compared under one renderer (CPU, not Warp with DR).
+- No net has been trained or tested on the new look.
+
+## Next rig session
+
+1. Calipers on the reader: housing length and width, silver along and across, neck width near the plug and near the shoulder, with a photo. This settles the swapped labels.
+2. 5 picks at other reader spots, with frames at a fixed hand pose: does pitch still equal the tilt at the close minus 55 deg?
+3. Side photo with a ruler at the hand's plane, square to the reader, for the axial position (the 2.5 mm).
+4. Slow push with the plug against the case: log grip reading and shell row at 10 Hz or more, to give the sim a finger compliance.
+5. Fingers closed on a flat gauge, wrist view, to separate a gripper turn on the flange from a camera roll (1.4 deg). A level or board in view at two joint-6 angles for the joint 6 offset.
+6. PC yaw from a square on the table or from the panel line, against the ZED's yaw (1.8 deg here).

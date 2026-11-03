@@ -1,0 +1,7 @@
+env,grasp,obs,ox,oy,gap_mm,angle,n,seated,rate,lo,hi,classes,pitch_med_deg,pitch_p90_deg,slip_med_mm,slip_p90_mm,finger_drop_med_mm,finger_drop_p90_mm
+realistic,real_pitch_only,true,0,0,6.0,0.0,1024,1018,0.9941,0.9873,0.9973,"{""grasp_slip"": 2, ""lateral_miss"": 4, ""seated"": 1018}",0.856,1.58,0.872,1.601,0.001,0.004
+realistic,real_pitch_only,net,0,0,6.0,0.0,1024,916,0.8945,0.8742,0.9119,"{""grasp_slip"": 7, ""lateral_miss"": 101, ""seated"": 916}",1.041,2.487,1.067,2.526,0.001,0.005
+realistic,real_pos_only,true,0,0,6.0,0.0,1024,0,0.0,0.0,0.0037,"{""lateral_miss"": 1024}",0.0,0.0,0.0,0.0,0.0,0.0
+realistic,real_pos_only,net,0,0,6.0,0.0,1024,0,0.0,0.0,0.0037,"{""lateral_miss"": 1024}",0.0,0.0,0.0,0.0,0.0,0.0
+realistic,real_pos_pitch,true,0,0,6.0,0.0,1024,733,0.7158,0.6874,0.7426,"{""grasp_slip"": 65, ""lateral_miss"": 226, ""seated"": 733}",0.844,1.967,0.808,2.022,0.002,0.137
+realistic,real_zero_spread_v1,true,0,0,6.0,0.0,1024,995,0.9717,0.9596,0.9802,"{""grasp_slip"": 22, ""lateral_miss"": 7, ""seated"": 995}",0.815,1.525,0.772,1.423,0.015,0.062
