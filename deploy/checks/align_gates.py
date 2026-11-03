@@ -84,9 +84,14 @@ def main():
         d = lg.update(M(0, 0, 6, conf=.1), None, np.zeros(3))
     check('low confidence stops', d['kind'] == 'fail', d.get('reason'))
     # sources disagree
-    lg = logic()
-    d = lg.update(M(0, 5, 8), M(0, 0, 8), np.zeros(3))
-    check('sources disagree stops', d['kind'] == 'fail' and 'disagree' in d['reason'], d.get('reason'))
+    lg = logic(slope_min_motion_mm=0.)
+    lg.update(M(0, 0, 6), M(0, 5, 6), np.zeros(3))
+    d = lg.update(M(0, 0, 6), M(0, 5, 6), np.zeros(3))
+    check('sources disagree at the hand-over stops', d['kind'] == 'fail' and 'disagree' in d['reason'], d.get('reason'))
+    lg = logic(slope_min_motion_mm=0., secondary_required=True)
+    lg.update(M(0, 0, 6), None, np.zeros(3))
+    d = lg.update(M(0, 0, 6), None, np.zeros(3))
+    check('no second source at the hand-over stops', d['kind'] == 'fail' and 'second source' in d['reason'], d.get('reason'))
     # step limit
     lg = logic(max_cycles=3)
     p = 0
@@ -172,6 +177,9 @@ def main():
     for k in ('_about', 'align'):
         n.pop(k, None)
         p.pop(k, None)
+    for k in ('wrist_net', 'fine_net'):       # r10 nets (docs/real/WRIST_NETS_REAL.md)
+        check(f'align1 {k} is the r10 net', 'perception_real/wrist_r10' in n['chain_args'][k])
+        n['chain_args'][k] = p['chain_args'][k]
     for k in ('seat2', 'guard', 'keep_reader_unless_seated', 'abort_lift_mm', 'abort_v_mm_s'):
         n['insert'].pop(k, None)
     check('bimanual_align1.json = pick3 + batch A + the new keys, limits equal', n == p, '' if n == p else str({k: (n.get(k), p.get(k)) for k in n if n.get(k) != p.get(k)})[:400])

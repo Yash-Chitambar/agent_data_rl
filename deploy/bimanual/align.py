@@ -27,7 +27,7 @@ DEFAULTS = dict(
     target_mm=[0.0, 0.0, 6.0], tol_mm=[1.0, 1.0, 1.0], confirm_n=2,
     step_mm=[1.0, 1.0, 1.0], gain=1.0, funnel_lat_mm=2.0, gap_hold_mm=9.0, min_clear_mm=3.0,
     frames=5, min_good=3, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
-    max_cycles=40, max_time_s=90.0, max_lat_mm=20.0, max_advance_mm=16.0,
+    max_cycles=60, max_time_s=120.0, post_press_cycles=6, max_lat_mm=20.0, max_advance_mm=16.0,
     drift_mm=1.0, drift_n=2, pred_mm=2.5, pred_n=2, grow_margin_mm=.5, grow_n=4, grow_abs_mm=9.0, grip_change=.02,
     probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_early=[.25, 2.0], slope_min_motion_mm=1.5,
     inhand_refresh=True, settle_s=.3, settle_max_s=1.5, still_rad_s=.02, move_tol_mm=.3, step_timeout_s=3.0, stuck_n=3,
@@ -131,7 +131,7 @@ class WristNetSource:
     """The fine wrist net (eval_chain's crop): real slope about 0.34, 0.17, 0.35 per mm (docs/real/SESSION_20261102_duchamp3.md), so the slope gate rejects it until retrained."""
 
     def __init__(self, ch, spec):
-        self.spec = spec
+        self.spec = spec          # secondary source of bimanual_align1: the new nets are fast and cannot refuse a frame, and across sits 1.4-1.8 mm from vision (docs/real/WRIST_NETS_REAL.md)
         self.sigma = float(spec.get('sigma_mm', 1.0))
         self.conf = float(spec.get('conf', 1.0))
         name = spec.get('net')
@@ -229,6 +229,10 @@ class AlignLogic:
         c = self.c
         need = c['slope_min_motion_mm'] ** 2
         for i, s in enumerate(self.slope()):
+            if s is None:
+                if need > 0:
+                    return False, f'{AXES[i]}: no motion to check the measurement scale'
+                continue
             if self.sxx[i] < need:
                 return False, f'{AXES[i]}: not enough motion to check the measurement scale ({math.sqrt(self.sxx[i]):.1f} mm)'
             if not (c['slope_min'] <= s <= c['slope_max']):
@@ -272,10 +276,7 @@ class AlignLogic:
             return dict(kind='retry', reason=bad, delta=np.zeros(3))
         self.no_meas = 0
         v = m.vec()
-        if m2 is not None and m2.ok:
-            dis = np.abs(v - m2.vec())
-            if (dis > np.asarray(c['disagree_mm'], float)).any() and c['disagree_mode'] == 'gate':
-                return self.fail(f'sources disagree {dis.round(2).tolist()} mm')
+        dis = np.abs(v - m2.vec()) if m2 is not None and m2.ok else None
         if self.last_m is not None:
             dtip = tip - self.last_tip
             dm = v - self.last_m
@@ -324,9 +325,14 @@ class AlignLogic:
             self.confirm += 1
             self.moved_since = False
             if self.confirm >= c['confirm_n']:
+                if c.get('secondary_required') and dis is None:
+                    return self.fail('second source has no reading at the hand-over', err=err)
+                if dis is not None and c['disagree_mode'] == 'gate' and (dis > np.asarray(c['disagree_mm'], float)).any():
+                    return self.fail(f'sources disagree at the hand-over {dis.round(2).tolist()} mm', err=err)
                 ok, why = self.slope_check()
                 if not ok:
                     return self.fail('scale gate: ' + why, err=err)
+                self.final = v.copy()
                 return dict(kind='done', delta=np.zeros(3), err=err, e=e, reason='within tolerance')
             return dict(kind='retry', reason='confirm', delta=np.zeros(3), err=err, e=e)
         self.confirm = 0
@@ -540,7 +546,6 @@ class AlignStage:
         self.R0, self.tip0 = R0, (p0 - R0 @ self.s).numpy().astype(float)
         self.creep.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
         out = dict(ok=False, reason='', cycles=0, gap_mm=None, lat_mm=None)
-        last = None
         self.still()
         if hasattr(self.src, 'prepare'):
             pr = self.src.prepare(ch, self.creep.tick)
@@ -560,6 +565,15 @@ class AlignStage:
             p0, R0 = self.fk(ch.q_b[0])
             self.R0, self.tip0 = R0, (p0 - R0 @ self.s).numpy().astype(float)
             self.creep.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
+        self.loop(out, t_start)
+        out.update(cycles=self.logic.cycle, slope=self.logic.slope(), seconds=ch.k * ch.dt - t_start)
+        out['last'] = None if self.logic.last_m is None else self.logic.last_m.tolist()
+        return out
+
+    def loop(self, out, t_start):
+        """Cycles until done or fail: rest, measure, gates, one step."""
+        c, ch = self.c, self.ch
+        last = None
         while True:
             self.still()
             m, ms = self.measure(f'align_{self.logic.cycle:03d}')
@@ -580,7 +594,7 @@ class AlignStage:
                 dec = self.logic.update(m, m2, tip, grip=float(ch.state['grip'][0]), stuck=stuck)
             self.log_m(m, ms, m2, tip, dec, ch.k * ch.dt - t_start)
             if dec['kind'] == 'fail':
-                out['reason'] = dec['reason']
+                out['ok'], out['reason'] = False, dec['reason']
                 break
             if dec['kind'] == 'done':
                 out.update(ok=True, reason=dec['reason'])
@@ -589,9 +603,6 @@ class AlignStage:
                 last = self.step(dec['delta'])
             else:
                 last = None
-        out.update(cycles=self.logic.cycle, slope=self.logic.slope(), seconds=ch.k * ch.dt - t_start)
-        out['last'] = None if self.logic.last_m is None else self.logic.last_m.tolist()
-        return out
 
     def handover(self, log):
         """Stage succeeded: target lead into the range K-J saw, press back on, last measurement. Returns (cmd for run_insertion or None, dict)."""
@@ -609,13 +620,18 @@ class AlignStage:
                 self.creep.tick()
             ch.log_event('align_press_on', tick=ch.k)
         self.creep.ql = self.q_hold
-        self.still()
-        m, ms = self.measure('align_final')
-        tip = self.tip_rel()
-        tol = np.asarray(c['tol_mm'], float) * c['post_press_tol_factor']
-        err = (m.vec() - np.asarray(c['target_mm'], float)) if m.ok else None
-        ok = bool(m.ok and (np.abs(err) <= tol).all())
-        self.log_m(m, ms, None, tip, dict(kind='done' if ok else 'fail', reason='final check after the press' if ok else 'moved out of tolerance after the press'), ch.k * ch.dt)
+        # the press and the lead clip can move the hand: measure again, correct under the press if needed (few cycles, the press clock runs)
+        self.logic.cycle = max(0, c['max_cycles'] - c['post_press_cycles'])
+        self.logic.confirm = 0
+        self.logic.last_m, self.logic.last_e = None, None
+        res0 = dict(ok=False, reason='')
+        self.loop(res0, ch.k * ch.dt)
+        ok = res0['ok']
+        m = PortMeasure(False, res0['reason'])
+        if ok:
+            m = PortMeasure(True, 'last', 1., *self.logic.final, None)
+        lo_ = np.asarray(c['handover_lead_rad'], float)
+        self.creep.lead = np.clip(self.creep.lead, lo_[:, 0], lo_[:, 1])
         if c.get('inhand_refresh', True) and ok:        # the in-hand net trained at the 6 mm stop: read it again at the hand-over
             import torch.nn.functional as F
             net, scale, _ = ch.inhand_net
@@ -627,7 +643,7 @@ class AlignStage:
             ch.inhand_est6 = new
         q = ch.q_b[0].cpu().numpy().astype(float)
         cmd = torch.as_tensor(q + self.creep.lead, dtype=torch.float32, device=ch.dev)
-        res = dict(ok=ok, gap_mm=float(m.gap_mm) if m.ok else None, lat_mm=[float(m.across_mm), float(m.up_mm)] if m.ok else None, sigma_mm=m.sigma_mm, lead=self.creep.lead.tolist())
+        res = dict(ok=ok, reason=res0['reason'], gap_mm=float(m.gap_mm) if m.ok else None, lat_mm=[float(m.across_mm), float(m.up_mm)] if m.ok else None, lead=self.creep.lead.tolist())
         ch.log_event('align_handover', **res)
         return (cmd[None] if ok else None), res
 
@@ -665,7 +681,7 @@ def run_align(ch, cmd, q_hold, ep, eR, log, c):
         out['cmd'], h = st.handover(log)
         out['handover'] = h
         if out['cmd'] is None:
-            out.update(ok=False, reason='final check after the press failed')
+            out.update(ok=False, reason='after the press: ' + str(h.get('reason')))
         else:
             ch.align_result = h
     if out['ok'] and c['mode'] != 'full':

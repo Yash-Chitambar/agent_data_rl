@@ -374,9 +374,18 @@ class Runner:
             raise GuardStop('left hold did not latch (no contact force within the search depth)')
         if not self.confirm_in_press(ch, 'transport + approach'):
             raise GuardStop('operator stop in the press')
+        from deploy.bimanual.align import align_cfg, run_align
+        ac = align_cfg(self.cfg)
+        q_arm = q_hold
+        if ac is not None and ac['press_release']:     # no press force and no press clock until the plug is lined up (as stage collect): the hand stays on the PC
+            for _ in range(50):
+                q_arm = ch.q_b[1].clone()[None]
+                ch.hstep(qr.reshape(6), q_arm.reshape(6), '2 hold')
+            ch.pressing = False
+            ch.log_event('align_press_off', q_left=q_arm.tolist(), tick=ch.k, at='after the latch')
         ch.rt.comp['right'] = ch.fric
-        q_look = ch.stage_transport(qr, q_hold, ep, eR, log)
-        cmd = ch.stage_approach(q_look, q_hold, ep, eR, log)
+        q_look = ch.stage_transport(qr, q_arm, ep, eR, log)
+        cmd = ch.stage_approach(q_look, q_arm, ep, eR, log)
         print(f'in-hand estimate (mm, deg): {np.round(ch.inhand_est6[0].cpu().numpy(), 2)}', flush=True)
         lat = ch.preinsert_lateral_mm(cmd)
         res['preinsert_fk_lateral_mm'] = lat
@@ -385,8 +394,6 @@ class Runner:
         print(f'pre-insert: plug {lat:.1f} mm across the ZED port axis (encoder FK; log only unless wrong_port_mm is set)', flush=True)
         if lim is not None and lat > lim:
             raise GuardStop(f'approach ended {lat:.1f} mm across the ZED port axis (port pitch 18.6 mm): neighbouring port?')
-        from deploy.bimanual.align import align_cfg, run_align
-        ac = align_cfg(self.cfg)
         if ac is not None:
             ar = run_align(ch, cmd, q_hold, ep, eR, log, ac)
             res['align'] = {k: v for k, v in ar.items() if k not in ('cmd', 'q_left')}

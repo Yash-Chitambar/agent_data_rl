@@ -1,5 +1,5 @@
 {
- "_about": "Bimanual USB-C chain on the real YAMs (deploy/run_bimanual.py). Lengths m, angles rad, times s, forces N, torques N m. Sim-derived values are checked against the sim by deploy/checks/bimanual_conventions.py. Chain settings not listed here are scripts/eval/eval_chain.py defaults (the 99.56-99.66 % sim config). VARIANT bimanual_align1.json: bimanual_pick3.json with batch A merged (level roll), + align stage, seat detector 2, insert guard, reader kept unless seated (docs/real/ALIGN_STAGE.md). Base: bimanual_pick3.json: bimanual_pick2.json + pick.grasp_v3 (docs/real/PICK_GRASP_V3.md), no close_press_relief, body clearances restored.",
+ "_about": "Bimanual USB-C chain on the real YAMs (deploy/run_bimanual.py). Lengths m, angles rad, times s, forces N, torques N m. Sim-derived values are checked against the sim by deploy/checks/bimanual_conventions.py. Chain settings not listed here are scripts/eval/eval_chain.py defaults (the 99.56-99.66 % sim config). VARIANT bimanual_align1.json: bimanual_pick3.json with batch A merged (level roll), + align stage, seat detector 2, insert guard, reader kept unless seated (docs/real/ALIGN_STAGE.md). Base: bimanual_pick3.json with the r10 wrist nets of bimanual_pick3_wrist_r10.json (weights in runs/perception_real/, not in the bundle: runbook step): bimanual_pick2.json + pick.grasp_v3 (docs/real/PICK_GRASP_V3.md), no close_press_relief, body clearances restored.",
  "control_dt": 0.02,
  "bundle_dir": "deploy/bundle",
  "chain_args": {
@@ -9,8 +9,8 @@
   "hold_along": -0.02,
   "look_gap": 30.0,
   "stop": 6.0,
-  "wrist_net": "wrist_v14w",
-  "fine_net": "wrist_v18ws",
+  "wrist_net": "../perception_real/wrist_r10w_ft_abs",
+  "fine_net": "../perception_real/wrist_r10f_ft_abs",
   "inhand_net": "inhand_ih5",
   "zed_gate": "zed_v1_gate_arm",
   "handover": "torque",
@@ -304,6 +304,17 @@
    ],
    "drop_p": 0.1
   },
-  "_sim_source": "port_vision held-out residuals (docs/real/PORT_VISION.md): frame noise under 0.12 mm, residual over poses across 0.18-0.38, up 0.74, gap 0.49; constant of a run: judgement, y about 0.6 mm"
+  "_sim_source": "port_vision held-out residuals (docs/real/PORT_VISION.md): frame noise under 0.12 mm, residual over poses across 0.18-0.38, up 0.74, gap 0.49; constant of a run: judgement, y about 0.6 mm",
+  "secondary": {
+   "kind": "wrist_net",
+   "sigma_mm": 1.0
+  },
+  "secondary_required": false,
+  "disagree_mm": [
+   3.0,
+   3.5,
+   2.5
+  ],
+  "_disagree_mm": "GUESS, never run in a loop: net against vision near the port, SD 0.25, 0.71-0.88, 0.46 mm (n = 26), constant across 1.4-1.8, up 1.5-2.0 at A2 (docs/real/WRIST_NETS_REAL.md). Limit = constant + about 2 SD. Checked at the hand-over only. Port vision alone gives the numbers the stage acts on."
  }
 }
