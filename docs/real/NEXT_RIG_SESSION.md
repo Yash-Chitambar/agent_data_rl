@@ -1,17 +1,17 @@
-# Next rig session, draft: align stage, then the insertion
+# Next rig session: align stage, then the insertion
 
 Give this file to the local agent. Open it with: "Read `docs/real/NEXT_RIG_SESSION.md` and guide me through it."
 
 Goal: measure the plug, its angle and the port from the wrist camera at the real stop, then bring the plug to the hand-over gap and angle in slow steps, then hand over to K-J. What the stage does: [ALIGN_STAGE.md](ALIGN_STAGE.md). Last session: [SESSION_20261102_duchamp3.md](SESSION_20261102_duchamp3.md).
 
-This draft is on branch `real/graph-align`. Other agents add their parts in the section "Additions from other agents" below. Merge those branches before the session.
+This file is on branch `real/graph-align`, which already holds the port vision, wrist net and sim grasp work. Nothing here has run on the arm yet. In sim, a full pick-to-insertion run has not seated with this config (n = 4), so step 4 is the first real test of the insertion.
 
 ## Rules for the agent
 
 1. **Do not run a command that moves an arm until you show the exact command and the operator says "go".** One command, one go. A "go" for one try does not cover the next try.
 2. Before the first motion, the operator confirms: both arm bases are clamped, and `scripts/real/estop.py` is open in a second terminal. Check again after any base or PC move.
 3. Commands with `--dry-run`, the checks, the log tools and step 1 (no arm connected) do not move the robot. You can run them without asking.
-4. Do not change configs, gains, force limits, speed limits or clearances without the operator's approval. Do not edit a limit to get past a stop: report the stop. The `align` keys in `deploy/config/bimanual_align1.json` are also settings: ask first.
+4. Do not change configs, gains, force limits, speed limits or clearances without the operator's approval. Do not edit a limit to get past a stop: report the stop. The `align` keys in `deploy/config/bimanual_align2.json` are also settings: ask first.
 5. One thing at a time. Do not skip a step without the operator's approval.
 6. Report only what the logs and the operator show. Sim percentages do not predict these runs.
 7. Commit or push only when the operator asks. Never force push.
@@ -25,14 +25,25 @@ cd ~/agent_data_rl
 git status                       # commit or stash local changes first (ask the operator)
 git fetch origin && git checkout real/graph-align && git pull --ff-only
 export PYTHONPATH=. ; C=deploy/config/bimanual_align2.json
-# r10 wrist nets: NOT in the bundle, `bundle verify` does not cover them. Copy runs/perception_real/ from mason (from the worktree of policy/wrist-real), then:
+mkdir -p runs/perception_real
+# r10 wrist nets: NOT in git and NOT in the bundle. Copy these 4 files only (about 47 MB); the folder on mason also has a 7.4 GB cache you do not want.
+# Run this on the rig. Mason cannot reach the rig, so pull from the rig side:
+rsync -av --progress yashchitambar@mason:/home/yashchitambar/wt/wrist-real/runs/perception_real/wrist_r10{f,w}_ft_abs.{pt,json} runs/perception_real/
 sha256sum runs/perception_real/wrist_r10f_ft_abs.pt runs/perception_real/wrist_r10w_ft_abs.pt | cut -c1-16   # must print 384e7b43b7e0e937 (fine) and 78064b5eeab8bbce (coarse)
 .venv/bin/python -m deploy.bimanual.bundle verify                     # "bundle OK"
+.venv/bin/python -m deploy.bimanual.bundle link                       # the same bundle as last session; links runs/perception
 .venv/bin/python -m deploy.checks.bimanual_conventions --config $C    # "FAILED: none"
 .venv/bin/python -m deploy.checks.align_gates                         # "FAILED: none"
 .venv/bin/python -m deploy.checks.bimanual_realio_mock                # the LAST "ok" line is true
 .venv/bin/python -m deploy.checks.bimanual_timing --config $C         # p99 < 20 ms per stage, other jobs closed
 .venv/bin/python -m deploy.run_bimanual --dry-run --stage approach_insert --seed 7000 --config $C   # completed True
+```
+
+If the rig cannot reach `mason` by name, relay through the laptop. Run on the laptop, with `<rig>` = the rig's user and address (last session: `yashc@100.66.93.61`), then run the `sha256sum` line on the rig:
+
+```bash
+mkdir -p r10 && rsync -av --progress yashchitambar@mason:/home/yashchitambar/wt/wrist-real/runs/perception_real/wrist_r10{f,w}_ft_abs.{pt,json} r10/
+rsync -av --progress r10/ <rig>:~/agent_data_rl/runs/perception_real/
 ```
 
 **If timing fails with other jobs closed, stop and report.** The server cannot decide timing: only the rig can. Also check that `$C` changed since the last session only as `docs/real/ALIGN_STAGE.md` says: the r10 nets drive the approach, so the real stop should now be near 6 mm, not 8 mm. Nobody has run them in a loop: in step 2 **watch the approach**, and stop on any move that looks wrong.
@@ -69,7 +80,7 @@ After the run, show:
 .venv/bin/python scripts/real/align_log.py data/real_runs/$(date +%F)/full_*measure1
 ```
 
-Check: `align: shell depth` printed a number (no number: the grasp is refused, and the stage stops, which is correct), frames measured (`ok`), spread between measurements, and the values against what the operator sees. Expected at the stop: gap about 6 mm with the r10 nets (the old nets stopped at 8-9 mm, up +5 to +9 mm, across -5 to 0 mm by port vision). The log also shows the net as the second source: the net against vision limits (3.0, 3.5, 2.5 mm) are a guess; report the real differences. **Before step 3: the measurements must be steady (spread below about 1 mm: the arm does not move, and port vision noise at rest was under 0.12 mm offline), and at least half of the cycles must have a measurement.** This is also the first time port vision runs live. Compare the printed time per measurement: about 82 ms offline. If not, stop and report. Do not run step 3. Ask the port vision agent.
+Check: `align: shell depth` printed a number (no number: the grasp is refused, and the stage stops, which is correct), frames measured (`ok`), spread between measurements, and the values against what the operator sees. Expected at the stop: gap about 6 mm with the r10 nets (the old nets stopped at 8-9 mm, up +5 to +9 mm, across -5 to 0 mm by port vision). The log also shows the net as the second source: the net against vision limits (3.0, 3.5, 2.5 mm) are a guess; report the real differences. **Before step 3: the measurements must be steady (spread below about 1 mm: the arm does not move, and port vision noise at rest was under 0.12 mm offline), and at least half of the cycles must have a measurement.** This is also the first time port vision runs live. Compare the printed time per measurement: about 82 ms offline. If not, stop and report. Do not run step 3. Copy the logs to mason for the server session.
 
 **Read the plug angle here, before any insertion.** Each line of the log gives `plug rx,ry,rz` (pitch, yaw, roll of the plug against the panel, deg: port vision's panel pose + camera mount + mean real grasp). Offline at the old stops it read rx -3.2 to -3.4, ry -1.8 to -2.4, rz -1.1 to -1.3. Write the steady values and a side photo of the plug against the port row, with a square if possible. Sign check by eye: rx negative should look like plug tip low or high consistently between runs; tell the operator what the photo shows. If the angle looks clearly different from the numbers, stop and report: the angle correction in step 3 would be wrong.
 
@@ -122,6 +133,8 @@ After each try:
 
 Go on with `align_full2`, and so on, one go per try, for about 5 tries. Then stop and report. On a "seated" from the runner with the plug not in: stop and report at once, as this is a false seat.
 
+The press abort stays at 3 s (`insert.guard.stall_s`), the operator's call. Note for each `press_abort` whether the plug was still making progress by eye. That decides whether 6 s is worth a test. Do not change it without the operator.
+
 ## Additions from other agents
 
 Keep each item short: what, why, the command. Merge order matters: put your branch name here.
@@ -130,7 +143,7 @@ Keep each item short: what, why, the command. Merge order matters: put your bran
 - **Wrist nets (`policy/wrist-real`):** merged. r10 nets drive the approach and are the second source, checked at the hand-over only. Port vision decides across and up: the net cannot refuse a frame, and it sits 1.4-1.8 mm off vision across.
 - **Sim grasp (`sim/grasp-real`):** merged (preset `inhand_real_v2`). K-J at exact hand-over with `v2`: 95.8 %; offsets 76-93 %, worst at +-2 mm across (their numbers).
 - **Grasp and scale measurements (`sim/grasp-real`, details in `docs/real/INHAND_REAL.md`).** About 30 min, one go per motion command. Calipers and a photo on the reader. Five picks at other reader spots, frames at a fixed hand pose at the stop. A square-on side photo with a ruler at the hand's plane. A slow push with the plug against the case, logging the gripper reading and the plug at 10 Hz or more (needs a tool; ask before running). Fingers closed on a flat gauge, wrist view, and a level or board in view at two joint-6 angles. PC yaw against a known square: the ZED's yaw looks about 1.8 deg high (moderate evidence).
-- **Re-collect with a light-contact anchor:** _(open, needs a decision)_. The 2026-11-02 anchor was a full push, and the reader pitched in the jaws: the labels' height is not known within about 4.5 mm. A new `collect` run with the anchor at light contact (plug in by 1-2 mm, no push, `anchor 1.5`) would fix the constant for the port vision and the nets. Cost: about 20 min of the rig, with the operator's hand on the PC. Command, if it is wanted (one go):
+- **Re-collect with a light-contact anchor:** recommended, after step 3 passes. The 2026-11-02 anchor was a full push, and the reader pitched in the jaws: the labels' height is not known within about 4.5 mm. A new `collect` run with the anchor at light contact (plug in by 1-2 mm, no push, `anchor 1.5`) would fix the constant for the port vision and the nets. Cost: about 20 min of the rig, with the operator's hand on the PC. At the jog prompt, jog the plug in by 1-2 mm with no push, then type `anchor 1.5` (or the depth you see), not `anchor full`. Command (one go):
 
   ```bash
   .venv/bin/python -m deploy.run_bimanual --stage collect --speed 0.5 --config deploy/config/bimanual_pick3.json --batch A --collect-seed 2 --name collect2
