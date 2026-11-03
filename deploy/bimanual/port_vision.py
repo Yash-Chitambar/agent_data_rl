@@ -7,9 +7,9 @@
 Axes and signs match `p_mm` of data/real_training/port_v1/manifest.jsonl: plug tip relative to port 2 centre on the panel,
 x across (right in the wrist view), y up, z gap (out of the panel). Method and limits: docs/real/PORT_VISION.md.
 
-Pixels to mm: the port row gives the camera pose against the panel by PnP on a stored 3D model of the row (PANEL_MM; a long
-baseline across the row sets the scale, port 2 itself is not needed). The plug tip is a ray through the shell's tip edge,
-at the depth given by the shell's width in pixels (8.25 mm USB-C shell). The gap is the tip's distance to the panel plane.
+Pixels to mm: the camera pose against the panel comes from PnP on a stored 3D model of the case edges and slots (config/port_vision_model.json;
+the baseline across the case sets the scale, port 2 itself is not needed). The plug tip is a ray through the shell, at the depth given by
+the shell's apparent width in pixels (SHELL_W_EFF_MM). The gap is the tip's distance to the panel plane.
 """
 from __future__ import annotations
 
@@ -25,6 +25,8 @@ MODEL = Path(__file__).resolve().parent.parent / 'config' / 'port_vision_model.j
 
 SHELL_W_MM = 8.25           # USB-C plug shell width (USB Type-C specification)
 SHELL_T_MM = 2.40           # USB-C plug shell thickness
+SHELL_W_EFF_MM = 8.15       # apparent width between the rim edges: from frames with the plug in the port mouth (docs/real/PORT_VISION.md)
+TIP_DEEPER_MM = 1.5         # the tip is this much further from the camera than the shell's middle rows (shell along the view, 45% of 3.3 mm)
 
 # Panel feature model: (x across, y up) mm on the panel, origin at port 2 centre. First estimate; the stored file
 # deploy/config/port_vision_model.json (fitted by scripts/real/port_vision_fit.py) replaces it. wh = bright blob size.
@@ -38,17 +40,25 @@ PANEL_INIT = {
     'U':  dict(xy=(42.5, -8.0), wh=(15.5, 4.5)),
 }
 # What a good fit requires. Conservative on purpose: a miss is cheap, a wrong number is not.
-MIN_FEATURES = 4
-PLUG_Z_MM = 118.5           # shell depth from the camera: median of its width over the collect sweep (8.25 mm shell). One grasp type.
-PLUG_Z_TOL_MM = 5.0         # a shell further from this depth is another grasp: refuse
-TIP_ABOVE_END_PX = 32.0     # shell tip edge above the sleeve end in the image (rigid; median of the collect sweep)
-SIGMA_MM = (0.4, 1.0, 0.8)  # residual SD after a constant, held-out collect blocks; see docs/real/PORT_VISION.md
+MIN_FEATURES = 3
+SLOT_REJECT_PX = 2.5
+MATCH_PAIRS = (('P1', 'RJ'), ('P2', 'RJ'), ('S', 'RJ'), ('P1', 'P2'), ('A', 'RJ'), ('RJ', 'H'), ('P1', 'A'), ('RJ', 'U'))
+MATCH_VSCALE = (1.0, 0.75, 1.3)   # the row's height in the image changes with the viewing angle
+PLUG_Z_RANGE = (108.0, 145.0)   # plausible shell depth from the camera (mm), from its width
+TIP_ABOVE_END_PX = 32.0     # shell tip edge above the sleeve end in the image at depth Z0_TIP (rigid; median of the collect sweep)
+Z0_TIP = 117.2
+PORT_CENTER_MM = (0.3, 0.5, 0.0)   # port 2 mouth centre in the model frame (origin: bright lip blob); from frames with the plug in the mouth
+# Residual SD after a constant, held-out collect blocks, gap under 15 mm and over (docs/real/PORT_VISION.md). Constant offsets are extra: 0.5 mm guess.
+SIGMA_NEAR_MM = (0.4, 1.2, 0.7)
+SIGMA_NEAR_GRASP_MM = (0.4, 0.8, 0.5)
+SIGMA_FAR_MM = (1.2, 1.2, 0.9)
 POSE_ITERS = 2
 POSE_FEATURES = ('P1', 'P2', 'S')     # clean slots; the frames of the larger ports only confirm the pattern
-MAX_REPROJ_PX = 3.0
+MAX_REPROJ_PX = 5.0         # tuned on the tune blocks: errors do not grow up to 5 px, detection rises
+MAX_ROT_FROM_NOMINAL_DEG = 25.0
 SCALE_PX_MM = (1.8, 9.0)    # plausible image scale at the panel
-PLUG_ROI = (575, 720, 470, 565)     # u0, u1, v0, v1: undistorted pixels. The plug is rigid in the hand.
-PLUG_W_PX = (40.0, 60.0)
+PLUG_ROI = (575, 715, 450, 590)     # u0, u1, v0, v1: undistorted pixels. The plug is rigid in the hand.
+PLUG_W_PX = (38.0, 56.0)
 PLUG_H_PX = (22.0, 46.0)
 MIN_EDGE = 10.0             # smallest edge step in the mean profile (grey levels)
 
@@ -118,51 +128,50 @@ def _edge(profile, lo, hi, sign):
 
 
 def detect_plug(und):
-    """Metal shell in its fixed image window. Returns dict(ul, ur, vt, ve, ...) in undistorted pixels, or (None, reason)."""
+    """Metal shell in its window. Returns dict(ul, ur, vt, ve, w, ...) in undistorted pixels, or (None, reason).
+    The sleeve end is the shell's lower edge (bright over dark). The width comes from all shell rows at once."""
     u0, u1, v0, v1 = PLUG_ROI
     g = cv2.GaussianBlur(cv2.cvtColor(und[v0:v1, u0:u1], cv2.COLOR_BGR2GRAY), (3, 3), 0).astype(np.float32)
-    # sleeve end: bright shell over the dark sleeve, the strongest falling step on the middle columns
-    c0, c1 = 55, 90
+    # columns inside the shell for any plausible position
+    mid = (u1 - u0) // 2
+    c0, c1 = mid - 12, mid + 12
+    # candidates: rising then falling on the mid columns: tip edge above, sleeve end below, at the shell's height in the image
     prof = g[:, c0:c1].mean(1)
-    ve, se = _edge(prof, 40, v1 - v0 - 8, -1)
-    if ve is None or se < MIN_EDGE:
-        return None, f'no shell end edge (step {se:.0f})'
-    # side edges on the rows above the sleeve end
-    r1 = int(ve) - 5
-    r0 = r1 - 18
-    if r0 < 0:
-        return None, 'shell end too high in the window'
-    side = g[r0:r1].mean(0)
-    ul, sl = _edge(side, 15, 70, +1)
-    ur, sr = _edge(side, 70, u1 - u0 - 15, -1)
-    if ul is None or ur is None or min(sl, sr) < MIN_EDGE:
-        return None, f'no shell side edges (steps {sl:.0f}, {sr:.0f})'
-    w = ur - ul
-    if not PLUG_W_PX[0] <= w <= PLUG_W_PX[1]:
-        return None, f'shell width {w:.1f} px out of range'
-    # tip: rising step going down, above the sleeve end, on the rims and the middle
+    gr = np.convolve(prof, [1, 1, 0, -1, -1], mode='same') / 2.0
+    best, best_s = None, 0.0
+    fall = [i for i in range(4, len(gr) - 4) if -gr[i] > MIN_EDGE and -gr[i] >= -gr[i - 1] and -gr[i] >= -gr[i + 1]]
+    why = 'no shell end edge'
+    for i in fall:
+        if i < 27:
+            continue
+        below = prof[i + 4:i + 12].mean() if i + 12 < len(prof) else 255.0
+        above = prof[i - 18:i - 4].mean()
+        if above - below < 15.0:
+            continue
+        side = g[max(i - 26, 0):i - 5].mean(0)
+        ul, sl = _edge(side, 8, mid - 8, +1)
+        ur, sr = _edge(side, mid + 8, len(side) - 8, -1)
+        if ul is None or ur is None or min(sl, sr) < MIN_EDGE:
+            why = f'no shell side edges (steps {sl:.0f}, {sr:.0f})'
+            continue
+        w = ur - ul
+        if not PLUG_W_PX[0] <= w <= PLUG_W_PX[1]:
+            why = f'shell width {w:.1f} px out of range'
+            continue
+        # the shell's centre in the window should sit on the mid columns; bright rims on both sides
+        score = min(sl, sr) + 0.3 * -gr[i]
+        if score > best_s:
+            best, best_s = (i, ul, ur, sl, sr, w), score
+    if best is None:
+        return None, why
+    ve, ul, ur, sl, sr, w = best
+    a_, b_, c_ = -gr[ve - 1], -gr[ve], -gr[ve + 1]
+    d_ = a_ - 2 * b_ + c_
+    vei = ve + (0.5 * (a_ - c_) / d_ if abs(d_) > 1e-6 else 0.0)
     a, b = int(ul) + 4, int(ur) - 3
     top = g[:, a:b].mean(1)
-    vt, st = _edge(top, max(int(ve) - int(PLUG_H_PX[1]), 3), int(ve) - int(PLUG_H_PX[0]) + 1, +1)
-    if vt is None or st < 5.0:
-        return None, f'no shell tip edge (step {st:.0f})'
-    return dict(ul=ul + u0, ur=ur + u0, vt=vt + v0, ve=ve + v0, w=w, steps=(se, sl, sr, st)), ''
-
-
-def detect(und, K, panel, lines=None, R_prior=None):
-    """All image features of one undistorted frame. row: {feature: (u, v, w, h)} or None."""
-    plug, why = detect_plug(und)
-    box = None
-    if plug is not None:
-        box = (int(plug['ul']) - 3, int(plug['vt']) - 3, int(plug['ur']) + 4, int(plug['ve']) + 2)
-    blobs = bright_blobs(und, box)
-    m, score = match_row(blobs, panel)
-    row = {k: blobs[i][:2] + blobs[i][2:4] for k, i in m.items()} if m else None
-    lp = {}
-    if row is not None and lines and R_prior is not None:
-        t0 = t_given_R(row, K, R_prior, panel)
-        lp = detect_lines(und, K, R_prior, t0, lines, box)
-    return dict(K=K, plug=plug, plug_why=why, blobs=blobs, row=row, score=score, lines=lp, box=box)
+    vt, st = _edge(top, max(ve - int(PLUG_H_PX[1]), 3), ve - int(PLUG_H_PX[0]) + 1, +1)
+    return dict(ul=ul + u0, ur=ur + u0, vt=(vt + v0) if vt is not None else None, ve=vei + v0, w=w, steps=(best_s, sl, sr, st)), ''
 
 
 # ---------------------------------------------------------------------------------- port row blobs
@@ -196,37 +205,44 @@ def _match_xy(panel):
 def match_row(blobs, panel):
     """Pattern match: blobs <-> panel features under a 2D similarity from any pair, then an affine refit.
     Returns {feature: blob index} or None."""
-    names, M = _match_xy(panel)
+    names, M0 = _match_xy(panel)
     WH = np.array([panel[k]['wh'] for k in names], float)
     if len(blobs) < MIN_FEATURES:
         return None, 0.0
     C = np.array([b[:2] for b in blobs])
     S = np.array([b[2:4] for b in blobs])
     best, best_score = None, 0.0
-    anchors = [(i, j) for i in range(len(names)) for j in range(len(names)) if abs(M[i, 0] - M[j, 0]) > 10 and i < j]
-    for a in range(len(blobs)):
-        for b in range(len(blobs)):
-            if a == b:
-                continue
-            for i, j in anchors:
-                dm = complex(*(M[j] - M[i]))
-                dc = complex(*(C[b] - C[a]))
-                z = dc / dm
-                s = abs(z)
-                if not SCALE_PX_MM[0] <= s <= SCALE_PX_MM[1] or abs(np.angle(z)) > 0.45:
-                    continue
-                if not (0.55 < S[a, 0] / (WH[i, 0] * s) < 1.6 and 0.55 < S[b, 0] / (WH[j, 0] * s) < 1.6):
-                    continue
-                w = ((M[:, 0] - M[i, 0]) + 1j * (M[:, 1] - M[i, 1])) * z
-                pred = np.c_[C[a, 0] + w.real, C[a, 1] + w.imag]
-                d = np.linalg.norm(pred[:, None] - C[None], axis=2)
-                ratio = S[None, :, 0] / (WH[:, None, 0] * s)
-                d[(ratio < 0.55) | (ratio > 1.6)] = 1e9
-                k = d.argmin(1)
-                good = d[np.arange(len(names)), k] < max(4.0, 0.9 * s)
-                score = good.sum() - d[np.arange(len(names)), k][good].sum() / (10 * s)
-                if good.sum() >= MIN_FEATURES and score > best_score and len(set(k[good])) == good.sum():
-                    best_score, best = score, {names[n]: int(k[n]) for n in np.flatnonzero(good)}
+    idx = {k: i for i, k in enumerate(names)}
+    pairs = [(idx[a], idx[b]) for a, b in MATCH_PAIRS if a in idx and b in idx]
+    n = len(names)
+    for c in MATCH_VSCALE:
+        M = M0 * [1.0, c]
+        for i, j in pairs:
+            dm = complex(*(M[j] - M[i]))
+            for a in range(len(blobs)):
+                for b in range(len(blobs)):
+                    if a == b or C[b, 0] <= C[a, 0]:
+                        continue
+                    z = complex(*(C[b] - C[a])) / dm
+                    s = abs(z)
+                    if not SCALE_PX_MM[0] <= s <= SCALE_PX_MM[1] or abs(np.angle(z)) > 0.3:
+                        continue
+                    if not (0.55 < S[a, 0] / (WH[i, 0] * s) < 1.6 and 0.55 < S[b, 0] / (WH[j, 0] * s) < 1.6):
+                        continue
+                    w = ((M[:, 0] - M[i, 0]) + 1j * (M[:, 1] - M[i, 1])) * z
+                    pred = np.c_[C[a, 0] + w.real, C[a, 1] + w.imag]
+                    d = np.linalg.norm(pred[:, None] - C[None], axis=2)
+                    ratio = S[None, :, 0] / (WH[:, None, 0] * s)
+                    d[(ratio < 0.55) | (ratio > 1.6)] = 1e9
+                    k = d.argmin(1)
+                    dm_ = d[np.arange(n), k]
+                    good = dm_ < max(4.0, 0.9 * s)
+                    ng = int(good.sum())
+                    if ng < MIN_FEATURES or len(set(k[good])) != ng:
+                        continue
+                    score = ng - dm_[good].sum() / (10 * s)
+                    if score > best_score:
+                        best_score, best = score, {names[q]: int(k[q]) for q in np.flatnonzero(good)}
     return best, best_score
 
 
@@ -359,81 +375,134 @@ def detect_lines(und, K, R, t, lines, plug_box=None):
 
 
 # ---------------------------------------------------------------------------------- pose and measurement
-def solve_panel(row, K, panel, R_prior, line_pts=None, lines=None):
-    """Camera against the panel by PnP on the matched features, worst feature dropped once if the fit is poor.
-    Returns (R_cp, t_cp, rms px, feature names used) or None. X_cam = R_cp X_panel + t_cp (mm)."""
+def solve_panel(row, K, panel, R_prior, line_pts=None, t_init=None):
+    """Camera against the panel by PnP on case edge samples and slots. Slots with a poor fit are dropped: the edges carry the pose.
+    Returns (R_cp, t_cp, rms px, max px, slots used) or None. X_cam = R_cp X_panel + t_cp (mm)."""
     names = [k for k in row if k in panel and k in POSE_FEATURES]
-    if len(names) + sum(len(v) for v in (line_pts or {}).values()) < 6:
+    XL = np.array([p[:3] for ps in (line_pts or {}).values() for p in ps], float).reshape(-1, 3)
+    xL = np.array([p[3:5] for ps in (line_pts or {}).values() for p in ps], float).reshape(-1, 2)
+    if len(names) + len(XL) < 6:
         return None
-    for _ in range(2):
-        X = np.array([panel[k]['xyz'] for k in names], float)
-        x = np.array([row[k][:2] for k in names], float)
-        if line_pts:
-            XL = np.array([p[:3] for ps in line_pts.values() for p in ps], float)
-            xL = np.array([p[3:5] for ps in line_pts.values() for p in ps], float)
-        else:
-            XL, xL = np.zeros((0, 3)), np.zeros((0, 2))
-        rv0, _ = cv2.Rodrigues(R_prior)
-        t0 = t_given_R({k: row[k] for k in names} if len(names) >= 3 else row, K, R_prior, panel)
-        ok, rv, t = cv2.solvePnP(np.vstack([X, XL]), np.vstack([x, xL]), K, None, rv0, t0.reshape(3, 1), True, cv2.SOLVEPNP_ITERATIVE)
+    rv0, _ = cv2.Rodrigues(R_prior)
+    t0 = t_given_R(row, K, R_prior, panel) if t_init is None else t_init
+    while True:
+        X = np.vstack([np.array([panel[k]['xyz'] for k in names], float).reshape(-1, 3), XL])
+        x = np.vstack([np.array([row[k][:2] for k in names], float).reshape(-1, 2), xL])
+        ok, rv, t = cv2.solvePnP(X, x, K, None, rv0.copy(), np.asarray(t0, float).reshape(3, 1).copy(), True, cv2.SOLVEPNP_ITERATIVE)
         if not ok or not np.isfinite(t).all():
             return None
         p, _ = cv2.projectPoints(X, rv, t, K, None)
         e = np.linalg.norm(p.reshape(-1, 2) - x, axis=1)
-        if len(XL):
-            pL, _ = cv2.projectPoints(XL, rv, t, K, None)
-            eL = np.linalg.norm(pL.reshape(-1, 2) - xL, axis=1)
-        else:
-            eL = np.zeros(1)
-        if e.max() < MAX_REPROJ_PX or len(names) <= 1:
-            break
-        names.pop(int(e.argmax()))
+        ns = len(names)
+        if ns and e[:ns].max() > SLOT_REJECT_PX:
+            names.pop(int(e[:ns].argmax()))
+            if len(names) + len(XL) < 6:
+                return None
+            continue
+        break
     R, _ = cv2.Rodrigues(rv)
-    allr = np.r_[e, eL]
-    return R, t.ravel(), float(np.sqrt((allr ** 2).mean())), float(allr.max()), names
+    return R, t.ravel(), float(np.sqrt((e ** 2).mean())), float(e.max()), list(names)
+
+
+def panel_pose(und, K, box=None, max_reproj_px=MAX_REPROJ_PX, model=None):
+    """Camera against the panel from one undistorted frame. Returns (dict(R, t, rms, emax, used, lines, row), '') or (None, reason)."""
+    model = model or load_model()
+    panel, lines = model['panel'], model['lines']
+    R_prior = np.array(model['R_view'], float)
+    blobs = bright_blobs(und, box)
+    m, _ = match_row(blobs, panel)
+    if not m:
+        return None, 'port row pattern not found'
+    row = {k: blobs[i][:2] + blobs[i][2:4] for k, i in m.items()}
+    lp = detect_lines(und, K, R_prior, t_given_R(row, K, R_prior, panel), lines, box)
+    sol = solve_panel(row, K, panel, R_prior, lp)
+    if sol is None:
+        return None, 'panel pose failed'
+    for _ in range(POSE_ITERS):       # edges sampled again from the better pose: along-line errors vanish
+        lp2 = detect_lines(und, K, sol[0], sol[1], lines, box)
+        s2 = solve_panel(row, K, panel, sol[0], lp2, sol[1])
+        if s2 is None:
+            break
+        sol, lp = s2, lp2
+    if not all(n in lp for n in ('band', 'bottom')) or not ('L' in lp or 'R' in lp):
+        return None, f'case edges missing: band, bottom and one side needed, have {sorted(lp)}'
+    R, t, rms, emax, used = sol
+    if emax > max_reproj_px and 'L' in lp and 'R' in lp:      # a side silhouette can be off (corner radius, far views)
+        errs = {}
+        for n, ps in lp.items():
+            P = np.array(ps, float)
+            p, _ = cv2.projectPoints(P[:, :3].reshape(-1, 1, 3), cv2.Rodrigues(R)[0], t.reshape(3, 1), K, None)
+            errs[n] = float(np.linalg.norm(p.reshape(-1, 2) - P[:, 3:5], axis=1).max())
+        worst = max(errs, key=errs.get)
+        if worst in ('L', 'R'):
+            lp2 = {k: v for k, v in lp.items() if k != worst}
+            s2 = solve_panel(row, K, panel, R, lp2, t)
+            if s2 is not None:
+                R, t, rms, emax, used = s2
+                lp = lp2
+    dR = np.degrees(np.linalg.norm(cv2.Rodrigues(R @ R_prior.T)[0]))
+    if dR > MAX_ROT_FROM_NOMINAL_DEG:
+        return None, f'panel rotation {dR:.1f} deg from nominal'
+    if emax > max_reproj_px:
+        return None, f'row fit residual {emax:.1f} px'
+    return dict(R=R, t=t, rms=rms, emax=emax, used=used, lines=lp, row=row), ''
+
+
+def plug_box(pl):
+    """Image box of the shell (u0, v0, u1, v1): hidden from the panel search."""
+    return (int(pl['ul']) - 3, int(pl['ve'] - TIP_ABOVE_END_PX) - 3, int(pl['ur']) + 4, int(pl['ve']) + 2)
 
 
 def measure(raw_bgr, side='right', **cfg):
-    """Plug tip relative to port 2 from one raw frame. ok=False with a reason rather than a poor number."""
+    """Plug tip relative to port 2 from one raw frame. ok=False with a reason rather than a poor number.
+
+    cfg: plug_z_mm: the shell's depth for this grasp (see plug_depth); default the depth from this frame's shell width (noisier).
+         max_reproj_px: pose fit gate."""
     if side != 'right':
         return PortMeasure(False, 'only the right wrist camera has a model')
     if raw_bgr is None or raw_bgr.shape[:2] != (1024, 1280):
         return PortMeasure(False, f'frame must be 1280x1024 raw, got {None if raw_bgr is None else raw_bgr.shape[:2]}')
     model = load_model()
-    panel = model['panel']
     und, K = undistort(raw_bgr, side)
-    R_prior = np.array(model['R_view'], float)
-    lines = model.get('lines')
-    d = detect(und, K, panel, lines, R_prior)
-    dbg = dict(row=d['row'], plug=d['plug'], score=d['score'], lines=d['lines'])
-    if d['plug'] is None:
-        return PortMeasure(False, 'plug: ' + d['plug_why'], debug=dbg)
-    if d['row'] is None:
-        return PortMeasure(False, 'port row pattern not found', debug=dbg)
-    sol = solve_panel(d['row'], K, panel, R_prior, d['lines'], lines)
-    if sol is None:
-        return PortMeasure(False, 'panel pose failed', debug=dbg)
-    for _ in range(POSE_ITERS):       # edges sampled again from the better pose: along-line errors vanish
-        lp = detect_lines(und, K, sol[0], sol[1], lines, d['box'])
-        s2 = solve_panel(d['row'], K, panel, sol[0], lp, lines)
-        if s2 is None:
-            break
-        sol = s2
-        dbg['lines'] = lp
-    R, t, rms, emax, used = sol
-    dbg.update(R=R, t=t, rms=rms, emax=emax, used=used)
-    if emax > MAX_REPROJ_PX:
-        return PortMeasure(False, f'row fit residual {emax:.1f} px', debug=dbg)
-    pl = d['plug']
+    pl, why = detect_plug(und)
+    dbg = dict(plug=pl)
+    pose, why_p = panel_pose(und, K, plug_box(pl) if pl else None, float(cfg.get('max_reproj_px', MAX_REPROJ_PX)), model)
+    port_px = None
+    if pose is not None:
+        dbg.update(pose)
+        pp = K @ pose['t']
+        port_px = (float(pp[0] / pp[2]), float(pp[1] / pp[2]))
+    if pl is None:
+        return PortMeasure(False, 'plug: ' + why, port_px=port_px, debug=dbg)
     fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
-    u, v = 0.5 * (pl['ul'] + pl['ur']), pl['ve'] - TIP_ABOVE_END_PX
-    Z_w = 0.5 * (fx + fy) * SHELL_W_MM / pl['w']
-    if abs(Z_w - PLUG_Z_MM) > PLUG_Z_TOL_MM:
-        return PortMeasure(False, f'plug depth {Z_w:.1f} mm from its width, expected {PLUG_Z_MM:.1f}', debug=dbg)
-    Z = PLUG_Z_MM
-    tip_top = np.array([(u - cx) / fx * Z, (v - cy) / fy * Z, Z])
+    Z_w = 0.5 * (fx + fy) * SHELL_W_EFF_MM / pl['w']     # depth of the shell's middle rows
+    Z = float(cfg.get('plug_z_mm') or Z_w)
+    u, v = 0.5 * (pl['ul'] + pl['ur']), pl['ve'] - TIP_ABOVE_END_PX * Z0_TIP / Z
+    plug_px = (float(u), float(v))
+    dbg['Z_w'] = Z_w
+    if not PLUG_Z_RANGE[0] <= Z_w <= PLUG_Z_RANGE[1]:
+        return PortMeasure(False, f'plug depth {Z_w:.1f} mm from its width: another grasp or not the shell', port_px=port_px, plug_px=plug_px, debug=dbg)
+    if pose is None:
+        return PortMeasure(False, why_p, plug_px=plug_px, debug=dbg)
+    R, t = pose['R'], pose['t']
+    Zt = Z + TIP_DEEPER_MM
+    tip_top = np.array([(u - cx) / fx * Zt, (v - cy) / fy * Zt, Zt])
     tip = tip_top + R @ np.array([0.0, -SHELL_T_MM / 2, 0.0])      # rim top -> centre, plug about parallel to the panel axes
-    X = R.T @ (tip - t)
-    pp = (K @ t)
+    X = R.T @ (tip - t) - np.array(model.get('port_center_in_model_mm', PORT_CENTER_MM), float)
     dbg.update(tip_cam=tip, Z=Z)
-    return PortMeasure(True, '', 1.0, (float(pp[0] / pp[2]), float(pp[1] / pp[2])), (float(u), float(v)), float(X[0]), float(X[1]), float(X[2]), SIGMA_MM, dbg)
+    conf = float(np.clip(1.0 - pose['emax'] / MAX_REPROJ_PX * 0.5, 0.0, 1.0))
+    sigma = SIGMA_FAR_MM if X[2] > 15.0 else (SIGMA_NEAR_GRASP_MM if cfg.get('plug_z_mm') else SIGMA_NEAR_MM)
+    return PortMeasure(True, '', conf, port_px, plug_px, float(X[0]), float(X[1]), float(X[2]), sigma, dbg)
+
+
+def plug_depth(frames, side='right'):
+    """Shell depth (mm) for one grasp: median over raw frames of the same grasp, for measure(..., plug_z_mm=). None if too few shells."""
+    z = []
+    for f in frames:
+        pl, _ = detect_plug(undistort(f, side)[0])
+        if pl is not None:
+            z.append(pl['w'])
+    if len(z) < 3:
+        return None
+    K = undistort(frames[0], side)[1]
+    return float(0.5 * (K[0, 0] + K[1, 1]) * SHELL_W_EFF_MM / np.median(z))

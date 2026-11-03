@@ -1,0 +1,276 @@
+{
+ "runs": {
+  "approach_insert_171123_ai4": {
+   "n": 2,
+   "cam_vision_mm": [
+    3.47,
+    109.25,
+    65.01
+   ],
+   "cam_fk_mm": [
+    2.38,
+    108.54,
+    64.5
+   ],
+   "cam_vision_minus_fk_mm": [
+    1.09,
+    0.71,
+    0.5
+   ],
+   "tip_vision_mm": [
+    4.25,
+    -2.42,
+    9.91
+   ],
+   "label_mm": [
+    4.9,
+    1.48,
+    11.31
+   ],
+   "vision_minus_label_mm": [
+    -0.65,
+    -3.89,
+    -1.41
+   ],
+   "vision_minus_label_sd_mm": [
+    0.02,
+    0.01,
+    0.0
+   ],
+   "shell_end_v_px": 510.13,
+   "shell_w_px": 45.74,
+   "shell_depth_mm": 121.71
+  },
+  "collect_182100_collect1": {
+   "n": 134,
+   "cam_vision_mm": [
+    -1.34,
+    107.52,
+    57.21
+   ],
+   "cam_fk_mm": [
+    -0.7,
+    107.67,
+    57.68
+   ],
+   "cam_vision_minus_fk_mm": [
+    -0.64,
+    -0.15,
+    -0.47
+   ],
+   "tip_vision_mm": [
+    -0.34,
+    -1.58,
+    5.83
+   ],
+   "label_mm": [
+    0.23,
+    0.58,
+    7.56
+   ],
+   "vision_minus_label_mm": [
+    -0.54,
+    -2.29,
+    -1.67
+   ],
+   "vision_minus_label_sd_mm": [
+    0.53,
+    0.73,
+    0.55
+   ],
+   "shell_end_v_px": 530.9,
+   "shell_w_px": 47.48,
+   "shell_depth_mm": 117.25
+  },
+  "full_174850_full_A": {
+   "n": 6,
+   "cam_vision_mm": [
+    -4.26,
+    113.99,
+    61.14
+   ],
+   "cam_fk_mm": [
+    -1.04,
+    113.43,
+    62.39
+   ],
+   "cam_vision_minus_fk_mm": [
+    -3.21,
+    0.57,
+    -1.25
+   ],
+   "tip_vision_mm": [
+    -0.3,
+    4.98,
+    8.38
+   ],
+   "label_mm": [
+    1.31,
+    7.3,
+    12.0
+   ],
+   "vision_minus_label_mm": [
+    -1.62,
+    -2.34,
+    -3.63
+   ],
+   "vision_minus_label_sd_mm": [
+    0.02,
+    0.12,
+    0.06
+   ],
+   "shell_end_v_px": 531.39,
+   "shell_w_px": 47.24,
+   "shell_depth_mm": 117.84
+  },
+  "full_175742_full_A2": {
+   "n": 4,
+   "cam_vision_mm": [
+    -9.21,
+    119.26,
+    59.77
+   ],
+   "cam_fk_mm": [
+    -2.69,
+    119.7,
+    62.18
+   ],
+   "cam_vision_minus_fk_mm": [
+    -6.51,
+    -0.44,
+    -2.41
+   ],
+   "tip_vision_mm": [
+    -5.23,
+    8.86,
+    7.99
+   ],
+   "label_mm": [
+    -3.27,
+    14.1,
+    10.62
+   ],
+   "vision_minus_label_mm": [
+    -1.96,
+    -5.27,
+    -2.6
+   ],
+   "vision_minus_label_sd_mm": [
+    0.04,
+    0.06,
+    0.05
+   ],
+   "shell_end_v_px": 544.06,
+   "shell_w_px": 46.67,
+   "shell_depth_mm": 119.29
+  }
+ },
+ "A2_minus_A": {
+  "n": [
+   6,
+   4
+  ],
+  "label_fk_tip_mm": [
+   -4.58,
+   6.8,
+   -1.38
+  ],
+  "camera_fk_mm": [
+   -1.65,
+   6.27,
+   -0.21
+  ],
+  "camera_vision_mm": [
+   -4.95,
+   5.27,
+   -1.37
+  ],
+  "plug_tip_vision_mm": [
+   -4.93,
+   3.88,
+   -0.39
+  ],
+  "plug_in_hand_mm": [
+   -0.35,
+   -2.92,
+   0.99
+  ]
+ },
+ "mouth": {
+  "first_entry": {
+   "n": 8,
+   "plug_top_at_mouth_x_y_mm": [
+    0.59,
+    1.48
+   ],
+   "tip_z_mm": -1.64,
+   "tip_depth_mm": 120.32,
+   "shell_w_px": 46.71,
+   "shell_end_v": 535.0,
+   "mouth_v": 512.0,
+   "label_mm": [
+    2.41,
+    3.89,
+    0.64
+   ],
+   "width_eff_mm": 8.124,
+   "tip_cam": [
+    1.7580977910540065,
+    4.774009139378737,
+    120.31552217729855
+   ]
+  },
+  "second_entry": {
+   "n": 3,
+   "plug_top_at_mouth_x_y_mm": [
+    0.11,
+    1.91
+   ],
+   "tip_z_mm": -3.69,
+   "tip_depth_mm": 116.36,
+   "shell_w_px": 48.79,
+   "shell_end_v": 526.0,
+   "mouth_v": 513.0,
+   "label_mm": [
+    1.21,
+    0.13,
+    -2.86
+   ],
+   "width_eff_mm": 8.203,
+   "tip_cam": [
+    1.5639524978286439,
+    2.8379026425187046,
+    116.35855377612994
+   ]
+  }
+ },
+ "collect_offset_estimates": {
+  "vision_against_sweep_labels": [
+   -0.54,
+   -2.29,
+   -1.67
+  ],
+  "label_at_mouth_plus_in_hand_change": {
+   "first_entry": [
+    -1.97,
+    -2.1,
+    -2.36
+   ],
+   "second_entry": [
+    -1.09,
+    -2.75,
+    -0.97
+   ]
+  },
+  "recheck_anchor_would_mean": [
+   0.38,
+   4.49,
+   -0.92
+  ],
+  "first_anchor_would_mean": [
+   0.0,
+   0.0,
+   0.0
+  ]
+ }
+}

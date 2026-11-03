@@ -70,7 +70,16 @@ class Fk:
 def feats(r, panel):
     und, K = PV.undistort(cv2.imread(r['raw']))
     m = PV.load_model()
-    return PV.detect(und, K, panel, m.get('lines'), np.array(m['R_view'], float))
+    pl, _ = PV.detect_plug(und)
+    box = PV.plug_box(pl) if pl else None
+    blobs = PV.bright_blobs(und, box)
+    mt, _ = PV.match_row(blobs, panel)
+    if not mt:
+        return dict(K=K, row=None, lines={})
+    row = {k: blobs[i][:2] + blobs[i][2:4] for k, i in mt.items()}
+    R0 = np.array(m['R_view'], float)
+    lp = PV.detect_lines(und, K, R0, PV.t_given_R(row, K, R0, panel), m['lines'], box)
+    return dict(K=K, row=row, lines=lp)
 
 
 def anchor_R():
@@ -108,6 +117,7 @@ def cmd_model(a):
         for k, o in obs.items():
             if len(o) < 5:
                 print('too few views of', k, len(o))
+                X[k] = None
                 continue
             P = np.array([x[0] for x in o])
             D = np.array([x[1] for x in o])
@@ -128,6 +138,9 @@ def cmd_model(a):
         o = X['P2'][0]
         new = {}
         for k, v in X.items():
+            if v is None:
+                new[k] = panel[k]
+                continue
             xyz = eR.T @ (v[0] - o) * 1e3
             f = 683.0 / (v[5] * 1e3)
             new[k] = dict(xyz=xyz.round(3).tolist(), wh=[round(v[3] / f, 2), round(v[4] / f, 2)], ray_res_mm=round(v[1], 3), n=v[2])
@@ -185,7 +198,7 @@ def cmd_probe(a):
             pc, Rc = fk.cam(r['q_b'])
             R_fk = Rc.T @ eR
             dR, _ = cv2.Rodrigues(m.debug['R'] @ R_fk.T)
-            rec += [m.across_mm, m.up_mm, m.gap_mm, *np.degrees(dR.ravel()), m.debug['rms'], m.debug['Z'], len(m.debug['used'])]
+            rec += [m.across_mm, m.up_mm, m.gap_mm, *np.degrees(dR.ravel()), m.debug['rms'], m.debug['Z_w'], len(m.debug['used'])]
         out.append(rec)
     n = max(map(len, out))
     A = np.array([x + [np.nan] * (n - len(x)) for x in out], float)
@@ -200,9 +213,46 @@ def cmd_probe(a):
         print('PnP-FK rot deg mean', B[:, 9:12].mean(0).round(2), 'SD', B[:, 9:12].std(0).round(2), 'rms px', np.median(B[:, 12]).round(2), 'Z', np.median(B[:, 13]).round(2), B[:, 13].std().round(2), 'features', B[:, 14].mean().round(2))
 
 
+def negatives(n=240):
+    """Wrist frames without a plug in the hand: stream frames of the pick runs before the jaws close (stage 1 or earlier)."""
+    out = []
+    for run in sorted((ROOT / 'data/real_runs/2026-11-02').glob('pick_*')):
+        fr = [json.loads(x) for x in open(run / 'frames.jsonl')]
+        w = [x for x in fr if x['cam'] == 'wrist_right' and x['kind'] == 'raw' and x['file'].endswith('.jpg')]
+        w = w[:len(w) // 2]    # before the reader is lifted: checked by eye on the contact sheet
+        out += [dict(run=run.name, raw=str(run / x['file'])) for x in w[::2]]
+    return out[:n]
+
+
+def cmd_eval(a):
+    import csv
+    rs = [r for r in rows() if r.get('raw')] + [dict(r, source='negative', split='test', block=None, p_mm=None, moving=None) for r in negatives()]
+    fields = ['run', 'source', 'split', 'block', 'moving', 'raw', 'lx', 'ly', 'lz', 'ok', 'reason', 'x', 'y', 'z', 'Zw', 'w', 've', 'u', 'emax', 'rms', 'nslots', 'nlines', 'r0', 'r1', 'r2', 't0', 't1', 't2', 'ms']
+    with open(OUT / 'eval_frames.csv', 'w', newline='') as fh:
+        wr = csv.DictWriter(fh, fields)
+        wr.writeheader()
+        import time
+        for r in rs:
+            im = cv2.imread(r['raw'])
+            t = time.perf_counter()
+            m = PV.measure(im, max_reproj_px=a.gate)
+            ms = (time.perf_counter() - t) * 1e3
+            p = r.get('p_mm') or [None] * 3
+            row = dict(run=r['run'], source=r['source'], split=r['split'], block=r['block'], moving=r.get('moving'), raw=r['raw'], lx=p[0], ly=p[1], lz=p[2], ok=int(m.ok), reason=m.reason, ms=round(ms, 1))
+            d = m.debug
+            if d.get('plug'):
+                row.update(w=d['plug']['w'], ve=d['plug']['ve'], u=(d['plug']['ul'] + d['plug']['ur']) / 2, Zw=d.get('Z_w'))
+            if m.ok:
+                rv = cv2.Rodrigues(d['R'])[0].ravel()
+                row.update(x=m.across_mm, y=m.up_mm, z=m.gap_mm, emax=d['emax'], rms=d['rms'], nslots=len(d['used']), nlines=len(d['lines']), r0=rv[0], r1=rv[1], r2=rv[2], t0=d['t'][0], t1=d['t'][1], t2=d['t'][2])
+            wr.writerow(row)
+    print('wrote', OUT / 'eval_frames.csv', len(rs))
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument('cmd', choices=['model','probe'])
+    ap.add_argument('cmd', choices=['model','probe','eval'])
     ap.add_argument('--iters', type=int, default=3)
+    ap.add_argument('--gate', type=float, default=PV.MAX_REPROJ_PX)
     a = ap.parse_args()
-    {'model': cmd_model,'probe': cmd_probe}[a.cmd](a)
+    {'model': cmd_model,'probe': cmd_probe,'eval': cmd_eval}[a.cmd](a)
