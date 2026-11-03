@@ -111,6 +111,9 @@ def parse(argv=None):
     ap.add_argument('--pick-test', choices=('touchdown', 'air'), default=None, help="commissioning, stage pick with pick.grasp_v3, jaws stay open, the hand rises: 'air' = slow free descent above the plan (no contact expected), 'touchdown' = guarded touch-down and hold on the table")
     ap.add_argument('--collect-n', type=int, default=150, help='stage collect: poses in the sweep (deploy/bimanual/collect.py)')
     ap.add_argument('--collect-seed', type=int, default=0, help='stage collect: seed of the sweep poses; use a new one per run')
+    ap.add_argument('--align-mode', choices=('measure', 'align', 'full'), default=None, help='config align on: measure = camera measurements at the stop, no align motion, no insertion; align = move, no insertion; full = align then insertion (default: config align.mode)')
+    ap.add_argument('--align-set', action='append', default=[], metavar='KEY=JSON', help='override one align key (dry-run experiments and rig commissioning; logged in meta.json)')
+    ap.add_argument('--enc-offset-deg', type=float, default=None, help='dry run only: encoder-offset error DR, +/- deg (default eval_chain: 1.5)')
     ap.add_argument('--yes', action='store_true', help='answer every prompt with Enter (dry runs default to this)')
     ap.add_argument('--pause-in-press', action='store_true', help='also prompt between hold, transport, approach and insertion (the press keeps running; a watchdog unloads at hold_max_s)')
     ap.add_argument('--device', default='cpu', help='kinematics, controllers and the insertion policy (one world: CPU is faster than GPU launches)')
@@ -127,6 +130,14 @@ class Runner:
     def __init__(self, a):
         self.a = a
         self.cfg = apply_overrides(load_cfg(a.config), a.batch, a.open_mm, a.grasp_set)
+        if a.align_mode or a.align_set:
+            if not self.cfg.get('align', {}).get('enabled'):
+                raise SystemExit('--align-mode / --align-set need a config with align.enabled')
+            if a.align_mode:
+                self.cfg['align']['mode'] = a.align_mode
+            for kv in a.align_set:
+                k, v = kv.split('=', 1)
+                self.cfg['align'][k] = json.loads(v)
         self.dev = torch.device(a.device)
         bundle = ROOT / self.cfg['bundle_dir']
         bad = BU.verify(argparse.Namespace(out=str(bundle)), quiet=True)
@@ -159,7 +170,8 @@ class Runner:
             from deploy.bimanual.io_sim import SimIO
             if self.a.grasp_fidelity:
                 self.cfg.setdefault('sim', {})['grasp_fidelity'] = self.a.grasp_fidelity
-            self.io = SimIO(self.cfg, self.gmaps, self.policy_path, device=str(self.dev))
+            extra = ['--enc-offset-deg', str(self.a.enc_offset_deg)] if self.a.enc_offset_deg is not None else []
+            self.io = SimIO(self.cfg, self.gmaps, self.policy_path, device=str(self.dev), extra_args=extra)
             return
         import estop
         import rig
@@ -373,6 +385,15 @@ class Runner:
         print(f'pre-insert: plug {lat:.1f} mm across the ZED port axis (encoder FK; log only unless wrong_port_mm is set)', flush=True)
         if lim is not None and lat > lim:
             raise GuardStop(f'approach ended {lat:.1f} mm across the ZED port axis (port pitch 18.6 mm): neighbouring port?')
+        from deploy.bimanual.align import align_cfg, run_align
+        ac = align_cfg(self.cfg)
+        if ac is not None:
+            ar = run_align(ch, cmd, q_hold, ep, eR, log, ac)
+            res['align'] = {k: v for k, v in ar.items() if k not in ('cmd', 'q_left')}
+            if ar['cmd'] is None:          # stop or no insertion wanted: the plug is out, jaws closed, never handed to RL
+                self.end_no_insert(ch, ar['q_left'], q_hold)
+                return res
+            cmd = ar['cmd']
         if not self.confirm_in_press(ch, 'insertion'):
             raise GuardStop('operator stop in the press')
         sim_obs = self.sim_obs_fn() if (a.dry_run and a.check_obs) else None
@@ -380,6 +401,13 @@ class Runner:
         r = run_insertion(ch, cmd, q_hold, log, sim_obs=sim_obs)
         res['insert'] = r
         print(f'insertion: {r}', flush=True)
+        if self.cfg['insert'].get('keep_reader_unless_seated') and r['outcome'] != 'seated_detected':
+            # real run 2026-11-02 A: the time limit opened the jaws in front of the port and the reader fell. Not seated: out with closed jaws
+            from deploy.bimanual.align import back_off_closed
+            ic = self.cfg['insert']
+            back_off_closed(ch, eR[0].cpu().numpy(), float(ic.get('abort_lift_mm', 20.)), float(ic.get('abort_v_mm_s', 10.)), q_hold.reshape(6))
+            self.end_no_insert(ch, None, q_hold)
+            return res
         ch.retreat_right(eR)
         ch.unload_left()
         res['released'] = True
@@ -388,6 +416,16 @@ class Runner:
             res['true_seated_after_release'] = bool(tr['seated'])
         self.finish(ch)
         return res
+
+    def end_no_insert(self, ch, q_left, q_hold):
+        """No insertion or no seat: left press off (if on) and lifted, reader to the operator's hand, home."""
+        ch.unload_left()
+        res = ch.truth()
+        if res is not None:
+            ch.log_event('no_insert_truth', plug_in_port_mm=res['plug_in_port_mm'], seated=res['seated'])
+        if not self.a.dry_run:
+            self.release_by_hand(ch)
+        self.finish(ch)
 
     def sim_obs_fn(self):
         env, h = self.io.ch.env, self.io.h

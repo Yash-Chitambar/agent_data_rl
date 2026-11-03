@@ -1,5 +1,5 @@
 """Part 4 insertion on encoders: InsertionTask's actor observation, controller and warm-up, the K-J policy, and a
-seated detector that stops the push.
+seated detector that stops the push. Config insert.seat2 / insert.guard add deploy/bimanual/insert_guard.py (off in the older configs).
 
 Observation (InsertionTask._actor_obs, obs_dim 68), all from the encoders + the in-hand estimate:
   [0:12]  encoder angles, right then left, MOTOR frame (sim: quantized encoder - offset error)
@@ -75,6 +75,25 @@ class SeatDetector:
         return depth, v, self.seated
 
 
+def make_guards(chain, qb, pR, consts):
+    """insert.guard and insert.seat2 of the config (deploy/bimanual/insert_guard.py), CPU, one world. Seat 2 needs the align stage's measured gap."""
+    from deploy.bimanual.insert_guard import InsertGuard, SeatDetector2
+    ic = chain.cfg['insert']
+    dev = torch.device('cpu')
+    s = (chain.R_sr0.T @ chain.p_sr0).cpu().float()[None]
+    gc = {k: v for k, v in (ic.get('guard') or {}).items() if not k.startswith('_')}
+    gd = InsertGuard(chain.scene.chain['right'], s, pR.cpu(), 1, dev, dt=chain.dt, **gc)
+    gd.reset(torch.tensor([0]), qb[0:1].cpu(), pR.cpu())
+    det2 = None
+    if ic.get('seat2'):
+        ar = getattr(chain, 'align_result', None)
+        if not ar or ar.get('gap_mm') is None:
+            raise RuntimeError('insert.seat2 needs the measured gap of the align stage (config align.enabled)')
+        sc = {k: v for k, v in ic['seat2'].items() if not k.startswith('_')}
+        det2 = SeatDetector2(1, dev, ar['gap_mm'], ar['lat_mm'], seat_depth_mm=float(consts['seat_depth_m']) * 1e3, dt=chain.dt, **sc)
+    return gd, det2
+
+
 def contact_summary(pol, hist):
     """Contact-head prediction of the policy's encoder (first ensemble member): class shares over its labels."""
     ac = pol.members[0][0]
@@ -117,6 +136,7 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
                        ic['seat_margin_m'], ic['seat_hold_s'], ic['seat_speed_m_s'], chain.dt)
     p0, _ = chain.scene.tcp_chain.fk(qb[0:1])
     det.update(p0[0].cpu().numpy())
+    gd, det2 = make_guards(chain, qb, pR, consts) if (ic.get('guard') or ic.get('seat2')) else (None, None)
     chain.log_event('insert_start', jt=jt.tolist(), inhand6=inhand6.tolist(), cap=cap, warm=warm, T=T)
     outcome, t_seat, obs_err, truth_seat = 'timeout', None, [], None
     for t in range(T):
@@ -130,7 +150,11 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
             a6 = a6 * min(1., consts['max_tcp_speed_m_s'] / max(float(v), 1e-9))
         qb = chain.q_b.clone()
         jr = torch.maximum(torch.minimum(jt[0] + scale * a6, qb[0] + cap), qb[0] - cap)
-        jt = torch.stack([jr.clamp(lim[:, 0], lim[:, 1]), q_hold.reshape(6).to(dev).float()])
+        jr = jr.clamp(lim[:, 0], lim[:, 1])
+        if gd is not None and ic.get('guard'):
+            jr2, _ = gd.limit(chain.q_b[0:1].to(gd.dev), jr[None].to(gd.dev), None if det2 is None else det2.seated)
+            jr = jr2[0].to(dev)
+        jt = torch.stack([jr, q_hold.reshape(6).to(dev).float()])
         chain.hstep(jt[0], jt[1], '5 insert')
         prev = torch.cat([a6, torch.tensor([-1.], device=dev), torch.zeros(6, device=dev), torch.tensor([-1.], device=dev)])
         o = obs_fn(chain.state['q'], chain.state['qd'], prev, jt, inhand6)
@@ -148,6 +172,22 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
                              contact_counts=counts, seat_depth_mm=depth * 1e3, seat_speed=vel, seated=seated,
                              true_seated=np.nan if tr is None else float(tr['seated']),
                              true_depth_mm=np.nan if tr is None else tr['tip_depth_mm'])
+        if gd is not None:
+            rel = gd.rel(chain.q_b[0:1].to(gd.dev))
+            s2 = det2.update(rel) if det2 is not None else None
+            if chain.logger is not None:
+                chain.logger.row('guard', k=chain.k, t=t, rel_m=rel[0], rel_t=gd.rel(jt[0:1].to(gd.dev))[0], clamped=int(gd.clamped[0]), stop=int(gd.stop[0]),
+                                 depth2_mm=float('nan') if s2 is None else float(s2['depth'][0]), lat2_mm=np.full(2, np.nan) if s2 is None else s2['lat'][0],
+                                 gate_ok=False if s2 is None else bool(s2['gate_ok'][0]), seated2=False if s2 is None else bool(s2['seated'][0]))
+            if s2 is not None:
+                seated, depth = bool(s2['seated'][0]), float(s2['depth'][0]) * 1e-3
+            if ic.get('guard') and int(gd.stop[0]) and not seated:
+                outcome = {1: 'guard_bound', 2: 'press_abort'}[int(gd.stop[0])]
+                _, _, Jf = chain.scene.tcp_chain.fk(chain.q_b[0:1], with_jac=True)
+                tau = chain.scene.kp[0].to(dev) * (jt[0] - chain.q_b[0])
+                F = torch.linalg.lstsq(Jf[0].T.to(dev), tau[:, None]).solution[:3, 0].cpu().numpy()
+                chain.log_event('insert_stop', outcome=outcome, step=t, rel_mm=rel[0].tolist(), F_pd_port_N=(pR[0].cpu().numpy().T @ F).tolist(), clamped=int(gd.clamped[0]))
+                break
         if seated:
             outcome, t_seat = 'seated_detected', t
             chain.log_event('seated_detected', step=t, depth_mm=depth * 1e3)

@@ -36,7 +36,7 @@ from deploy.bimanual.guards import GuardStop
 from deploy.bimanual.io_sim import eval_chain
 
 SIDES = ('right', 'left')
-STAGES = ('0 capture', '1 pick', '2 hold', '3 transport', '4 approach', '5 insert', '6 release', '7 home', 'manual')
+STAGES = ('0 capture', '1 pick', '2 hold', '3 transport', '4 approach', '5 insert', '6 release', '7 home', 'manual', 'align')
 EC = eval_chain()
 
 

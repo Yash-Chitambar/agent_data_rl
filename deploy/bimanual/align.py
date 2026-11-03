@@ -26,13 +26,13 @@ DEFAULTS = dict(
     enabled=False, mode='full',
     target_mm=[0.0, 0.0, 6.0], tol_mm=[1.0, 1.0, 1.0], confirm_n=2,
     step_mm=[1.0, 1.0, 1.0], gain=1.0, funnel_lat_mm=2.0, gap_hold_mm=9.0, min_clear_mm=3.0,
-    frames=3, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
+    frames=5, min_good=2, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
     max_cycles=40, max_time_s=90.0, max_lat_mm=20.0, max_advance_mm=16.0,
     drift_mm=1.0, drift_n=2, pred_mm=2.5, pred_n=2, grow_margin_mm=.5, grow_n=4, grow_abs_mm=9.0, grip_change=.02,
     probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_min_motion_mm=1.5,
     settle_s=.3, settle_max_s=1.5, still_rad_s=.02, move_tol_mm=.3, step_timeout_s=3.0, stuck_n=3,
     lead_rate_rad_s=[.02, .04, .04, .02, .05, .05], lead_max_rad=[.02, .045, .045, .012, .06, .06], eps_rad=[.001, .001, .001, .002, .003, .003],
-    heavy=[False, True, True, False, False, False], move_eps_rad=.001, release=.3,
+    heavy=[False, True, True, False, False, False], move_eps_rad=.0005, release=.3,
     handover_lead_rad=[[-.0004, .0004], [-.0051, .0156], [-.011, .0129], [-.0024, .0013], [.0144, .0279], [-.0058, .0019]],
     source=dict(kind='stub'), sim_source=dict(kind='sim_truth'), secondary=None, secondary_sim=None, disagree_mm=[2.0, 2.0, 3.0], disagree_mode='gate',
     on_fail='back_off', back_off_mm=15.0, back_off_v_mm_s=10.0, press_release=True, repress_s=1.0, post_press_tol_factor=1.5,
@@ -99,7 +99,8 @@ class PortVisionSource:
         if raw is None:
             return PortMeasure(False, 'no raw frame')
         m = self.fn(raw, side='right', **self.kw)
-        return PortMeasure(bool(m.ok), str(m.reason), float(m.conf), m.across_mm, m.up_mm, m.gap_mm, m.sigma_mm)
+        sig = None if m.sigma_mm is None else float(np.max(m.sigma_mm))
+        return PortMeasure(bool(m.ok), str(m.reason), float(m.conf), m.across_mm, m.up_mm, m.gap_mm, sig)
 
 
 class WristNetSource:
@@ -375,7 +376,7 @@ class AlignStage:
         ch = self.ch
         pm, Rm = self.fk(ch.q_b[0])
         dw = torch.as_tensor(self.eR @ np.asarray(delta_mm, float) * 1e-3, dtype=torch.float32)
-        pg = pm + (Rm @ self.s - self.R0 @ self.s) + dw        # tip moves by delta, the hand rotates back to R0
+        pg = pm + (self.R0 @ self.s - Rm @ self.s) + dw        # tip moves by delta, the hand rotates back to R0 (tip = p - R s)
         dev = ch.scene.device
         q, pe, re = self.chain.ik(pg.to(dev)[None], self.R0.to(dev)[None], ch.q_b[0:1].to(dev).float(), iters=30)
         if float(pe[0]) > 5e-4 or float(re[0]) > 5e-3:
@@ -405,8 +406,6 @@ class AlignStage:
     def measure(self, tag):
         c, ch = self.c, self.ch
         ms = [self.one(self.src, f'{tag}_{i}') for i in range(int(c['frames']))]
-        for _ in range(0):
-            pass
         good = [m for m in ms if m.ok and m.gap_mm is not None and m.across_mm is not None and m.up_mm is not None]
         if not good:
             out = ms[-1]
@@ -418,13 +417,13 @@ class AlignStage:
         out = PortMeasure(True, f'{len(good)}/{len(ms)} frames', float(np.median([m.conf for m in good])), float(med[0]), float(med[1]), float(med[2]),
                           None if good[0].sigma_mm is None else float(np.median([m.sigma_mm for m in good])))
         out.spread = float((V.max(0) - V.min(0)).max())
-        if len(good) < max(1, len(ms) // 2 + 1):
+        if len(good) < min(int(c['min_good']), len(ms)):
             out.ok, out.reason = False, f'{len(good)} of {len(ms)} frames measured'
         return out, ms
 
     # ------------------------------------------------------------------ run
     def log_m(self, m, ms, m2, tip, dec, t):
-        rec = dict(cycle=self.logic.cycle, tick=self.ch.k, t=t, ok=m.ok, reason=m.reason, conf=m.conf, across=m.across_mm, up=m.up_mm, gap=m.gap_mm, sigma=m.sigma_mm, spread=getattr(m, 'spread', None),
+        rec = dict(cycle=self.logic.cycle, tick=self.ch.k, t_stage=t, ok=m.ok, reason=m.reason, conf=m.conf, across=m.across_mm, up=m.up_mm, gap=m.gap_mm, sigma=m.sigma_mm, spread=getattr(m, 'spread', None),
                    frames=[dict(ok=x.ok, reason=x.reason, conf=x.conf, v=[x.across_mm, x.up_mm, x.gap_mm], ms=x.extra.get('ms'), truth=x.extra.get('truth')) for x in ms],
                    tip_rel=tip.tolist(), q_b=self.ch.q_b[0].tolist(), lead=self.creep.lead.tolist(), grip=float(self.ch.state['grip'][0]), decision=dec['kind'], decision_reason=dec.get('reason'), delta=np.asarray(dec.get('delta', np.zeros(3))).tolist(),
                    slope=self.logic.slope(), second=None if m2 is None else dict(ok=m2.ok, v=[m2.across_mm, m2.up_mm, m2.gap_mm]))
@@ -484,6 +483,20 @@ class AlignStage:
         self.creep.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
         out = dict(ok=False, reason='', cycles=0, gap_mm=None, lat_mm=None)
         last = None
+        off = c.get('sim_entry_offset_mm')
+        if off and getattr(ch.io, 'is_sim', False):       # dry run only: start from a real-like stop error (the sim's approach ends much closer than the real one)
+            g = np.random.default_rng(int(ch.seed or 0) + 777)
+            off = np.asarray(off, float)
+            off = off[0] + (off[1] - off[0]) * g.random(3)
+            for _ in range(30):
+                rem = off - self.tip_rel()
+                if np.linalg.norm(rem) < .5:
+                    break
+                self.step(np.clip(rem, -2., 2.))
+            ch.log_event('align_sim_entry_offset', asked=off.tolist(), got=self.tip_rel().tolist())
+            p0, R0 = self.fk(ch.q_b[0])
+            self.R0, self.tip0 = R0, (p0 - R0 @ self.s).numpy().astype(float)
+            self.creep.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
         while True:
             self.still()
             m, ms = self.measure(f'align_{self.logic.cycle:03d}')

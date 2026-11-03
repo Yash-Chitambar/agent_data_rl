@@ -1,0 +1,282 @@
+[
+ {
+  "run": "2026-11-02/full_174850_full_A",
+  "truth": "not seated (operator)",
+  "old": {
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end_mm": 4.088801067261066
+  },
+  "port_vision": [
+   -0.51,
+   6.39,
+   8.6
+  ],
+  "pv_frames": [
+   4,
+   4
+  ],
+  "fk_label": [
+   1.57,
+   7.26,
+   12.04
+  ],
+  "new_fk_label_gap": {
+   "g0": 12.035013547356069,
+   "lat0": [
+    1.5721899159337749,
+    7.259342819452286
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": -2.0615263584138876,
+   "depth_max": -1.8026402375545203,
+   "lat_end": [
+    -3.72,
+    8.91
+   ]
+  },
+  "new_port_vision": {
+   "g0": 8.6,
+   "lat0": [
+    -0.51,
+    6.39
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 1.3734871889421818,
+   "depth_max": 1.6323733098015492,
+   "lat_end": [
+    -5.8,
+    8.04
+   ]
+  },
+  "new_old_gap_assumption": {
+   "g0": 6.0,
+   "lat0": [
+    0.0,
+    0.0
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 3.9734871889421814,
+   "depth_max": 4.232373309801549,
+   "lat_end": [
+    -5.29,
+    1.65
+   ]
+  }
+ },
+ {
+  "run": "2026-11-02/full_175742_full_A2",
+  "truth": "not seated (operator)",
+  "old": {
+   "seated": true,
+   "t_seat_s": 8.84,
+   "depth_end_mm": 5.764188676401499
+  },
+  "port_vision": [
+   -2.07,
+   7.99,
+   10.01
+  ],
+  "pv_frames": [
+   1,
+   4
+  ],
+  "fk_label": [
+   -3.27,
+   14.11,
+   10.61
+  ],
+  "new_fk_label_gap": {
+   "g0": 10.612653276800202,
+   "lat0": [
+    -3.2666926856015355,
+    14.108552597463131
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 0.9886867494415963,
+   "depth_max": 0.9886867494415963,
+   "lat_end": [
+    -8.28,
+    28.33
+   ]
+  },
+  "new_port_vision": {
+   "g0": 10.01,
+   "lat0": [
+    -2.07,
+    7.99
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 1.5913400262417987,
+   "depth_max": 1.5913400262417987,
+   "lat_end": [
+    -7.08,
+    22.21
+   ]
+  },
+  "new_old_gap_assumption": {
+   "g0": 6.0,
+   "lat0": [
+    0.0,
+    0.0
+   ],
+   "seated": false,
+   "t_seat_s": null,
+   "depth_end": 5.6013400262417985,
+   "depth_max": 5.6013400262417985,
+   "lat_end": [
+    -5.01,
+    14.22
+   ]
+  }
+ },
+ {
+  "run": "2026-11-01/approach_insert_171123_ai4",
+  "truth": "seated (operator, 2026-11-01)",
+  "old": {
+   "seated": true,
+   "t_seat_s": 1.18,
+   "depth_end_mm": 11.94597885311866
+  },
+  "port_vision": [
+   2.44,
+   1.92,
+   11.15
+  ],
+  "pv_frames": [
+   4,
+   4
+  ],
+  "fk_label_own_seat": [
+   5.02,
+   0.59,
+   12.3
+  ],
+  "new_own_seat_label": {
+   "g0": 12.302452477071338,
+   "lat0": [
+    5.0212027349808235,
+    0.586850568652153
+   ],
+   "seated": true,
+   "t_seat_s": 4.08,
+   "depth_end": 5.800000000000001,
+   "depth_max": 6.248565374993142,
+   "lat_end": [
+    0.0,
+    0.0
+   ]
+  },
+  "new_port_vision": {
+   "g0": 11.15,
+   "lat0": [
+    2.44,
+    1.92
+   ],
+   "seated": true,
+   "t_seat_s": 4.08,
+   "depth_end": 6.952452477071338,
+   "depth_max": 7.401017852064479,
+   "lat_end": [
+    -2.58,
+    1.33
+   ]
+  }
+ },
+ {
+  "run": "2026-11-02/collect_182100_collect1",
+  "truth": "jogged in, anchor",
+  "advance_to_seat_mm": [
+   -1.53,
+   -6.99,
+   -16.86
+  ],
+  "port_vision_stop": [
+   0.14,
+   4.88,
+   8.71
+  ],
+  "pv_frames": [
+   5,
+   5
+  ],
+  "label_stop": [
+   1.53,
+   6.99,
+   11.06
+  ],
+  "grip_stop": 0.3028818852924478,
+  "grip_seat": 0.292944349801249,
+  "new_label_to_anchor": {
+   "g0": 11.061634606028917,
+   "lat0": [
+    1.5271184335389552,
+    6.992560811340809
+   ],
+   "seated": true,
+   "t_seat_s": 63.74,
+   "depth_end": 5.800000000000001,
+   "depth_max": 6.589919290966865,
+   "lat_end": [
+    0.0,
+    0.0
+   ]
+  },
+  "new_port_vision_to_anchor": {
+   "g0": 8.71,
+   "lat0": [
+    0.14,
+    4.88
+   ],
+   "seated": true,
+   "t_seat_s": 59.7,
+   "depth_end": 8.151634606028917,
+   "depth_max": 8.941553896995782,
+   "lat_end": [
+    -1.39,
+    -2.11
+   ]
+  },
+  "recheck_advance_from_stop_mm": [
+   -1.54,
+   -9.14,
+   -17.5
+  ],
+  "new_label_to_recheck": {
+   "g0": 11.061634606028917,
+   "lat0": [
+    1.5271184335389552,
+    6.992560811340809
+   ],
+   "seated": true,
+   "t_seat_s": 7.96,
+   "depth_end": 6.438459607820619,
+   "depth_max": 6.438459607820619,
+   "lat_end": [
+    -0.02,
+    -2.15
+   ]
+  },
+  "new_port_vision_to_recheck": {
+   "g0": 8.71,
+   "lat0": [
+    0.14,
+    4.88
+   ],
+   "seated": true,
+   "t_seat_s": 4.66,
+   "depth_end": 8.790094213849535,
+   "depth_max": 8.790094213849535,
+   "lat_end": [
+    -1.4,
+    -4.26
+   ]
+  },
+  "grip_recheck": 0.2692362294151055
+ }
+]
