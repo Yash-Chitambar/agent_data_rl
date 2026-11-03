@@ -2,7 +2,7 @@
 
 Give this file to the local agent. Open it with: "Read `docs/real/NEXT_RIG_SESSION.md` and guide me through it."
 
-Goal: measure the plug and port from the wrist camera at the real stop, then bring the plug to the hand-over gap in slow steps, then hand over to K-J. What the stage does: [ALIGN_STAGE.md](ALIGN_STAGE.md). Last session: [SESSION_20261102_duchamp3.md](SESSION_20261102_duchamp3.md).
+Goal: measure the plug, its angle and the port from the wrist camera at the real stop, then bring the plug to the hand-over gap and angle in slow steps, then hand over to K-J. What the stage does: [ALIGN_STAGE.md](ALIGN_STAGE.md). Last session: [SESSION_20261102_duchamp3.md](SESSION_20261102_duchamp3.md).
 
 This draft is on branch `real/graph-align`. Other agents add their parts in the section "Additions from other agents" below. Merge those branches before the session.
 

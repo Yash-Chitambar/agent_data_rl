@@ -1,5 +1,78 @@
 # Align stage, seat detector 2, insertion guard
 
+**Use `deploy/config/bimanual_align2.json`** (`bimanual_align1.json` stays as it was). This section is the second pass (2026-11-03): why K-J got 0 of 12 after a good hand-over, and what changed. The rest of this file is the first pass; numbers there are for align1.
+
+## Why K-J got 0 of 12, and the fix
+
+Fair dry run = r10 nets, real PC look, in-hand from the `v2` preset, encoder offset +-1.5 deg, one-world real path (`approach_insert`: the reader is placed, not picked), entry offset across +-1, up 1-5, gap 0-1 mm, port-vision noise. `v2` here is the in-hand preset, not the `grasp_fidelity_v2_real` physics: under that physics the reader creeps out of the jaws during the hold (grip 0.314 to 0.299, then gone within 8 s, n = 1 traced, all fair runs of that ladder lost it), so the chain cannot reach the port with it. "Seated" = the sim's seated hold, 0.2 s during the insertion, as `eval_kj_inhand.py` counts. All rates are of handed-over runs. `results/real_align/dry_matrix_v2.txt`.
+
+| One change at a time | Handed over | Seated [95 %] | First seat s, p50 | Plug rx, ry, rz abs p50 deg |
+|---|---|---|---|---|
+| Old nets, old look, Part 1 grasp (`L0`) | 17/24 | 17/17 [82, 100] | 0.78 | 0.2, 0.1, 0.2 |
+| r10, real look, Part 1 grasp (`L1`) | 18/24 | 12/18 [44, 84] | 2.8 | 1.7, 1.5, 1.1 |
+| **Fair, no angle fix** (`F1`) | 25/30 | **13/25 = 52 % [33, 70]** | 3.08 | **4.1, 2.2, 1.5** |
+| Fair, in-hand input = truth (`F3`) | 28/30 | 14/28 = 50 % [33, 67] | 3.12 | 4.1, 2.1, 1.3 |
+| Fair, angle = 0 by truth (`F2`) | 18/29 | 12/18 = 67 % [44, 84] | 1.09 | 1.0, 0.3, 0.1 |
+| Fair, both (`F4`) | 17/29 | 12/17 = 71 % [47, 87] | 1.31 | 1.1, 0.3, 0.1 |
+| Left hold at 3.5 cm, no angle fix (`X2`) | 34/36 | 19/34 = 56 % [39, 71] | 2.56 | 1.1, 1.8, 1.6 |
+| **align2: angle from vision model, guard** (`X1`) | 30/34 [73, 95] | **25/30 = 83 % [66, 93]** | 1.52 | 0.6, 0.4, 1.4 |
+| align2, press abort after 6 s, not 3 s (`X1s`) | 24/29 | 23/24 = 96 % [80, 99] | 1.34 | 0.7, 0.2, 1.1 |
+| align2, no guard (`X1n`) | 31/34 | 27/31 = 87 % [71, 95] | 1.22 | 0.6, 0.3, 1.5 |
+| Old slopes 0.34, 0.17, 0.35, gates on (`Y`) | **0/12** [0, 24] | | | stops: scale 12 |
+
+Reference: `sim/grasp-real`, K-J at exact hand-over with `v2` and net input: 94.1 % [92.5, 95.4]; up to 2 deg per axis 59.5 %. **Acceptance: with the guard as it was, 83 % [66, 93] is not shown equal to 94 %.** The intervals just miss. With the press abort at 6 s it reaches 96 % [80, 99], but this makes a guard looser: I left it at 3 s in the config. **Decision for the operator:** `insert.guard.stall_s` 3 or 6. Press force in A and A2 was low (PD estimate about 2 N axial, up to 11 N up); a stalled push also meets the 10 s limit. n is 24-34 per row. Not the same physics as their test: see above.
+
+**Explaining the gap (0 of 12, 52 %, 94 %):**
+
+1. **The plug arrived turned, by the net, because of the left hand (main cause).** In the fair runs the approach ends with rx -4.1, ry -2.2 deg while r10f reads about 0. Rendered from the same state: error +5.5, +2.1, +1.1 deg and +2.0, +1.6, +1.9 mm. On the sampler's frames the same net is unbiased: mean -0.05, -0.01, 0.0 deg, n = 2048, rx up to 7 deg, slope 0.87-0.97 (`results/real_align/net_rot_bias.json`). One change turns it off: **placing the left arm where the sampler has it (press at along -3.5 cm) gives +0.4, +0.1, -0.1 deg and -0.1, +0.4, +0.2 mm; the chain's left arm at -2 cm gives +6.0, +2.6, -2.6 deg and +2.5, +2.0, +2.1 mm** (n = 8 states). The left hand is in the wrist view, and the net never saw it there. The r10 and older nets train with `HoldCfg(along_m=-.035)`.
+   - **Labels:** rotation labels are the reader against the port (`K.rot_log(pR^T rR)`), in sim and in the fine-tune. The mean in-hand rotation and the 4.1 deg butt pitch are in the label and in the image; it is not a definition mismatch. Fine-tune on rotation is on differences only.
+   - **Butt pitch is rx, about across. The reported "ry" is yaw, about up.** The ry bias is not the butt pitch.
+   - **Same bias on real frames? Supported, not proven.** Vision + mount + mean grasp on the real sweep minus FK labels: -4.6, -0.2, -1.9 deg (n = 134); the wrist report's net minus labels: +0.7, +1.8, -0.3. So net minus vision on real frames: **+5.3, +2.0, +1.6 deg**, against +5.5, +2.1, +1.1 in the sim from the left hand. Same axes, signs, sizes. Real left hand was at -2 cm. Not proven: the real labels have their own constant (pressed seat), the vision absolute is from a model and a mean grasp, and I have no real frames with the hand at -3.5 cm.
+   - **Moving the hold to -3.5 cm alone is not enough** (`X2`, 56 %): rx falls to 1.1 but ry, rz stay. r10 retraining with the hold in the view would be the root fix; not done.
+2. **Seat 2 and the guard lifted seated plugs (my error, align1).** After a true seat K-J keeps moving the hand: up -5 to -8 mm with the plug at full depth. It never comes to rest, seat 2 asked for rest and small lateral motion, and the bound or abort then pulled the plug out. Trace in `L0`: seated at about 1 s, lifted at 2-4 s. Fix: seat 2 on a depth plateau, 0.3 s; guard stops are off when the plug is at depth on the axis. Sim, n = 1024/512: misses 4.1 % [3.1, 5.5] live, 13 % [10, 17] on the case; false seats 2 of 152 (old 148 of 152). Real logs: A, A2 no seat; ai4 at 3.84 s; collect seats found.
+3. **Input to K-J is not the limit.** `inhand_ih5` on the new look reads x 3.6, z 0 where the truth is 7.2, -2.3 mm (error SD 0.3-0.7). Truth input changes nothing (`F3` against `F1`). So do not feed the truth, and it does not explain the gap.
+4. **Hand-over target, press off, gains: no sign of a problem.** `L0` runs the same path at 17/17 on the old look, and first seat 0.78 s as in the batch. Clip and press-off are in that path.
+5. **The rest.** Truth angle gives only 67-71 % (with the guard, n 17-18) and many stops before the hand-over; n too small to split further. Rz is not corrected (p50 1.4 deg).
+
+**Criterion, the first 0-of-12 runs (n = 13 with one more run), by depth:** at the end, 6 of 13 deeper than 4 mm (3.7-5.7): 5.7 seated; 5.5, 5.4, 5.3 at the sim's limit of 5.55 mm; 4.5, 4.4. Only one seated by the test. Tilt was not logged then. Not counted as success. In `X1`, 5 never seated: 4 stalled on the case at -1.3 to -1.9 mm with tilt 1.7-6.9 deg, 1 at 5.2 mm. "Seated at the end of the run" is lower than the hold (13 of 30 in `X1`): when the push stops, the plug relaxes to about 5.5 mm, under the 5.55 limit. Sim fingers do not yield as real ones do.
+
+**Press abort ended runs that could still succeed:** `F1`: 7 of 11 guard stops are abort at 3.4-5 s, on the case, depth steady; K-J's search can take over 6 s (one seat at 6.4 s). So `X1` against `X1s`.
+
+### Angle measurement and correction
+
+| Method | Real test | Result | Use |
+|---|---|---|---|
+| Panel pose (port_vision) + camera mount + mean `v2` grasp | Collect sweep against FK rotation, n = 134 of 150, differences | rx slope 1.01, residual SD 0.77 (near 0.94); **ry 1.02, SD 0.27 (0.38)**; rz 0.39 and mixed with ry, SD 0.56 | **In align2: rx, ry** |
+| Same at the stops | A, A2, ai4 | -3.4, -1.8, -1.1; -3.2, -2.4, -1.3; -4.7, -0.4, -1.9 deg (per stop SD under 0.2) | |
+| FK at the close + flat reader (`deploy/bimanual/plug_angle.py`) | A, A2 against the row above | -2.9, -2.9, -2.3; -3.4, -2.9, -3.5 deg | Cross-check: rx agrees within 0.5, ry within 1.0, rz off by 1-2 deg, n = 2 |
+| Same, against sim truth | Dry runs, encoder offset 0, n = 2 | SD 0.1-0.2 deg, constant -1.1, +1.1 | |
+| Same | Dry runs, offset +-1.5 deg, n = 16 | **SD 2.4, 0.6, 2.0 deg: the offsets do not cancel** (the wrist axes point elsewhere at the close) | Not used. Only useful with small real residuals |
+| Reader outline + panel (`scripts/real/plug_angle_vision.py`) | Sweep | 0 of 150: the reader fit fails with the panel behind it | Not usable as written |
+
+**Real plug at the old stops: pitched about -3 deg, yawed about -2 to -3 deg, by two independent methods** (n = 2). No claim on sign in the world beyond the axes above: the runbook asks for a side photo. K-J's training: rx -0.01, SD 0.32; ry 0.04, SD 0.14; rz 0.10, SD 0.23 deg (`starts_round3_plus_chain.npz`), times up to 2: so the target is 0, from its training. ZED yaw is not in this estimate of ry (panel against camera).
+
+**Stage (config `align.angle`):** a turn of at most 0.75 deg per cycle about the plug tip, rx and ry, fused over the last 6 cycles against the applied turn, tolerance 1 deg, total at most 7 deg, no angle measurement: stop. Sim model: truth + pose residual 0.8, 0.3 deg + grasp 0.6, 0.4 deg. **Achieved (`X1`, n = 30): rx abs p50, p95 0.6, 1.7; ry 0.4, 0.9; rz 1.4, 2.6 deg, uncorrected.** Position: across 0.3, 0.8; up 0.7, 1.8; gap 4.8, 6.1, 6.8 mm. Against the targets (1 mm, 1 deg, 6 mm): rz and the p95 of up are past them.
+
+**Not verified on the arm:** port vision's panel rotation has not run live; its absolute angle rests on the model and the mount. A wrong constant would turn the plug by that much with no gate noticing. Hence the side photo in the runbook before any turn.
+
+### Other changes in align2
+
+- **Scale gate:** regression on levels with a standard error, longer up probe (3 mm), extra probes when the scale is not known well enough. Monte Carlo at port-vision noise, n = 2000 (`deploy/checks/align_scale_gate.py`, `results/real_align/scale_gate.json`). Slope 1 passes 99.35 % (old gate, n = 500: 89.6 %). Passing wrongly, new against old: old fine net 0.05 % / 0.2 %; old coarse net 0.4 % / 5.2 %; up 0.5: 20 % / 50 %; across 0.5: 22 % / 31 %; gap 0.5: 22 % / 38 %; up 1.8: 0 % / 11 %. Stronger on all. In the dry runs: 12 of 12 old-slope runs stop.
+- **Too close:** measured gap under 3 mm backs out, stop under 1 mm. Only in align2.
+
+### The reader lost in half of the batched worlds
+
+**Harness.** `--believed-frame` with the expert pick (no servo) plans on encoder FK with a +-1.5 deg error: 17 of 32 lifted. Without it: 32 of 32. With `expert_servo`, as the real chain: 64 of 64. `eval_align_batch.py` now uses it. Not a real problem. Its first-pass numbers below used the other pick and excluded those worlds.
+
+### Limits of this pass
+
+- `grasp_fidelity_v2_real` physics did not run in the chain (reader falls in the hold). So 83 % is on stiffer sim fingers than the 94.1 % test. The trend comparison holds; the size does not transfer.
+- The dry-run grasp has no 1.45 mm image offset of the reader (the pads centre it): this alone gives the net +3.2 deg of rz error on its frames. Stage decisions do not use the net's rz.
+- Sim-only: the angle model. r10 nets not retrained. No real frames with a different hold.
+- K-J fine-tuning: not started. The evidence so far does not make K-J the limit.
+
+## First pass (align1)
+
 Branch `real/graph-align`, config `deploy/config/bimanual_align1.json`. `bimanual.json` and `bimanual_pick3.json` did not change, and these stages stay off with them (`deploy/checks/align_gates.py`). No robot motion in this work: logged real frames and sim only. Numbers: `results/real_align/`. Which sim grasp each sim number uses is stated next to it, because K-J's rate depends on it.
 
 ## What it does
