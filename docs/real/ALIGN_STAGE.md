@@ -79,7 +79,7 @@ Achieved against the target of about 6 mm and about 1 mm (port-vision-like, n = 
 
 **Stops are mostly false stops here, by design of the gates.** Of 30 stops in the first row: 20 scale gate (noise of 0.74 mm against 2 mm probes, not a bad camera), 6 step limit, 2 correction grows, 1 too far, 1 gap limit. A stop costs a try, not a part. If real noise is like that, widen `slope_min` or lengthen `probe_mm` on the rig: the runbook asks for the slopes.
 
-**Time:** about 17 s for the stage in the one-world runs (19-20 s median, p95 31-44 s). Cycles about 15.
+**Time:** in the one-world runs the stage takes 19-21 s median, p95 31-44 s, about 15 cycles.
 
 The batched eval loses the reader before the stage in about half of the worlds (92 of 192): not counted above. Not investigated.
 
@@ -90,7 +90,7 @@ The batched eval loses the reader before the stage in about half of the worlds (
 - Hand-over 12 of 15 [80 % : 55, 93], 3 scale gate. No crash, no guard stop before the hand-over.
 - Truth at the hand-over: across abs p50 0.35, up 0.7, gap 5.4-6.6 mm.
 - **Angle (truth): rx p95 1.4-1.6, ry p95 2.3-2.7, rz p95 2.0-2.1 deg.** This is what the approach left: ry -1.1 to -2.7 deg on every run, and the stage keeps it. Fine r10 net rotation output against truth, last frames, n = 21 of 7 runs: mean error +0.1, **+1.95**, +0.9 deg, SD 0.8, 0.4, 1.0: the net reads about 0 where the plug is at -2 deg. So in this sim the net's rotation has a constant bias. Real value unknown: `align_measure` and `net` events log it.
-- **K-J after the hand-over: 0 of 12 seated by the sim's truth [0, 24 %].** Outcomes press abort 7, guard bound 4, seat detect 1 (false: true depth 5.3 mm, tilt above the sim's limit). Plug depth at the end: 5.6, 5.4, 5.3, 4.5, 4.4, 3.7 mm in six of them; on the case in the others. Without the guard, same seeds: DRYNG_RESULTS. The sim's seated test also has a 2 deg tilt limit.
+- **K-J after the hand-over: 0 of 12 seated by the sim's truth [0, 24 %].** Outcomes press abort 7, guard bound 4, seat detect 1 (false: true depth 5.3 mm, tilt above the sim's limit). Plug depth at the end: 5.6, 5.4, 5.3, 4.5, 4.4, 3.7 mm in six of them; on the case in the others. Without the guard, same seeds (7200-7206; the sim is not bitwise repeatable): 1 of 7 seated [3, 51 %], 6 time limits, end depth 4.4, 3.4, 2.2 mm in three. n is small, but K-J stalls without the guard too: the guard is not the main cause. The sim's seated test also has a 2 deg tilt limit.
 
 This is the main open result: at this angle, K-J does not finish in this sim, as `sim/grasp-real`'s up-to-2-deg number warned (59.5 %). The stage fixes position and not angle.
 
@@ -181,7 +181,7 @@ A real-frame check with a fake arm (`deploy/checks/align_realframes.py`): measur
 - `deploy/checks/align_gates.py`, every gate and the configs: `FAILED: none`. Old configs keep the stages off; `bimanual_align1.json` = pick3 + batch A + r10 nets + the new keys, limits equal.
 - `deploy/checks/bimanual_conventions.py --config bimanual_align1.json`: `FAILED: none`. `bimanual_realio_mock`: last line ok.
 - `deploy/checks/align_realframes.py`: ok. `align_stickslip`: creep p90 under 1 mm for steps of 0.5 mm and more.
-- `deploy/checks/bimanual_timing.py --config bimanual_align1.json` on mason, machine shared with this work's sim jobs: compute p50, p99 ms: align 8.6, 22.2 (2 % over 20 ms; the stage calls IK per step; a late tick during the slow stage does no harm by itself, but the rig decides); insert 13.3, 15.5 (old path about 2 ms lower by the same check: guard and seat 2 add FK); others unchanged in kind, pick p99 28.9 and approach p99 53.8 ms as before on a loaded machine. **Reported, not passed: the rig decides.**
+- `deploy/checks/bimanual_timing.py --config bimanual_align1.json` on mason, machine shared with this work's sim jobs: compute p50, p99 ms: align 8.6, 22.2 (2 % over 20 ms; the stage calls IK per step; a late tick during the slow stage does no harm by itself, but the rig decides); insert 13.3, 15.5 (with the guard and seat 2); pick p99 28.9, approach p99 53.8 ms, as older runs of this check on a loaded machine. **Reported, not passed: the rig decides.**
 - Vision at 82 ms per frame stops the 50 Hz ticks for that long: there is one control tick between frames, the driver holds the last target.
 
 ## Limits
