@@ -42,7 +42,7 @@ from deploy.bimanual.guards import GuardStop, Guards, StopKey  # noqa: E402
 from deploy.bimanual.runlog import RunLogger, git_state  # noqa: E402
 
 SIDES = ('right', 'left')
-STAGE_CHOICES = ('capture', 'hold', 'approach_insert', 'pick', 'full')
+STAGE_CHOICES = ('capture', 'hold', 'approach_insert', 'pick', 'full', 'collect')
 
 
 def load_cfg(path):
@@ -109,6 +109,8 @@ def parse(argv=None):
     ap.add_argument('--open-mm', type=float, default=None, help='descent opening per finger (mm): overrides gripper.right_approach_open_m (24, 25, 26)')
     ap.add_argument('--grasp-set', action='append', default=[], metavar='KEY=JSON', help='override one pick.grasp_v3 key, e.g. --grasp-set max_attempts=3')
     ap.add_argument('--pick-test', choices=('touchdown', 'air'), default=None, help="commissioning, stage pick with pick.grasp_v3, jaws stay open, the hand rises: 'air' = slow free descent above the plan (no contact expected), 'touchdown' = guarded touch-down and hold on the table")
+    ap.add_argument('--collect-n', type=int, default=150, help='stage collect: poses in the sweep (deploy/bimanual/collect.py)')
+    ap.add_argument('--collect-seed', type=int, default=0, help='stage collect: seed of the sweep poses; use a new one per run')
     ap.add_argument('--yes', action='store_true', help='answer every prompt with Enter (dry runs default to this)')
     ap.add_argument('--pause-in-press', action='store_true', help='also prompt between hold, transport, approach and insertion (the press keeps running; a watchdog unloads at hold_max_s)')
     ap.add_argument('--device', default='cpu', help='kinematics, controllers and the insertion policy (one world: CPU is faster than GPU launches)')
@@ -317,7 +319,7 @@ class Runner:
             self.finish(ch)
             return res
         ch.park_left()
-        if st in ('pick', 'full'):
+        if st in ('pick', 'full', 'collect'):
             if not self.confirm(ch, 'pick: servo-descent pick of the reader'):
                 return res
             q_lift, ok = ch.stage_pick(log, a.pick_mode)
@@ -344,6 +346,12 @@ class Runner:
                 ch.hstep(q_lift.reshape(6), q_hold.reshape(6), '2 hold')
             res['hold'] = {k: log[k] for k in log if k.startswith('hold')}
             ch.unload_left()
+            self.finish(ch)
+            return res
+        if st == 'collect':
+            from deploy.bimanual.collect import run_collect
+            res['collect'] = run_collect(self, ch, q_lift.reshape(1, 6), ep, eR, log)
+            print(f'collect: {res["collect"]}', flush=True)
             self.finish(ch)
             return res
         if not self.confirm(ch, f'hold -> transport -> approach -> insertion -> release (runs through; left press {ch.a.hold_force:.0f} N)'):

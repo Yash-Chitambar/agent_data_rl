@@ -4,6 +4,8 @@ Task: right YAM picks the SanDisk USB-C SD reader and inserts it into port 2 of 
 mini PC; left YAM holds the PC. Recipe and question: [README](../../README.md),
 [research direction](../research/RESEARCH_DIRECTION.md). Dated detail: [FINDINGS](FINDINGS.md).
 
+**Real rig (2026-11-02):** real pick fixed by level roll (batch A 10 of 10). `full` runs to the port and fails to insert: the wrist nets report a third or less of the real motion. Next: correct the sim in-hand pose, fix the wrist nets on real frames (`data/real_training/port_v1`), port edge detection. `docs/real/SESSION_20261102_duchamp3.md`.
+
 **Real rig (2026-11-01):** approach + insertion inserted on the robot; the servo pick grasp is marginal (2/8) because
 the sim does not model the fingertip-table press (hand turns ~3.5 deg) and pad-reader contact. Next: fix that in the
 sim ([handoff](../real/PICK_GRASP_SIM_HANDOFF_20261101.md)), then test `full` on the rig.

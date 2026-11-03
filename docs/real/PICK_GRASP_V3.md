@@ -156,3 +156,11 @@ All `All` rows also inject a plan 3-13 mm too low. Batches B, C and D as configu
 **Checks:** conventions and RealIO mock pass. Timing does not pass on this shared host, with either config: pick p99 28.7 ms (old config 23.9), transport 36 (29), approach 53 (48). The new pick adds about 5 ms at p99. The rig measured p99 < 12 ms on 2026-11-01. Run step 0 there: this is the deciding number.
 
 **Open points for the rig:** SafeArm checks the commanded pose. `bimanual_pick3.json` without `--batch` keeps gripper 10 mm, so its attempt 3 (press) can stop on a clearance (pick3 stopped at 9 mm). `update_kp_kd` at run time and the gentle close force on the real gripper are untested: the i2rt source is not on this host.
+
+## Real test result and sim correction (operator, 2026-11-02, duchamp3)
+
+Batch A (level roll only): 10 of 10 held. `full` with batch A: 2 of 2 held through transport and approach, 0 of 2 inserted (the wrist servo stops too high and varies between runs). Details: [SESSION_20261102_duchamp3.md](SESSION_20261102_duchamp3.md).
+
+**Sim correction, in-hand pose of the real grasp.** Operator report: the real grasp is consistent and good, but it does not match the sim. In the sim the reader lines up exactly with the bottom of the gripper. On the robot the butt of the reader angles slightly out of the gripper (less than 10 deg) and the reader still looks straight. The operator has images and video of this for the sim to reproduce. Correct the sim's in-hand pose and retrain the approach and in-hand nets on it.
+
+**Operator request, port edge detection.** Add an alignment check from the wrist camera alongside the GaP policy: find the USB-C port's edges in the image, so the exact port position is known before insertion. On 2026-11-02 the wrist net reported about the same alignment while the hand moved 5-6 mm, so a second measure that does not depend on the net could catch this.

@@ -3,6 +3,10 @@
 Running log for `docs/archive/RESEARCH_PLAN_single_arm.md`. Dated entries; newest first within each section.
 Figures and data referenced here live in `results/<phase>/`.
 
+## 2026-11-02 (Pacific): real pick fixed, wrist alignment is the next problem (duchamp3)
+
+Level roll alone (batch A, `bimanual_pick3.json`): 10 of 10 picks held (Wilson 95 % 72-100 %, one reader spot), against 2 of 8 on 2026-11-01. `full`: pick, press, transport and approach ran; 0 of 2 inserted, the plug stops too high. Same grasp, PC not moved: the hand height differs by 6.3 mm between runs and `wrist_v18ws` moves 1.3 mm. On 150 real labeled frames its slope against the label is 0.34 across, 0.17 up, 0.35 gap. The real stop gap is 11-12 mm, so the seat detector's 6 mm gap gives false seats. Label caveat: the recheck differs by 4.5 mm in height (the reader pitches in the jaws when pushed), so absolute y of the collect run is open; slopes do not depend on it. Operator requests for the sim side: real in-hand pose (butt angled out of the gripper, < 10 deg), port edge detection as an extra check. Details: `docs/real/SESSION_20261102_duchamp3.md`.
+
 ## 2026-11-01 (Pacific): first real bimanual session (duchamp3, `real/bimanual-deploy`)
 
 ZED PC net passes on real frames (2 placements: 3.0-4.8 mm, gates correct). Left hold 15 / 25 N latched (estimate
