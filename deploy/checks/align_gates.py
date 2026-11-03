@@ -62,7 +62,12 @@ def main():
     check('net slope rejected', d['kind'] == 'fail' and 'scale' in d['reason'], d.get('reason'))
     # a frozen camera stops right after the probes
     lg = logic(probe_mm=[2, 2, 2])
-    d, p = drive(lg, (1.5, 7., 11.5), plant_slope=(0, 0, 0))
+    tip = np.zeros(3)
+    for _ in range(20):
+        d = lg.update(M(1.5, 7., 11.5), None, tip)
+        if d['kind'] == 'fail':
+            break
+        tip = tip + d['delta']
     check('frozen measurement stops after the probes', d['kind'] == 'fail' and 'after the probes' in d['reason'] and lg.cycle <= 7, f"{d.get('reason')} cycle {lg.cycle}")
     # already aligned with no motion: the scale cannot be checked
     lg = logic(probe_mm=[0, 0, 0])

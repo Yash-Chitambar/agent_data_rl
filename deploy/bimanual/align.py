@@ -32,7 +32,7 @@ DEFAULTS = dict(
     probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_early=[.25, 2.0], slope_min_motion_mm=1.5,
     inhand_refresh=True, settle_s=.3, settle_max_s=1.5, still_rad_s=.02, move_tol_mm=.3, step_timeout_s=3.0, stuck_n=3,
     lead_rate_rad_s=[.02, .04, .04, .02, .05, .05], lead_max_rad=[.02, .045, .045, .012, .06, .06], eps_rad=[.001, .001, .001, .002, .003, .003],
-    heavy=[False, True, True, False, False, False], ki_per_s=1.0, move_eps_rad=.0005, release=.3,
+    heavy=[False, True, True, False, False, False], ki_per_s=1.0, hold_decay=1.0, move_eps_rad=.0005, release=.3,
     handover_lead_rad=[[-.0004, .0004], [-.0051, .0156], [-.011, .0129], [-.0024, .0013], [.0144, .0279], [-.0058, .0019]],
     source=dict(kind='stub'), sim_source=dict(kind='sim_truth'), secondary=None, secondary_sim=None, disagree_mm=[2.0, 2.0, 3.0], disagree_mode='gate',
     on_fail='back_off', back_off_mm=15.0, back_off_v_mm_s=10.0, press_release=True, repress_s=1.0, post_press_tol_factor=1.5,
@@ -80,8 +80,9 @@ class PortVisionSource:
     docs/real/PORT_VISION.md: without it, 3 of 12 detections at gap 0-5 mm were false and the up residual was 1.49 mm. About 82 ms per call."""
 
     def __init__(self, ch, spec):
-        self.kw = {k: v for k, v in spec.items() if k not in ('kind', 'depth_frames')}
+        self.kw = {k: v for k, v in spec.items() if k not in ('kind', 'depth_frames', 'plug_z_range_mm')}
         self.n_depth = int(spec.get('depth_frames', 9))
+        self.z_range = spec.get('plug_z_range_mm', [113.5, 123.5])
         self.plug_z = None
         try:
             from deploy.bimanual import port_vision
@@ -108,8 +109,10 @@ class PortVisionSource:
             if f is not None:
                 fr.append(f)
             between()
-        self.plug_z = self.depth(fr) if len(fr) >= 3 else None
-        return dict(plug_z_mm=self.plug_z, frames=len(fr))
+        z = self.depth(fr) if len(fr) >= 3 else None
+        lo, hi = self.z_range           # hand-placed grasps of 2026-11-01 read 133 and 142 mm, wrong for this model; picked grasps 117.7-121.5
+        self.plug_z = z if z is not None and lo <= z <= hi else None
+        return dict(plug_z_mm=z, accepted=self.plug_z is not None, range=[lo, hi], frames=len(fr))
 
     def measure(self, ch, tag):
         if self.fn is None:
@@ -340,6 +343,21 @@ class AlignLogic:
         return dict(kind='step', delta=d, err=err, e=e, reason='correct')
 
 
+def creep_law(q, prev, goal, lead, c, dt):
+    """Joint targets of one control tick; arrays (..., 6), so the batched sim eval runs the same law. Returns (target, new lead).
+    High-friction joints: target = measured + lead; the lead ramps until the joint moves, then it drops. Low friction: target = goal + slow integral (carries the joint's load, e.g. joint 5)."""
+    heavy = np.asarray(c['heavy'], bool)
+    eps, rate, lim = np.asarray(c['eps_rad'], float), np.asarray(c['lead_rate_rad_s'], float), np.asarray(c['lead_max_rad'], float)
+    e = goal - q
+    moved = (q - prev) * np.sign(e)
+    off = np.abs(e) > eps
+    h = np.where(moved >= c['move_eps_rad'], lead * c['release'], np.where(lead * e < 0, 0., lead + np.sign(e) * rate * dt))
+    h = np.where(off, h, lead * c['hold_decay'])     # at the goal: keep the lead that got it there, it carries the joint's load (real joint 2: -0.87 N m; dry run: 1 mm rebound per step without it)
+    lo = lead + c['ki_per_s'] * e * dt
+    new = np.clip(np.where(heavy, h, lo), -lim, lim)
+    return np.where(heavy, q + new, goal + new), new
+
+
 class Creep:
     """Slow joint-level positioning against stiction: target = measured + lead; the lead ramps while a joint is off its goal and is cut as soon as a high-friction joint moves."""
 
@@ -354,27 +372,9 @@ class Creep:
         self.prev = self.goal.copy()
 
     def tick(self):
-        ch, c = self.ch, self.c
+        ch = self.ch
         q = ch.q_b[0].cpu().numpy().astype(float)
-        e = self.goal - q
-        moved = (q - self.prev) * np.sign(e)
-        tgt = q.copy()
-        for j in range(6):
-            if self.heavy[j]:      # target = measured + lead: torque ramps until the joint breaks free, then drops
-                if abs(e[j]) > self.eps[j]:
-                    if moved[j] >= c['move_eps_rad']:
-                        self.lead[j] *= c['release']
-                    elif self.lead[j] * e[j] < 0:
-                        self.lead[j] = 0.
-                    else:
-                        self.lead[j] += math.copysign(self.rate[j] * ch.dt, e[j])
-                else:
-                    self.lead[j] *= .9
-                self.lead[j] = np.clip(self.lead[j], -self.lim[j], self.lim[j])
-                tgt[j] = q[j] + self.lead[j]
-            else:                  # low friction: plain position target at the goal + a slow integral (carries the joint's load, e.g. joint 5)
-                self.lead[j] = np.clip(self.lead[j] + c['ki_per_s'] * e[j] * ch.dt, -self.lim[j], self.lim[j])
-                tgt[j] = self.goal[j] + self.lead[j]
+        tgt, self.lead = creep_law(q, self.prev, self.goal, self.lead, self.c, ch.dt)
         self.prev = q
         ch.hstep(torch.as_tensor(tgt, dtype=torch.float32, device=ch.dev), self.ql, 'align')
 
