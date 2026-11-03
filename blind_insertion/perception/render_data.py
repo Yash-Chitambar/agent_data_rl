@@ -30,8 +30,10 @@ class SampleCfg:
 
 
 class ApproachRenderer:
-    def __init__(self, nworld=256, res=320, visual_dr=True, device='cuda:0', seed=0, task_layout=None, pc_pose_range=None):
+    def __init__(self, nworld=256, res=320, visual_dr=True, device='cuda:0', seed=0, task_layout=None, pc_pose_range=None, inhand_real=None):
         kw = {} if task_layout is None else {'task_layout': task_layout}
+        if inhand_real is not None:
+            kw['inhand_real'] = inhand_real
         if pc_pose_range is not None:
             kw['pc_pose_range'] = tuple(pc_pose_range)
         self.rt = BimanualRuntime(BimanualCfg(nworld=nworld, device=device, render_rgb=True, visual_dr=visual_dr,

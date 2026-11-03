@@ -174,7 +174,7 @@ def _free_pc_spec(spec, profile):
 
 def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                 support_mode='fixed', profile=None, bimanual=False, table_top=0.0, measured_support=False,
-                controller_profile=None, table_z=None, extra_spec=None, reader_body_length=None):
+                controller_profile=None, table_z=None, extra_spec=None, reader_body_length=None, reader_look=None):
     """CPU scene; ``free`` is an experimental measured-profile PC, not a training mode.
     ``extra_spec(spec)`` runs last on the spec before compiling (e.g. visual_dr.add_assets).
 
@@ -218,7 +218,7 @@ def build_scene(variant=None, top_cam=TOP_CAM, *, detailed=True, physical=True,
                                       pos=[0.0, y, table_z + h], rgba=[0.6, 0.6, 0.62, 1], contype=0, conaffinity=0)
         if detailed:
             from blind_insertion.scenes.bench_details import add_details
-            add_details(sp, variant, pc_profile=profile if support_mode == "free" else None)
+            add_details(sp, variant, pc_profile=profile if support_mode == "free" else None, reader_look=reader_look)
         if physical:
             from blind_insertion.scenes.physical_rig import decorate as decorate_rig
             decorate_rig(sp)

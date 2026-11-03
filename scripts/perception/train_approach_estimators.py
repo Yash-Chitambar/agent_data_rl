@@ -124,7 +124,8 @@ def main():
     ap.add_argument('--rot', type=float, default=6.)
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position (mm)')
-    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est', 'servo_pick'), default='measured', help='render in-hand pose distribution')
+    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est', 'servo_pick', 'real'), default='measured', help='render in-hand pose distribution')
+    ap.add_argument('--reader-look', default=None, help='real reader look preset (envs/inhand_real.py), e.g. v1; use with --inhand-mode real')
     ap.add_argument('--tilt', type=float, default=60., help='grasp tilt from vertical (deg)')
     ap.add_argument('--states', nargs='*', default=[], help='DAgger: npz files of recorded in-loop qpos (eval_approach --save-states)')
     ap.add_argument('--n-states', type=int, default=0, help='training samples rendered from --states (added to --n)')
@@ -157,7 +158,7 @@ def main():
                    shininess_range=(0., .5), texture_prob=.15, real_texture_prob=1., light_elevation_deg=(55., 90.),
                    light_intensity=(.5, .85), light_kelvin=(4000., 6000.), shadow_prob=.3, fill_scale=(.6, 1.2),
                    ambient_scale=(.8, 1.2))
-    r = ApproachRenderer(nworld=a.nworld, seed=a.seed, task_layout=a.task_layout, pc_pose_range=a.pc_range, visual_dr=vdr)
+    r = ApproachRenderer(nworld=a.nworld, seed=a.seed, task_layout=a.task_layout, pc_pose_range=a.pc_range, visual_dr=vdr, inhand_real=a.reader_look)
     torch.manual_seed(a.seed)
     r.ins.cfg.inhand_rot_deg = a.inhand_rot
     r.ins.cfg.inhand_pos_mm = a.inhand_pos
