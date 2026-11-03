@@ -161,25 +161,6 @@ def inhand_error6(site_p, site_R, reader_p, reader_R):
     return torch.cat([(p_rs - p0) * 1e3, torch.rad2deg(K.rot_log(R_rs @ R0.T))], 1)
 
 
-def sample_real_fit(n, tip_shift_tcp_mm, pos_mm=3., rot_deg=5., device='cpu', generator=None):
-    """In-hand poses around the real grasp as seen in the wrist frames (results/real/wrist_nets/geometry_fit.json): the measured mean
-    grasp with the plug tip moved by tip_shift_tcp_mm (TCP axes), then U(+/-pos_mm) per axis on the tip and U(+/-rot_deg) per axis
-    about the tip. Returns R (n,3,3), p (n,3): grasp_site in the reader frame, deltas (n,6)."""
-    from blind_insertion.envs import kinematics as K
-    R0, p0 = measured_mean(device=device)
-    R0, p0 = R0.reshape(3, 3).float(), p0.reshape(3).float()
-    shift = torch.as_tensor(tip_shift_tcp_mm, device=device, dtype=torch.float32)
-    u = lambda a, k: (torch.rand(n, k, device=device, generator=generator) * 2 - 1) * a   # noqa: E731
-    d = torch.cat([shift + u(pos_mm, 3), u(rot_deg, 3)], 1)
-    rv = torch.deg2rad(d[:, 3:])
-    dR = K.axis_angle_mat(rv / rv.norm(dim=1, keepdim=True).clamp(min=1e-9), rv.norm(dim=1))
-    # R_sr = R0 dR: rotation of the reader in the TCP about the tip; tip in the TCP = -R_sr^T p_sr, so it is kept by rotating p with R_sr
-    tip_in_tcp = -(R0.T @ p0) + d[:, :3] * 1e-3
-    R_sr = R0 @ dR
-    p_sr = -(R_sr @ tip_in_tcp[..., None])[..., 0]
-    return R_sr, p_sr, d
-
-
 SERVO_PICK = 'results/usbc/policy/approach/inhand_servo_pick.csv'
 
 

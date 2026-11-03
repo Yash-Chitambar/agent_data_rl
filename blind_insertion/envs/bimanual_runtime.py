@@ -12,7 +12,7 @@ import mujoco_warp as mjw
 import numpy as np
 import torch
 import warp as wp
-from blind_insertion.envs import arm_residual as AR, friction_comp as FC, grasp_fidelity as GF, kinematics as K, visual_dr as VD
+from blind_insertion.envs import arm_residual as AR, friction_comp as FC, grasp_fidelity as GF, inhand_real as IR, kinematics as K, visual_dr as VD
 from blind_insertion.scenes import pc_bench as S, physical_rig as R
 
 
@@ -46,6 +46,10 @@ class BimanualCfg:
     # opposite offset ('camera': images match, grasp physics unchanged). 'tips' moves the fingers.
     tip_offset: str | None = 'results/usbc/gripper_sweep/sweep_20261030/fit.json'
     tip_offset_target: str = 'camera'
+    # Real reader look (silver plate, shoulder) from a preset of envs/inhand_real.py (docs/real/INHAND_REAL.md), e.g. 'v1'.
+    # Visual only; None keeps the old look. The in-hand distribution is chosen by the task (InsertionCfg.grasp='real',
+    # InsertCfg.inhand='real').
+    inhand_real: str | None = None
     # Task layout from the reachability search (scripts/task/explore_pc_placement.py): nominal PC
     # port pose and the SD reader's pick region. Each reset samples, per world, the PC port at the
     # nominal +/- pc_pose_range (x m, y m, yaw deg) and the reader uniformly in the region (x, y,
@@ -143,7 +147,8 @@ class BimanualRuntime:
         self.mjm, self.lay = S.build_scene(detailed=True, bimanual=True, measured_support=True,
             support_mode='free', profile=json.loads(profile_path.read_text()), controller_profile=c.controller_profile,
             extra_spec=extra if (self.visual_dr_cfg is not None or gf is not None or c.pc_real_look) else None,
-            reader_body_length=gf.reader_body_length_m if gf is not None else None)
+            reader_body_length=gf.reader_body_length_m if gf is not None else None,
+            reader_look=None if c.inhand_real is None else IR.load(c.inhand_real)['look'])
         m = self.mjm
         gf_geoms = GF.apply_model(m, self.lay, gf) if gf is not None else None
         self.profile = None

@@ -11,7 +11,7 @@ SILVER = (.64, .65, .66, 1)
 BLACK = (.025, .028, .030, 1)
 
 
-def add_details(sp, variant, pc_profile=None):
+def add_details(sp, variant, pc_profile=None, reader_look=None):
     def box(body, name, pos, half, color, **kw):
         return body.add_geom(name='detail_' + name, type=mujoco.mjtGeom.mjGEOM_BOX,
                              pos=pos, size=half, rgba=color, contype=0, conaffinity=0,
@@ -124,7 +124,19 @@ def add_details(sp, variant, pc_profile=None):
             bw,bl-.001,bt-.0006,.004,BLACK)
     silver_w = float(pc_profile['reader']['measurements']['body_width']['value']) if pc_profile else bw-.0014
     silver_l = float(pc_profile['reader']['measurements']['body_length']['value']) if pc_profile else bl-.003
-    rounded(peg,'reader_silver',(0,bt/2-.00025,c[2]-.001),silver_w,silver_l,.0005,.004,(.70,.71,.70,1))
+    silver_z = c[2]-.001
+    if reader_look is not None:     # measured on the wrist frames (docs/real/INHAND_REAL.md); collision shape unchanged
+        silver_w, silver_l = reader_look['silver_width_m'], reader_look['silver_length_m']
+        silver_z = reader_look['silver_front_z_m'] + silver_l/2
+        # black shoulder between the neck and the body (visual only): a trapezoid in x/z, extruded in y
+        z1, z0 = c[2]-bl/2+.0005, c[2]-bl/2+.0005-reader_look['shoulder_length_m']
+        hw1, hw0 = bw/2-.001, reader_look['shoulder_front_width_m']/2
+        ht = float(variant.handle['height'])/2
+        v = [[sx*w, y, z] for y in (-ht, ht) for sx in (-1, 1) for w, z in ((hw0, z0), (hw1, z1))]
+        sp.add_mesh(name='detail_mesh_reader_shoulder', uservert=np.asarray(v).ravel().tolist())
+        peg.add_geom(name='detail_reader_shoulder', type=mujoco.mjtGeom.mjGEOM_MESH, meshname='detail_mesh_reader_shoulder',
+                     rgba=BLACK, contype=0, conaffinity=0, mass=0)
+    rounded(peg,'reader_silver',(0,bt/2-.00025,silver_z),silver_w,silver_l,.0005,.004,(.70,.71,.70,1))
     # SD opening at the paddle's distal end, green board and recessed black slit.
     end=c[2]+bl/2-.0005
     box(peg,'sd_rim',(0,0,end),(bw*.42,bt*.28,.0002),(.31,.32,.31,1))

@@ -124,7 +124,8 @@ def main():
     ap.add_argument('--rot', type=float, default=6.)
     ap.add_argument('--inhand-rot', type=float, default=8., help='+/- in-hand rotation about the closing axis (deg)')
     ap.add_argument('--inhand-pos', type=float, default=3., help='+/- in-hand position (mm)')
-    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est', 'servo_pick', 'real_fit'), default='measured', help='render in-hand pose distribution')
+    ap.add_argument('--inhand-mode', choices=('measured', 'uniform', 'chain_est', 'servo_pick', 'real'), default='measured', help='render in-hand pose distribution')
+    ap.add_argument('--reader-look', default=None, help='real reader look preset (envs/inhand_real.py), e.g. v1; use with --inhand-mode real')
     ap.add_argument('--tilt', type=float, default=60., help='grasp tilt from vertical (deg)')
     ap.add_argument('--states', nargs='*', default=[], help='DAgger: npz files of recorded in-loop qpos (eval_approach --save-states)')
     ap.add_argument('--n-states', type=int, default=0, help='training samples rendered from --states (added to --n)')
@@ -142,9 +143,8 @@ def main():
     ap.add_argument('--task-layout', default=None, help='BimanualCfg.task_layout (e.g. results/usbc/policy/pick/task_layout.json: reader on the Part 1 strip)')
     ap.add_argument('--wrist-mode', choices=('resize', 'crop', 'full'), default='resize', help='320 px wrist frame -> 192 px: resize or full-resolution centre crop')
     ap.add_argument('--tag', default='', help='suffix of the saved estimator name (e.g. _fine)')
-    ap.add_argument('--real-fit', default=None, help="--inhand-mode real_fit: geometry fit JSON (tip_shift_tcp_mm), results/real/wrist_nets/geometry_fit.json")
+    ap.add_argument('--inhand-real-spread', type=float, default=1., help='--inhand-mode real: spread scale on the preset half ranges')
     ap.add_argument('--pc-real-look', default=None, help='directory of real PC panel and lid textures (BimanualCfg.pc_real_look)')
-    ap.add_argument('--reader-body', type=float, default=None, help='silver body length of the rendered reader (m); 0.0296 is the real one')
     ap.add_argument('--blur', type=float, nargs=2, default=None, help='VisualDRCfg.blur_sigma_px range (px at 320)')
     ap.add_argument('--out-dir', default=None, help='weights go to <out-dir>/ and the report to <out-dir>/estimator_*.json (default: runs/perception and results/usbc/policy/approach)')
     a = ap.parse_args()
@@ -164,15 +164,14 @@ def main():
                    ambient_scale=(.8, 1.2))
     if a.blur:
         vdr = dict(vdr, blur_sigma_px=tuple(a.blur)) if isinstance(vdr, dict) else dict(blur_sigma_px=tuple(a.blur))
-    r = ApproachRenderer(nworld=a.nworld, seed=a.seed, task_layout=a.task_layout, pc_pose_range=a.pc_range, visual_dr=vdr,
-                         grasp_fidelity=None if a.reader_body is None else {'reader_body_length_m': a.reader_body}, pc_real_look=a.pc_real_look)
+    r = ApproachRenderer(nworld=a.nworld, seed=a.seed, task_layout=a.task_layout, pc_pose_range=a.pc_range, visual_dr=vdr, inhand_real=a.reader_look, pc_real_look=a.pc_real_look)
     torch.manual_seed(a.seed)
     r.ins.cfg.inhand_rot_deg = a.inhand_rot
     r.ins.cfg.inhand_pos_mm = a.inhand_pos
     r.ins.cfg.tilt_deg = a.tilt
     r.ins.cfg.inhand = a.inhand_mode
-    if a.real_fit:
-        r.ins.cfg.real_fit_tip_mm = tuple(json.load(open(a.real_fit))['tip_shift_tcp_mm'])
+    if a.inhand_mode == 'real':
+        r.ins.cfg.grasp_real_spread = a.inhand_real_spread
     if a.servo_stretch:
         r.ins.cfg.servo_stretch = tuple(a.servo_stretch)
     cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot)

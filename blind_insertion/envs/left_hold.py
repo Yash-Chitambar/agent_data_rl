@@ -439,9 +439,10 @@ class InsertCfg:
     inhand_rot_deg: float = 8.
     # 'measured': the Part 1 post-pick in-hand poses (inhand.sample_measured; 55-deg grasp); 'uniform':
     # the provisional tilt_deg / pad_z_m pose +/- inhand_pos_mm / inhand_rot_deg.
+    # 'real': the measured real grasp (envs/inhand_real.py, preset inhand_real_preset).
     inhand: str = 'measured'
+    inhand_real_preset: str = 'v1'
     servo_stretch: tuple = (.8, 1.4)        # 'servo_pick': deviation scale range about the mean
-    real_fit_tip_mm: tuple = (0., 0., 0.)    # 'real_fit': plug tip shift from the measured mean grasp (TCP axes, mm)
 
 
 class RightInserter:
@@ -470,12 +471,12 @@ class RightInserter:
             if c.inhand == 'measured':
                 from blind_insertion.envs.inhand import sample_measured
                 self.R_sr, self.p_sr, self.inhand = sample_measured(n, device=dev)
+            elif c.inhand == 'real':
+                from blind_insertion.envs.inhand_real import sample_real
+                self.R_sr, self.p_sr, self.inhand = sample_real(n, c.inhand_real_preset, device=dev)
             elif c.inhand == 'servo_pick':
                 from blind_insertion.envs.inhand import sample_servo_pick
                 self.R_sr, self.p_sr, self.inhand = sample_servo_pick(n, device=dev, stretch=c.servo_stretch)
-            elif c.inhand == 'real_fit':
-                from blind_insertion.envs.inhand import sample_real_fit
-                self.R_sr, self.p_sr, self.inhand = sample_real_fit(n, c.real_fit_tip_mm, c.inhand_pos_mm, c.inhand_rot_deg, device=dev)
             elif c.inhand == 'chain_est':
                 from blind_insertion.envs.inhand import sample_chain_est
                 self.R_sr, self.p_sr, self.inhand = sample_chain_est(n, device=dev)
@@ -508,7 +509,7 @@ class RightInserter:
         pa = rt.lay.peg_qadr
         rt.q[:, pa:pa + 3] = reader_p
         rt.q[:, pa + 3:pa + 7] = K.mat_to_quat(reader_R)
-        if c.inhand in ('measured', 'chain_est', 'servo_pick', 'real_fit'):   # settled grasps: one opening fits every world
+        if c.inhand in ('measured', 'chain_est', 'servo_pick'):   # settled grasps: one opening fits every world
             if not hasattr(self, '_fq'):
                 self._fq = self._finger_q(rt.q[0])
             rt.q[:, self.fingers] = self._fq

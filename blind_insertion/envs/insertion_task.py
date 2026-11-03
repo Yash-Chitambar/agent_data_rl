@@ -156,7 +156,11 @@ class InsertionCfg:
     # mean pose about the nominal, per-axis p1..p99 spread of 2048 held-out picks) with the spread x
     # inhand_spread_scale, uniform; 'geometric60' = the earlier provisional 60-deg grasp with
     # inhand_pos_m / inhand_rot_deg.
+    # 'real': the measured real grasp (envs/inhand_real.py, preset grasp_real), about the same Part 1 nominal, so the
+    # policy's in-hand input keeps its meaning. grasp_real_spread scales the preset's half ranges.
     grasp: str = 'part1'
+    grasp_real: str = 'v1'
+    grasp_real_spread: float = 1.
     inhand_spread_scale: float = 1.25
     # Extra uniform in-hand error on top of grasp='part1' (perception-driven pick, p99 ~4 mm / 1.4 deg vs the
     # privileged pick's 0.77 mm / 0.24 deg): half-ranges in the grasp_site frame, position (m) x/y/z
@@ -196,7 +200,10 @@ def inhand_pose(n, cfg: InsertionCfg, device, gen=None, nominal=False):
     position (site frame, mm) and rotation vector (site frame, deg). nominal=True returns the nominal.
     """
     u = lambda *s: torch.rand(*s, device=device, generator=gen) * 2 - 1
-    if cfg.grasp == 'part1':
+    if cfg.grasp == 'real' and not nominal:
+        from blind_insertion.envs import inhand_real as IR
+        return IR.reader_in_site(IR.sample_delta(n, cfg.grasp_real, device, gen, cfg.grasp_real_spread), device)
+    if cfg.grasp in ('part1', 'real'):
         from blind_insertion.scenes.reader_grasp import TILT_DEG, inhand_pose as measured
         m = measured()
         noms = m['nominal']     # keys: '55.0' (older file) or 'tilt55_flip0'/'tilt55_flip1' with grasp_share

@@ -39,8 +39,8 @@ def load_rows(source=('collect',), man='data/real_training/port_v1/manifest.json
 
 
 class SimAtReal:
-    def __init__(self, nworld, seed=0, visual_dr=None, gf=None, body=None, look=None):
-        self.r = ApproachRenderer(nworld=nworld, seed=seed, task_layout=LAYOUT, visual_dr=visual_dr, grasp_fidelity=gf if body is None else {'reader_body_length_m': body}, pc_real_look=look)
+    def __init__(self, nworld, seed=0, visual_dr=None, reader_look=None, look=None):
+        self.r = ApproachRenderer(nworld=nworld, seed=seed, task_layout=LAYOUT, visual_dr=visual_dr, inhand_real=reader_look, pc_real_look=look)
         self.rt, self.h = self.r.rt, self.r.h
         self.n, self.dev = nworld, self.rt.device
         self.h.reset()

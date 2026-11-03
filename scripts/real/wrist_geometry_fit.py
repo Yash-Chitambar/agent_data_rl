@@ -43,7 +43,7 @@ def main():
     tr, _, _ = W.split_collect(len(co))
     sel = [co[i] for i in tr]
     B = len(sel)
-    S = SimAtReal(B, body=.0296, look=a.look)
+    S = SimAtReal(B, look=a.look)
     dev = S.dev
     ev = [json.loads(x) for x in open(f"data/real_runs/2026-11-02/{co[0]['run']}/events.jsonl")]
     an = [e for e in ev if e['kind'] == 'collect_anchor'][0]
