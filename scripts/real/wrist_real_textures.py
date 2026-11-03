@@ -35,6 +35,8 @@ def main():
     ap.add_argument('--fit', required=True)
     ap.add_argument('--out', required=True)
     ap.add_argument('--min-gap', type=float, default=8.)
+    ap.add_argument('--panel-gain', type=float, default=1., help='texture gain: the sim light dims the panel, which faces the arm')
+    ap.add_argument('--top-gain', type=float, default=1.)
     a = ap.parse_args()
     fit = json.load(open(a.fit))
     rs = W.rows()
@@ -91,21 +93,27 @@ def main():
     inside = (mx >= 0) & (mx <= wd) & (my >= 0) & (my <= hd)
     P = np.stack([mx - tx, my - ty, np.full_like(mx, .0009)], -1)
     pan, cnt = sample(P)
-    panel = np.where((inside & (cnt > 3))[..., None], np.nan_to_num(pan), 16.).astype(np.uint8)
+    panel = np.clip(np.where((inside & (cnt > 3))[..., None], np.nan_to_num(pan) * a.panel_gain, 16.), 0, 255).astype(np.uint8)
     # lid: 1 px = 0.1 mm
     Hz, Wx = int(depth * 1e4), int(wd * 1e4)
-    x0, x1, z0, z1, y = -tx, wd - tx, 0., -depth, hd - ty + .0004
+    x0, x1, z0, z1, y = -tx, wd - tx, 0., -depth, hd - ty + .0001
     xx, zz = np.meshgrid(np.linspace(x0, x1, Wx), np.linspace(z0, z1, Hz))
     P = np.stack([xx, np.full_like(xx, y), zz], -1)
     top, cnt = sample(P)
     top = np.nan_to_num(top).astype(np.uint8)
+    # beyond the stickers only the lid and the left hand show: colour or dark pixels are the hand; the lid colour fills them
     hsv = cv2.cvtColor(top, cv2.COLOR_BGR2HSV)
-    yellow = (hsv[..., 0] > 15) & (hsv[..., 0] < 40) & (hsv[..., 1] > 90)
     far = np.zeros(top.shape[:2], bool)
-    far[int(.55 * Hz):] = True                        # stickers sit near the panel edge; beyond them dark = the hand
-    dark = far & (hsv[..., 2] < 90)
-    hole = cv2.dilate(((yellow | dark | (cnt <= 3)) * 255).astype(np.uint8), np.ones((15, 15), np.uint8))
-    top = cv2.inpaint(top, hole, 5, cv2.INPAINT_TELEA)
+    far[int(.185 * Hz):] = True
+    other = far & ((hsv[..., 1] > 22) | (hsv[..., 2] < 170))
+    hole = cv2.dilate(((other | (cnt <= 3)) * 255).astype(np.uint8), np.ones((25, 25), np.uint8)) > 0
+    hole = hole & far
+    lid_col = np.median(top[far & ~hole], 0)
+    top[hole] = lid_col
+    blurred = cv2.GaussianBlur(top, (0, 0), 12)
+    soft = cv2.GaussianBlur(hole.astype(np.float32), (0, 0), 6)[..., None]
+    top = (top * (1 - soft) + blurred * soft).astype(np.uint8)
+    top = np.clip(top.astype(float) * a.top_gain, 0, 255).astype(np.uint8)
     Path(a.out).mkdir(parents=True, exist_ok=True)
     cv2.imwrite(f'{a.out}/panel.png', panel)
     cv2.imwrite(f'{a.out}/top.png', top)
