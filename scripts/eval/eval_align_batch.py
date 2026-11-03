@@ -255,7 +255,7 @@ def main():
     if A.sim_phys:
         cfg.setdefault('sim', {})['phys_json'] = A.sim_phys
     pol = ROOT / 'deploy/bundle/models/insert_KJ.pt'
-    a = EC.parse(chain_argv(cfg, pol, A.nworld, ['--enc-offset-deg', str(A.enc_offset_deg), '--pick', 'expert_privileged']))
+    a = EC.parse(chain_argv(cfg, pol, A.nworld, ['--enc-offset-deg', str(A.enc_offset_deg), '--pick', 'expert_servo']))
     AlignChain.A = A
     ch = AlignChain(a)
     ch.acfg = c

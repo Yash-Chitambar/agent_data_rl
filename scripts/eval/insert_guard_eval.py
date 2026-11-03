@@ -120,8 +120,8 @@ def run(env, pol, a, guard_on):
     gn = torch.randn(N, 3, device=dev)
     g0 = g0_true + gn[:, 2] * a.sig_gap
     lat0 = lat0_true + gn[:, :2] * torch.tensor(a.sig_lat, device=dev)
-    det2 = SeatDetector2(N, dev, g0, lat0, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate, hold_s=a.seat_hold, speed_mm_s=a.seat_speed, still_mm=2.)
-    det2b = SeatDetector2(N, dev, g0_true, lat0_true, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate, hold_s=a.seat_hold, speed_mm_s=a.seat_speed, still_mm=2.)
+    det2 = SeatDetector2(N, dev, g0, lat0, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate, hold_s=a.seat_hold, speed_mm_s=a.seat_speed, still_mm=a.seat_still)
+    det2b = SeatDetector2(N, dev, g0_true, lat0_true, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate, hold_s=a.seat_hold, speed_mm_s=a.seat_speed, still_mm=a.seat_still)
     old = [SeatDetector(pR[i].cpu(), .006, .0058, .001, .2, .005, env.dt) for i in range(min(N, a.old_n))]
     tcp_ch = env.right_chain
     p0, _ = tcp_ch.fk(q0)
@@ -207,6 +207,7 @@ if __name__ == '__main__':
     ap.add_argument('--margin', type=float, default=1.)
     ap.add_argument('--seat_hold', type=float, default=.5)
     ap.add_argument('--seat_speed', type=float, default=3.)
+    ap.add_argument('--seat_still', type=float, default=2.)
     ap.add_argument('--sig_gap', type=float, default=.63, help='port vision residual 0.49 + run constant 0.4')
     ap.add_argument('--sig_lat', type=float, nargs=2, default=(.39, .95), help='across 0.25 + 0.3, up 0.74 + 0.6')
     ap.add_argument('--friction', default='')
