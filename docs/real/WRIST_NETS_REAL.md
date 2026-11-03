@@ -57,7 +57,7 @@ Reports slope by gap band with bootstrap intervals (frames, blocks), A/A2 differ
 | `wrist_r10w_ft_abs`, `wrist_r10f_ft_abs` | the above | same, 40k renders | **primary**: across, up, gap absolute with vision's offset |
 | `wrist_r10w_ft_rel`, `wrist_r10f_ft_rel` | the above | same | comparison: across, gap absolute, up relative |
 
-Sim: 160k renders, 30 epochs, `--inhand-mode real --reader-look v1 --inhand-real-spread 2`, body 41.26 mm, real PC textures (`blind_insertion/assets/pc_real_look`, from training blocks only), blur up to 2.5 px. Preset v1 at spread 2 covers all 13 rows of `inhand_real_v2` but draws axes independently, so it loses the x-pitch coupling. Fine-tune: 4000 steps at 1e-4, batches of 48 sim, 32 collect, 32 frames of ai1, ai2, ai3, ai5 (n = 229, FK differences within a run). Steps and weights: inner validation blocks 2 and 5, then retrained on all training blocks. Primary nets were named before the hold-out was read. Commands and logs: `results/real/wrist_nets/training/`, `scripts/perception/finetune_wrist_real.py`.
+Sim: 160k renders, 30 epochs, `--inhand-mode real --reader-look v1 --inhand-real-spread 2`, body 41.26 mm, real PC textures (`blind_insertion/assets/pc_real_look`, from training blocks only), blur up to 2.5 px. Preset v1 at spread 2 covers all 13 rows of `inhand_real_v2` but draws axes independently, so it loses the x-pitch coupling. Fine-tune: 4000 steps at 1e-4, batches of 48 sim, 32 collect, 32 frames of ai1, ai2, ai3, ai5 (n = 229, FK differences within a run). Steps and weights: inner validation blocks 2 and 5, then retrained on all training blocks. Primary nets were named before the hold-out was read for any fine-tuned net. The sim-only nets were read on the hold-out first; the fine-tune settings did not change after that. Commands and logs: `results/real/wrist_nets/training/`, `scripts/perception/finetune_wrist_real.py`.
 
 ### Hold-out collect, slope [95 % frame bootstrap]
 
@@ -118,7 +118,7 @@ Settled frames in the sweep's range, slope [95 %]:
 | `wrist_r10w_ft_abs` | ai4 | 38 | 0.96 [0.89, 0.98] | 1.03 [0.99, 1.07] | 1.01 [0.99, 1.03] |
 | | A + A2 | 81 | 1.00 [0.97, 1.02] | 0.94 [0.93, 0.96] | 1.00 [0.99, 1.01] |
 
-All frames, with transport and moving frames (out of range; `eval_*.json`), are lower: 0.77-0.92 across and up. The ai4 last-frames estimate is about 1 mm from vision on up and under 0.6 mm on across and gap, but the frames are not exactly vision's stop frames.
+All frames, with transport and moving frames (out of range; `eval_*.json`), are lower: 0.77-0.94 across and up. I added the settled, in-range subset after seeing low values on all frames for the sim-only nets; both are reported. The ai4 last-frames estimate is about 1 mm from vision on up and under 0.6 mm on across and gap, but the frames are not exactly vision's stop frames.
 
 ### Still good in sim
 
@@ -132,7 +132,7 @@ Round 9's p50 on its own narrower test: v18ws 0.06, 0.18, 0.10. The r10 sim erro
 
 ### What this does and does not show
 
-Shows: on one run and one grasp, the nets read poses they did not train on, across the sweep's range, with about the right scale. On two other grasps and another day (ai4), scale holds too.
+Shows: on one run and one grasp, the nets read poses they did not train on, across the sweep's range, with about the right scale. On other grasps (A, A2) and another day (ai4), the scale holds too.
 
 Does not show:
 
