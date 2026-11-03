@@ -209,8 +209,10 @@ class SimIO:
         preset = self.cfg.get('sim', {}).get('inhand_preset')  # fair dry run: one measured real grasp per episode (envs/inhand_real.py), not the sim's Part 1 mean
         if preset:
             from blind_insertion.envs import inhand_real as IR
-            R_sr, p_sr, d = IR.sample_real(1, preset, device=str(self.dev))
-            R_sr, p_sr = R_sr[0], p_sr[0]
+            d = IR.sample_delta(1, preset, str(self.dev))      # lateral 0 as InsertionTask: the coupled pads centre the reader (render_lateral_mm is for the look)
+            R_rs, p_rs = IR.reader_in_site(d, str(self.dev))
+            R_sr = R_rs[0].T
+            p_sr = -(R_sr @ p_rs[0])
             self.last_inhand_delta = d[0].cpu().numpy()
         p_t, R_t = ch.pick.chain.fk(rt.q[:, rt.indices['right'][0]])
         R_r = R_t @ R_sr.T
@@ -221,7 +223,7 @@ class SimIO:
         from blind_insertion.envs.left_hold import RightInserter
         ins = RightInserter(self.h)
         if preset or rt.fidelity is not None:   # as InsertionTask: pads on the side faces + 0.3 mm (_finger_q's bisection on the nominal model fails on these poses and ejects the reader)
-            rt.q[:, ins.fingers] = float(self.cfg['gripper']['right']['m_reader']) + 3e-4
+            rt.q[:, ins.fingers] = float(ch.env.body_half_width) + .0012 + 3e-4
         else:
             rt.q[:, ins.fingers] = ins._finger_q(rt.q[0])      # pads just touching: the next close squeezes
         rt.v[:] = 0
