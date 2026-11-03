@@ -54,6 +54,7 @@ class SeatDetector2:
         rng = (W[..., 1:].amax(0) - W[..., 1:].amin(0)).amax(1)
         deep = depth >= self.need
         gate_ok = (lat.abs() <= self.gate).all(1)
+        self.deep_ok = deep & gate_ok
         ok = deep & gate_ok & (torch.nan_to_num(v, 0.).abs() <= self.vmax) & (torch.nan_to_num(rng, 0.) <= self.still)
         self.run = torch.where(ok, self.run + 1, torch.zeros_like(self.run))
         self.seated = self.seated | (self.run >= self.n_hold)

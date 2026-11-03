@@ -152,7 +152,9 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
         jr = torch.maximum(torch.minimum(jt[0] + scale * a6, qb[0] + cap), qb[0] - cap)
         jr = jr.clamp(lim[:, 0], lim[:, 1])
         if gd is not None and ic.get('guard'):
-            jr2, _ = gd.limit(chain.q_b[0:1].to(gd.dev), jr[None].to(gd.dev), None if det2 is None else det2.seated)
+            # no press abort or bound stop with the plug at seat depth on the port axis: it is in, not on the case (dry run: lifted out at true depth 5.4 mm)
+            in_port = None if det2 is None else det2.seated | getattr(det2, 'deep_ok', torch.zeros_like(det2.seated))
+            jr2, _ = gd.limit(chain.q_b[0:1].to(gd.dev), jr[None].to(gd.dev), in_port)
             jr = jr2[0].to(dev)
         jt = torch.stack([jr, q_hold.reshape(6).to(dev).float()])
         chain.hstep(jt[0], jt[1], '5 insert')
@@ -192,6 +194,9 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
             outcome, t_seat = 'seated_detected', t
             chain.log_event('seated_detected', step=t, depth_mm=depth * 1e3)
             break
+        if det2 is not None and t == T - 1 and bool(det2.deep_ok[0]):      # time limit with the plug at depth on the axis, never at rest for 0.5 s
+            outcome, t_seat = 'seated_detected', t
+            chain.log_event('seated_detected', step=t, depth_mm=depth * 1e3, at_time_limit=True)
     # stop the push: hold the measured right pose for 0.2 s (the left keeps its press)
     for _ in range(int(round(0.2 / chain.dt))):
         chain.hstep(chain.q_b[0].clone(), q_hold.reshape(6), '5 insert')
