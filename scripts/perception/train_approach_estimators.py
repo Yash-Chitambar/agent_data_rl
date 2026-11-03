@@ -171,7 +171,7 @@ def main():
     r.ins.cfg.tilt_deg = a.tilt
     r.ins.cfg.inhand = a.inhand_mode
     if a.inhand_mode == 'real':
-        r.ins.cfg.grasp_real_spread = a.inhand_real_spread
+        r.ins.cfg.inhand_real_spread = a.inhand_real_spread
     if a.servo_stretch:
         r.ins.cfg.servo_stretch = tuple(a.servo_stretch)
     cfg = SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot)

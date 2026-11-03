@@ -442,6 +442,7 @@ class InsertCfg:
     # 'real': the measured real grasp (envs/inhand_real.py, preset inhand_real_preset).
     inhand: str = 'measured'
     inhand_real_preset: str = 'v1'
+    inhand_real_spread: float = 1.          # scale on the preset's half ranges (the preset is one reader spot)
     servo_stretch: tuple = (.8, 1.4)        # 'servo_pick': deviation scale range about the mean
 
 
@@ -473,7 +474,7 @@ class RightInserter:
                 self.R_sr, self.p_sr, self.inhand = sample_measured(n, device=dev)
             elif c.inhand == 'real':
                 from blind_insertion.envs.inhand_real import sample_real
-                self.R_sr, self.p_sr, self.inhand = sample_real(n, c.inhand_real_preset, device=dev)
+                self.R_sr, self.p_sr, self.inhand = sample_real(n, c.inhand_real_preset, device=dev, spread=c.inhand_real_spread)
             elif c.inhand == 'servo_pick':
                 from blind_insertion.envs.inhand import sample_servo_pick
                 self.R_sr, self.p_sr, self.inhand = sample_servo_pick(n, device=dev, stretch=c.servo_stretch)

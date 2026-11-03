@@ -7,7 +7,7 @@ Training frames (scripts/real/wrist_net_real_eval.py fixes the split; its hold-o
   collect training blocks: across and gap against the label; up only as differences between frames of the batch (the run's constant
     height offset is not known: docs/real/SESSION_20261102_duchamp3.md); rotation as differences, low weight.
   ai1, ai2, ai3, ai5 (`unlabeled`, settled frames): FK differences within a run only, all axes. They bring other grasps and another day.
-  sim renders (same generator as train_approach_estimators, real_fit in-hand, real PC look): all axes absolute. They fix the absolute
+  sim renders (same generator as train_approach_estimators, measured in-hand preset v1, real reader and PC look): all axes absolute. They fix the absolute
     height, which the real loss leaves free.
 Selection: --val-blocks are left out of training and scored for the choice of steps and weights. The hold-out is for the final report only.
 Output: runs/perception_real/<name>.pt, runs/perception_real/<name>.json (training record).
@@ -92,10 +92,9 @@ def render_sim(a, n):
     from blind_insertion.perception.render_data import ApproachRenderer, SampleCfg
     import scripts.perception.train_approach_estimators as T
     r = ApproachRenderer(nworld=512, seed=a.seed + 77, task_layout='results/usbc/policy/pick/task_layout.json', visual_dr=dict(blur_sigma_px=(0., 2.5)),
-                         grasp_fidelity={'reader_body_length_m': .0296}, pc_real_look=a.look)
-    r.ins.cfg.inhand = 'real_fit'
-    r.ins.cfg.inhand_pos_mm, r.ins.cfg.inhand_rot_deg = 2.5, 4.
-    r.ins.cfg.real_fit_tip_mm = tuple(json.load(open(a.fit))['tip_shift_tcp_mm'])
+                         inhand_real='v1', pc_real_look=a.look)
+    r.ins.cfg.inhand = 'real'
+    r.ins.cfg.inhand_real_spread = a.spread
     T.MODE.update(wrist='resize', two_view=False, cpu=True)
     X, Y = T.generate(r, 'wrist', n, SampleCfg(lateral_m=a.lateral, gap_m=tuple(a.gap), rot_deg=a.rot))
     return X.numpy(), Y.numpy()
@@ -109,7 +108,7 @@ def main():
     ap.add_argument('--gap', type=float, nargs=2, default=(.002, .022))
     ap.add_argument('--rot', type=float, default=5.)
     ap.add_argument('--look', default='blind_insertion/assets/pc_real_look')
-    ap.add_argument('--fit', default='results/real/wrist_nets/geometry_fit.json')
+    ap.add_argument('--spread', type=float, default=2., help='scale on the in-hand preset half ranges in the renders')
     ap.add_argument('--steps', type=int, default=4000)
     ap.add_argument('--lr', type=float, default=1e-4)
     ap.add_argument('--n-sim', type=int, default=40000)
