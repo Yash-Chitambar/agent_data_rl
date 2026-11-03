@@ -1,0 +1,76 @@
+{
+ "slope 1": {
+  "n": 1000,
+  "done": 993,
+  "rate": 0.993,
+  "stops": {
+   "scale gate": 1,
+   "scale gate after the probes": 6
+  },
+  "cycles_p50": 15.0
+ },
+ "old fine net 0.34 0.17 0.35": {
+  "n": 1000,
+  "done": 1,
+  "rate": 0.001,
+  "stops": {
+   "scale gate after the probes": 757,
+   "scale gate": 217,
+   "measurement against FK": 25
+  },
+  "cycles_p50": 9.0
+ },
+ "old coarse net 0.50 0.32 0.59": {
+  "n": 1000,
+  "done": 3,
+  "rate": 0.003,
+  "stops": {
+   "scale gate after the probes": 406,
+   "scale gate": 586,
+   "measurement against FK": 5
+  },
+  "cycles_p50": 11.0
+ },
+ "up 0.5 only": {
+  "n": 1000,
+  "done": 197,
+  "rate": 0.197,
+  "stops": {
+   "scale gate": 710,
+   "scale gate after the probes": 92,
+   "measurement against FK": 1
+  },
+  "cycles_p50": 12.0
+ },
+ "across 0.5 only": {
+  "n": 1000,
+  "done": 212,
+  "rate": 0.212,
+  "stops": {
+   "scale gate": 623,
+   "scale gate after the probes": 165
+  },
+  "cycles_p50": 15.0
+ },
+ "gap 0.5 only": {
+  "n": 1000,
+  "done": 203,
+  "rate": 0.203,
+  "stops": {
+   "scale gate": 695,
+   "scale gate after the probes": 102
+  },
+  "cycles_p50": 15.0
+ },
+ "up 1.8 only": {
+  "n": 1000,
+  "done": 0,
+  "rate": 0.0,
+  "stops": {
+   "scale gate": 824,
+   "scale gate after the probes": 147,
+   "measurement against FK": 29
+  },
+  "cycles_p50": null
+ }
+}

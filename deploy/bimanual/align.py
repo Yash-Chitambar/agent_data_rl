@@ -29,7 +29,7 @@ DEFAULTS = dict(
     frames=5, min_good=3, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
     max_cycles=60, max_time_s=120.0, post_press_cycles=6, max_lat_mm=20.0, max_advance_mm=16.0,
     drift_mm=1.0, drift_n=2, pred_mm=2.5, pred_n=2, grow_margin_mm=.5, grow_n=4, grow_abs_mm=9.0, grip_change=.02,
-    probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_early=[.25, 2.0], slope_min_motion_mm=1.5,
+    probe_mm=[2.0, 3.0, 2.0], extra_probe_mm=[2.0, 3.0, 2.0], extra_probes=4, slope_min=.6, slope_max=1.6, slope_se_max=.2, slope_noise_floor_mm=[.1, .1, .1],
     inhand_refresh=True, settle_s=.3, settle_max_s=1.5, still_rad_s=.02, move_tol_mm=.3, step_timeout_s=3.0, stuck_n=3,
     lead_rate_rad_s=[.02, .04, .04, .02, .05, .05], lead_max_rad=[.02, .045, .045, .012, .06, .06], eps_rad=[.001, .001, .001, .002, .003, .003],
     heavy=[False, True, True, False, False, False], ki_per_s=1.0, relax=.1, move_eps_rad=.0005, release=.3,
@@ -220,31 +220,50 @@ class AlignLogic:
                 d[ax] = mm
                 self.pending_probe += [('probe', d), ('probe', -d)]
         self.probing = False
-        self.sxx, self.sxy = np.zeros(3), np.zeros(3)
+        self.levels = []
+        self.extra_probes = int(c['extra_probes'])
+        self.scale_ok = False
         self.grip0 = None
         self.fused = []
         self.last_fused = None
 
     def slope(self):
-        out = []
+        """Measurement against FK motion, per axis: regression on the levels of all cycles at their poses (differences would double the pose noise)."""
+        return self.slope_se()[0]
+
+    def slope_se(self):
+        if len(self.levels) < 3:
+            return [None] * 3, [float('inf')] * 3
+        A = np.asarray(self.levels, float)      # (n, 6): tip, measurement
+        sl, se = [], []
         for i in range(3):
-            out.append(float(self.sxy[i] / self.sxx[i]) if self.sxx[i] > 0 else None)
-        return out
+            x, y = A[:, i] - A[:, i].mean(), A[:, i + 3] - A[:, i + 3].mean()
+            sxx = float(x @ x)
+            if sxx < 1e-6:
+                sl.append(None)
+                se.append(float('inf'))
+                continue
+            b = float(x @ y) / sxx
+            res = y - b * x
+            sd = max(float(np.sqrt(res @ res / max(len(x) - 2, 1))), self.c['slope_noise_floor_mm'][i])
+            sl.append(b)
+            se.append(sd / np.sqrt(sxx))
+        return sl, se
 
     def slope_check(self):
-        """(ok, reason): the measurement must follow FK motion, per axis."""
+        """(ok, axis needing more motion or None, reason): the measurement must follow FK motion, per axis, known within slope_se_max."""
         c = self.c
-        need = c['slope_min_motion_mm'] ** 2
-        for i, s in enumerate(self.slope()):
-            if s is None:
-                if need > 0:
-                    return False, f'{AXES[i]}: no motion to check the measurement scale'
+        sl, se = self.slope_se()
+        need = None
+        for i in range(3):
+            if sl[i] is None or se[i] > c['slope_se_max']:
+                need = i if need is None else need
                 continue
-            if self.sxx[i] < need:
-                return False, f'{AXES[i]}: not enough motion to check the measurement scale ({math.sqrt(self.sxx[i]):.1f} mm)'
-            if not (c['slope_min'] <= s <= c['slope_max']):
-                return False, f'{AXES[i]}: measurement moves {s:.2f} mm per mm of FK motion (allowed {c["slope_min"]}-{c["slope_max"]})'
-        return True, ''
+            if not (c['slope_min'] <= sl[i] <= c['slope_max']):
+                return False, None, f'{AXES[i]}: measurement moves {sl[i]:.2f} mm per mm of FK motion (allowed {c["slope_min"]}-{c["slope_max"]})'
+        if need is not None:
+            return False, need, f'{AXES[need]}: motion too small to check the measurement scale (se {se[need]:.2f})'
+        return True, None, ''
 
     def fail(self, reason, **kw):
         return dict(kind='fail', reason=reason, delta=np.zeros(3), **kw)
@@ -287,8 +306,6 @@ class AlignLogic:
         if self.last_m is not None:
             dtip = tip - self.last_tip
             dm = v - self.last_m
-            self.sxx += dtip ** 2
-            self.sxy += dtip * dm
             moved = np.linalg.norm(dtip)
             perr = np.abs(dm - dtip)
             if self.moved_since is False and moved > c['drift_mm']:
@@ -305,6 +322,8 @@ class AlignLogic:
             else:
                 self.pred_bad = 0
         self.last_m, self.last_tip = v, tip
+        if not self.scale_ok:
+            self.levels.append(np.r_[tip, v])
         # port in the FK frame: measurement - FK tip, median of the last cycles. FK is good for small relative moves, the vision residual changes from pose to pose (up 0.74 mm).
         self.fused.append(v - tip)
         vf = np.median(self.fused[-int(c['fuse_n']):], 0) + tip
@@ -321,9 +340,10 @@ class AlignLogic:
         if self.probing:          # the first cycle after the probes starts the divergence count
             self.probing = False
             self.last_e, self.best_e = e, e
-            for i, sl in enumerate(self.slope()):      # a camera that does not follow the hand stops here, before any correction (loose: one probe, noisy; the hand-over gate is tighter)
-                if self.sxx[i] >= c['slope_min_motion_mm'] ** 2 and not (c['slope_early'][0] <= sl <= c['slope_early'][1]):
-                    return self.fail(f'scale gate after the probes: {AXES[i]} measurement moves {sl:.2f} mm per mm of FK motion', err=err)
+            sl_, se_ = self.slope_se()
+            for i in range(3):      # a camera that does not follow the hand stops here, before any correction: clearly out, by more than 2 standard errors
+                if sl_[i] is not None and (sl_[i] + 2 * se_[i] < c['slope_min'] or sl_[i] - 2 * se_[i] > c['slope_max']):
+                    return self.fail(f'scale gate after the probes: {AXES[i]} measurement moves {sl_[i]:.2f} mm per mm of FK motion (se {se_[i]:.2f})', err=err)
         if self.last_e is not None:
             if e > self.last_e + c['grow_margin_mm']:
                 self.grow += 1
@@ -340,9 +360,20 @@ class AlignLogic:
                     return self.fail('second source has no reading at the hand-over', err=err)
                 if dis is not None and c['disagree_mode'] == 'gate' and (dis > np.asarray(c['disagree_mm'], float)).any():
                     return self.fail(f'sources disagree at the hand-over {dis.round(2).tolist()} mm', err=err)
-                ok, why = self.slope_check()
-                if not ok:
-                    return self.fail('scale gate: ' + why, err=err)
+                if not self.scale_ok:
+                    ok, ax, why = self.slope_check()
+                    if not ok and ax is not None and self.extra_probes > 0:      # not known well enough yet: another probe on that axis, and back
+                        self.extra_probes -= 1
+                        d = np.zeros(3)
+                        d[ax] = self.c['extra_probe_mm'][ax]
+                        self.pending_probe += [('probe', -d)]
+                        self.confirm = 0
+                        self.probing = False
+                        self.moved_since = True
+                        return dict(kind='step', delta=d, reason='extra probe', err=err, e=e, is_probe=True)
+                    if not ok:
+                        return self.fail('scale gate: ' + why, err=err)
+                    self.scale_ok = True
                 self.final = vf.copy()
                 return dict(kind='done', delta=np.zeros(3), err=err, e=e, reason='within tolerance')
             return dict(kind='retry', reason='confirm', delta=np.zeros(3), err=err, e=e)

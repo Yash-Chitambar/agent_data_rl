@@ -70,7 +70,7 @@ def main():
         tip = tip + d['delta']
     check('frozen measurement stops after the probes', d['kind'] == 'fail' and 'after the probes' in d['reason'] and lg.cycle <= 7, f"{d.get('reason')} cycle {lg.cycle}")
     # already aligned with no motion: the scale cannot be checked
-    lg = logic(probe_mm=[0, 0, 0])
+    lg = logic(probe_mm=[0, 0, 0], extra_probes=0)
     d, p = drive(lg, (0., 0., 6.))
     check('no motion, no hand-over', d['kind'] == 'fail' and 'scale' in d['reason'], d.get('reason'))
     # no measurement
@@ -84,11 +84,11 @@ def main():
         d = lg.update(M(0, 0, 6, conf=.1), None, np.zeros(3))
     check('low confidence stops', d['kind'] == 'fail', d.get('reason'))
     # sources disagree
-    lg = logic(slope_min_motion_mm=0.)
+    lg = logic(extra_probes=0)
     lg.update(M(0, 0, 6), M(0, 5, 6), np.zeros(3))
     d = lg.update(M(0, 0, 6), M(0, 5, 6), np.zeros(3))
     check('sources disagree at the hand-over stops', d['kind'] == 'fail' and 'disagree' in d['reason'], d.get('reason'))
-    lg = logic(slope_min_motion_mm=0., secondary_required=True)
+    lg = logic(extra_probes=0, secondary_required=True)
     lg.update(M(0, 0, 6), None, np.zeros(3))
     d = lg.update(M(0, 0, 6), None, np.zeros(3))
     check('no second source at the hand-over stops', d['kind'] == 'fail' and 'second source' in d['reason'], d.get('reason'))
@@ -103,7 +103,7 @@ def main():
     d = lg.update(M(0, 5, 8), None, np.array([0, 25., 0]))
     check('displacement limit stops', d['kind'] == 'fail', d.get('reason'))
     # drift
-    lg = logic()
+    lg = logic(slope_se_max=1e9, extra_probes=0)
     d = lg.update(M(0, 0, 6), None, np.zeros(3))
     d = lg.update(M(0, 0, 6), None, np.array([0, 2., 0]))
     d = lg.update(M(0, 0, 6), None, np.array([0, 4., 0]))

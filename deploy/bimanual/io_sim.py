@@ -220,7 +220,10 @@ class SimIO:
         rt.q[:, pa + 3:pa + 7] = K.mat_to_quat(R_r)
         from blind_insertion.envs.left_hold import RightInserter
         ins = RightInserter(self.h)
-        rt.q[:, ins.fingers] = ins._finger_q(rt.q[0])          # pads just touching: the next close squeezes
+        if preset or rt.fidelity is not None:   # as InsertionTask: pads on the side faces + 0.3 mm (_finger_q's bisection on the nominal model fails on these poses and ejects the reader)
+            rt.q[:, ins.fingers] = float(self.cfg['gripper']['right']['m_reader']) + 3e-4
+        else:
+            rt.q[:, ins.fingers] = ins._finger_q(rt.q[0])      # pads just touching: the next close squeezes
         rt.v[:] = 0
         self.pending.pop('right', None)
         self.ch.forward()
