@@ -441,7 +441,7 @@ class InsertCfg:
     # the provisional tilt_deg / pad_z_m pose +/- inhand_pos_mm / inhand_rot_deg.
     # 'real': the measured real grasp (envs/inhand_real.py, preset inhand_real_preset).
     inhand: str = 'measured'
-    inhand_real_preset: str = 'v1'
+    inhand_real_preset: str = 'v2'
     servo_stretch: tuple = (.8, 1.4)        # 'servo_pick': deviation scale range about the mean
 
 

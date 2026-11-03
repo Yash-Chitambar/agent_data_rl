@@ -151,6 +151,10 @@ class InsertionCfg:
     # per-episode Gaussian estimate error (sigma: m, deg). The chain feeds the perception estimate here.
     inhand_obs: bool = False
     inhand_obs_noise: tuple = (0.0005, 0.5)
+    # Eval only. inhand_obs_fixed: a constant in-hand estimate (the real net reads the same on every grasp) instead of the
+    # true pose. start_offset_m: constant (x, y) added to the uniform lateral start error (a graph hand-over offset).
+    inhand_obs_fixed: tuple | None = None
+    start_offset_m: tuple = (0., 0.)
     grasp_p: tuple | None = None        # legacy 60-deg geometric grasp only (grasp='geometric60')
     # In-hand pose: 'part1' = Part 1's measured pick (scenes/reader_grasp.inhand_pose(): 55-deg grasp,
     # mean pose about the nominal, per-axis p1..p99 spread of 2048 held-out picks) with the spread x
@@ -159,7 +163,7 @@ class InsertionCfg:
     # 'real': the measured real grasp (envs/inhand_real.py, preset grasp_real), about the same Part 1 nominal, so the
     # policy's in-hand input keeps its meaning. grasp_real_spread scales the preset's half ranges.
     grasp: str = 'part1'
-    grasp_real: str = 'v1'
+    grasp_real: str = 'v2'
     grasp_real_spread: float = 1.
     inhand_spread_scale: float = 1.25
     # Extra uniform in-hand error on top of grasp='part1' (perception-driven pick, p99 ~4 mm / 1.4 deg vs the
@@ -460,7 +464,7 @@ class InsertionTask(BimanualTask):
             port_p, port_R = self._port_pose(pc)
             # plug relative to the port
             if c.start_source == 'uniform':
-                lat = u(k, 2) * torch.tensor(c.lateral_m, device=dev)
+                lat = u(k, 2) * torch.tensor(c.lateral_m, device=dev) + torch.tensor(c.start_offset_m, device=dev)
                 gap = c.gap_m[0] + (c.gap_m[1] - c.gap_m[0]) * (u(k) + 1) / 2
                 ang = u(k, 3) * c.angle_deg * math.pi / 180
             else:
@@ -871,7 +875,10 @@ class InsertionTask(BimanualTask):
         return torch.cat([(rel[:, :3, 3] - p0) * 1e3, dr], 1)
 
     def _set_inhand_est(self, ids):
-        self.inhand_est[ids] = self.inhand_error(self.ref_rel[ids]) + self.inhand_noise[ids]
+        if self.icfg.inhand_obs_fixed is not None:
+            self.inhand_est[ids] = torch.tensor(self.icfg.inhand_obs_fixed, device=self.device) + self.inhand_noise[ids]
+        else:
+            self.inhand_est[ids] = self.inhand_error(self.ref_rel[ids]) + self.inhand_noise[ids]
 
     def _reader_in_tcp(self):
         rt = self.runtime

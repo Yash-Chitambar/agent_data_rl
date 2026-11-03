@@ -1,0 +1,149 @@
+{
+ "_about": "Real grasp v2: one row per picked grasp (13, 2026-11-02, same deltas and frame as v1; roll about the reader axis 0; closing axis follows from the pads). Each draw takes one measured grasp, stretched about the mean by U(stretch) because one reader spot understates the real spread, plus jitter at the within-grasp SD. A and A2 are the extremes of the 13. Hand-placed grasps (ai1 to ai5) are left out. See docs/real/INHAND_REAL.md.",
+ "inhand": {
+  "rows": [
+   [
+    8.24,
+    0.0,
+    -1.67,
+    -1.44,
+    4.35,
+    -1.01
+   ],
+   [
+    7.25,
+    0.0,
+    -1.73,
+    -1.26,
+    3.46,
+    -0.88
+   ],
+   [
+    9.39,
+    0.0,
+    -2.07,
+    -1.39,
+    4.73,
+    -0.97
+   ],
+   [
+    9.36,
+    0.0,
+    -2.0,
+    -1.33,
+    5.02,
+    -0.93
+   ],
+   [
+    7.57,
+    0.0,
+    -2.33,
+    -1.39,
+    3.85,
+    -0.97
+   ],
+   [
+    7.41,
+    0.0,
+    -1.53,
+    -1.24,
+    3.34,
+    -0.87
+   ],
+   [
+    8.35,
+    0.0,
+    -1.54,
+    -1.32,
+    4.35,
+    -0.92
+   ],
+   [
+    7.58,
+    0.0,
+    -3.12,
+    -1.3,
+    3.0,
+    -0.91
+   ],
+   [
+    8.23,
+    0.0,
+    -1.69,
+    -0.74,
+    4.42,
+    -0.52
+   ],
+   [
+    8.16,
+    0.0,
+    -2.07,
+    -1.18,
+    4.13,
+    -0.83
+   ],
+   [
+    8.26,
+    0.0,
+    -1.21,
+    -0.58,
+    4.58,
+    -0.41
+   ],
+   [
+    7.95,
+    0.0,
+    -1.99,
+    -1.45,
+    3.84,
+    -1.02
+   ],
+   [
+    7.6,
+    0.0,
+    -1.54,
+    -1.42,
+    3.78,
+    -0.99
+   ]
+  ],
+  "stretch": [
+   1.0,
+   1.25
+  ],
+  "jitter_mm": [
+   0.1,
+   0.0,
+   0.1
+  ],
+  "jitter_deg": [
+   0.2,
+   0.2,
+   0.2
+  ],
+  "render_lateral_mm": 1.45,
+  "n_grasps": 13,
+  "runs": [
+   "collect_182100_collect1",
+   "full_174850_full_A",
+   "full_175742_full_A2",
+   "pick_155557_batchA",
+   "pick_170747_batchA",
+   "pick_171054_batchA",
+   "pick_171422_batchA",
+   "pick_172019_batchA",
+   "pick_172356_batchA",
+   "pick_172750_batchA",
+   "pick_173136_batchA",
+   "pick_173502_batchA",
+   "pick_173821_batchA"
+  ]
+ },
+ "look": {
+  "silver_width_m": 0.0296,
+  "silver_length_m": 0.0346,
+  "silver_front_z_m": 0.0492,
+  "shoulder_length_m": 0.005,
+  "shoulder_front_width_m": 0.0135
+ }
+}

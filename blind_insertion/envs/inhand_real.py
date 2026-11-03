@@ -25,6 +25,15 @@ def load(name='v1'):
 def sample_delta(n, preset='v1', device='cpu', generator=None, spread=1.):
     """(n, 6): deltas, the measured mean plus a uniform draw in +/- half_range x spread. spread 0: the mean."""
     c = load(preset)['inhand'] if isinstance(preset, str) else preset
+    if 'rows' in c:      # one measured grasp per draw: keeps the measured coupling of x and pitch (r = -0.88 over grasps)
+        rows = torch.tensor(c['rows'], device=device, dtype=torch.float32)
+        mu = rows.mean(0)
+        i = torch.randint(len(rows), (n,), device=device, generator=generator)
+        lo, hi = c['stretch']
+        k = lo + (hi - lo) * torch.rand(n, 1, device=device, generator=generator)
+        z = torch.randn(n, 6, device=device, generator=generator) * torch.tensor(c['jitter_mm'] + c['jitter_deg'], device=device)
+        z[:, 1] = 0
+        return mu + (rows[i] - mu) * k * spread + z * spread
     mu = torch.tensor(c['mean_mm'] + c['mean_rotvec_deg'], device=device, dtype=torch.float32)
     h = torch.tensor(c['half_range_mm'] + c['half_range_deg'], device=device, dtype=torch.float32)
     return mu + (torch.rand(n, 6, device=device, generator=generator) * 2 - 1) * h * spread

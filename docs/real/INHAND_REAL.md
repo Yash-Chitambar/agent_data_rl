@@ -4,7 +4,7 @@ Status: v1. Off by default. Measured on 13 real grasps of 2026-11-02, one reader
 
 ## How to enable
 
-Preset: `blind_insertion/configs/inhand_real_v1.json`. Module: `blind_insertion/envs/inhand_real.py`.
+Presets: `blind_insertion/configs/inhand_real_v2.json` (use this; one row per measured grasp, default of `grasp_real` and `inhand_real_preset`) and `inhand_real_v1.json` (same mean, independent uniform box, frozen for the K-J numbers). Both have the same look. Module: `blind_insertion/envs/inhand_real.py`.
 
 | What | Setting | Effect |
 |---|---|---|
@@ -38,7 +38,7 @@ Claim checked: "reader body 41.3 mm in sim, 29.6 mm real". **The body is about 4
 
 ## The real grasp
 
-Method: `scripts/real2sim/inhand_measure.py`. Held-still frames after the lift, 13 grasps, 26 of 40 frames pass the fit (RMS under 5 px; best 2.5 px). Features: 4 corners of the silver plate and 4 of the plug, 6-dof fit on the camera. The camera to site transform has no joints in it.
+Method: `scripts/real2sim/inhand_measure.py`. Held-still frames after the lift, 13 grasps, 24 of 40 frames pass the fit (RMS under 5 px; best 2.5 px). Features: 4 corners of the silver plate and 4 of the plug, 6-dof fit on the camera. The camera to site transform has no joints in it.
 
 Deltas about the Part 1 nominal on the TCP axes, hand-eye camera (median, SD over grasps; n = 13):
 
@@ -53,7 +53,22 @@ Deltas about the Part 1 nominal on the TCP axes, hand-eye camera (median, SD ove
 
 Independent check of pitch: the reader lies flat on the table when the jaws close, so reader pitch in hand = hand tilt at the close minus 55 deg. FK at the end of the squeeze gives a tilt of 59.02 deg, SD 0.53. Reader axis against the table, using the camera fit and that FK: 0.06 deg, SD 0.20 (flat). Plug tip height above the table: 5.17 mm, SD 0.90 (flat on the table: about 4.4 mm). So the camera fit and the encoders agree on pitch within 0.2 deg, and on height within 0.8 mm.
 
-**Cause of the pitch:** the hand closes at 59 deg, not at 55 deg. The butt angle is the hand's tilt error at the close. The reader stays flat on the table, so the grasp keeps the same angle.
+**Cause of the pitch:** the hand closes at 59 deg, not at 55 deg. The butt angle is the hand's tilt error at the close. The reader stays flat on the table, so the grasp keeps the same angle. Over the 13 grasps: pitch = FK tilt at the end of the squeeze - 55 deg, r = 0.96, mean difference -0.04 deg, residual SD 0.17 deg. **So the encoders give each grasp's pitch** without a net. x follows it (r = 0.80 with the tilt).
+
+## Spread between grasps
+
+Port vision (`docs/real/PORT_VISION.md`, branch `real/port-vision`) found that A and A2 are not the same grasp: shell end 12.7 px and rear edge 12.3 px lower in A2 at the stop. This measurement agrees, and shows when it happened:
+
+| A2 - A | This fit, held frames after the pick | Port vision, at the stop |
+|---|---|---|
+| Shell row (port vision's own detector) | +12.8 px (531.4 and 544.2, from the end of the pick on) | +12.7 px |
+| Plug in the hand, height | -1.56 mm | -1.39 mm (tip +3.88 minus camera +5.27) |
+| Pitch | -1.27 deg | not an output |
+
+- The difference exists before the transport: no slip on the way. FK tilt at the close: A 58.44, A2 59.52 deg, so it comes from the servo's tilt at the close.
+- A and A2 are the two extremes of the 13 for pitch (A2 close to the top) and for the shell row. Spread over the 13 picked grasps (SD): x 0.67 mm, z 0.48 mm, pitch 0.59 deg, tip row 3.5 px. x and pitch are coupled, r = -0.88.
+- **`v1`'s box:** covers A and A2, but not the lowest z of the 13 (-1.12 mm against -0.69). Its draws are independent, so x and pitch lose their coupling. **`v2`** draws one measured grasp, stretched about the mean by U(1, 1.25), plus jitter at the within-grasp SD: it covers all 13 and keeps the coupling (checked in `tests/test_inhand_real.py`).
+- Left out: ai1 to ai5, hand-placed (ai1 rolled edge-on, ai3 with the shell above the window). A real pick cannot be assumed to stay in this range at another reader spot.
 
 Where the jaws hold it: pad centroid 58.9 mm from the plug tip along the reader (nominal 61.5 mm) and 10.2 mm above its mid-plane (nominal 8.8 mm).
 
