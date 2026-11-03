@@ -439,7 +439,10 @@ class InsertCfg:
     inhand_rot_deg: float = 8.
     # 'measured': the Part 1 post-pick in-hand poses (inhand.sample_measured; 55-deg grasp); 'uniform':
     # the provisional tilt_deg / pad_z_m pose +/- inhand_pos_mm / inhand_rot_deg.
+    # 'real': the measured real grasp (envs/inhand_real.py, preset inhand_real_preset).
     inhand: str = 'measured'
+    inhand_real_preset: str = 'v1'
+    inhand_real_spread: float = 1.          # scale on the preset's half ranges (the preset is one reader spot)
     servo_stretch: tuple = (.8, 1.4)        # 'servo_pick': deviation scale range about the mean
 
 
@@ -469,6 +472,9 @@ class RightInserter:
             if c.inhand == 'measured':
                 from blind_insertion.envs.inhand import sample_measured
                 self.R_sr, self.p_sr, self.inhand = sample_measured(n, device=dev)
+            elif c.inhand == 'real':
+                from blind_insertion.envs.inhand_real import sample_real
+                self.R_sr, self.p_sr, self.inhand = sample_real(n, c.inhand_real_preset, device=dev, spread=c.inhand_real_spread)
             elif c.inhand == 'servo_pick':
                 from blind_insertion.envs.inhand import sample_servo_pick
                 self.R_sr, self.p_sr, self.inhand = sample_servo_pick(n, device=dev, stretch=c.servo_stretch)

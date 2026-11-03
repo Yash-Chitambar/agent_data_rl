@@ -12,7 +12,7 @@ import mujoco_warp as mjw
 import numpy as np
 import torch
 import warp as wp
-from blind_insertion.envs import arm_residual as AR, friction_comp as FC, grasp_fidelity as GF, kinematics as K, visual_dr as VD
+from blind_insertion.envs import arm_residual as AR, friction_comp as FC, grasp_fidelity as GF, inhand_real as IR, kinematics as K, visual_dr as VD
 from blind_insertion.scenes import pc_bench as S, physical_rig as R
 
 
@@ -46,6 +46,10 @@ class BimanualCfg:
     # opposite offset ('camera': images match, grasp physics unchanged). 'tips' moves the fingers.
     tip_offset: str | None = 'results/usbc/gripper_sweep/sweep_20261030/fit.json'
     tip_offset_target: str = 'camera'
+    # Real reader look (silver plate, shoulder) from a preset of envs/inhand_real.py (docs/real/INHAND_REAL.md), e.g. 'v1'.
+    # Visual only; None keeps the old look. The in-hand distribution is chosen by the task (InsertionCfg.grasp='real',
+    # InsertCfg.inhand='real').
+    inhand_real: str | None = None
     # Task layout from the reachability search (scripts/task/explore_pc_placement.py): nominal PC
     # port pose and the SD reader's pick region. Each reset samples, per world, the PC port at the
     # nominal +/- pc_pose_range (x m, y m, yaw deg) and the reader uniformly in the region (x, y,
@@ -96,6 +100,29 @@ class BimanualCfg:
     # Realistic reader-grasp contact (envs/grasp_fidelity.py, docs/real/GRASP_FIDELITY.md): None (baseline), a preset
     # name ('v1': configs/grasp_fidelity_v1.json), a JSON path or a dict. Not validated for training yet.
     grasp_fidelity: object = None
+    # PC panel and lid textures taken from real wrist frames (scripts/real/wrist_real_textures.py): a directory with
+    # panel.png, top.png. None keeps the rear photo and the sticker blocks.
+    pc_real_look: str | None = None
+
+
+def _add_pc_real_look(sp, path):
+    """Replace the rear photo with the real wrist-view panel, hide the sticker blocks, lay the real lid image on the lid."""
+    p = Path(path) if Path(path).is_absolute() else Path(__file__).resolve().parents[2] / path
+    next(t for t in sp.textures if t.name == 'pc_rear_photo').file = str(p / 'panel.png')
+    meta = json.loads((p / 'top.json').read_text())
+    fix = next(b for b in sp.bodies if b.name == 'fixture')
+    for g in fix.geoms:
+        if g.name.startswith(('detail_ryzen', 'detail_radeon')):
+            g.rgba = [0, 0, 0, 0]
+    sp.add_texture(name='pc_real_top', type=mujoco.mjtTexture.mjTEXTURE_2D, file=str(p / 'top.png'))
+    mat = sp.add_material(name='pc_real_top', rgba=[1, 1, 1, 1], specular=.15, shininess=.1)
+    mat.textures[mujoco.mjtTextureRole.mjTEXROLE_RGB] = 'pc_real_top'
+    x0, x1, y, z0, z1 = (meta[k] for k in ('x0', 'x1', 'y', 'z0', 'z1'))
+    v = np.array([[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1], [x0, y - 1e-4, z0], [x1, y - 1e-4, z0], [x1, y - 1e-4, z1], [x0, y - 1e-4, z1]])
+    uv = np.array([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0], [0, 0], [0, 0], [0, 0]], float)
+    f = np.array([[0, 1, 2], [0, 2, 3]])
+    sp.add_mesh(name='pc_real_top_mesh', inertia=mujoco.mjtMeshInertia.mjMESH_INERTIA_SHELL, uservert=v.ravel(), userface=f.ravel(), usertexcoord=uv.ravel(), userfacetexcoord=f.ravel())
+    fix.add_geom(name='pc_real_top_surface', type=mujoco.mjtGeom.mjGEOM_MESH, meshname='pc_real_top_mesh', material='pc_real_top', contype=0, conaffinity=0, mass=0)
 
 
 class BimanualRuntime:
@@ -116,10 +143,12 @@ class BimanualRuntime:
         def extra(sp):
             if self.visual_dr_cfg is not None: VD.add_assets(sp)
             if gf is not None: GF.add_spec(sp, gf)
+            if c.pc_real_look: _add_pc_real_look(sp, c.pc_real_look)
         self.mjm, self.lay = S.build_scene(detailed=True, bimanual=True, measured_support=True,
             support_mode='free', profile=json.loads(profile_path.read_text()), controller_profile=c.controller_profile,
-            extra_spec=extra if (self.visual_dr_cfg is not None or gf is not None) else None,
-            reader_body_length=gf.reader_body_length_m if gf is not None else None)
+            extra_spec=extra if (self.visual_dr_cfg is not None or gf is not None or c.pc_real_look) else None,
+            reader_body_length=gf.reader_body_length_m if gf is not None else None,
+            reader_look=None if c.inhand_real is None else IR.load(c.inhand_real)['look'])
         m = self.mjm
         gf_geoms = GF.apply_model(m, self.lay, gf) if gf is not None else None
         self.profile = None

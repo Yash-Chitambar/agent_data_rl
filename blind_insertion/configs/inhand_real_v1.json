@@ -1,0 +1,39 @@
+{
+ "_about": "Real grasp, right wrist camera, 13 grasps 2026-11-02 (docs/real/INHAND_REAL.md). Deltas about the Part 1 nominal on the TCP axes, the median over grasps; roll about the reader axis set to 0 (flat reader, level hand, below what this camera resolves); y follows from the pads centring the reader (envs/inhand_real.reader_in_site). Position in the runtime camera frame (tip_offset_target=camera): image-true. half_range = 2 SD over grasps. render_lateral_mm: image offset kept for rendering only.",
+ "inhand": {
+  "mean_mm": [
+   8.16,
+   0.0,
+   -1.73
+  ],
+  "mean_rotvec_deg": [
+   -1.32,
+   4.13,
+   -0.92
+  ],
+  "half_range_mm": [
+   1.34,
+   0.0,
+   0.96
+  ],
+  "half_range_deg": [
+   1.0,
+   1.17,
+   1.0
+  ],
+  "hand_eye_mean_mm": [
+   6.66,
+   2.66,
+   0.27
+  ],
+  "n_grasps": 13,
+  "render_lateral_mm": 1.45
+ },
+ "look": {
+  "silver_width_m": 0.0296,
+  "silver_length_m": 0.0346,
+  "silver_front_z_m": 0.0492,
+  "shoulder_length_m": 0.005,
+  "shoulder_front_width_m": 0.0135
+ }
+}
