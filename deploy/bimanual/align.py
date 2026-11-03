@@ -5,7 +5,7 @@ One cycle: arm at rest -> measure (several frames) -> gates -> one capped step -
 FK is used only for small relative moves and for checking the measurement; the absolute error comes from the measurement.
 
 Real arm (results/real_align/tracking.json, collect run 2026-11-02): joint 2 friction band about 1.3 N m at kp 80. A small target step does nothing, then the joint breaks
-free and jumps (operator jogs: asked 0.5-1 mm, moved 0, then 4-11 mm). So this stage does not ramp the target and wait: Creep raises the joint's target lead slowly, and cuts it the
+free and jumps (operator jogs: asked 0.5-1 mm, moved 0, then 4-11 mm). So this stage does not ramp the target and wait: Creep raises the joint's target lead slowly, and cuts it to the holding value the
 moment the joint moves. Joints with low friction (1, 4, 5, 6) keep a plain position target at the goal plus a slow integral (their load).
 
 On any failure: hold, then (on_fail "back_off") straight out along the port axis with closed jaws. A failed stage never hands to RL.
@@ -343,19 +343,37 @@ class AlignLogic:
         return dict(kind='step', delta=d, err=err, e=e, reason='correct')
 
 
-def creep_law(q, prev, goal, lead, c, dt):
-    """Joint targets of one control tick; arrays (..., 6), so the batched sim eval runs the same law. Returns (target, new lead).
-    High-friction joints: target = measured + lead; the lead ramps until the joint moves, then it drops. Low friction: target = goal + slow integral (carries the joint's load, e.g. joint 5)."""
+def creep_state(lead):
+    lead = np.asarray(lead, float)
+    return dict(lead=lead.copy(), brk_pos=np.full(lead.shape, np.nan), brk_neg=np.full(lead.shape, np.nan), rest=np.zeros(lead.shape, bool))
+
+
+def creep_law(q, prev, goal, st, c, dt):
+    """Joint targets of one control tick; arrays (..., 6), so the batched sim eval runs the same law. st: creep_state, updated in place. Returns the target.
+    High-friction joints: target = measured + lead. The lead ramps until the joint moves; then it drops to the holding lead = the middle of the leads at which the joint broke free upward and downward (the
+    constant load: real joint 2 -0.87 N m), or to release x lead while only one direction is known. At the goal the lead stays. Dropping below the load made the hand spring back 0.7 mm per 1 mm step in the dry run.
+    Low friction: target = goal + slow integral (carries the joint's load, e.g. joint 5)."""
     heavy = np.asarray(c['heavy'], bool)
     eps, rate, lim = np.asarray(c['eps_rad'], float), np.asarray(c['lead_rate_rad_s'], float), np.asarray(c['lead_max_rad'], float)
+    lead = st['lead']
     e = goal - q
     moved = (q - prev) * np.sign(e)
     off = np.abs(e) > eps
-    h = np.where(moved >= c['move_eps_rad'], lead * c['release'], np.where(lead * e < 0, 0., lead + np.sign(e) * rate * dt))
-    h = np.where(off, h, lead * c['hold_decay'])     # at the goal: keep the lead that got it there, it carries the joint's load (real joint 2: -0.87 N m; dry run: 1 mm rebound per step without it)
+    broke = off & heavy & (moved >= c['move_eps_rad'])
+    fresh = broke & st['rest']                    # a break from rest, not a joint already moving
+    st['brk_pos'] = np.where(fresh & (e > 0), lead, st['brk_pos'])
+    st['brk_neg'] = np.where(fresh & (e < 0), lead, st['brk_neg'])
+    st['rest'] = np.abs(q - prev) < c['move_eps_rad'] * .5
+    hold = .5 * (st['brk_pos'] + st['brk_neg'])
+    hold = np.where(st['brk_pos'] > st['brk_neg'], hold, np.nan)
+    cut = np.where(np.isfinite(hold), hold, lead * c['release'])
+    base = np.where(np.isfinite(hold), hold, 0.)
+    ramp = np.where((lead - base) * e < 0, base, lead + np.sign(e) * rate * dt)     # goal now on the other side: start again from the holding lead
+    h = np.where(broke, cut, ramp)
+    h = np.where(off, h, lead * c['hold_decay'])
     lo = lead + c['ki_per_s'] * e * dt
-    new = np.clip(np.where(heavy, h, lo), -lim, lim)
-    return np.where(heavy, q + new, goal + new), new
+    st['lead'] = np.clip(np.where(heavy, h, lo), -lim, lim)
+    return np.where(heavy, q + st['lead'], goal + st['lead'])
 
 
 class Creep:
@@ -363,18 +381,22 @@ class Creep:
 
     def __init__(self, ch, q_left, c, lead0):
         self.ch, self.ql, self.c = ch, q_left, c
-        self.lead = np.asarray(lead0, float).copy()
-        self.lim = np.asarray(c['lead_max_rad'], float)
-        self.rate = np.asarray(c['lead_rate_rad_s'], float)
-        self.eps = np.asarray(c['eps_rad'], float)
-        self.heavy = np.asarray(c['heavy'], bool)
+        self.st = creep_state(lead0)
         self.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
         self.prev = self.goal.copy()
+
+    @property
+    def lead(self):
+        return self.st['lead']
+
+    @lead.setter
+    def lead(self, v):
+        self.st['lead'] = np.asarray(v, float)
 
     def tick(self):
         ch = self.ch
         q = ch.q_b[0].cpu().numpy().astype(float)
-        tgt, self.lead = creep_law(q, self.prev, self.goal, self.lead, self.c, ch.dt)
+        tgt = creep_law(q, self.prev, self.goal, self.st, self.c, ch.dt)
         self.prev = q
         ch.hstep(torch.as_tensor(tgt, dtype=torch.float32, device=ch.dev), self.ql, 'align')
 

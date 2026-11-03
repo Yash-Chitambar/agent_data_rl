@@ -20,7 +20,7 @@ import torch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.append(str(ROOT / 'scripts/real'))
-from deploy.bimanual.align import DEFAULTS, AlignLogic, PortMeasure, creep_law  # noqa: E402
+from deploy.bimanual.align import DEFAULTS, AlignLogic, PortMeasure, creep_law, creep_state  # noqa: E402
 from deploy.bimanual.io_sim import chain_argv, eval_chain  # noqa: E402
 
 EC = eval_chain()
@@ -49,7 +49,7 @@ class AlignChain(EC.Chain):
         self.rt.comp['right'] = None
         ql0 = h.believed('left').clone()
         q = lambda: h.believed('right')  # noqa: E731
-        lead = np.clip(ff_lead, -np.asarray(c['lead_max_rad']), np.asarray(c['lead_max_rad']))
+        cs = creep_state(np.clip(ff_lead, -np.asarray(c['lead_max_rad']), np.asarray(c['lead_max_rad'])))
         qn = q().cpu().numpy().astype(float)
         goal, prev = qn.copy(), qn.copy()
 
@@ -73,9 +73,9 @@ class AlignChain(EC.Chain):
             return qg.cpu().numpy().astype(float)
 
         def tick():
-            nonlocal prev, lead
+            nonlocal prev
             qq = q().cpu().numpy().astype(float)
-            tgt, lead = creep_law(qq, prev, goal, lead, c, dt)
+            tgt = creep_law(qq, prev, goal, cs, c, dt)
             prev = qq
             self.hstep(torch.as_tensor(tgt, dtype=torch.float32, device=dev), ql0, 'align')
 
@@ -173,20 +173,20 @@ class AlignChain(EC.Chain):
         tp, trv = self.rel_pose()
         pre = tp.cpu().numpy() * 1e3
         lo = np.asarray(c['handover_lead_rad'], float)
-        lead = np.clip(lead, lo[:, 0], lo[:, 1])
+        cs['lead'] = np.clip(cs['lead'], lo[:, 0], lo[:, 1])
         nr = int(c['repress_s'] / dt)
         for k in range(nr):
             u = (k + 1) / nr
             u = u * u * (3 - 2 * u)
             qq = q().cpu().numpy().astype(float)
-            tgt, lead2 = creep_law(qq, prev, goal, lead, c, dt)
-            lead = np.clip(lead2, lo[:, 0], lo[:, 1])
+            tgt = creep_law(qq, prev, goal, cs, c, dt)
+            cs['lead'] = np.clip(cs['lead'], lo[:, 0], lo[:, 1])
             prev = qq
             self.hstep(torch.as_tensor(tgt, dtype=torch.float32, device=dev), ql0 + (q_hold - ql0) * u, 'align')
         for _ in range(n0):
             qq = q().cpu().numpy().astype(float)
-            tgt, lead2 = creep_law(qq, prev, goal, lead, c, dt)
-            lead = np.clip(lead2, lo[:, 0], lo[:, 1])
+            tgt = creep_law(qq, prev, goal, cs, c, dt)
+            cs['lead'] = np.clip(cs['lead'], lo[:, 0], lo[:, 1])
             prev = qq
             self.hstep(torch.as_tensor(tgt, dtype=torch.float32, device=dev), q_hold, 'align')
         tp, trv = self.rel_pose()
@@ -196,7 +196,7 @@ class AlignChain(EC.Chain):
         tv = post + rb                       # the last measurement: no new pose noise, the run constant stays
         final_ok = (np.abs(slope * post + bias + rb + pose_err - np.asarray(c['target_mm'], float)) <= tol).all(1)
         handed = ok & final_ok
-        cmd2 = torch.as_tensor(q().cpu().numpy().astype(float) + lead, dtype=torch.float32, device=dev)
+        cmd2 = torch.as_tensor(q().cpu().numpy().astype(float) + cs['lead'], dtype=torch.float32, device=dev)
         self.ff_was_on = False
         # in-hand net at the hand-over gap, as AlignStage.handover
         if self.inhand_net is not None:
@@ -243,7 +243,7 @@ def main():
     if A.grasp_fidelity:
         cfg.setdefault('sim', {})['grasp_fidelity'] = A.grasp_fidelity
     pol = ROOT / 'deploy/bundle/models/insert_KJ.pt'
-    a = EC.parse(chain_argv(cfg, pol, A.nworld, ['--enc-offset-deg', str(A.enc_offset_deg)]))
+    a = EC.parse(chain_argv(cfg, pol, A.nworld, ['--enc-offset-deg', str(A.enc_offset_deg), '--pick', 'expert_privileged']))
     AlignChain.A = A
     ch = AlignChain(a)
     ch.acfg = c
