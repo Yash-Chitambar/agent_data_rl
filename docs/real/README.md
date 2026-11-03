@@ -23,3 +23,4 @@ USB-C chain runner is `deploy/run_bimanual.py` (`deploy/bimanual/`). The first r
 [BIMANUAL_DEPLOY](BIMANUAL_DEPLOY.md).
 - [SESSION_20261102_duchamp3.md](SESSION_20261102_duchamp3.md): batch A result, why the insertion fails, real wrist data and its label caveat, server work list.
 - [PICK_GRASP_V3.md](PICK_GRASP_V3.md): new right-arm pick, real test batches A-D, sim results and their limits.
+- [PORT_VISION.md](PORT_VISION.md): classical port and plug measurement from the wrist camera (`deploy/bimanual/port_vision.py`), results on real frames, the label offset.

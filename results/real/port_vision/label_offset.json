@@ -1,0 +1,71 @@
+{
+ "_about": "true plug tip (vision) = manifest p_mm + offset_mm, one scalar per run per axis; x across, y up, z gap. The manifest is not changed. See docs/real/PORT_VISION.md for the evidence and limits.",
+ "_uncertainty_mm_1sigma_guess": {
+  "x": 0.5,
+  "y": 0.6,
+  "z": 0.5
+ },
+ "_same_spot_note": "A and A2 borrow the collect anchor: their offset also holds the in-hand and PC differences of that run.",
+ "runs": {
+  "approach_insert_171123_ai4": {
+   "offset_mm": [
+    -0.65,
+    -3.89,
+    -1.41
+   ],
+   "sd_mm": [
+    0.02,
+    0.01,
+    0.0
+   ],
+   "n": 2,
+   "frames": "stop frames"
+  },
+  "collect_182100_collect1": {
+   "offset_mm": [
+    -0.54,
+    -2.29,
+    -1.67
+   ],
+   "sd_mm": [
+    0.53,
+    0.73,
+    0.55
+   ],
+   "n": 134,
+   "frames": "all detected"
+  },
+  "full_174850_full_A": {
+   "offset_mm": [
+    -1.62,
+    -2.34,
+    -3.63
+   ],
+   "sd_mm": [
+    0.02,
+    0.12,
+    0.06
+   ],
+   "n": 6,
+   "frames": "stop frames"
+  },
+  "full_175742_full_A2": {
+   "offset_mm": [
+    -1.96,
+    -5.27,
+    -2.6
+   ],
+   "sd_mm": [
+    0.04,
+    0.06,
+    0.05
+   ],
+   "n": 4,
+   "frames": "stop frames"
+  }
+ },
+ "_collect_y_range_mm": [
+  -3.21,
+  -1.58
+ ]
+}
