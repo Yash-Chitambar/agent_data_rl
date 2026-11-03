@@ -1,0 +1,62 @@
+[
+ {
+  "run": "2026-11-02/full_174850_full_A",
+  "truth": "failed, plug on the case",
+  "first_clamp_s": 3.72,
+  "stop_s": 5.46,
+  "stop": "press",
+  "up_at_stop": 7.358359172940254,
+  "across_at_stop": -0.540374911396523,
+  "up_max": 9.447655640542507,
+  "across_max": 6.843042892918544,
+  "n": 500
+ },
+ {
+  "run": "2026-11-02/full_175742_full_A2",
+  "truth": "failed, climbed over the port",
+  "first_clamp_s": 2.9,
+  "stop_s": 4.12,
+  "stop": "bound",
+  "up_at_stop": 8.38731974363327,
+  "across_at_stop": -2.098724757421088,
+  "up_max": 14.224648475646973,
+  "across_max": 5.745299327511399,
+  "n": 443
+ },
+ {
+  "run": "2026-11-01/approach_insert_171123_ai4",
+  "truth": "seated at about 4 s",
+  "first_clamp_s": 0.4,
+  "stop_s": 7.640000000000001,
+  "stop": "press",
+  "up_at_stop": -1.2925895862281322,
+  "across_at_stop": -4.879218531966468,
+  "up_max": 6.99209701269865,
+  "across_max": 5.238915795123019,
+  "n": 500
+ },
+ {
+  "run": "2026-11-01/approach_insert_173731_ai5",
+  "truth": "failed, see the notes",
+  "first_clamp_s": 2.9,
+  "stop_s": null,
+  "stop": null,
+  "up_at_stop": null,
+  "across_at_stop": null,
+  "up_max": 5.23342564702034,
+  "across_max": 1.7692124154649125,
+  "n": 191
+ },
+ {
+  "run": "2026-11-01/approach_insert_165634_ai3",
+  "truth": "seated, stopped early by the old detector",
+  "first_clamp_s": null,
+  "stop_s": null,
+  "stop": null,
+  "up_at_stop": null,
+  "across_at_stop": null,
+  "up_max": 6.0214572586119175,
+  "across_max": 1.8122809255773589,
+  "n": 54
+ }
+]
