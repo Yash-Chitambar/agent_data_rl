@@ -689,10 +689,16 @@ class AlignStage:
             m2 = self.one(self.src2, f'align2_{self.logic.cycle:03d}') if self.src2 is not None else None
             tip = self.tip_rel()
             stuck = bool(last and last.get('timeout') and last.get('frac', 1.) < .25)
+            emin = c.get('entry_min_gap_mm')
+            if emin is not None and self.logic.cycle == 0 and m.ok and m.gap_mm is not None and m.gap_mm < emin:      # real run 2026-11-03: a 7 mm slip near the case. Slow steps start from a safe distance or not at all.
+                out['ok'], out['reason'] = False, f'entry gap {m.gap_mm:.1f} mm below the {emin} mm limit'
+                ch.log_event('align_entry_too_close', gap_mm=float(m.gap_mm), limit_mm=emin, tick=ch.k)
+                break
             if ch.k * ch.dt - t_start > c['max_time_s']:
                 dec = self.logic.fail('time limit')
             elif c['mode'] == 'measure':
                 dec = self.logic.update(m, m2, tip, grip=float(ch.state['grip'][0]))
+                self.logic.rot_applied = np.zeros_like(self.logic.rot_applied)      # nothing moves in this mode: real run 2026-11-03, this grew to 6.75 deg and would reach max_deg
                 self.logic.pending_probe = []
                 if dec['kind'] == 'step' or dec['kind'] == 'done' or self.logic.cycle >= int(c.get('measure_n', 10)):
                     dec = dict(kind='retry', reason='measure mode: no motion', delta=np.zeros(3), planned=np.asarray(dec.get('delta', np.zeros(3))).tolist())
@@ -799,7 +805,33 @@ class AlignStage:
         return (cmd[None] if ok else None), res
 
     def back_off(self):
+        if self.c.get('back_off_creep'):
+            return self.back_off_creep()
         return back_off_closed(self.ch, self.eR, self.c['back_off_mm'], self.c['back_off_v_mm_s'], self.ql if not self.ch.pressing else self.q_hold)
+
+
+    def back_off_creep(self):
+        """Straight out along the port axis with the creep law: goal + lead, the holding lead stays. Real run 2026-11-03: setting the target to the measured pose dropped joint 5's 34 mrad lead,
+        the wrist sagged 4.6 mm in 0.5 s, and joints 2 and 3 stayed in their friction band while the wrist made the whole move (6.6 mm low at the end)."""
+        c, ch, cr = self.c, self.ch, self.creep
+        chain = ch.scene.chain['right']
+        dev = ch.scene.device
+        q0 = ch.q_b[0:1].to(dev).float()
+        p0, R0 = chain.fk(q0)
+        z = torch.as_tensor(np.asarray(self.eR, float).reshape(3, 3)[:, 2], dtype=torch.float32, device=p0.device)
+        mm, v = float(c['back_off_mm']), float(c['back_off_v_mm_s'])
+        n = max(1, int(round(mm / (v * max(ch.speed, 1e-3)) / ch.dt)))
+        q = q0
+        cr.goal = q0[0].cpu().numpy().astype(float).copy()
+        for k in range(n):
+            u = (k + 1) / n
+            u = u * u * (3 - 2 * u)
+            q, _, _ = chain.ik(p0 + z[None] * mm * 1e-3 * u, R0, q, iters=10)
+            cr.goal = q[0].cpu().numpy().astype(float).copy()
+            cr.tick()
+        for _ in range(int(round(1. / ch.dt))):       # let the joints that lag arrive
+            cr.tick()
+        ch.log_event('back_off', mm=mm, tick=ch.k, tip_q=ch.q_b[0].tolist(), creep=True, lead=cr.lead.tolist())
 
 
 def back_off_closed(ch, eR, mm, v_mm_s, q_left):
