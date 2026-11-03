@@ -25,7 +25,7 @@ AXES = ('across', 'up', 'gap')
 DEFAULTS = dict(
     enabled=False, mode='full',
     target_mm=[0.0, 0.0, 6.0], tol_mm=[1.0, 1.0, 1.0], confirm_n=2,
-    step_mm=[1.0, 1.0, 1.0], gain=1.0, funnel_lat_mm=2.0, gap_hold_mm=9.0, min_clear_mm=3.0,
+    step_mm=[1.0, 1.0, 1.0], gain=1.0, fuse_n=6, funnel_lat_mm=2.0, gap_hold_mm=9.0, min_clear_mm=3.0,
     frames=5, min_good=3, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
     max_cycles=60, max_time_s=120.0, post_press_cycles=6, max_lat_mm=20.0, max_advance_mm=16.0,
     drift_mm=1.0, drift_n=2, pred_mm=2.5, pred_n=2, grow_margin_mm=.5, grow_n=4, grow_abs_mm=9.0, grip_change=.02,
@@ -124,7 +124,12 @@ class PortVisionSource:
             return PortMeasure(False, 'no raw frame')
         m = self.fn(raw, side='right', plug_z_mm=self.plug_z, **self.kw)
         sig = None if m.sigma_mm is None else float(np.max(m.sigma_mm))
-        return PortMeasure(bool(m.ok), str(m.reason), float(m.conf), m.across_mm, m.up_mm, m.gap_mm, sig)
+        out = PortMeasure(bool(m.ok), str(m.reason), float(m.conf), m.across_mm, m.up_mm, m.gap_mm, sig)
+        R = (m.debug or {}).get('R')          # camera against the panel: logged for later, the stage does not act on angle (yaw about 1 deg, plug in hand unknown: docs/real/ALIGN_STAGE.md)
+        if R is not None:
+            from scipy.spatial.transform import Rotation
+            out.extra['panel_rv_deg'] = np.degrees(Rotation.from_matrix(np.asarray(R, float)).as_rotvec()).round(3).tolist()
+        return out
 
 
 class WristNetSource:
@@ -217,6 +222,8 @@ class AlignLogic:
         self.probing = False
         self.sxx, self.sxy = np.zeros(3), np.zeros(3)
         self.grip0 = None
+        self.fused = []
+        self.last_fused = None
 
     def slope(self):
         out = []
@@ -298,10 +305,14 @@ class AlignLogic:
             else:
                 self.pred_bad = 0
         self.last_m, self.last_tip = v, tip
-        err = v - self.t
+        # port in the FK frame: measurement - FK tip, median of the last cycles. FK is good for small relative moves, the vision residual changes from pose to pose (up 0.74 mm).
+        self.fused.append(v - tip)
+        vf = np.median(self.fused[-int(c['fuse_n']):], 0) + tip
+        self.last_fused = vf
+        err = vf - self.t
         e = float(np.linalg.norm(err))
-        if v[2] < c['min_clear_mm']:
-            return self.fail(f'gap {v[2]:.1f} mm below the {c["min_clear_mm"]} mm limit')
+        if min(v[2], vf[2]) < c['min_clear_mm']:
+            return self.fail(f'gap {min(v[2], vf[2]):.1f} mm below the {c["min_clear_mm"]} mm limit')
         if self.pending_probe:
             kind, d = self.pending_probe.pop(0)
             self.moved_since = True
@@ -332,19 +343,19 @@ class AlignLogic:
                 ok, why = self.slope_check()
                 if not ok:
                     return self.fail('scale gate: ' + why, err=err)
-                self.final = v.copy()
+                self.final = vf.copy()
                 return dict(kind='done', delta=np.zeros(3), err=err, e=e, reason='within tolerance')
             return dict(kind='retry', reason='confirm', delta=np.zeros(3), err=err, e=e)
         self.confirm = 0
         d = -c['gain'] * err
         lat = float(np.hypot(*err[:2]))
         lat_ok = lat <= c['funnel_lat_mm']
-        if not lat_ok and v[2] < c['gap_hold_mm']:       # not lined up and close: back out while correcting
-            d[2] = c['gap_hold_mm'] - v[2]
+        if not lat_ok and vf[2] < c['gap_hold_mm']:       # not lined up and close: back out while correcting
+            d[2] = c['gap_hold_mm'] - vf[2]
         elif not lat_ok:
-            d[2] = min(0., c['gap_hold_mm'] - v[2])
+            d[2] = min(0., c['gap_hold_mm'] - vf[2])
         d = np.clip(d, -self.step_cap, self.step_cap)
-        d[2] = max(d[2], c['min_clear_mm'] - v[2])       # never plan below the clearance
+        d[2] = max(d[2], c['min_clear_mm'] - vf[2])       # never plan below the clearance
         self.moved_since = True
         return dict(kind='step', delta=d, err=err, e=e, reason='correct')
 
@@ -488,9 +499,9 @@ class AlignStage:
     # ------------------------------------------------------------------ run
     def log_m(self, m, ms, m2, tip, dec, t):
         rec = dict(cycle=self.logic.cycle, tick=self.ch.k, t_stage=t, ok=m.ok, reason=m.reason, conf=m.conf, across=m.across_mm, up=m.up_mm, gap=m.gap_mm, sigma=m.sigma_mm, spread=getattr(m, 'spread', None),
-                   frames=[dict(ok=x.ok, reason=x.reason, conf=x.conf, v=[x.across_mm, x.up_mm, x.gap_mm], ms=x.extra.get('ms'), truth=x.extra.get('truth')) for x in ms],
+                   frames=[dict(ok=x.ok, reason=x.reason, conf=x.conf, v=[x.across_mm, x.up_mm, x.gap_mm], ms=x.extra.get('ms'), truth=x.extra.get('truth'), panel_rv_deg=x.extra.get('panel_rv_deg')) for x in ms],
                    tip_rel=tip.tolist(), q_b=self.ch.q_b[0].tolist(), lead=self.creep.lead.tolist(), grip=float(self.ch.state['grip'][0]), decision=dec['kind'], decision_reason=dec.get('reason'), delta=np.asarray(dec.get('delta', np.zeros(3))).tolist(),
-                   slope=self.logic.slope(), second=None if m2 is None else dict(ok=m2.ok, v=[m2.across_mm, m2.up_mm, m2.gap_mm]))
+                   fused=None if self.logic.last_fused is None else self.logic.last_fused.tolist(), slope=self.logic.slope(), second=None if m2 is None else dict(ok=m2.ok, v=[m2.across_mm, m2.up_mm, m2.gap_mm]))
         tr = self.ch.truth()
         if tr is not None:
             rec['truth_mm'] = np.asarray(tr['plug_in_port_mm'], float).tolist()
@@ -623,7 +634,7 @@ class AlignStage:
         # the press and the lead clip can move the hand: measure again, correct under the press if needed (few cycles, the press clock runs)
         self.logic.cycle = max(0, c['max_cycles'] - c['post_press_cycles'])
         self.logic.confirm = 0
-        self.logic.last_m, self.logic.last_e = None, None
+        self.logic.last_m, self.logic.last_e = None, None     # the fused history stays: new cycles replace it
         res0 = dict(ok=False, reason='')
         self.loop(res0, ch.k * ch.dt)
         ok = res0['ok']

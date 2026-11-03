@@ -153,7 +153,7 @@ class AlignChain(EC.Chain):
                     d = logic[w].update(m, None, rel[w], stuck=bool(ls and ls['timeout'] and ls['frac'] < .25))
                     last_step[w] = None
                     cnt[w] = 0
-                    if tk * dt > c['max_time_s'] and d['kind'] != 'done':
+                    if tk * dt > max_s - 1. and d['kind'] != 'done':
                         d = dict(kind='fail', reason='time limit')
                     if d['kind'] == 'fail':
                         phase[w], reason[w] = 3, d['reason']

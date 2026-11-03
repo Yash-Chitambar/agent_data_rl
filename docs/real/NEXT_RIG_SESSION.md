@@ -25,6 +25,8 @@ cd ~/agent_data_rl
 git status                       # commit or stash local changes first (ask the operator)
 git fetch origin && git checkout real/graph-align && git pull --ff-only
 export PYTHONPATH=. ; C=deploy/config/bimanual_align1.json
+# r10 wrist nets: NOT in the bundle, `bundle verify` does not cover them. Copy runs/perception_real/ from mason (from the worktree of policy/wrist-real), then:
+sha256sum runs/perception_real/wrist_r10f_ft_abs.pt runs/perception_real/wrist_r10w_ft_abs.pt | cut -c1-16   # must print 384e7b43b7e0e937 (fine) and 78064b5eeab8bbce (coarse)
 .venv/bin/python -m deploy.bimanual.bundle verify                     # "bundle OK"
 .venv/bin/python -m deploy.checks.bimanual_conventions --config $C    # "FAILED: none"
 .venv/bin/python -m deploy.checks.align_gates                         # "FAILED: none"
@@ -33,7 +35,7 @@ export PYTHONPATH=. ; C=deploy/config/bimanual_align1.json
 .venv/bin/python -m deploy.run_bimanual --dry-run --stage approach_insert --seed 7000 --config $C   # completed True
 ```
 
-**If timing fails with other jobs closed, stop and report.** The server cannot decide timing: only the rig can.
+**If timing fails with other jobs closed, stop and report.** The server cannot decide timing: only the rig can. Also check that `$C` changed since the last session only as `docs/real/ALIGN_STAGE.md` says: the r10 nets drive the approach, so the real stop should now be near 6 mm, not 8 mm. Nobody has run them in a loop: in step 2 **watch the approach**, and stop on any move that looks wrong.
 
 ## Scene
 
@@ -67,7 +69,7 @@ After the run, show:
 .venv/bin/python scripts/real/align_log.py data/real_runs/$(date +%F)/full_*measure1
 ```
 
-Check: `align: shell depth` printed a number (no number: the grasp is refused, and the stage stops, which is correct), frames measured (`ok`), spread between measurements, and the values against what the operator sees. Expected at the stop, from port vision on the last runs: gap about 8-9 mm, up about +5 to +9 mm, across -5 to 0 mm. **Before step 3: the measurements must be steady (spread below about 1 mm: the arm does not move, and port vision noise at rest was under 0.12 mm offline), and at least half of the cycles must have a measurement.** This is also the first time port vision runs live. Compare the printed time per measurement: about 82 ms offline. If not, stop and report. Do not run step 3. Ask the port vision agent.
+Check: `align: shell depth` printed a number (no number: the grasp is refused, and the stage stops, which is correct), frames measured (`ok`), spread between measurements, and the values against what the operator sees. Expected at the stop: gap about 6 mm with the r10 nets (the old nets stopped at 8-9 mm, up +5 to +9 mm, across -5 to 0 mm by port vision). The log also shows the net as the second source: the net against vision limits (3.0, 3.5, 2.5 mm) are a guess; report the real differences. **Before step 3: the measurements must be steady (spread below about 1 mm: the arm does not move, and port vision noise at rest was under 0.12 mm offline), and at least half of the cycles must have a measurement.** This is also the first time port vision runs live. Compare the printed time per measurement: about 82 ms offline. If not, stop and report. Do not run step 3. Ask the port vision agent.
 
 Repeat once with a new pick (`--name measure2`). The values should agree within about 1-2 mm, unless the operator saw a different grasp.
 
@@ -122,8 +124,9 @@ Go on with `align_full2`, and so on, one go per try, for about 5 tries. Then sto
 Keep each item short: what, why, the command. Merge order matters: put your branch name here.
 
 - **Port vision (`real/port-vision`):** merged at d1eb4d0. Its own wish list for the session is in [PORT_VISION.md](PORT_VISION.md), section "What the next rig session should collect". Items 3 (grasp spread) and 4 (still noise) come free from step 2 repeated; items 1, 2, 5, 6 need an operator decision.
-- **Wrist nets (`policy/wrist-real`):** _(open)_ whether a net can be a second source (`align.secondary`), and its real slope.
-- **Sim grasp (`sim/grasp-real`):** _(open)_ in-hand preset; any change to K-J or the in-hand net.
+- **Wrist nets (`policy/wrist-real`):** merged. r10 nets drive the approach and are the second source, checked at the hand-over only. Port vision decides across and up: the net cannot refuse a frame, and it sits 1.4-1.8 mm off vision across.
+- **Sim grasp (`sim/grasp-real`):** merged (preset `inhand_real_v2`). K-J at exact hand-over with `v2`: 95.8 %; offsets 76-93 %, worst at +-2 mm across (their numbers).
+- **Grasp and scale measurements (`sim/grasp-real`, details in `docs/real/INHAND_REAL.md`).** About 30 min, one go per motion command. Calipers and a photo on the reader. Five picks at other reader spots, frames at a fixed hand pose at the stop. A square-on side photo with a ruler at the hand's plane. A slow push with the plug against the case, logging the gripper reading and the plug at 10 Hz or more (needs a tool; ask before running). Fingers closed on a flat gauge, wrist view, and a level or board in view at two joint-6 angles. PC yaw against a known square: the ZED's yaw looks about 1.8 deg high (moderate evidence).
 - **Re-collect with a light-contact anchor:** _(open, needs a decision)_. The 2026-11-02 anchor was a full push, and the reader pitched in the jaws: the labels' height is not known within about 4.5 mm. A new `collect` run with the anchor at light contact (plug in by 1-2 mm, no push, `anchor 1.5`) would fix the constant for the port vision and the nets. Cost: about 20 min of the rig, with the operator's hand on the PC. Command, if it is wanted (one go):
 
   ```bash

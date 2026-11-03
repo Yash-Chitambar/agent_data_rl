@@ -120,8 +120,8 @@ def run(env, pol, a, guard_on):
     gn = torch.randn(N, 3, device=dev)
     g0 = g0_true + gn[:, 2] * a.sig_gap
     lat0 = lat0_true + gn[:, :2] * torch.tensor(a.sig_lat, device=dev)
-    det2 = SeatDetector2(N, dev, g0, lat0, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate)
-    det2b = SeatDetector2(N, dev, g0_true, lat0_true, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate)
+    det2 = SeatDetector2(N, dev, g0, lat0, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate, hold_s=a.seat_hold, speed_mm_s=a.seat_speed, still_mm=2.)
+    det2b = SeatDetector2(N, dev, g0_true, lat0_true, seat_depth_mm=5.8, margin_mm=a.margin, gate_mm=a.gate, hold_s=a.seat_hold, speed_mm_s=a.seat_speed, still_mm=2.)
     old = [SeatDetector(pR[i].cpu(), .006, .0058, .001, .2, .005, env.dt) for i in range(min(N, a.old_n))]
     tcp_ch = env.right_chain
     p0, _ = tcp_ch.fk(q0)
@@ -129,6 +129,7 @@ def run(env, pol, a, guard_on):
         d.update(p0[i].cpu().numpy())
     hist, _ = env.observe()
     t2, t2b, told = [torch.full((N,), -1, device=dev) for _ in range(3)]
+    depth_at2 = torch.full((N,), float('nan'), device=dev)
     tstop = torch.full((N,), -1, device=dev)
     stop_kind = torch.zeros(N, dtype=torch.long, device=dev)
     max_lat, depth_max = torch.zeros(N, 2, device=dev), torch.zeros(N, device=dev)
@@ -145,6 +146,8 @@ def run(env, pol, a, guard_on):
             r2b = det2b.update(rm)
             a2 = alive & (t2 < 0) & r2['seated']
             t2[a2] = t
+            pz = env.runtime.plug_in_port()[0][:, 2] * 1e3
+            depth_at2[a2] = -pz[a2]
             a2 = alive & (t2b < 0) & r2b['seated']
             t2b[a2] = t
             pn = tcp_ch.fk(qb)[0].cpu().numpy()
@@ -185,7 +188,7 @@ def run(env, pol, a, guard_on):
     d_old = told[:len(old)].cpu().numpy() >= 0
     out = dict(set=a.set, guard=guard_on, n=n, k=k, rate=k / n, wilson=wilson(k, n), stops={str(j): int((stop_kind == j).sum()) for j in (1, 2)}, stop_before_seat=int(((tstop >= 0) & ((t_true < 0) | (tstop < t_true))).sum()), clamped_worlds=int((gd.clamped > 0).sum()),
                max_lat_seated_p50_p99_max=[[float(np.percentile(max_lat[latch].cpu().numpy()[:, i], x)) for x in (50, 99, 99.9, 100)] for i in range(2)] if latch.any() else None, depth_seated=[float(x) for x in np.percentile(depth_max[latch].cpu().numpy(), [0.1, 1, 50, 99])] if latch.any() else None,
-               t_true_p50_p99_max=[float(np.percentile(t_true[t_true >= 0].cpu().numpy(), x)) * env.dt for x in (50, 99, 100)] if (t_true >= 0).any() else None, seat2=det(t2), seat2_exactgap=det(t2b),
+               t_true_p50_p99_max=[float(np.percentile(t_true[t_true >= 0].cpu().numpy(), x)) * env.dt for x in (50, 99, 100)] if (t_true >= 0).any() else None, seat2=det(t2), seat2_true_depth_at_detect=[float(x) for x in np.nanpercentile(depth_at2.cpu().numpy(), [1, 5, 50])] if torch.isfinite(depth_at2).any() else None, seat2_below_5mm=int((depth_at2 < 5.).sum()), seat2_exactgap=det(t2b),
                seat_old=dict(n=len(old), false_seat=int((d_old & ~tr_old_ok).sum()), not_seated=int((~tr_old_ok).sum()), missed=int((~d_old & tr_old_ok).sum()), seated=int(tr_old_ok.sum())), series=series, params=dict(bound=a.bound, hard=a.hard, stall_s=a.stall_s, gate=a.gate, margin=a.margin, sig_gap=a.sig_gap, sig_lat=a.sig_lat, friction=a.friction, windup=a.windup, enc=a.enc_offset_deg))
     return out
 
@@ -201,7 +204,9 @@ if __name__ == '__main__':
     ap.add_argument('--stall_eps', type=float, default=.3)
     ap.add_argument('--lead_min', type=float, default=3.)
     ap.add_argument('--gate', type=float, nargs=2, default=(3., 6.))
-    ap.add_argument('--margin', type=float, default=1.5)
+    ap.add_argument('--margin', type=float, default=1.)
+    ap.add_argument('--seat_hold', type=float, default=.5)
+    ap.add_argument('--seat_speed', type=float, default=3.)
     ap.add_argument('--sig_gap', type=float, default=.63, help='port vision residual 0.49 + run constant 0.4')
     ap.add_argument('--sig_lat', type=float, nargs=2, default=(.39, .95), help='across 0.25 + 0.3, up 0.74 + 0.6')
     ap.add_argument('--friction', default='')

@@ -26,7 +26,7 @@ from deploy.bimanual.insert import SeatDetector  # noqa: E402
 from deploy.bimanual.insert_guard import SeatDetector2  # noqa: E402
 
 D = ROOT / 'data/real_runs'
-SEAT = dict(margin_mm=1.5, gate_mm=(3.0, 6.0))
+SEAT = dict(margin_mm=1.0, gate_mm=(3.0, 6.0), hold_s=.5, speed_mm_s=3., still_mm=2.)
 
 
 def pv_at(run, tick_end, tick_from=None, cam='wrist_right', pre=300):

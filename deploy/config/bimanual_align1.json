@@ -163,14 +163,15 @@
   "wrong_port_mm": null,
   "_wrong_port": "log only: in the dry runs (+/-1.5 deg offset DR) the FK lateral of good approaches reached 15 mm, a neighbouring-port lock 11 mm; set a limit only with calibrated offsets",
   "seat2": {
-   "margin_mm": 1.5,
+   "margin_mm": 1.0,
    "gate_mm": [
     3.0,
     6.0
    ],
-   "hold_s": 0.2,
-   "speed_mm_s": 5.0,
-   "still_mm": 1.0
+   "hold_s": 0.5,
+   "speed_mm_s": 3.0,
+   "still_mm": 2.0,
+   "_about": "0.5 s at rest (real ai3 released 1 mm early with 0.2 s, dry run s7100 at true 4 mm); 3 mm/s and 2 mm lateral range: the real seat of ai4 passes at 4.44 s, at 2 mm/s and 1 mm it never does."
   },
   "guard": {
    "bound_mm": [
