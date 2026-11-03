@@ -56,6 +56,7 @@ def one(run):
     r['stop'] = [e.get('outcome') for e in ev if e['kind'] == 'insert_stop']
     meta = json.loads((run / 'meta.json').read_text())
     r['completed'] = (meta.get('result') or {}).get('completed')
+    r['seated_after_release'] = ((meta.get('result') or {}).get('results') or {}).get('true_seated_after_release')
     r['stopmsg'] = (meta.get('result') or {}).get('stop')
     return r
 
@@ -91,7 +92,7 @@ def main():
         if ins:
             s = [r for r in ins if r.get('true_seated')]
             det = [r for r in ins if r['insert'] == 'seated_detected']
-            out['insert'] = dict(n=len(ins), true_seated=len(s), true_seated_ci=wilson(len(s), len(ins)), detected=len(det), false_detect=sum(1 for r in det if not r.get('true_seated')), missed=sum(1 for r in ins if r.get('true_seated') and r['insert'] != 'seated_detected'),
+            out['insert'] = dict(n=len(ins), true_seated=len(s), true_seated_ci=wilson(len(s), len(ins)), detected=len(det), false_detect=sum(1 for r in det if not r.get('true_seated')), missed=sum(1 for r in ins if r.get('true_seated') and r['insert'] != 'seated_detected'), seated_after_release=sum(1 for r in ins if r.get('seated_after_release')), 
                                  outcomes={k: sum(1 for r in ins if r['insert'] == k) for k in {r['insert'] for r in ins}})
     entry = [r['entry_truth'] for r in R if r.get('entry_truth')]
     if entry:

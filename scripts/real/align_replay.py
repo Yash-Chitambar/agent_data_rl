@@ -85,12 +85,13 @@ def main():
         run = D / name
         fr = stop_frames(run)
         rows = []
+        pz = PV.plug_depth([cv2.imread(str(raw)) for t, raw, pol in fr]) if fr else None
         for t, raw, pol in fr:
             im = cv2.imread(str(raw))
-            m = PV.measure(im, side='right')
+            m = PV.measure(im, side='right', **({'plug_z_mm': pz} if pz else {}))
             rows.append(dict(tick=t, ok=m.ok, reason=m.reason, conf=m.conf, v=[m.across_mm, m.up_mm, m.gap_mm], sigma=m.sigma_mm, net={n: net_eval(w, pol).round(2).tolist() for n, w in nets.items()}))
         gd = [r for r in rows if r['ok']]
-        out = dict(run=name, frames=len(rows), port_vision_ok=len(gd), reasons=sorted({r['reason'] for r in rows if not r['ok']}))
+        out = dict(run=name, plug_z_mm=pz, frames=len(rows), port_vision_ok=len(gd), reasons=sorted({r['reason'] for r in rows if not r['ok']}))
         if gd:
             out['port_vision_median'] = np.median(np.array([r['v'] for r in gd], float), 0).round(2).tolist()
             out['port_vision_spread'] = (np.array([r['v'] for r in gd], float).max(0) - np.array([r['v'] for r in gd], float).min(0)).round(2).tolist()
@@ -121,13 +122,14 @@ def main():
     man = [json.loads(x) for x in open(ROOT / 'data/real_training/port_v1/manifest.jsonl')]
     man = [m for m in man if m['source'] == 'collect' and m['p_mm'][2] < 15]
     P, V, N = [], [], {n: [] for n in nets}
+    pz = PV.plug_depth([cv2.imread(str(ROOT / m['raw'])) for m in man[:40] if m.get('raw')])
     for m in man:
         p = np.array(m['p_mm'], float)
         raw = m.get('raw')
         if raw is None:
             continue
         rawp, polp = Path(raw) if Path(raw).is_absolute() else ROOT / raw, Path(m['image']) if Path(m['image']).is_absolute() else ROOT / m['image']
-        pm = PV.measure(cv2.imread(str(rawp)), side='right')
+        pm = PV.measure(cv2.imread(str(rawp)), side='right', plug_z_mm=pz)
         P.append(p)
         V.append([pm.across_mm, pm.up_mm, pm.gap_mm] if pm.ok else [np.nan] * 3)
         for n, w in nets.items():

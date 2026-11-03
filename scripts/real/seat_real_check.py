@@ -26,14 +26,15 @@ from deploy.bimanual.insert import SeatDetector  # noqa: E402
 from deploy.bimanual.insert_guard import SeatDetector2  # noqa: E402
 
 D = ROOT / 'data/real_runs'
-SEAT = dict(margin_mm=1.0, gate_mm=(3.0, 6.0))
+SEAT = dict(margin_mm=1.2, gate_mm=(3.0, 6.0))
 
 
 def pv_at(run, tick_end, tick_from=None, cam='wrist_right', pre=300):
     fr = AR.stop_frames_upto(run, tick_end, pre)
     vs = []
+    pz = PV.plug_depth([cv2.imread(str(raw)) for t, raw, _ in fr]) if fr else None
     for t, raw, _ in fr:
-        m = PV.measure(cv2.imread(str(raw)), side='right')
+        m = PV.measure(cv2.imread(str(raw)), side='right', **({'plug_z_mm': pz} if pz else {}))
         if m.ok:
             vs.append([m.across_mm, m.up_mm, m.gap_mm])
     return (np.median(np.array(vs), 0).round(2).tolist() if vs else None), len(vs), len(fr)
@@ -82,6 +83,11 @@ def main():
             row['new_port_vision'] = replay(tr['q_m'], r['eR'], tr['tip0'], pv[2], pv[:2])
         row['new_old_gap_assumption'] = replay(tr['q_m'], r['eR'], tr['tip0'], 6., [0., 0.])
         out.append(row)
+    # A and A2 with the port vision agent's stop values (docs/real/PORT_VISION.md, one depth per run), label offset known
+    for row, v in zip(out, ((-.3, 5.0, 8.4), (-5.2, 8.9, 8.0))):
+        r = L.load(str(D / row['run']))
+        tr = L.trace(r)
+        row['new_port_vision_doc_values'] = replay(tr['q_m'], r['eR'], tr['tip0'], v[2], list(v[:2]))
     # ai4: seated in the run; own seat as anchor
     name = '2026-11-01/approach_insert_171123_ai4'
     run = D / name

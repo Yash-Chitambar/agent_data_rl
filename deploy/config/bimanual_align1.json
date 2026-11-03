@@ -288,16 +288,22 @@
     1
    ],
    "sigma_mm": [
-    0.5,
-    0.15,
-    0.2
+    0.1,
+    0.1,
+    0.1
+   ],
+   "pose_sigma_mm": [
+    0.25,
+    0.74,
+    0.49
    ],
    "run_bias_sigma_mm": [
-    0.4,
-    1.0,
-    0.8
-   ]
+    0.3,
+    0.6,
+    0.4
+   ],
+   "drop_p": 0.1
   },
-  "frame_spread_mm": 3.0
+  "_sim_source": "port_vision held-out residuals (docs/real/PORT_VISION.md): frame noise under 0.12 mm, residual over poses across 0.18-0.38, up 0.74, gap 0.49; constant of a run: judgement, y about 0.6 mm"
  }
 }

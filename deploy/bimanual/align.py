@@ -26,7 +26,7 @@ DEFAULTS = dict(
     enabled=False, mode='full',
     target_mm=[0.0, 0.0, 6.0], tol_mm=[1.0, 1.0, 1.0], confirm_n=2,
     step_mm=[1.0, 1.0, 1.0], gain=1.0, funnel_lat_mm=2.0, gap_hold_mm=9.0, min_clear_mm=3.0,
-    frames=5, min_good=2, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
+    frames=5, min_good=3, frame_spread_mm=1.5, min_conf=0.5, max_sigma_mm=1.5, max_no_measure=5,
     max_cycles=40, max_time_s=90.0, max_lat_mm=20.0, max_advance_mm=16.0,
     drift_mm=1.0, drift_n=2, pred_mm=2.5, pred_n=2, grow_margin_mm=.5, grow_n=4, grow_abs_mm=9.0, grip_change=.02,
     probe_mm=[2.0, 2.0, 2.0], slope_min=.6, slope_max=1.6, slope_min_motion_mm=1.5,
@@ -76,29 +76,50 @@ class StubSource:
 
 
 class PortVisionSource:
-    """deploy/bimanual/port_vision.measure on the newest raw right wrist frame (RGB camera, full 1280x1024)."""
+    """deploy/bimanual/port_vision.measure on the newest raw right wrist frame (1280x1024). One shell depth per grasp: taken still at the stop (prepare), held for the stage.
+    docs/real/PORT_VISION.md: without it, 3 of 12 detections at gap 0-5 mm were false and the up residual was 1.49 mm. About 82 ms per call."""
 
     def __init__(self, ch, spec):
-        self.kw = {k: v for k, v in spec.items() if k != 'kind'}
+        self.kw = {k: v for k, v in spec.items() if k not in ('kind', 'depth_frames')}
+        self.n_depth = int(spec.get('depth_frames', 9))
+        self.plug_z = None
         try:
             from deploy.bimanual import port_vision
-            self.fn = port_vision.measure
+            self.fn, self.depth = port_vision.measure, port_vision.plug_depth
         except ImportError as e:
             self.fn, self.err = None, str(e)
 
-    def measure(self, ch, tag):
-        if self.fn is None:
-            return PortMeasure(False, f'port_vision not available: {self.err}')
-        fr = ch.io.fresh_frames(('wrist_right',))['wrist_right']
-        pol, raw, t, cnt = fr
+    def raw(self, ch, tag):
+        pol, raw, t, cnt = ch.io.fresh_frames(('wrist_right',))['wrist_right']
         if ch.logger is not None:
             ch.logger.frame('wrist_right', pol, tag, t_capture=t, t_use=ch.state['t'], kind='policy', count=cnt, tick=ch.k)
             if raw is not None:
                 ch.logger.frame('wrist_right', raw, tag, t_capture=t, t_use=ch.state['t'], kind='raw', bgr=True, count=cnt, tick=ch.k)
         ch.last_frame_tag = f'{tag}@{ch.k}'
+        return raw
+
+    def prepare(self, ch, between):
+        """Still at the stop: the shell depth of this grasp. No depth: every measure fails, so the stage stops without moving."""
+        if self.fn is None:
+            return dict(plug_z_mm=None, why=self.err)
+        fr = []
+        for i in range(self.n_depth):
+            f = self.raw(ch, f'align_depth_{i}')
+            if f is not None:
+                fr.append(f)
+            between()
+        self.plug_z = self.depth(fr) if len(fr) >= 3 else None
+        return dict(plug_z_mm=self.plug_z, frames=len(fr))
+
+    def measure(self, ch, tag):
+        if self.fn is None:
+            return PortMeasure(False, f'port_vision not available: {self.err}')
+        if self.plug_z is None:
+            return PortMeasure(False, 'no shell depth for this grasp')
+        raw = self.raw(ch, tag)
         if raw is None:
             return PortMeasure(False, 'no raw frame')
-        m = self.fn(raw, side='right', **self.kw)
+        m = self.fn(raw, side='right', plug_z_mm=self.plug_z, **self.kw)
         sig = None if m.sigma_mm is None else float(np.max(m.sigma_mm))
         return PortMeasure(bool(m.ok), str(m.reason), float(m.conf), m.across_mm, m.up_mm, m.gap_mm, sig)
 
@@ -144,6 +165,8 @@ class SimTruthSource:
         self.bias = np.asarray(spec.get('bias_mm', [0., 0., 0.]), float)
         self.sigma = np.asarray(spec.get('sigma_mm', [.3, .3, .5]), float)
         self.run_bias = np.asarray(spec.get('run_bias_sigma_mm', [0., 0., 0.]), float)
+        self.pose_sigma = np.asarray(spec.get('pose_sigma_mm', [0., 0., 0.]), float)       # same at one pose, new at the next (port vision: frame noise < 0.12 mm, residual over poses larger)
+        self.pose_err, self.pose_at = np.zeros(3), None
         self.drop = float(spec.get('drop_p', 0.))
         self.conf = float(spec.get('conf', 1.0))
         self.g = np.random.default_rng(int(spec.get('seed', ch.seed or 0)) + 12345)
@@ -154,8 +177,10 @@ class SimTruthSource:
         if self.g.random() < self.drop:
             return PortMeasure(False, 'sim drop-out')
         p = np.asarray(tr['plug_in_port_mm'], float)
-        v = self.slope * p + self.bias + self.rb + self.g.normal(0, 1, 3) * self.sigma
-        return PortMeasure(True, 'sim', self.conf, float(v[0]), float(v[1]), float(v[2]), float(self.sigma.max()), extra=dict(truth=p.tolist()))
+        if self.pose_at is None or np.linalg.norm(p - self.pose_at) > .3:
+            self.pose_err, self.pose_at = self.g.normal(0, 1, 3) * self.pose_sigma, p
+        v = self.slope * p + self.bias + self.rb + self.pose_err + self.g.normal(0, 1, 3) * self.sigma
+        return PortMeasure(True, 'sim', self.conf, float(v[0]), float(v[1]), float(v[2]), float(max(self.sigma.max(), self.pose_sigma.max())), extra=dict(truth=p.tolist()))
 
 
 SOURCES = dict(stub=StubSource, port_vision=PortVisionSource, wrist_net=WristNetSource, sim_truth=SimTruthSource)
@@ -410,7 +435,10 @@ class AlignStage:
 
     def measure(self, tag):
         c, ch = self.c, self.ch
-        ms = [self.one(self.src, f'{tag}_{i}') for i in range(int(c['frames']))]
+        ms = []
+        for i in range(int(c['frames'])):      # one control tick between frames: the arm keeps its 50 Hz commands as far as the camera allows
+            ms.append(self.one(self.src, f'{tag}_{i}'))
+            self.creep.tick()
         good = [m for m in ms if m.ok and m.gap_mm is not None and m.across_mm is not None and m.up_mm is not None]
         if not good:
             out = ms[-1]
@@ -488,6 +516,11 @@ class AlignStage:
         self.creep.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
         out = dict(ok=False, reason='', cycles=0, gap_mm=None, lat_mm=None)
         last = None
+        self.still()
+        if hasattr(self.src, 'prepare'):
+            pr = self.src.prepare(ch, self.creep.tick)
+            ch.log_event('align_prepare', **pr)
+            print(f'align: shell depth for this grasp {pr}', flush=True)
         off = c.get('sim_entry_offset_mm')
         if off and getattr(ch.io, 'is_sim', False):       # dry run only: start from a real-like stop error (the sim's approach ends much closer than the real one)
             g = np.random.default_rng(int(ch.seed or 0) + 777)
