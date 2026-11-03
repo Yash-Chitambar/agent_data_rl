@@ -1,6 +1,6 @@
 # Real in-hand pose and real reader look in the sim
 
-Status: v1. Off by default. Measured on 13 real grasps of 2026-11-02, one reader spot. Results below grow as work continues.
+Status: v2. Off by default. Measured on 13 real grasps of 2026-11-02, one reader spot. Results below grow as work continues.
 
 ## How to enable
 
@@ -8,11 +8,11 @@ Presets: `blind_insertion/configs/inhand_real_v2.json` (use this; one row per me
 
 | What | Setting | Effect |
 |---|---|---|
-| Reader look | `BimanualCfg.inhand_real = 'v1'` | Silver plate and shoulder as on the real reader. Visual only: no change to the collision shape or mass. |
-| In-hand pose, insertion | `InsertionCfg.grasp = 'real'` (`grasp_real = 'v1'`, `grasp_real_spread = 1`) | Reader drawn from the measured grasp. The reference pose stays the Part 1 nominal, so the policy's in-hand input keeps its meaning. |
+| Reader look | `BimanualCfg.inhand_real = 'v2'` | Silver plate and shoulder as on the real reader. Visual only: no change to the collision shape or mass. |
+| In-hand pose, insertion | `InsertionCfg.grasp = 'real'` (`grasp_real = 'v2'`, `grasp_real_spread = 1`) | Reader drawn from the measured grasp. The reference pose stays the Part 1 nominal, so the policy's in-hand input keeps its meaning. |
 | In-hand pose, render data | `InsertCfg.inhand = 'real'` (`RightInserter`) | The same draw, for wrist and in-hand data. |
-| Wrist net training | `scripts/perception/train_approach_estimators.py --inhand-mode real --reader-look v1` | Both of the above. |
-| Direct use | `inhand_real.sample_real(n, 'v1', device=dev)` | Site in reader, the signature of `inhand.sample_measured`. |
+| Wrist net training | `scripts/perception/train_approach_estimators.py --inhand-mode real --reader-look v2` | Both of the above. |
+| Direct use | `inhand_real.sample_real(n, 'v2', device=dev)` | Site in reader, the signature of `inhand.sample_measured`. |
 
 Do not set `reader_body_length_m` (see Reader): the body stays 41.26 mm.
 
@@ -169,11 +169,11 @@ Also for the wrist retrain: the sim's camera differs from hand-eye by the tip fi
 
 Failures: mainly `grasp_slip` (reader moved over 10 mm or 15 deg in the hand), then `lateral_miss`. Full classes: `kj_inhand_v2.csv`. Base sim (no fidelity), old grasp: 98.9-99.6 % over 8 cells; the new grasp was not run in the base sim.
 
-**Reading.** At an exact hand-over at 6 mm, K-J is robust to this grasp: `v2` net 94.1 %, against 97.2 % for the old grasp. It gets worse than the old grasp as the hand-over gets worse, and the gap matters as much as the offset: at 11 mm with today's input it falls to 58.5 %. Vision reads the real stop at about 8 mm (`PORT_VISION.md`).
+**Reading.** At an exact hand-over at 6 mm, K-J is robust to this grasp: `v2` net 94.1 %, against 97.2 % for the old grasp. It gets worse than the old grasp as the hand-over gets worse. Gap and rotation matter as much as the offset: at 11 mm with today's input it falls to 58.5 %, and with up to 2 deg of rotation per axis to 59.5 % (old grasp 80.2 %). Vision reads the real stop at about 8 mm (`PORT_VISION.md`).
 
-**Recommendation (no training was run):** make the graph hold the hand-over within about 1 mm and about 6 mm gap first, and do not fine-tune K-J for that case. Fine-tune on `v2` if the graph cannot, or if the real runs stay slip-limited. Do not feed the true in-hand pose without fine-tuning: x +8 mm is outside K-J's training range (about +-3.7 mm), and `true` is often not better than the wrong `net` value (for example -2, 0: 82.6 against 91.3).
+**Recommendation (no training was run):** make the graph hold the hand-over within about 1 mm, about 1 deg (not tested at 1 deg; a guess between the exact and 2 deg cells) and about 6 mm gap first, and do not fine-tune K-J for that case. Fine-tune on `v2` if the graph cannot, or if the real runs stay slip-limited. Do not feed the true in-hand pose without fine-tuning: x +8 mm is outside K-J's training range (about +-3.7 mm), and `true` is often not better than the wrong `net` value (for example -2, 0: 82.6 against 91.3).
 
-**Why these numbers are optimistic:** sim fingers do not yield. Sim finger closure in a push: median 0.01-0.05 mm; real: 0.3-0.5 mm at the first seat, 1.3 mm by the end. Sim reader pitch at exact hand-over: median 0.8 deg, p90 1.6 deg; real: about 2-4 deg at the first seat. The sim also does not give the real drop on its own terms. The sim's success is therefore an upper bound on contact, not a forecast of the real rate.
+**Why these numbers are optimistic:** sim fingers do not yield. Sim finger closure in a push: median 0.01-0.05 mm; real: 0.3-0.5 mm at the first seat, 1.3 mm by the end. Sim reader pitch at exact hand-over: median 0.8 deg, p90 1.6 deg; real: about 2-4 deg at the first seat. The sim's success rates are therefore likely optimistic: read them as a comparison between grasps, not as a forecast of the real rate. I did not reproduce the real drop of `IMG_8784` as a specific event.
 
 **Breakdown, exact hand-over, `kj_inhand_parts.csv`:** pitch only 99.4 % (true), 89.5 % (net); `v1` mean without spread 97.2 %; `v1` mean position and pitch with `v1`'s independent box 71.6 %. So `v1`'s box costs 25 points; `v1` total 71.5 %, net 69.0 %. Which axis of the box does this was not separated. Use `v2`. Position only: 0 of 1024, ended before any motion was logged: an invalid setup (a guess: the reader off the pads), ignore it.
 
