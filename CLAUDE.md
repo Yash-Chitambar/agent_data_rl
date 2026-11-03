@@ -204,4 +204,5 @@ GPU) or `scripts/server/slurm/submit.sh` (job arrays); results come back with
 `scripts/server/sync_down.sh`. `train.py` / `train_visual.py --resume` continue from `last.pt`
 (optimizer, RNG and curriculum stage included); the runners add `--resume` for partial runs.
 
+- Bimanual align stage (`deploy/bimanual/align.py`, `insert_guard.py`, config `deploy/config/bimanual_align1.json`): docs/real/ALIGN_STAGE.md; next rig steps: docs/real/NEXT_RIG_SESSION.md. Do not `pkill -f` a pattern in your own shell command line: it kills that shell.
 - Physical Task H scene: `docs/real2sim/PHYSICAL_YAM_SCENE.md`. Defaults now use measured bilateral mounts/cameras, square RGB policy crops and upstream FlexPoint geometry. Old ACT checkpoints require their legacy scene settings; new contact compliance remains uncalibrated.

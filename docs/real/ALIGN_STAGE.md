@@ -25,7 +25,7 @@ Between the approach and K-J: the plug goes to about 6 mm in front of port 2, li
 
 **Small commanded steps do not simply move** (`results/real_align/tracking.json`, collect1). Joint 2 friction band 1.33 N m (17 mrad at kp 80), constant load -0.87 N m. Sweep moves, target step against measured step: 1-2 mm: gain median 0.83, 37 % moved under a quarter; 2-4 mm: 0.78, 26 %; 8 mm and more: 1.00, 4 %. Operator jogs, n = 42: asked 0.5-1 mm, moved 0, then jumped 4-11 mm.
 
-**Creep controller.** Target = goal + lead on every joint, so the position error always pulls toward the goal and the hand cannot run away. On joints 2-3 the lead ramps slowly while the joint is off its goal and is cut as soon as the joint moves. On a one-joint plant with stick-slip (`deploy/checks/align_stickslip.py`, n = 150 per case, random friction and load, a simplified plant fitted by eye to the jogs: an argument, not a measurement): final error for a 1 mm step, p50 and p90: collect-style ramp 1.0, 1.82 mm; creep 0.12, 0.30 mm. Limits: lead at most 45 mrad on joints 2-3 (3.6 N m, below the 9 N m torque guard, which stays on).
+**Creep controller.** Target = goal + lead on every joint, so the position error always pulls toward the goal and the hand cannot run away. On joints 2-3 the lead ramps slowly while the joint is off its goal and is cut as soon as the joint moves; breaks from rest in both directions give the middle of the friction band (the load), which is the holding lead at the goal. On a one-joint plant with stick-slip (`deploy/checks/align_stickslip.py`, n = 150 per case, random friction and load, a simplified plant fitted by eye to the jogs: an argument, not a measurement): final error for a 1 mm step, p50 and p90: collect-style ramp 1.0, 1.82 mm; creep 0.13, 0.25 mm. In the sim runs the step moved fraction 0.79, 0.93, 1.10 of the ask (p10, p50, p90). Limits: lead at most 45 mrad on joints 2-3 (3.6 N m, below the 9 N m torque guard, which stays on).
 
 **Hand-over target lead.** The real climb's main cause, below. `handover_lead_rad` is K-J's live-state range p1-p99.
 
@@ -66,7 +66,33 @@ Every stop backs out 15 mm at 10 mm/s with closed jaws, then asks for the reader
 
 `scripts/eval/eval_align_batch.py`: batched chain with the same `AlignLogic` and `creep_law`, encoder offset ±1.5 deg, believed frame, baseline training grasp, old sim PC look and old wrist nets (the r10 nets did not train on this look). Entry at a real-like stop: across -5..1, up 3..10, gap 6..8 mm by truth. Measurement: truth + run constant (0.3, 0.6, 0.4 mm) + pose residual (0.25, 0.74, 0.49 mm) + frame noise 0.1 mm + 10 % frame loss. Truth at the hand-over:
 
-ALIGN_RESULTS
+| Case | Worlds counted | Handed over [95 %] | Across abs p50, p95 | Up abs p50, p95 | Gap p5, p50, p95 | K-J seated, handed-over worlds |
+|---|---|---|---|---|---|---|
+| Port-vision-like, nominal friction | 100 | 70 [60, 78] | 0.33, 0.86 | 0.49, 1.65 | 5.28, 6.27, 7.33 | 70/70 [95, 100] |
+| Same, joints 2-3 friction x 2.4 | 19 | 18 [75, 99] | 0.27, 0.61 | 0.81, 1.96 | 5.27, 6.38, 7.45 | 15/18 [61, 94], 3 grasp slip |
+| Old net scale (slope 0.34, 0.17, 0.35), gates on | 15 | **0** [0, 20] | | | | none: stage stops (scale 8, gap limit 6, step limit 1) |
+| Old net scale, scale gate off, to show why | 17 | 7 [22, 64] | 1.74, 3.54 | 2.63, 8.68 | 8.47, 9.95, 10.84 | 7/7, small n: training grasp |
+
+Achieved against the target of about 6 mm and about 1 mm (port-vision-like, n = 70 handed over): within 1 mm in both across and up 56 (80 % [69, 88]), within 2 mm 68, gap 5-7 mm 62, gap range 4.96-7.64. So the p95 of up (1.65 mm) is past the target: K-J numbers for that range (`sim/grasp-real`, v2): ±1 mm 89.6-94.7 %, ±2 mm 69.7-92.2 %. The up error is mostly the run constant in the noise model (0.6 mm), which no averaging removes.
+
+**Angle at the hand-over (truth, not corrected):** this table's grasp and look: rx 0.68, 2.69; ry 0.16, 0.44; rz 0.24, 0.96 deg (abs p50, p95).
+
+**Stops are mostly false stops here, by design of the gates.** Of 30 stops in the first row: 20 scale gate (noise of 0.74 mm against 2 mm probes, not a bad camera), 6 step limit, 2 correction grows, 1 too far, 1 gap limit. A stop costs a try, not a part. If real noise is like that, widen `slope_min` or lengthen `probe_mm` on the rig: the runbook asks for the slopes.
+
+**Time:** about 17 s for the stage in the one-world runs (19-20 s median, p95 31-44 s). Cycles about 15.
+
+The batched eval loses the reader before the stage in about half of the worlds (92 of 192): not counted above. Not investigated.
+
+### One-world dry runs, the real path, fair look
+
+`deploy/run_bimanual.py --dry-run --stage full --speed 0.5` with this config: r10 nets, `pc_real_look`, `inhand_real` v2, encoder offset ±1.5 deg, entry offset across ±1, up 1-5, gap 0-1 mm, same noise, seeds 7100-7107 and 7200-7206. n = 15.
+
+- Hand-over 12 of 15 [80 % : 55, 93], 3 scale gate. No crash, no guard stop before the hand-over.
+- Truth at the hand-over: across abs p50 0.35, up 0.7, gap 5.4-6.6 mm.
+- **Angle (truth): rx p95 1.4-1.6, ry p95 2.3-2.7, rz p95 2.0-2.1 deg.** This is what the approach left: ry -1.1 to -2.7 deg on every run, and the stage keeps it. Fine r10 net rotation output against truth, last frames, n = 21 of 7 runs: mean error +0.1, **+1.95**, +0.9 deg, SD 0.8, 0.4, 1.0: the net reads about 0 where the plug is at -2 deg. So in this sim the net's rotation has a constant bias. Real value unknown: `align_measure` and `net` events log it.
+- **K-J after the hand-over: 0 of 12 seated by the sim's truth [0, 24 %].** Outcomes press abort 7, guard bound 4, seat detect 1 (false: true depth 5.3 mm, tilt above the sim's limit). Plug depth at the end: 5.6, 5.4, 5.3, 4.5, 4.4, 3.7 mm in six of them; on the case in the others. Without the guard, same seeds: DRYNG_RESULTS. The sim's seated test also has a 2 deg tilt limit.
+
+This is the main open result: at this angle, K-J does not finish in this sim, as `sim/grasp-real`'s up-to-2-deg number warned (59.5 %). The stage fixes position and not angle.
 
 ## Seat detector 2 (`insert.seat2`)
 
@@ -84,7 +110,14 @@ Real logs (`results/real_align/seat_real.json`, n = 2 + 2, the same runs that se
 
 The gap between the pressed-on-case readings (at most 3.6 mm) and the threshold (4.8 mm) is only 1.2 mm. Real seats read 6.2-9.5 mm: the arm and PC give under a push, about 1 mm by PORT_VISION. Grip reading falls at a pushed seat (0.303 to 0.293) and not on the case in A and A2 (n = 2 each): logged, not used.
 
-Sim: SEAT_RESULTS
+Sim, training grasp, measured-gap noise 0.63 mm and lateral 0.39, 0.95 mm (`seat_final_*.json`), a detection counts if within 3 s after the sim's seated hold:
+
+| Set | Not seated: false seats, new [95 %] | Old (6 mm assumed) | Seated: missed within 3 s, new [95 %] | Old |
+|---|---|---|---|---|
+| Live hand-over, 1024 | 0 of 1 | 0 of 1 | 152 of 1023 = 14.9 % [12.8, 17.2] | 1 of 1023 |
+| Plug on the case, 512 | 2 of 142 = 1.4 % [0.4, 5.0] | **138 of 142 = 97 %** | 65 of 370 = 17.6 % [14.0, 21.8] | 0 |
+
+True depth at a new detection: p1 5.6 mm, none under 5 mm in the live set. The cost of 0.5 s at rest: more seats are found late or not at rest. Late ones are caught at the time limit: a plug at depth on the axis counts as seated there, and the press abort does not fire. So a "miss" here is rarely a lost seat; the sim's early ones were the worse fault (dry run s7100, 0.2 s hold: stopped at true 4 mm).
 
 ## Why K-J climbs
 
@@ -145,14 +178,18 @@ A real-frame check with a fake arm (`deploy/checks/align_realframes.py`): measur
 
 ## Checks
 
-DRY_RESULTS
+- `deploy/checks/align_gates.py`, every gate and the configs: `FAILED: none`. Old configs keep the stages off; `bimanual_align1.json` = pick3 + batch A + r10 nets + the new keys, limits equal.
+- `deploy/checks/bimanual_conventions.py --config bimanual_align1.json`: `FAILED: none`. `bimanual_realio_mock`: last line ok.
+- `deploy/checks/align_realframes.py`: ok. `align_stickslip`: creep p90 under 1 mm for steps of 0.5 mm and more.
+- `deploy/checks/bimanual_timing.py --config bimanual_align1.json` on mason, machine shared with this work's sim jobs: compute p50, p99 ms: align 8.6, 22.2 (2 % over 20 ms; the stage calls IK per step; a late tick during the slow stage does no harm by itself, but the rig decides); insert 13.3, 15.5 (old path about 2 ms lower by the same check: guard and seat 2 add FK); others unchanged in kind, pick p99 28.9 and approach p99 53.8 ms as before on a loaded machine. **Reported, not passed: the rig decides.**
+- Vision at 82 ms per frame stops the 50 Hz ticks for that long: there is one control tick between frames, the driver holds the last target.
 
 ## Limits
 
 - **Never run on the arm.** Port vision has never run in a live loop. Creep has run only on a sim and a simplified plant. The r10 nets have not run in a loop.
 - One PC, one session's lighting, one reader spot.
 - Real up tolerance relies on port vision's constant (offset range 1.6 mm on y, 11 frames at two moments). If the constant is off by 1-2 mm, the stage hands over 1-2 mm off and no gate sees it. K-J's real margin for this is unknown. Light-contact anchor in the runbook.
-- Angle is not corrected. Sim hand-over tilt p95 is shown above; real unknown.
+- **Angle is not measured or corrected.** See the one-world result: K-J stalled at about 2 deg in the fair sim. Real angle unknown; real pitch at first seat is reported up to 2-4 deg (`docs/real/INHAND_REAL.md`).
 - K-J itself: in the sim, under real-like friction, it loses about half even when aligned. Sim fingers do not yield as real ones do. The stage gets the plug to the place K-J trained from. It does not make K-J work on the real arm.
 - The batched eval loses the reader before the stage in about half of its worlds (`reader_lost_before_stage`): those are not counted. Not investigated. It did not appear in the one-world dry runs.
 - Seat values come from 2 failed and 2 seated runs. A missed seat leads to a press abort, which pulls the plug out: safe, but a lost try.
