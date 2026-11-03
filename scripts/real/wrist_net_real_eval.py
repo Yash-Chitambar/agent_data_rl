@@ -122,6 +122,7 @@ def boot(y, p, groups=None, n=4000, seed=0):
 
 
 def band_report(Y, P, groups=None):
+    P = P[:, :3]
     out = {}
     for lo, hi in GAP_BANDS:
         m = (Y[:, 2] >= lo) & (Y[:, 2] < hi)
@@ -190,8 +191,12 @@ def evaluate(net_path, dev='cuda:0', rs=None, tf=None):
     for src, nm in (('self', 'ai4'), ('same_spot', 'A+A2')):
         s = [r for r in rs if r['source'] == src and 'p_mm' in r]
         Ys, Ps = np.array([r['p_mm'] for r in s]), pr(s)
-        other[nm] = dict(n=len(s), **{ax: dict(slope=round(slope(Ys[:, i], Ps[:, i]), 3), ci_frames=boot(Ys[:, i], Ps[:, i]), label_sd=round(float(Ys[:, i].std()), 2),
-                                               resid_sd=round(float((Ps[:, i] - Ys[:, i]).std()), 2)) for i, ax in enumerate(AXES)})
+        # all frames, and the frames a net can answer for: settled, in the sweep's range (transport frames are far outside any training range)
+        ok = np.array([r['qd_max'] <= .05 for r in s]) & (np.abs(Ys[:, :2]).max(1) < 16) & (Ys[:, 2] < 46) & (Ys[:, 2] > 0)
+        def tab(m):
+            return dict(n=int(m.sum()), **{ax: dict(slope=round(slope(Ys[m, i], Ps[m, i]), 3), ci_frames=boot(Ys[m, i], Ps[m, i]), label_sd=round(float(Ys[m, i].std()), 2),
+                                                    resid_sd=round(float((Ps[m, i] - Ys[m, i]).std()), 2)) for i, ax in enumerate(AXES)})
+        other[nm] = dict(all=tab(np.ones(len(s), bool)), settled_in_range=tab(ok))
     ai = [r for r in rs if r['source'] == 'self' and 'p_mm' in r]
     Pi = pr(ai[-5:])
     other['ai4']['net_at_last_5_frames'] = Pi.mean(0)[:3].round(2).tolist()
