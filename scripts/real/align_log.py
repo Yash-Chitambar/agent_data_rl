@@ -26,7 +26,8 @@ def main(run):
         if e['kind'] == 'align_measure':
             nok = sum(1 for f in e['frames'] if f['ok'])
             print(f"{e['cycle']:3d} {e['t_stage']:5.1f} {nok}/{len(e['frames'])} {fmt(e['across'])} {fmt(e['up'])} {fmt(e['gap'])} {e['conf']:.2f} {fmt(e['spread'])} | {np.round(e['tip_rel'], 2).tolist()} | {e['decision']} {np.round(e['delta'], 2).tolist()} {e['decision_reason'] or ''}"
-                  + (f" | truth {np.round(e['truth_mm'], 2).tolist()}" if e.get('truth_mm') else ''))
+                  + (f" | plug rx,ry,rz deg {np.round(e['rv_deg'], 1).tolist()} fused {np.round(e['rv_fused'], 1).tolist() if e.get('rv_fused') else None} turned {np.round(e['rot_applied'], 1).tolist()}" if e.get('rv_deg') else '')
+                  + (f" | truth {np.round(e['truth_mm'], 2).tolist()} rot {np.round(e['truth_rot_deg'], 1).tolist()}" if e.get('truth_mm') else ''))
         elif e['kind'] == 'align_step':
             print(f"       step asked {np.round(e['delta'], 2).tolist()} moved {np.round(e['moved'], 2).tolist()} fraction {e['frac']:.2f} reached {e['reached']} ticks {e['ticks']} lead(mrad) {np.round(np.array(e['lead']) * 1e3, 1).tolist()}")
     st = [e['frac'] for e in ev if e['kind'] == 'align_step']

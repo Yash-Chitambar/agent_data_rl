@@ -24,7 +24,7 @@ This draft is on branch `real/graph-align`. Other agents add their parts in the 
 cd ~/agent_data_rl
 git status                       # commit or stash local changes first (ask the operator)
 git fetch origin && git checkout real/graph-align && git pull --ff-only
-export PYTHONPATH=. ; C=deploy/config/bimanual_align1.json
+export PYTHONPATH=. ; C=deploy/config/bimanual_align2.json
 # r10 wrist nets: NOT in the bundle, `bundle verify` does not cover them. Copy runs/perception_real/ from mason (from the worktree of policy/wrist-real), then:
 sha256sum runs/perception_real/wrist_r10f_ft_abs.pt runs/perception_real/wrist_r10w_ft_abs.pt | cut -c1-16   # must print 384e7b43b7e0e937 (fine) and 78064b5eeab8bbce (coarse)
 .venv/bin/python -m deploy.bimanual.bundle verify                     # "bundle OK"
@@ -71,11 +71,13 @@ After the run, show:
 
 Check: `align: shell depth` printed a number (no number: the grasp is refused, and the stage stops, which is correct), frames measured (`ok`), spread between measurements, and the values against what the operator sees. Expected at the stop: gap about 6 mm with the r10 nets (the old nets stopped at 8-9 mm, up +5 to +9 mm, across -5 to 0 mm by port vision). The log also shows the net as the second source: the net against vision limits (3.0, 3.5, 2.5 mm) are a guess; report the real differences. **Before step 3: the measurements must be steady (spread below about 1 mm: the arm does not move, and port vision noise at rest was under 0.12 mm offline), and at least half of the cycles must have a measurement.** This is also the first time port vision runs live. Compare the printed time per measurement: about 82 ms offline. If not, stop and report. Do not run step 3. Ask the port vision agent.
 
+**Read the plug angle here, before any insertion.** Each line of the log gives `plug rx,ry,rz` (pitch, yaw, roll of the plug against the panel, deg: port vision's panel pose + camera mount + mean real grasp). Offline at the old stops it read rx -3.2 to -3.4, ry -1.8 to -2.4, rz -1.1 to -1.3. Write the steady values and a side photo of the plug against the port row, with a square if possible. Sign check by eye: rx negative should look like plug tip low or high consistently between runs; tell the operator what the photo shows. If the angle looks clearly different from the numbers, stop and report: the angle correction in step 3 would be wrong.
+
 Repeat once with a new pick (`--name measure2`). The values should agree within about 1-2 mm, unless the operator saw a different grasp.
 
 ## Step 3. Align without insertion
 
-The stage moves in steps of at most 1 mm. Near the end it stops about 6 mm in front of the port (measured). Then it backs out. No insertion. Probes move the plug 2 mm in each axis and back: this is normal.
+The stage moves in steps of at most 1 mm and turns the hand at most 0.75 deg per cycle. Near the end it stops about 6 mm in front of the port (measured). Then it backs out. No insertion. Probes move the plug 2-3 mm in each axis and back: this is normal.
 
 The operator: stand at the estop. Look from the side during the stage, without touching the rig. **If the plug touches the case: Enter at once.** Watch for jumps; slow creeping is normal, and a single joint can jump.
 
@@ -92,6 +94,7 @@ After the run:
 Check and tell the operator:
 
 - Outcome and reason. A stop is a good result if the reason is right. Do not change a gate to pass it.
+- `plug rx, ry` at the end: within about 1 deg, and `turned` under 7 deg. Side photo at the end of the stage (clip frame): does the plug look level and straight with the port? Angle is the largest open risk: K-J drops to 59.5 % at 2 deg (sim).
 - `slope` per axis. It must be 0.6-1.6. On `scale gate`: the camera does not follow the hand. Stop and report.
 - `moved fraction`: how far each step went against the asked step. Many below 0.25 or above 3 means that the creep controller does not fit the real friction. Report it with `lead`.
 - Does the operator agree by eye with the last line? A photograph or a clip frame of the plug at the end of the stage, before it backs out, helps. Pause with `--pause-in-press` is not needed: the stage holds only for its measurements, so use the clip.
