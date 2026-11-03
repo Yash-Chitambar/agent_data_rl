@@ -84,13 +84,13 @@ Note that camera across against FK is not useful (-4.95 against -1.65): yaw and 
 
 ## Label offset (`results/real/port_vision/label_offset.json`)
 
-**Answer for the collect run: true = manifest + (-0.5, -2.3, -1.7) mm, across, up, gap. y range -1.6 to -3.0 mm. This is an estimate, not a proof.** The manifest is not changed. Uncertainty of about 0.6 mm on y is a judgement from the spread below, not a measured interval.
+**Answer for the collect run: true = manifest + (-0.5, -2.3, -1.7) mm, across, up, gap. y range -1.6 to -3.2 mm. This is an estimate, not a proof.** The manifest is not changed. Uncertainty of about 0.6 mm on y is a judgement from the spread below, not a measured interval.
 
 Evidence:
 
 1. Vision against the sweep labels, n = 134: median -0.54, -2.29, -1.67.
 2. Plug in the port mouth, two moments outside the sweep. The mouth is visible as a dark notch. On those frames the tip's true height is about 0 and its depth is known, so FK label there plus the image-measured in-hand change gives the offset: first entry (n = 8) -1.97, -2.10, -2.36; second entry (n = 3) -1.09, -2.75, -0.97.
-3. Sensitivity: moving the mouth row by 2 px or the mouth plane by 0.5 mm changes y by under 0.03 mm, because those errors shift the port and the tip along nearly the same ray. It does change gap (up to 0.4 mm). A 0.25 mm error in the plug top at the mouth moves y by 0.25 mm. Using only the first or only the second entry to set the constants gives the range on y.
+3. Sensitivity: moving the mouth row by 2 px or the mouth plane by 0.5 mm changes y by under 0.03 mm, because those errors shift the port and the tip along nearly the same ray. It does change gap (up to 0.4 mm). A 0.25 mm error in the plug top at the mouth moves y by 0.25 mm. Using only the first or only the second entry to set the constants gives y -1.58 or -3.21 (the range above).
 
 Items 1 and 2 are **not independent**: the constants in item 1 come from the same mouth frames. Only 11 frames at two moments carry the absolute value.
 
@@ -109,7 +109,7 @@ Other runs: `same_spot` A -1.62, -2.34, -3.63; A2 -1.96, -5.27, -2.60; ai4 (own 
 
 - One PC, one session's lighting, right camera only. No other PC model or lighting tested. New PC: refit `port_vision_model.json`.
 - Tested offline on logged frames. Never in a closed loop. Under motion blur the gates are untested as gates: frames marked moving are counted in detection but not in slopes.
-- The absolute constants come from 11 frames at two moments, and the offset range on y is about 1.4 mm. Trust differences (slope, residual) more than absolute up. A port entry probably needs a few tenths of a mm (guess from the USB-C clearances and chamfer). Up residual near the port is 0.7 mm per frame with `plug_z_mm`: average several frames.
+- The absolute constants come from 11 frames at two moments, and the offset range on y is about 1.6 mm. Trust differences (slope, residual) more than absolute up. A port entry probably needs a few tenths of a mm (guess from the USB-C clearances and chamfer). Up residual near the port is 0.7 mm per frame with `plug_z_mm`: average several frames.
 - The tip uses "plug about parallel to the panel axes", and the fixed tip-to-middle depth of a level plug. A plug pitched in the hand breaks both by an amount not measured here. The operator reports under 10 deg at the butt.
 - Plug tilt (rx, ry, rz) is not an output.
 - Fully seated or deeply entered: the shell hides and the call fails. That is by design: use before insertion.

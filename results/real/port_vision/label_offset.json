@@ -63,5 +63,9 @@
    "n": 4,
    "frames": "stop frames"
   }
- }
+ },
+ "_collect_y_range_mm": [
+  -3.21,
+  -1.58
+ ]
 }

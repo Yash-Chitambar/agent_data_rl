@@ -141,7 +141,7 @@ def main():
     offs = {r: dict(offset_mm=v['vision_minus_label_mm'], sd_mm=v['vision_minus_label_sd_mm'], n=v['n'], frames='stop frames' if r.endswith(('full_A', 'full_A2', 'ai4')) else 'all detected') for r, v in res['runs'].items()}
     (OUT / 'label_offset.json').write_text(json.dumps(dict(
         _about='true plug tip (vision) = manifest p_mm + offset_mm, one scalar per run per axis; x across, y up, z gap. The manifest is not changed. See docs/real/PORT_VISION.md for the evidence and limits.',
-        _uncertainty_mm_1sigma_guess=dict(x=0.5, y=0.6, z=0.5), _same_spot_note='A and A2 borrow the collect anchor: their offset also holds the in-hand and PC differences of that run.', runs=offs), indent=1))
+        _uncertainty_mm_1sigma_guess=dict(x=0.5, y=0.6, z=0.5), _collect_y_range_mm=[-3.21, -1.58], _same_spot_note='A and A2 borrow the collect anchor: their offset also holds the in-hand and PC differences of that run.', runs=offs), indent=1))
     print(json.dumps(res, indent=1))
     (OUT / 'acceptance.json').write_text(json.dumps(res, indent=1))
 
