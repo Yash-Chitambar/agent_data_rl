@@ -1,0 +1,36 @@
+{
+ "_about": "Test poses for scripts/real/precision_check.py (motor frame, rad). right_work = the right arm's hand pose at the hand-over of the seated run full_155211_align_full2 (2026-11-03), raised 40 mm with the same orientation (IK on i2rt's yam model) so the default 40 mm table clearance holds with the PC off the table. Loading on joints 2-5 is close to the working pose. right_test: the default test pose since 2026-11-06 (see right_test_source).",
+ "right_work": [
+  1.5204,
+  2.06502,
+  1.29754,
+  -0.61212,
+  1.0256,
+  1.3678
+ ],
+ "right_work_source": {
+  "run": "data/real_runs/2026-11-03/full_155211_align_full2",
+  "pose": "hand-over (stage 5 insert, tick before)",
+  "q_handover": [
+   1.5204,
+   2.1502,
+   1.2461,
+   -0.4755,
+   1.0256,
+   1.3678
+  ],
+  "raise_m": 0.04
+ },
+ "right_test": [
+  0.9,
+  1.53736,
+  1.03626,
+  -1.16834,
+  -0.46731,
+  0.51404
+ ],
+ "right_test_source": {
+  "from": "deploy/config/gravity_poses_right.json pose 8, visited in data/real_yam/gravity_id/20261106_145458_right",
+  "why": "right_work and its steps are 76.7 mm from the measured left arm at rest (2026-11-06), under the 80 mm limit; this visited gravity pose has the gravity load (joints 2-5) closest to right_work and keeps 130 mm from the left arm at rest, its limp variations and its measured pose, steps included."
+ }
+}

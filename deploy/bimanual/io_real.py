@@ -4,6 +4,11 @@ Joint frames: everything here is the MOTOR (encoder) frame i2rt reads and takes.
 rig.joint_offsets(side) to get the model ("believed") frame and subtracts them from its targets.
 Gripper values are i2rt units (0 closed .. 1 open).
 
+Optional cfg['arm_control'][side] = {'gravity': fitted payload model (path or dict), 'precision': precision
+controller params} (scripts/real/precision_arm.py; blind_insertion/envs/precision_ctrl.py): a 200 Hz thread per arm
+adds the integral / settle lock / friction feed-forward torque to every command (logged as ctrl_<side> rows). Absent:
+unchanged behaviour.
+
 Arms: scripts/real/deploy.RealArm per side = scripts/real/safety.connect (PD hold from the first instant,
 i2rt native gains = the bimanual sim's controller profile), BusTiming CAN hooks (every encoder reading stamped
 at arrival), SafeArm with the FlexPoint FlexChecker (joint box, table clearance on targets and measured poses,
@@ -48,13 +53,17 @@ class RealIO:
         sys.setswitchinterval(self.gil_switch_s)
         self._open_cameras(cams)          # blocking SDK init before the motors take commands
         sc = cfg['safety']
+        # per-arm gravity model and precision controller (scripts/real/precision_arm.py); absent = as before
+        ac = cfg.get('arm_control') or {}
         self.arms = {}
         try:
             for i, side in enumerate(SIDES):
-                arm = self.D.RealArm(side, np.asarray(kp[i], float), np.asarray(kd[i], float))
+                a = {k: v for k, v in (ac.get(side) or {}).items() if k in ('gravity', 'precision') and v is not None}
+                arm = self.D.RealArm(side, np.asarray(kp[i], float), np.asarray(kd[i], float), **a)
                 chk = FlexChecker(self.off[i], clearance=sc['clearance'], tip_clearance=sc['tip_clearance'],
                                   body_clearance=sc.get('body_clearance'), table_z=sc['table_z'])
                 arm.safe = safety.SafeArm(arm.robot, chk)
+                arm.safe.ctrl = getattr(arm, 'ctrl', None)
                 arm.safe._hold(np.asarray(arm.robot.get_joint_pos(), float))
                 self.arms[side] = arm
                 info = arm.info()
@@ -123,13 +132,30 @@ class RealIO:
         for i, s in enumerate(SIDES):
             arm = self.arms[s]
             arm.timing.label = (self.k, s)
+            ctrl = getattr(arm, 'ctrl', None)
             sent[i] = arm.safe.command(np.append(np.asarray(q_motor[i], float), float(grip[i])),
                                        ff_right if s == 'right' else None)
             lf = getattr(arm.safe, 'last_ff', None)
-            if lf is not None and s == 'right' and ff_right is not None:
-                ff[i] = lf
+            if lf is not None and (ctrl is not None or (s == 'right' and ff_right is not None)):
+                ff[i] = lf          # the torque in the command: precision controller, else the Coulomb feed-forward
+            if ctrl is not None and self.log is not None:
+                st = ctrl.status()
+                self.log.row('ctrl_' + s, t=time.monotonic(), k=self.k, I=st['I'], tau=st['tau'],
+                             latched=float(st['latched']), fallback=float(st['fallback'] is not None),
+                             frozen=float(st['frozen']), ok=float(st['error'] is None))
+                if st['error'] is not None and not getattr(self, '_ctrl_err_logged', {}).get(s):
+                    self.log.event('precision_error', side=s, error=st['error'], k=self.k)
+                    self._ctrl_err_logged = {**getattr(self, '_ctrl_err_logged', {}), s: True}
         self.k += 1
         return sent, ff
+
+    def precision_freeze(self, side, on=True):
+        """Hold (on) or release the precision controller's integral on one arm, e.g. around a contact stage."""
+        ctrl = getattr(self.arms[side], 'ctrl', None)
+        if ctrl is not None:
+            ctrl.freeze(on)
+            if self.log is not None:
+                self.log.event('precision_freeze', side=side, on=bool(on), k=self.k)
 
     def set_gains(self, side, kp, kd):
         """Arm joint gains (6,) from the next command on (i2rt update_kp_kd; gripper gains unchanged; kd capped at the

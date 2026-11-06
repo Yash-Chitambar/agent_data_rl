@@ -48,6 +48,9 @@ extension, and the data handoff format. It supplements the historical gap table.
 | `measure_manual.py` | create a session; record poses, masses, dimensions, forces and timed events | - |
 | `measure_cameras.py` | capture both wrists and the ZED with frame timing and raw images | - |
 | `measure_motion.py` | bounded friction trajectories and coordinated two-arm timing | `single`/`bimanual` |
+| `precision_arm.py` | precision controller on a real arm (200 Hz thread: integral, settle lock, friction feed-forward, vibration watch; law in `blind_insertion/envs/precision_ctrl.py`) and the fitted gravity model for `safety.connect(gravity=)` | - |
+| `precision_check.py` | one arm: small joint steps at a test pose, plain PD against the precision controller; `--plan` offline | yes |
+| `gravity_id.py` | gravity system ID of one arm: `plan` poses (offline), `collect` holds from above and below (moves), `fit` payload mass, centre of mass, per-joint factors and static friction -> `fit.json` for `safety.connect(gravity=)` | `collect` |
 
 ## Bimanual measurement session
 

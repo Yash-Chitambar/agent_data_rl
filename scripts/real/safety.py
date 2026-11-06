@@ -109,16 +109,31 @@ class Checker:
         return None
 
 
-def connect(side: str, gripper_kp: float = 2.0, gripper_kd: float = 0.5):
+def connect(side: str, gripper_kp: float = 2.0, gripper_kd: float = 0.5, gravity=None):
     """i2rt robot for one arm, holding its current pose (PD) from the start. Gripper calibrates.
-    Takes the arm from the rig console (rigctl.py) first, if it holds it."""
+    Takes the arm from the rig console (rigctl.py) first, if it holds it.
+
+    gravity: None (i2rt's model with EE_MASS and its own per-joint factors) or a fitted payload model
+    (path or dict, precision_arm.gravity_fit): ee_mass and gravity_comp_factor go to i2rt, the payload's
+    centre of mass into i2rt's gravity model right after connecting."""
     import armshare
     armshare.claim(side)
     from i2rt.robots.get_robot import get_yam_robot
     from i2rt.robots.utils import ArmType, GripperType
-    return get_yam_robot(channel=rig.can_channel(side), arm_type=ArmType.from_string_name("yam"),
-                         gripper_type=GripperType.from_string_name("linear_4310"), ee_mass=EE_MASS,
-                         gripper_kp=gripper_kp, gripper_kd=gripper_kd, zero_gravity_mode=False)
+    kw = dict(ee_mass=EE_MASS)
+    fit = None
+    if gravity is not None:
+        from precision_arm import gravity_fit
+        fit = gravity_fit(gravity)
+        kw = dict(ee_mass=fit["ee_mass"], gravity_comp_factor=fit["gravity_comp_factor"])
+    robot = get_yam_robot(channel=rig.can_channel(side), arm_type=ArmType.from_string_name("yam"),
+                          gripper_type=GripperType.from_string_name("linear_4310"),
+                          gripper_kp=gripper_kp, gripper_kd=gripper_kd, zero_gravity_mode=False, **kw)
+    if fit is not None and fit["ee_ipos"] is not None:
+        from precision_arm import set_payload_com
+        set_payload_com(robot, fit["ee_ipos"])
+    robot.gravity_fit = fit
+    return robot
 
 
 def close_robot(robot):
@@ -146,12 +161,20 @@ class SafeArm:
         arm settling a millimetre lower than planned stops it and blocks the way home."""
         self.robot = robot
         self.check = checker or Checker()
+        self.ctrl = None    # precision_arm.ArmController: its torque replaces fric_comp and is re-applied after each send
         q = self.read()  # raises if the arm already starts in an unsafe pose
         self.last_safe = q
+
+    def _apply_ctrl(self):
+        """command_joint_pos zeroed the torques field: put the precision controller's torque back."""
+        if self.ctrl is not None and self.ctrl.active:
+            return self.ctrl.write()
+        return None
 
     def _hold(self, q7: np.ndarray):
         self.robot.command_joint_pos(np.asarray(q7, float))
         self.last_safe = np.asarray(q7, float).copy()
+        self._apply_ctrl()
 
     def read(self) -> np.ndarray:
         q = np.asarray(self.robot.get_joint_pos(), float)
@@ -164,6 +187,9 @@ class SafeArm:
     def command(self, q7_target, fric_comp=None) -> np.ndarray:
         """Send the target, capped to MAX_STEP per joint from the previous command and refused
         beyond MAX_DEVIATION from the measured pose; returns what was sent.
+
+        With a running precision controller (self.ctrl) its torque goes in the torques field instead, and
+        fric_comp is ignored (the controller has its own friction feed-forward).
 
         fric_comp = (tau, ramp): Coulomb friction feed-forward on the arm joints from the sent
         target and the measured pose (blind_insertion/envs/friction_comp.py), in the command's
@@ -195,7 +221,10 @@ class SafeArm:
             self._hold(q)
             raise SafetyStop(f"step unsafe: {why}; holding")
         self.robot.command_joint_pos(tgt)
-        self.last_ff = None
+        self.last_safe = tgt
+        self.last_ff = self._apply_ctrl()
+        if self.last_ff is not None:      # the precision controller owns the torques field; fric_comp is not added
+            return tgt
         if fric_comp is not None:
             from blind_insertion.envs import friction_comp as FC   # repo root on sys.path (deploy.py)
             tau = FC.feedforward(tgt[:6] - q[:6], *fric_comp)

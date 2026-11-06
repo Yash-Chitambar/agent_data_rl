@@ -54,12 +54,18 @@ class FakeRobot:
 class FakeArm:
     """scripts/real/deploy.RealArm interface on a FakeRobot."""
 
-    def __init__(self, side, kp, kd, q7):
+    def __init__(self, side, kp, kd, q7, gravity=None, precision=None):
         self.side, self.robot = side, FakeRobot(q7)
         self.safe = None                      # RealIO installs SafeArm with the FlexPoint checker
         self.timing = SimpleNamespace(label=None, enc=[])
         self.motion_trace = []
         self.kp, self.kd = kp, kd
+        self.gravity, self.ctrl = gravity, None
+        if precision is not None:             # as deploy.RealArm: the controller follows whichever SafeArm is attached
+            from precision_arm import ArmController
+            self.ctrl = ArmController(self.robot, lambda: self.safe.last_safe if self.safe is not None
+                                      else self.robot.get_joint_pos(), dict(precision), name=side)
+            self.ctrl.start()
 
     def read(self):
         self.robot.step()
@@ -88,7 +94,8 @@ class FakeArm:
         self.safe._hold(self.robot.get_joint_pos())
 
     def close(self):
-        pass
+        if self.ctrl is not None:
+            self.ctrl.stop()
 
 
 class FakeCam:
@@ -126,7 +133,7 @@ def main():
             'wrist_left': cv2.imread(str(snap / 'pointed_wrist_left.png'))}
     jm = json.loads((snap / 'pointed.json').read_text())['joints_measured']
     D = real_loop()
-    D.RealArm = lambda side, kp, kd: FakeArm(side, kp, kd, jm[side])
+    D.RealArm = lambda side, kp, kd, **kw: FakeArm(side, kp, kd, jm[side], **kw)
     DC.ZedTop = lambda: FakeCam(raws['top'])
     DC.WristCam = lambda side: FakeCam(raws['wrist_' + side])
     sc = SceneModel('cpu')
@@ -170,9 +177,45 @@ def main():
     res['log_frames'] = len(frs)
     res['dropped'] = meta['dropped']
     ok_all = res['set_gains'] and res['ff_written_to_command'] and 'Stop' in res['torque_guard'] and 'ticks' in st and 'moves_right' in st
+    res['precision'] = precision_check(cfg, sc, raws, jm)
+    ok_all = ok_all and res['precision']['ok']
     res['ok'] = bool(ok_all)
     print(json.dumps(res, indent=1, default=str))
     raise SystemExit(0 if ok_all else 1)
+
+
+def precision_check(cfg, sc, raws, jm):
+    """RealIO with cfg['arm_control']: the right arm's controller thread runs, every send carries its torque (not the
+    Coulomb feed-forward), ctrl_right rows are logged, the left arm has none, and close stops it with zero torque."""
+    import copy
+    from deploy.bimanual import io_real
+    from deploy.bimanual.runlog import RunLogger, load_run
+    cfg = copy.deepcopy(cfg)
+    cfg['arm_control'] = {'right': {'precision': {'integral': True, 'settle_lock': True}}}
+    tmp = Path(tempfile.mkdtemp())
+    log = RunLogger(tmp, {'check': 'realio_mock_precision'})
+    io = io_real.RealIO(cfg, sc.kp.numpy(), sc.kd.numpy(), log=log)
+    out = {}
+    r = io.arms['right']
+    s = io.read()
+    for _ in range(20):
+        sent, ff = io.send(s['q'] + np.array([[0, .004, 0, 0, 0, 0], [0] * 6]), np.array([0.5, 1.0]),
+                           (cfg['fric_comp_right']['tau'], cfg['fric_comp_right']['ramp']))
+        time.sleep(0.01)
+    out['ctrl_active'] = bool(r.ctrl.active)
+    out['ff_is_ctrl_torque'] = bool(np.allclose(ff[0], r.safe.last_ff) and np.allclose(r.robot._commands.torques[:6], r.ctrl.tau(), atol=0.05))
+    out['left_has_no_ctrl'] = io.arms['left'].ctrl is None and np.allclose(ff[1], 0)
+    out['I_right'] = r.ctrl.status()['I'].round(3).tolist()
+    io.hold()
+    for a in io.arms.values():
+        a.close()
+    out['zero_after_close'] = bool(np.all(r.robot._commands.torques == 0))
+    log.close()
+    _, st, _, _ = load_run(tmp)
+    out['ctrl_rows'] = len(next(iter(st['ctrl_right'].values()))) if 'ctrl_right' in st else 0
+    out['ok'] = bool(out['ctrl_active'] and out['ff_is_ctrl_torque'] and out['left_has_no_ctrl'] and out['zero_after_close']
+                     and out['ctrl_rows'] >= 20 and out['I_right'][1] != 0)
+    return out
 
 
 if __name__ == '__main__':

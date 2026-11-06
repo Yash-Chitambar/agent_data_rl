@@ -126,6 +126,13 @@ report/tools/preview.sh && <playwright python> report/tools/check_page.py report
   with `verify_cameras.py` (all three cameras on one board, nothing fitted; pass on pixels, not mm: the ZED's
   single-board depth wobbles ~5 mm at 1 m); ZED pose refit from several board spots by `fit_zed.py`.
   Scene reference images: `snapshot.py` -> `data/sim_ref/<name>/`. Open gaps: `docs/real2sim/REAL_RIG_GAPS.md`.
+- Precision joint controller (features of github.com/XinyueZhuXY/yam-control d592e8e, not its values): law in
+  `blind_insertion/envs/precision_ctrl.py` (integral with dead band / freeze / cap / pause while the target moves,
+  settle lock, friction feed-forward, vibration watch; every feature off by default), real thread in
+  `scripts/real/precision_arm.py` (writes `robot._commands.torques`; no i2rt patch; SafeArm re-applies it after each
+  send), fitted gravity via `safety.connect(gravity=)`. Run config: `arm_control.<side>.{gravity, precision}`
+  (`deploy/bimanual/io_real.py`). Check on the arm: `scripts/real/precision_check.py`. Friction and gravity values
+  must come from this rig's system ID, not the athena3 fits.
 - Real-arm deployment loop: `scripts/real/deploy.py` (`check` offline; `run --source hold|step|policy`):
   50 Hz sim action scheme, sim gains (kd capped at 5: DM MIT limit), joint offsets in the observation,
   CAN-level timing logs in `data/real_yam/`. It wraps i2rt driver methods to stamp readings and sends.

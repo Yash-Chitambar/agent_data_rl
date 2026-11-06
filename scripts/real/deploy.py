@@ -266,10 +266,15 @@ class BusTiming:
 
 
 class RealArm:
-    def __init__(self, side, kp, kd):
+    def __init__(self, side, kp, kd, gravity=None, precision=None):
+        """gravity: fitted payload model (path or dict, precision_arm.gravity_fit) or None for i2rt's default.
+        precision: precision_ctrl params (dict) or None: the controller runs in its own thread on this arm and
+        takes its target from self.safe.last_safe (whichever SafeArm is attached; set safe.ctrl = self.ctrl
+        when replacing it)."""
         self.side = side
         self.motion_trace = []
-        self.robot = safety.connect(side)
+        self.ctrl = None
+        self.robot = safety.connect(side, gravity=gravity)
         self.timing = BusTiming(self.robot)
         r = self.robot
         kp7, kd7 = r._kp.copy(), r._kd.copy()
@@ -278,6 +283,17 @@ class RealArm:
         r.update_kp_kd(kp7, kd7)   # used from the next command on
         self.safe = safety.SafeArm(r)
         self.safe._hold(np.asarray(r.get_joint_pos(), float))   # re-send the hold with the new gains
+        if precision is not None:
+            from precision_arm import ArmController
+            p = dict(precision)
+            p.setdefault("kp", list(np.asarray(kp, float)))     # integral gain follows the arm's own springs
+            if not np.allclose(np.asarray(p["kp"], float), np.asarray(kp, float)):
+                raise ValueError(f"{side}: precision kp {p['kp']} differs from the arm's kp {list(kp)}")
+            fb = p.pop("fallback_gains", None)
+            self.ctrl = ArmController(r, lambda: self.safe.last_safe, p, name=side,
+                                      fallback_gains=None if fb is None else (np.asarray(fb[0], float), np.asarray(fb[1], float)))
+            self.ctrl.start()
+            self.safe.ctrl = self.ctrl
 
     def read(self):
         r = self.robot
@@ -324,15 +340,20 @@ class RealArm:
         # (deploy/approach_trim.py: bounded integral on all joints against static friction), until
         # every joint is within SETTLE_TOL of the goal for 0.2 s, at most 15 s.
         trim, recent = None, collections.deque(maxlen=10)
+        if settle_trim and self.ctrl is not None and self.ctrl.active:
+            settle_trim = False      # the precision controller's integral does the settling: no second integral
         if settle_trim:
             from deploy.approach_trim import ApproachTrim, settled
             trim = ApproachTrim()
         t_next = time.monotonic()
-        for _ in range(750 if settle_trim else 50):
+        ctrl_on = self.ctrl is not None and self.ctrl.active
+        for _ in range(750 if settle_trim else (100 if ctrl_on else 50)):   # with the controller: up to 2 s
             if estop.stopped():
                 self.hold()
                 raise safety.SafetyStop("software stop during settle")
             measured = np.asarray(self.robot.get_joint_pos(), float)
+            if ctrl_on and np.max(np.abs(q6_goal - measured[:6])) < 0.001:
+                break                                # within 1 mrad on every joint (athena3 settle_tol)
             corrected = tgt.copy()
             bias = np.zeros(6)
             if trim is not None:
@@ -362,11 +383,21 @@ class RealArm:
 
     def info(self):
         r = self.robot
-        return {"gains_before": self.gains_before, "kp": r._kp[:6].tolist(), "kd": r._kd[:6].tolist(),
-                "gravity_comp_factor": np.asarray(r.gravity_comp_factor).tolist(),
-                "coulomb_friction": np.asarray(r._coulomb_friction).tolist()}
+        fit = getattr(r, "gravity_fit", None)
+        out = {"gains_before": self.gains_before, "kp": r._kp[:6].tolist(), "kd": r._kd[:6].tolist(),
+               "gravity_comp_factor": np.asarray(r.gravity_comp_factor).tolist(),
+               "coulomb_friction": np.asarray(r._coulomb_friction).tolist(),
+               "gravity_fit": None if fit is None else {"source": fit["source"], "ee_mass": fit["ee_mass"],
+                                                        "ee_ipos": None if fit["ee_ipos"] is None else fit["ee_ipos"].tolist()},
+               "precision": None}
+        if self.ctrl is not None:
+            P = self.ctrl.law.p
+            out["precision"] = {k: (v.tolist() if isinstance(v, np.ndarray) else v) for k, v in P.items()}
+        return out
 
     def close(self):
+        if self.ctrl is not None:
+            self.ctrl.stop()
         safety.close_robot(self.robot)
 
 
