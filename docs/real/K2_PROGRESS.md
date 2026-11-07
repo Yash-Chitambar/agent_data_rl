@@ -192,3 +192,62 @@ The stage stops when the fused vision estimate is within tolerance and the tip i
 
 **Runbook:** [NEXT_RIG_20261109.md](NEXT_RIG_20261109.md).
 
+
+## Real-to-sim replay and roll
+
+### 2026-11-07: Real hand-over set
+
+`scripts/real/real_handover_states.py` -> `results/real_align/replay/real_handovers.json`. 11 real runs reached the insertion, all with the bundle's K-J (one bundle, staged 2026-11-01). Operator truth: 4 seated (`ai3`, `ai4`, `align_full2`, `align_full9`), 7 not. Vision at the hand-over: the align stage's `align_handover` for the 5 align runs; offline port_vision on the last raw wrist frames before the insertion for 5 older runs. `ai3` has no good frame. Offline vision agrees with `align_handover` within 0.4 mm on 4 of the 5 align runs; `align_full2` differs by 2.6 mm in up (the press came after the last frame). Each row also has the run's angles (`rv_deg`), hand-over lead, in-hand estimate and FK pose features.
+
+### 2026-11-07: Replay in the sim (n = 256 per run)
+
+`scripts/eval/replay_real_handovers.py`. Plant: friction x1.3-2.0, gravity error 12 %, real velocity noise. True start = the run's vision + N(0, (0.4, 0.95, 0.63) mm); angles = the run's last `rv_deg` + N(0, 0.5 deg) (align runs) or the chain pool's angles (older runs). Lead and in-hand input = the run's logged values. K3: the prior = the run's vision exactly; the true start differs by the vision error, as on the robot. K3 = `P4-insert-k3-s0` at about 14M steps (snapshot `results/real_align/replay/k3s0_forkC.pt`, sha256 d22cb7ef); `align_full8` is replayed on plain PD (the sim has no controller).
+
+| Run | Truth | K-J, real FK obs | K-J, sim's own FK obs | K3 |
+|---|---|---|---|---|
+| ai2 | no | 0.4 % [0.1, 2.2] | 1.2 % [0.4, 3.4] | 0.0 % [0.0, 1.5] |
+| ai4 | **seated** | 0.4 % [0.1, 2.2] | 6.2 % [3.9, 9.9] | 28.5 % [23.3, 34.3] |
+| ai5 | no | 7.8 % [5.1, 11.8] | 25.4 % [20.4, 31.1] | 14.8 % [11.0, 19.7] |
+| full_A | no | 1.6 % [0.6, 3.9] | 11.3 % [8.0, 15.8] | 50.8 % [44.7, 56.8] |
+| full_A2 | no | 5.5 % [3.3, 9.0] | 11.3 % [8.0, 15.8] | 64.5 % [58.4, 70.1] |
+| align_full2 | **seated** | 0.4 % [0.1, 2.2] | 32.8 % [27.4, 38.8] | 89.8 % [85.5, 93.0] |
+| align_full5 | no | 0.8 % [0.2, 2.8] | 28.9 % [23.7, 34.7] | 79.7 % [74.3, 84.2] |
+| align_full8 (controller) | no | 1.2 % [0.4, 3.4] | 32.4 % [27.0, 38.4] | 90.6 % [86.4, 93.6] |
+| align_full9 | **seated** | 0.4 % [0.1, 2.2] | 39.8 % [34.0, 45.9] | 89.8 % [85.5, 93.0] |
+| align_full10 | no | 0.0 % [0.0, 1.5] | 35.5 % [29.9, 41.6] | 85.5 % [80.7, 89.3] |
+
+Isolation, K-J, 5 align runs, n = 256 each: real FK obs without the real in-hand input, run angles: 0.0-2.0 %; same with the pool's angles: 4.3-13.3 %; sim FK obs with the real in-hand input and run angles (table): 28.9-39.8 %.
+
+**Learnings.**
+- The replay does not predict the real seats: the real seats and stalls get the same sim rate (K-J real obs: 0.4 % for the 3 seats and 0.0-7.8 % for the failures). The sim is too pessimistic for K-J with the real offsets (real plain-PD align runs: 2 of 4). So the replay is a ranking tool, not a calibrated predictor. Likely missing pieces: the true real grasp (the sim's true grasp is the nominal one, while the in-hand input says +4 mm), real compliance, and the real FK offsets being partly true geometry, not only error.
+- All three replay variants rank the same way: the real FK pose offsets cost K-J the most, the run angles (roll about -1.5 to -2.2 deg) cost the next most.
+- K3 is far less sensitive: 80-91 % on the 5 align hand-overs, and 51-65 % on the far-off older stops (A, A2: 5-9 mm off). Its failures are mostly lateral misses.
+- The older runs without an align stage (5-16 mm off by offline vision) are hard for every policy, as expected.
+- `grasp='real'` (the measured real grasp as the sim truth) crashes in `InsertionTask.__init__` (`grasp_info` is set only for `part1`), so the variant with a matched true grasp did not run. Open.
+
+### 2026-11-07: Observation OOD (real obs against the sim's, Mahalanobis per channel group and time bin)
+
+`scripts/eval/replay_obs_ood.py`, 4 plain-PD align runs against 512 sim worlds of the policy's own env (real-like plant, real hand-over lead). OOD = real distance above the sim's own p99 in all 4 runs.
+
+| Channel | K-J | K3 |
+|---|---|---|
+| left joint target - measured (the press), obs[44:49] | **OOD, d 20-36 (sim p99 4)** | **OOD, same** |
+| right / left joint angles | OOD, d 4-5 (p99 3) | OOD, same |
+| right target lead | OOD at 0-0.2 s (d 8-14, p99 3) | OOD at all times |
+| right joint velocity | OOD at 0.2-0.6 s | OOD at 0.2-0.6 s |
+| TCP position / Euler | OOD (the absolute offsets) | in at the hand-over; OOD at 0.2-1.2 s (the real motion differs) |
+| in-hand estimate | borderline (d 5-7, p99 5.3) | borderline |
+| twist, previous action | partly OOD at 0.2-0.6 s | partly |
+
+The left press lead is the largest gap and is the same for K3: real (j2, j3) = (+74..+79, -57..-64) mrad, sim dry runs (+101..+102, -71..-73) with almost no spread. The real hold latches a smaller lead (i2rt gravity, real friction). K3 training should randomise the left press lead (or mask it) and the joint-angle offsets. **Replay with the real left press lead in the observation only** (`--real-left-lead`, obs[44:49] = the run's value, the plant unchanged; n = 256 each): K3 on `align_full9` 0.0 % [0.0, 1.5] (89.8 % without), `align_full10` 0.0 % [0.0, 1.5] (85.5 % without); K-J with the sim's own FK obs 0.0 % on both (39.8 and 35.5 % without). Almost all lateral misses. Both policies use the left press lead as a cue for where the port is (in the sim, the scripted press lead follows the PC pose with almost no other spread).
+- On the rig K-J saw this same lead and still seated 2 of 4, so the sim's response is too strong: read this as a sensitivity, not as a real rate.
+- It is still a risk for K3 that costs nothing to remove: in the next fine-tune (K4), mask the left-arm channels (obs 6:11, 18:23, 44:49), or randomise the left press lead by about ±30 mrad and the left joint angles. The sensitivity test above is the acceptance check.
+
+### 2026-11-07: Roll
+
+The align stage's plug angles (`align.py PortVisionSource`) = the panel pose fitted in the image x a fixed plug-in-camera rotation (mount + the mean real grasp). So `rv_deg` sees the hand's roll against the panel, never a grasp rolled in the jaws. The real-grasp preset (`inhand_real` v2, n = 13 grasps) has 0.01 deg roll spread about the plug axis: roll in the hand was not measured, so it is unknown, not zero.
+
+- **Vision part is precise** (`scripts/real/roll_vision_consistency.py`, 15 runs; R_cam from FK of the logged q_b x panel pose, so the panel orientation in the arm base should not change while the hand moves). Roll axis: frame-to-frame spread 0.21 deg (median of cycles); panel-in-base sd over a run 0.22 deg (median, range 0.02-0.68 deg while the hand turned 1-2 deg); across runs of a session sd 0.37 deg (11-03, n = 7) and 0.45 deg (11-06, n = 8), which also has the encoder and PC-pose spread. The reconstruction matches the logged `rv_deg` within 0.04-0.24 deg.
+- **The measured roll is a steady offset:** rz -1.64 ± 0.36 deg (mean ± sd over 15 runs, range -1.1 to -2.3). Seats -1.29 and -1.57, stalls -1.36 and -2.26 (run means): no separation (n = 2 + 2).
+- **Is the -1.6 deg real or a calibration bias?** Not resolved. A model-free check (`scripts/real/roll_image_check.py`: tilt of the shell's sleeve end against the panel's across axis in the same image, 16 runs x up to 40 frames) is too noisy: 1 deg sd per frame, and no relation to the logged rz across runs (correlation -0.20). Its session means differ by about 1.5 deg (11-03 -0.1, 11-06 -1.6 image deg), which may be the PC pose (perspective).
+- **Recommendation: do not add roll to the align stage's corrected axes now.** The vision part (about 0.2-0.5 deg) would be good enough, but the absolute zero (mount roll + grasp roll) is unverified. If the -1.6 deg is a bias, a correction would create a 1.6 deg roll error. Sim cost of 2 deg roll for K-J: 94.5 % against 99.5 % (n = 1024); K2/K3 train with ±3 deg roll, so they should not need it (check K3 at roll ±3 in the matrix). The rig check that would settle it: a roll sweep at the hand-over (wrist ±1.5 deg about the plug axis, measure mode, no insertion), with a square-on photo of the plug's long edge against the port slot, or a calibration of the camera mount roll on the checkerboard (`precision_check.py --camera` setup).

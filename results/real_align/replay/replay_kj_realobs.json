@@ -1,0 +1,395 @@
+[
+ {
+  "cond": {
+   "real": "approach_insert_164528_ai2"
+  },
+  "k": 1,
+  "n": 256,
+  "rate": 0.00390625,
+  "wilson": [
+   0.0006898644160236098,
+   0.02179152424537626
+  ],
+  "classes": {
+   "lateral_miss": 245,
+   "seated": 1,
+   "grasp_slip": 8,
+   "jam": 1,
+   "tilt": 1
+  },
+  "force_p50": 6.422977924346924,
+  "force_p99": 20.68195943832397,
+  "t_ok_p50": 7.36,
+  "t_ok_p99": 7.36,
+  "run": "approach_insert_164528_ai2",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   2.3454048023170833,
+   -16.077618399506143,
+   11.788948842467839
+  ],
+  "angles": null,
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "approach_insert_171123_ai4"
+  },
+  "k": 1,
+  "n": 256,
+  "rate": 0.00390625,
+  "wilson": [
+   0.0006898644160236098,
+   0.02179152424537626
+  ],
+  "classes": {
+   "lateral_miss": 252,
+   "seated": 1,
+   "grasp_slip": 1,
+   "tilt": 2
+  },
+  "force_p50": 5.9388463497161865,
+  "force_p99": 19.712414646148677,
+  "t_ok_p50": 6.5,
+  "t_ok_p99": 6.5,
+  "run": "approach_insert_171123_ai4",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": true,
+  "outcome_log": "timeout",
+  "real_plant": "plain_pd",
+  "vision": [
+   4.2259546473555725,
+   -2.4222347653668233,
+   9.896767984456101
+  ],
+  "angles": null,
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "approach_insert_173731_ai5"
+  },
+  "k": 20,
+  "n": 256,
+  "rate": 0.078125,
+  "wilson": [
+   0.05114024376243957,
+   0.11758408675276665
+  ],
+  "classes": {
+   "seated": 20,
+   "grasp_slip": 13,
+   "lateral_miss": 208,
+   "tilt": 9,
+   "jam": 6
+  },
+  "force_p50": 7.848748445510864,
+  "force_p99": 21.017305278778075,
+  "t_ok_p50": 3.78,
+  "t_ok_p99": 8.045,
+  "run": "approach_insert_173731_ai5",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   -1.4809955682700346,
+   3.1405127390522387,
+   14.342112037893653
+  ],
+  "angles": null,
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "full_174850_full_A"
+  },
+  "k": 4,
+  "n": 256,
+  "rate": 0.015625,
+  "wilson": [
+   0.00609249965946242,
+   0.039479879820959504
+  ],
+  "classes": {
+   "lateral_miss": 238,
+   "grasp_slip": 12,
+   "seated": 4,
+   "deep_unseated": 1,
+   "tilt": 1
+  },
+  "force_p50": 5.69560432434082,
+  "force_p99": 19.736453914642297,
+  "t_ok_p50": 5.13,
+  "t_ok_p99": 6.805199999999999,
+  "run": "full_174850_full_A",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "timeout",
+  "real_plant": "plain_pd",
+  "vision": [
+   -0.10722346860447413,
+   5.204289793865574,
+   8.501893634022935
+  ],
+  "angles": null,
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "full_175742_full_A2"
+  },
+  "k": 14,
+  "n": 256,
+  "rate": 0.0546875,
+  "wilson": [
+   0.03285198767832931,
+   0.0896903611988328
+  ],
+  "classes": {
+   "lateral_miss": 222,
+   "grasp_slip": 13,
+   "seated": 14,
+   "jam": 1,
+   "tilt": 6
+  },
+  "force_p50": 7.656635999679565,
+  "force_p99": 16.546228122711177,
+  "t_ok_p50": 7.33,
+  "t_ok_p99": 8.7516,
+  "run": "full_175742_full_A2",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   -5.255704738498767,
+   9.096563206473363,
+   8.05887637753104
+  ],
+  "angles": null,
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "full_155211_align_full2"
+  },
+  "k": 1,
+  "n": 256,
+  "rate": 0.00390625,
+  "wilson": [
+   0.0006898644160236098,
+   0.02179152424537626
+  ],
+  "classes": {
+   "grasp_slip": 174,
+   "seated": 1,
+   "lateral_miss": 77,
+   "tilt": 4
+  },
+  "force_p50": 8.924358367919922,
+  "force_p99": 29.42718276977537,
+  "t_ok_p50": 1.6,
+  "t_ok_p99": 1.6,
+  "run": "full_155211_align_full2",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": true,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.3839675567279204,
+   -0.6238885507742591,
+   5.817331351264181
+  ],
+  "angles": [
+   -0.7173108380230786,
+   0.002583752333149426,
+   -1.4532984436287155
+  ],
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "full_164912_align_full5"
+  },
+  "k": 2,
+  "n": 256,
+  "rate": 0.0078125,
+  "wilson": [
+   0.0021450454442769468,
+   0.02803334015679694
+  ],
+  "classes": {
+   "grasp_slip": 167,
+   "seated": 2,
+   "lateral_miss": 87
+  },
+  "force_p50": 8.721933364868164,
+  "force_p99": 25.65746402740476,
+  "t_ok_p50": 3.5300000000000002,
+  "t_ok_p99": 4.6766000000000005,
+  "run": "full_164912_align_full5",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.35374699225119466,
+   0.35852581590677524,
+   5.269073871897997
+  ],
+  "angles": [
+   -0.8973544883699915,
+   0.19468613359457299,
+   -1.8170499401440172
+  ],
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "full_165244_align_full8"
+  },
+  "k": 3,
+  "n": 256,
+  "rate": 0.01171875,
+  "wilson": [
+   0.003993214821806392,
+   0.03388216771894151
+  ],
+  "classes": {
+   "grasp_slip": 171,
+   "seated": 3,
+   "lateral_miss": 82
+  },
+  "force_p50": 8.773274421691895,
+  "force_p99": 28.036685180664055,
+  "t_ok_p50": 2.22,
+  "t_ok_p99": 2.3571999999999997,
+  "run": "full_165244_align_full8",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "controller",
+  "vision": [
+   0.1529771310693694,
+   -0.09395878236743505,
+   5.773400107796791
+  ],
+  "angles": [
+   -0.27532691271990456,
+   -0.016037462218924554,
+   -2.0228398291688716
+  ],
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "full_173941_align_full9"
+  },
+  "k": 1,
+  "n": 256,
+  "rate": 0.00390625,
+  "wilson": [
+   0.0006898644160236098,
+   0.02179152424537626
+  ],
+  "classes": {
+   "lateral_miss": 96,
+   "seated": 1,
+   "grasp_slip": 157,
+   "tilt": 1,
+   "jam": 1
+  },
+  "force_p50": 8.85396432876587,
+  "force_p99": 27.27179269790649,
+  "t_ok_p50": 2.52,
+  "t_ok_p99": 2.52,
+  "run": "full_173941_align_full9",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": true,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   -0.28412750247826546,
+   -0.28220625807194244,
+   5.4521931271314825
+  ],
+  "angles": [
+   -0.3531871000229828,
+   -0.04785466968552123,
+   -1.6832091743472828
+  ],
+  "real_obs": true,
+  "vision_noise": true
+ },
+ {
+  "cond": {
+   "real": "full_175030_align_full10"
+  },
+  "k": 0,
+  "n": 256,
+  "rate": 0.0,
+  "wilson": [
+   0.0,
+   0.014784391721725852
+  ],
+  "classes": {
+   "lateral_miss": 106,
+   "grasp_slip": 148,
+   "tilt": 1,
+   "jam": 1
+  },
+  "force_p50": 8.551176071166992,
+  "force_p99": 28.815709114074696,
+  "t_ok_p50": NaN,
+  "t_ok_p99": NaN,
+  "run": "full_175030_align_full10",
+  "tag": "kj_realobs",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.2607797900857656,
+   0.29438819161440377,
+   5.382776932858923
+  ],
+  "angles": [
+   -0.2315421665715043,
+   -0.011730154978694948,
+   -2.1959471027581983
+  ],
+  "real_obs": true,
+  "vision_noise": true
+ }
+]

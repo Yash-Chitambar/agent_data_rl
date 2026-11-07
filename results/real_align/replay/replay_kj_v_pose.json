@@ -1,0 +1,220 @@
+[
+ {
+  "cond": {
+   "real": "full_155211_align_full2"
+  },
+  "k": 5,
+  "n": 256,
+  "rate": 0.01953125,
+  "wilson": [
+   0.008370606318218642,
+   0.044898770101877296
+  ],
+  "classes": {
+   "seated": 5,
+   "grasp_slip": 175,
+   "lateral_miss": 74,
+   "tilt": 1,
+   "jam": 1
+  },
+  "force_p50": 8.697060585021973,
+  "force_p99": 25.721316719055174,
+  "t_ok_p50": 1.54,
+  "t_ok_p99": 2.4592,
+  "run": "full_155211_align_full2",
+  "tag": "kj_v_pose",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": true,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.3839675567279204,
+   -0.6238885507742591,
+   5.817331351264181
+  ],
+  "angles": [
+   -0.7173108380230786,
+   0.002583752333149426,
+   -1.4532984436287155
+  ],
+  "real_obs": true,
+  "vision_noise": true,
+  "inhand_obs": false,
+  "angles_src": "run",
+  "env_extra": {}
+ },
+ {
+  "cond": {
+   "real": "full_164912_align_full5"
+  },
+  "k": 5,
+  "n": 256,
+  "rate": 0.01953125,
+  "wilson": [
+   0.008370606318218642,
+   0.044898770101877296
+  ],
+  "classes": {
+   "lateral_miss": 82,
+   "seated": 5,
+   "grasp_slip": 168,
+   "tilt": 1
+  },
+  "force_p50": 8.56176471710205,
+  "force_p99": 28.223302936553953,
+  "t_ok_p50": 1.78,
+  "t_ok_p99": 7.0304,
+  "run": "full_164912_align_full5",
+  "tag": "kj_v_pose",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.35374699225119466,
+   0.35852581590677524,
+   5.269073871897997
+  ],
+  "angles": [
+   -0.8973544883699915,
+   0.19468613359457299,
+   -1.8170499401440172
+  ],
+  "real_obs": true,
+  "vision_noise": true,
+  "inhand_obs": false,
+  "angles_src": "run",
+  "env_extra": {}
+ },
+ {
+  "cond": {
+   "real": "full_165244_align_full8"
+  },
+  "k": 1,
+  "n": 256,
+  "rate": 0.00390625,
+  "wilson": [
+   0.0006898644160236098,
+   0.02179152424537626
+  ],
+  "classes": {
+   "lateral_miss": 91,
+   "seated": 1,
+   "grasp_slip": 164
+  },
+  "force_p50": 8.78070592880249,
+  "force_p99": 25.83018455505369,
+  "t_ok_p50": 1.72,
+  "t_ok_p99": 1.72,
+  "run": "full_165244_align_full8",
+  "tag": "kj_v_pose",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "controller",
+  "vision": [
+   0.1529771310693694,
+   -0.09395878236743505,
+   5.773400107796791
+  ],
+  "angles": [
+   -0.27532691271990456,
+   -0.016037462218924554,
+   -2.0228398291688716
+  ],
+  "real_obs": true,
+  "vision_noise": true,
+  "inhand_obs": false,
+  "angles_src": "run",
+  "env_extra": {}
+ },
+ {
+  "cond": {
+   "real": "full_173941_align_full9"
+  },
+  "k": 4,
+  "n": 256,
+  "rate": 0.015625,
+  "wilson": [
+   0.00609249965946242,
+   0.039479879820959504
+  ],
+  "classes": {
+   "lateral_miss": 97,
+   "seated": 4,
+   "grasp_slip": 153,
+   "tilt": 2
+  },
+  "force_p50": 8.403168201446533,
+  "force_p99": 26.717968559265117,
+  "t_ok_p50": 1.76,
+  "t_ok_p99": 2.3867999999999996,
+  "run": "full_173941_align_full9",
+  "tag": "kj_v_pose",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": true,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   -0.28412750247826546,
+   -0.28220625807194244,
+   5.4521931271314825
+  ],
+  "angles": [
+   -0.3531871000229828,
+   -0.04785466968552123,
+   -1.6832091743472828
+  ],
+  "real_obs": true,
+  "vision_noise": true,
+  "inhand_obs": false,
+  "angles_src": "run",
+  "env_extra": {}
+ },
+ {
+  "cond": {
+   "real": "full_175030_align_full10"
+  },
+  "k": 0,
+  "n": 256,
+  "rate": 0.0,
+  "wilson": [
+   0.0,
+   0.014784391721725852
+  ],
+  "classes": {
+   "lateral_miss": 95,
+   "grasp_slip": 161
+  },
+  "force_p50": 8.409180641174316,
+  "force_p99": 27.23457527160641,
+  "t_ok_p50": NaN,
+  "t_ok_p99": NaN,
+  "run": "full_175030_align_full10",
+  "tag": "kj_v_pose",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.2607797900857656,
+   0.29438819161440377,
+   5.382776932858923
+  ],
+  "angles": [
+   -0.2315421665715043,
+   -0.011730154978694948,
+   -2.1959471027581983
+  ],
+  "real_obs": true,
+  "vision_noise": true,
+  "inhand_obs": false,
+  "angles_src": "run",
+  "env_extra": {}
+ }
+]
