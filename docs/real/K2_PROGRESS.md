@@ -12,6 +12,8 @@ Running log of the work after [CONTACT_ALIGN_PLAN_20261107.md](CONTACT_ALIGN_PLA
 
 ## Learnings
 
+- **2026-11-08. The left arm's press lead is a hidden port locator (fork C replay).** Both K-J and K3 read the left target error (`obs[44:49]`) to find the port. The rig reads +74-79 / -57 to -64 mrad on joints 2-3 against the sim's +101 / -71 with almost no spread. With the real values in the observation only, K3 drops from 89.8 % to 0.0 % on align_full9 and align_full10 (n = 256 each), mostly lateral misses. K-J seated 2 of 4 on the rig with the real lead, so the sim's response is too strong: a sensitivity, not a rate. Fix: **K4 = K3 + all left-arm inputs masked** (`mask_left_obs` 'all': angles, velocities, previous action, lead; the policy loader masks on the robot too), fine-tuned from K3 seed 0 final, 2 seeds, 30M steps. Acceptance adds the real-hand-over replay with the real left lead (`scripts/eval/replay_real_handovers.py`).
+
 - **2026-11-08. The camera prior works in the sim.** Real-like plant, real hand-over lead, n = 512 per cell (K-J n = 1024), Wilson 95 %:
 
 | Cell | K-J | K2 seed 1 @25M | K3 seed 0 @9M |
