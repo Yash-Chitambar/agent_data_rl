@@ -12,6 +12,22 @@ Running log of the work after [CONTACT_ALIGN_PLAN_20261107.md](CONTACT_ALIGN_PLA
 
 ## Learnings
 
+- **2026-11-08. K4 final is the rig candidate.** K4 = K3 + all left-arm inputs masked, 30M steps from K3 seed 0 final. Real-like plant, real right-arm lead, n = 1024 per cell, Wilson 95 %:
+
+| Cell | K-J | K3 s0 final | K4 s0 final | K4 s1 final |
+|---|---|---|---|---|
+| real-like hand-over | 94.8 % | 98.5 % | 99.1 % [98.3, 99.5] | 98.8 % [98.0, 99.3] |
+| ring 3 mm | 91.5 % | 97.9 % | 98.6 % [97.7, 99.2] | |
+| ring 4 mm | 81.8 % | 96.4 % | 98.2 % [97.2, 98.9] | 98.4 % [97.5, 99.0] |
+| ring 5 mm | 62.2 % | 93.8 % | 97.9 % [96.9, 98.7] | 97.6 % [96.4, 98.3] |
+| roll ±3 deg | 65.0 % | 98.6 % | 98.4 % [97.5, 99.0] | 98.7 % [97.8, 99.3] |
+| roll ±4 deg | 50.0 % | 98.5 % | 97.6 % [96.4, 98.3] | |
+| pitch ±4 deg | 85.7 % | 98.2 % | 97.5 % [96.3, 98.3] | |
+| gap 8 mm | 97.0 % | 97.0 % | 96.5 % [95.2, 97.4] | |
+| mix | 79.9 % | 98.1 % | 97.9 % [96.9, 98.7] | 97.9 % [96.9, 98.7] |
+
+Replay of all ten real hand-overs with the rig's left lead (n = 256 each, `results/real_align/replay/replay_k4_leftlead.json`): the five align-stage runs 91.8-96.5 %; the five older runs without an align stage 0-77.7 % (ai2 0 %, ai4 34 %, ai5 23 %, A 48 %, A2 78 %: they started further off than any policy handles; the align stage is needed). Chain dry run (seed 7040, `bimanual_align5_k4.json`): completes, loads `runs/insert_K4.pt` (sha256 4d288f234ff1af10), logs `insert_rel_pose_obs` and `insert_vision_prior`; seat detected, sim truth not seated after release (the known sim relax under 5.55 mm). Not met: the climb (8.0-8.2 mm, joint 5 at its cap); K4c (climb threshold 4 mm) is training.
+
 - **2026-11-08. K4 (left-arm inputs masked) removes the left-lead sensitivity.** Replay of the five real align-stage hand-overs with the rig's real left press lead in the observation (n = 256 per run, real-like plant, K4 seed 0 early snapshot at 6.6M): align_full2 95.7 % [92.5, 97.6], full5 95.7 % [92.5, 97.6], full8 97.7 % [95.0, 98.9], full9 96.1 % [93.0, 97.9], full10 97.3 % [94.5, 98.7]. K3 and K-J (sim FK inputs) with the same real lead: 0.0 % on full9 and full10. The replay ranks policies; it does not predict real rates (it gives seats and stalls the same rate).
 - **2026-11-08. K3 final, mix cell (ring 2, roll ±2, pitch ±3): 98.1 % [97.1, 98.8]** (n = 1024; 79.9 % at 9M; K-J 79.9 %). K3 passes every acceptance cell; the climb is the only open item.
 
