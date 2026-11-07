@@ -47,8 +47,9 @@ if __name__ == '__main__':
     ap.add_argument('--png', required=True)
     ap.add_argument('--times', default='0.2,0.4,0.6,0.8,1.0,1.5')
     ap.add_argument('--json')
+    ap.add_argument('--policy', default=str(POL), help='checkpoint (K-J default; K3: obs_dim 71, logged obs used unchanged)')
     a = ap.parse_args()
-    pol = InsertionPolicy(str(POL), 'cpu')
+    pol = InsertionPolicy(a.policy, 'cpu')
     xy = outline()
     ts = [float(x) for x in a.times.split(',')]
     import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
@@ -58,6 +59,8 @@ if __name__ == '__main__':
     for i, r in enumerate(a.runs):
         r = pathlib.Path(r)
         p = np.load(r / 'policy.npz')
+        if p['obs'].shape[1] != pol.obs_dim:
+            raise SystemExit(f"{r.name}: logged obs has {p['obs'].shape[1]} dims, the policy {pol.obs_dim}: use the policy the run used")
         P = head(pol, p['obs'])
         t = p['t'] * 0.02
         g = np.load(r / 'guard.npz') if (r / 'guard.npz').exists() else None

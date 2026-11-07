@@ -20,9 +20,9 @@ Running log of the work after [CONTACT_ALIGN_PLAN_20261107.md](CONTACT_ALIGN_PLA
 | roll ±3 deg | 65.0 % [62.1, 67.9] | 90.4 % [87.6, 92.7] | 90.0 % [87.1, 92.3] |
 | ring 4 mm | 81.8 % [79.4, 84.1] | 39.1 % [34.9, 43.4] | 93.0 % [90.4, 94.9] |
 | ring 5 mm | 62.2 % [59.2, 65.1] | 18.9 % [15.8, 22.6] | 88.9 % [85.8, 91.3] |
-| mix (ring 2, roll 2, pitch 3) | 79.9 % [77.3, 82.2] | 57.6 % [53.3, 61.8] | pending |
+| mix (ring 2, roll 2, pitch 3) | 79.9 % [77.3, 82.2] | 57.6 % [53.3, 61.8] | 79.9 % [76.2, 83.1] |
 
-K2 learned roll (90 % against 65 %) but cannot find an offset port blind. K3 has both. K-J's numbers here use the sim's exact absolute pose; on the rig its pose features are wrong (21.8 % in the offset test). K3 uses no absolute FK, so the rig offsets cannot hurt it the same way. Still to check: the acceptance bar (≥ 98 % real-like, ≥ 95 % ring 4 / roll 3), the final checkpoints, a second seed, and the climb (still 8.0-8.2 mm: joint 5 at its cap).
+K2 learned roll (90 % against 65 %) but cannot find an offset port blind. K3 has both. K-J's numbers here use the sim's exact absolute pose; on the rig its pose features are wrong (21.8 % in the offset test). K3 uses no absolute FK, so the rig offsets cannot hurt it the same way. **Weak spot: combined errors.** In the mix cell K3 is no better than K-J (79.9 %), failures mostly lateral misses (91 of 103). Each error alone is fine; together they are not. Still to check: the acceptance bar (≥ 98 % real-like, ≥ 95 % ring 4 / roll 3), the final checkpoints, a second seed, and the climb (still 8.0-8.2 mm: joint 5 at its cap).
 
 - **2026-11-07. K-J found the port partly from absolute FK.** K2 (relative pose only) at 10M steps, real-like plant, n = 512: real-like hand-over 89.8 % [86.9, 92.2], roll ±3 deg 47.3 % [43.0, 51.6], ring 4 mm 18.4 % [15.2, 21.9], against K-J's 94.8, 65.0, 81.8 % (n = 1024). Almost all K2 failures are lateral misses. With the absolute pose features, the sim tells K-J where the port is within the PC pose spread; on the rig that information is wrong (the stalls). Without it the policy has to search blind and finds a 4 mm offset 18 % of the time. So the camera prior (K3) is required, not optional: it replaces the wrong absolute information with a measured relative one.
 - **2026-11-07. The align env's early speed peaks were a sim reset artefact.** With zero action the tip reaches 38-43 mm/s in the first 0.3 s (the arm settles under the ±12 % gravity error from targets set at the reset). Fixed: 0.5 s settle with actions ignored and no metrics (`align_settle_s`). During servo motion (2-8 s) the true tip speed is p99 13-17 mm/s, max 36 mm/s. Friction off did not remove the peaks (true speed p99 54 mm/s with the transient included), so stick-slip is not their only source. The first comparison tables (with the transient) are superseded by `results/real_align/align_cmp2/`.
@@ -118,9 +118,77 @@ The servo is 2.5x faster at the median but has a slow tail (p90 19.1 s), probabl
 
 **Learning (2026-11-07): no command law makes the motion smooth.** Every method commands at most 8-10 mm/s, yet the tip peaks at 23-27 mm/s (p50) and 43-47 mm/s (p99), the path is about 3x the straight line, and the plug passes the 6 mm goal by up to 2 mm. The sim has the real arm's behaviour (2026-11-03: 1 mm steps arrived at 54-78 mm/s). Speed here is from the believed FK; a true-speed check and a no-friction diagnostic are running, to confirm that joint stick-slip is the cause. If it is, the fix is below the command law: a friction-aware joint layer (the precision controller's feed-forward, or a lead that the policy controls), which the RL policy can learn through its target-lead observation.
 
+### Vision-based done (2026-11-07, n = 256 each, `results/real_align/align_cmp3/`)
+
+The stage stops when the fused vision estimate is within tolerance and the tip is still, as on the rig (`align_done_on` vision). The true error is read at that moment. Both with the chain Coulomb feed-forward.
+
+| Method | Done [95 % CI] | Time p50 / p90 s | True lateral p50 / p95 mm | True gap error p95 mm | True angle p50 / p95 deg | Peak true speed p50 / p99 mm/s | Path ratio p50 / p90 | Overshoot p95 / max mm |
+|---|---|---|---|---|---|---|---|---|
+| Step + FF | 248 / 256 = 96.9 % [94.0, 98.4] | 16.2 / 22.3 | 0.88 / 2.04 | 1.35 | 0.84 / 1.58 | 19.2 / 38.4 | 2.33 / 3.28 | 1.18 / 1.83 |
+| Servo + FF | 239 / 256 = 93.4 % [89.6, 95.8] | 6.1 / 15.7 | 0.81 / 1.91 | 1.24 | 0.81 / 1.57 | 16.0 / 37.5 | 1.63 / 2.93 | 1.30 / 1.69 |
+
+- The servo is 2.7x faster at the median, with a straighter path and similar accuracy. 16 servo episodes did not finish in 30 s.
+- The true lateral error at done is up to 2 mm (p95) for both. This is the vision model's position-dependent error, not the control. K2/K3 must tolerate it.
+- These runs judged "still" from the one-step FK speed, which has about 5 mm/s of encoder-quantization noise. From now on the env uses the displacement over 5 steps (0.1 s, `align_still_window`). Runs before this change (including `A2-align-rl-s0`) have the noisy test.
+
+### Precision controller in the sim (2026-11-07)
+
+- `blind_insertion/envs/precision_ctrl_torch.py`: the real law, batched (integral, settle lock, friction feed-forward; no vibration watch). Parity with the NumPy law: max torque difference 0.0 N m over 20 x 600 random steps in float64 (`scripts/eval/align_ctrl_parity.py`). Float32 differs only at exact threshold ties.
+- AlignTask option `ctrl_precision` (keys as `precision_ctrl.DEFAULTS`): the law's torque on the right arm, computed once per 20 ms control step from the sent target and the encoder reading, held over the substeps. Limits: the real law runs at 200 Hz, the sim at 50 Hz. The sim keeps i2rt's default-gravity error (±12 %); the real controller runs with the fitted gravity, so the sim is the harder case.
+- Comparison step / servo x plain PD / Coulomb FF / controller: `scripts/eval/align_ctrl_matrix.sh`, results below when done.
+
+### Bumpless switch-off of the controller (2026-11-07)
+
+**Problem.** Leaving the controller's active stages drops its integral and feed-forward torque and switches i2rt from the fitted to the default gravity model in one tick. With the real hand-over integral (align_full8: joint 2 -1.14, joint 3 +0.75 N m) the commanded equilibrium of joint 2 jumps about 24 mrad (the 4-6 mm sag in the config note).
+
+**Fix** (`deploy/bimanual/io_real.py`, config key `arm_control.<side>.bumpless_off`, off by default). The switch-off waits for the next send. That send reads the controller torque and i2rt's gravity torque at the measured pose before and after the model switch, switches the controller off, and commands target + (tau_ctrl + g_fit - g_default) / kp. The bias is held through insert and release. A switch-on or the next slow move clears it (moves start from the measured pose with their own trim). `io.hold()` (emergency hold) holds the measured pose without the bias.
+
+**Check** (`deploy/checks/handover_bumpless.py`, real-I/O mock, stub gravity model with 0.8 / 0.5 N m differences on joints 2 / 3, the real hand-over integral): commanded equilibrium jump at a fixed pose 0.000 mrad on every joint with `bumpless_off`; without it, joint 2 jumps 24.3 mrad and joint 3 15.6 mrad. The existing real-I/O mock still passes. This checks the code path on a fake arm, not the real arm: the i2rt motor thread can run one cycle (1 ms) between the switch-off and the new command.
+
+**Config:** `deploy/config/bimanual_align5_precision.json` = `bimanual_align4_precision` + `bumpless_off` + `align.full_allowed` true (default mode still align). Conventions check: FAILED none. **Untested on the arm.** First real use: align mode, then full.
+
 ### Runs
 
 | Run | What | Status |
 |---|---|---|
 | `A1-align-rl-s0` | PPO from scratch on AlignTask, 2048 worlds, curriculum start x0.5 then x1.0, 60M steps | stopped at ~8M (env had the reset transient); `runs/A1-align-rl-s0_old_transient` |
 | `A2-align-rl-s0` | as A1, env with the 0.5 s settle | training |
+
+## K3 deploy
+
+### 2026-11-08 (fork B)
+
+**Chain path.** New config `deploy/config/bimanual_align5_k3.json` = `bimanual_align4` + `insert.policy_file` `runs/insert_K3.pt` + `insert.policy_sha256`. The file is a snapshot of K3 seed 0 at about 13M steps (sha256 `d22cb7ef4b92f35d`). TODO: replace with the final K3 checkpoint and its sha256.
+- The conventions check passes (`FAILED: none`).
+- A wrong sha256 stops `run_bimanual` at the start, with a message.
+- Sim dry runs, full chain, seeds 7030-7032: 3 of 3 complete. The policy loads from `policy_file` (obs_dim 71). Each run logs `insert_rel_pose_obs` and `insert_vision_prior`. The prior equals the align stage's hand-over measurement (`align_handover` lat_mm, gap_mm) to 1e-7 mm.
+- Seat detector: 3 of 3 `seated_detected` (1.26-2.12 s). Sim truth at the end: 1 of 3 seated; the other two stop at 5.12 and 5.36 mm, under the sim's 5.55 mm limit (known: the plug relaxes when the push stops; the sim fingers do not yield). n = 3: not a seat rate.
+
+**Observation check (`--check-obs`).** `obs_max_abs_err` now covers dims 0:50 only. Segments are reported apart in `obs_seg_max_abs_err` (`deploy/bimanual/insert.py`). Seeds 7031, 7032:
+
+| Segment | Max abs difference | Why |
+|---|---|---|
+| 0:50 (joints, velocities, actions, target errors) | 0.063 | expected: the K3 env adds its training velocity noise (`vel_obs_noise`, up to 0.04 rad/s sd) to its own observation. K-J dry run, same seed: 7e-10 on 0:50 and 0 on every segment |
+| 50:56 (pose) | 0.23-0.25 | expected: the sim env's reference is its own reset pose, the chain's is the hand-over pose |
+| 56:68 (twist, in-hand) | 0.068 | |
+| 68:71 (vision prior) | 0.03-0.06 (0.3-0.6 mm) | expected: the sim env's own prior draw, not the align stage's measurement |
+
+**Robustness in the sim** (`scripts/eval/k3_robust.py`, the 13M snapshot, real-like plant, real hand-over lead, n = 512 per row; `results/real_align/k3/robust_a.json`):
+
+| Prior | Hand-over (gap 5.5, ring 0.5 mm) | Ring 3 mm |
+|---|---|---|
+| as trained | 95.5 % [93.3, 97.0] | 93.0 % [90.4, 94.9] |
+| up +1 mm | 96.3 % [94.3, 97.6] | 92.0 % [89.3, 94.0] |
+| up +2 mm | 94.1 % [91.8, 95.9] | 89.6 % [86.7, 92.0] |
+| up +3 mm | 88.3 % [85.2, 90.8] | 73.4 % [69.4, 77.1] |
+| across +2 mm | 95.5 % [93.3, 97.0] | 92.4 % [89.8, 94.4] |
+| "on target" for every world | 96.5 % [94.5, 97.8] | **40.6 % [36.5, 44.9]** |
+
+- K3 uses the prior to find an off-centre port. With a prior that always says "on target", a 3 mm offset seats 40.6 % (with the true prior 93.0 %).
+- A prior bias up to 2 mm costs at most 3.4 points; 3 mm up costs 7 (hand-over) and 20 points (ring 3). The vision-to-net up difference on 2026-11-03 was 2-3 mm, cause not settled. **The up accuracy of port vision is the next measurement that matters for K3.**
+- Contact head against the sim's labels (hand-over cell, first 150 steps): 95.9 % of edge points right; recall free 96.2, touching 97.6, inside 92.7 %.
+- Encoder offsets ±3 deg (training ±1.5): hand-over 91.8 % [89.1, 93.9], ring 3 mm 86.9 % [83.7, 89.6] (n = 512 each), 3.7 and 6.1 points below. The relative pose removes the constant offset, but not all of it: the offset also bends the believed Jacobian and the believed motion directions. K3 is not immune, only less sensitive (K-J lost 75 points to the real absolute offsets).
+- Coordinator's matrix for K3 seed 0 at 9M (n = 512, real-like plant): real-like hand-over 97.7 %, roll 3 deg 90.0 %, ring 4 mm 93.0 %, ring 5 mm 88.9 %, mix 79.9 % (`results/real_align/k2/k3s0_a.json`). K-J (n = 1024): 94.8, 65.0, 81.8, 62.2, 79.9 %. TODO: final checkpoints.
+
+**Runbook:** [NEXT_RIG_20261109.md](NEXT_RIG_20261109.md).
+

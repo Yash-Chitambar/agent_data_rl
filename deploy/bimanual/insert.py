@@ -174,6 +174,7 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     gd, det2 = make_guards(chain, qb, pR, consts) if (ic.get('guard') or ic.get('seat2')) else (None, None)
     chain.log_event('insert_start', jt=jt.tolist(), inhand6=inhand6.tolist(), cap=cap, warm=warm, T=T)
     outcome, t_seat, obs_err, truth_seat = 'timeout', None, [], None
+    obs_seg = []
     for t in range(T):
         with torch.no_grad():
             a6 = pol(hist)[0].clamp(-1, 1)
@@ -197,7 +198,9 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
         o = obs_fn(chain.state['q'], chain.state['qd'], prev, jt, inhand6)
         hist = torch.cat([hist[:, 1:], o[:, None]], 1)
         if sim_obs is not None:
-            obs_err.append(float((sim_obs(jt, prev, inhand6) - o).abs().max()))
+            d_ = (sim_obs(jt, prev, inhand6) - o).abs()[0]
+            obs_err.append(float(d_[:50].max()))      # joints, velocities, actions, target errors (frame-independent)
+            obs_seg.append([float(d_[50:56].max()), float(d_[56:68].max()), float(d_[68:].max()) if d_.numel() > 68 else 0.])
         p, _ = chain.scene.tcp_chain.fk(chain.q_b[0:1])
         depth, vel, seated = det.update(p[0].cpu().numpy())
         share, counts = contact_summary(pol, hist)
@@ -238,7 +241,11 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     res = dict(outcome=outcome, steps=t + 1, t_seat_s=None if t_seat is None else t_seat * chain.dt,
                depth_mm=det.prev * 1e3, true_seat_tick=truth_seat)
     if obs_err:
+        # obs_max_abs_err: dims 0:50 only. The pose features [50:56] (nominal-relative in the sim env, hand-over-relative
+        # for rel_pose_obs policies), twist/in-hand [56:68] and the K3 vision prior [68:71] (the sim env's own reset draw,
+        # not the align stage's measurement) are reported apart, as maxima per segment.
         res['obs_max_abs_err'] = float(max(obs_err))
+        res['obs_seg_max_abs_err'] = dict(zip(('pose_50_56', 'twist_inhand_56_68', 'prior_68_71'), np.asarray(obs_seg).max(0).round(4).tolist()))
     tr = chain.truth()
     if tr is not None:
         res['true_seated_end'] = bool(tr['seated'])
