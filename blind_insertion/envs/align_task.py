@@ -57,6 +57,7 @@ class AlignTask(InsertionTask):
         self.still_steps = torch.zeros(n, dtype=torch.long, device=dev)
         self.prev_tip = z(3)
         self.max_speed, self.path_mm, self.min_gap, self.start_err = z(), z(), z(), z()
+        self.prev_true, self.max_true_speed, self.true_path_mm = z(3), z(), z()
         self.port_R_err = torch.eye(3, device=dev).expand(n, 3, 3).clone()
         self.align_metrics = {}
         self.hist = torch.zeros(n, self.icfg.history, self.obs_dim, device=dev)
@@ -131,6 +132,7 @@ class AlignTask(InsertionTask):
         self.still_steps[ids] = 0
         self.prev_tip[ids] = tp[:, :3]
         self.max_speed[ids], self.path_mm[ids], self.min_gap[ids] = 0, 0, tr[:, 2]
+        self.prev_true[ids], self.max_true_speed[ids], self.true_path_mm[ids] = tr[:, :3], 0, 0
         self.start_err[ids] = (tr[:, :3] - self.goal()[:3]).norm(dim=1)
         self.previous_action[ids] = 0
         o = self._actor_obs()
@@ -208,6 +210,8 @@ class AlignTask(InsertionTask):
 
     def step(self, action):
         tw = torch.as_tensor(action, device=self.device, dtype=torch.float32).clamp(-1, 1)
+        settling = self.steps < int(round(self.icfg.align_settle_s / self.dt))
+        tw = torch.where(settling[:, None], torch.zeros_like(tw), tw)
         a = torch.zeros(self.N, 14, device=self.device)
         a[:, :6] = self.twist_to_action(tw)
         a[:, 6] = -1.
@@ -241,12 +245,22 @@ class AlignTask(InsertionTask):
         lat, gap_e, ang = e[:, :2].norm(dim=1), e[:, 2].abs(), e[:, 3:].norm(dim=1)
         speed = (tp[:, :3] - self.prev_tip).norm(dim=1) / self.dt
         self.prev_tip = tp[:, :3].clone()
-        self.max_speed = torch.maximum(self.max_speed, speed)
-        self.path_mm += speed * self.dt
-        self.min_gap = torch.minimum(self.min_gap, tr[:, 2])
+        tsp = (tr[:, :3] - self.prev_true).norm(dim=1) / self.dt          # true plug speed (no encoder quantization)
+        self.prev_true = tr[:, :3].clone()
+        ns = int(round(c.align_settle_s / self.dt))
+        settled = self.steps > ns
+        at_end = self.steps == ns                     # metrics start where the settle ends
+        self.start_err = torch.where(at_end, (tr[:, :3] - self.goal()[:3]).norm(dim=1), self.start_err)
+        self.min_gap = torch.where(at_end, tr[:, 2], self.min_gap)
+        z0 = torch.zeros_like(speed)
+        self.max_speed = torch.maximum(self.max_speed, torch.where(settled, speed, z0))
+        self.path_mm += torch.where(settled, speed, z0) * self.dt
+        self.min_gap = torch.where(settled, torch.minimum(self.min_gap, tr[:, 2]), self.min_gap)
+        self.max_true_speed = torch.maximum(self.max_true_speed, torch.where(settled, tsp, z0))
+        self.true_path_mm += torch.where(settled, tsp, z0) * self.dt
         within = (lat <= c.align_tol_mm[0]) & (gap_e <= c.align_tol_mm[1]) & (ang <= c.align_tol_deg)
         still = speed <= c.align_still_mm_s
-        self.still_steps = torch.where(within & still, self.still_steps + 1, torch.zeros_like(self.still_steps))
+        self.still_steps = torch.where(within & still & settled, self.still_steps + 1, torch.zeros_like(self.still_steps))
         success = self.still_steps >= int(round(c.align_hold_s / self.dt))
         rel = self._reader_in_tcp()
         d_rel = (rel[:, :3, 3] - self.ref_rel[:, :3, 3]).norm(dim=1)
@@ -262,7 +276,7 @@ class AlignTask(InsertionTask):
         self._last = dict(success=success, slip=slip, pushed=pushed, far=far, bad=bad, lat=lat, gap_e=gap_e, ang=ang, speed=speed,
                           true_lat=(tr[:, :2] - self.goal()[:2]).norm(dim=1), true_gap=tr[:, 2], steps=self.steps.clone().float(),
                           max_speed=self.max_speed.clone(), path_mm=self.path_mm.clone(), overshoot_mm=(self.goal()[2] - self.min_gap).clamp(min=0),
-                          start_err=self.start_err.clone())
+                          start_err=self.start_err.clone(), max_true_speed=self.max_true_speed.clone(), true_path_mm=self.true_path_mm.clone())
         info = {'success': success.clone(), 'nonfinite': bad, 'slip': slip, 'pushed': pushed, 'far': far, 'steps': self.steps.clone()}
         return success.float(), terminated, truncated, info
 
@@ -300,22 +314,37 @@ class AlignTask(InsertionTask):
 class ServoPolicy:
     """Continuous vision servo: twist = -gain x (fused estimate - goal), speed-limited, smoothed."""
 
-    def __init__(self, env, gain=1.5, ang_gain=1.0, vmax_mm_s=8., wmax_deg_s=4., smooth=0.2):
+    def __init__(self, env, gain=1.5, ang_gain=1.0, vmax_mm_s=8., wmax_deg_s=4., smooth=0.2, vmin_mm_s=0., ki=0., deadband_mm=0., deadband_deg=0.):
+        """vmin_mm_s: speed floor outside the deadband (breaks stick-slip near the goal); ki: integral gain (1/s^2) on the
+        position error; deadband: inside it no motion is commanded (no hunting)."""
         self.env, self.g, self.ga, self.vmax, self.wmax, self.s = env, gain, ang_gain, vmax_mm_s, wmax_deg_s, smooth
+        self.vmin, self.ki, self.db, self.dbd = vmin_mm_s, ki, deadband_mm, deadband_deg
         self.prev = torch.zeros(env.N, 6, device=env.device)
+        self.integ = torch.zeros(env.N, 3, device=env.device)
 
     def __call__(self, hist=None):
         e = self.env
         c = e.icfg
         err = e.est_now() - e.goal()
-        v = (-self.g * err[:, :3]).clamp(-self.vmax, self.vmax) / c.align_vmax_mm_s
-        w = (-self.ga * err[:, 3:]).clamp(-self.wmax, self.wmax) / c.align_wmax_deg_s
+        ep, ea = err[:, :3], err[:, 3:]
+        inside = (ep.norm(dim=1, keepdim=True) <= self.db)
+        self.integ = torch.where(inside, self.integ, self.integ + ep * e.dt)
+        vp = -self.g * ep - self.ki * self.integ
+        if self.vmin > 0:
+            nv = vp.norm(dim=1, keepdim=True)
+            vp = torch.where(nv < self.vmin, vp / nv.clamp(min=1e-6) * self.vmin, vp)
+        vp = torch.where(inside, torch.zeros_like(vp), vp)
+        va = -self.ga * ea
+        va = torch.where(ea.norm(dim=1, keepdim=True) <= self.dbd, torch.zeros_like(va), va)
+        v = vp.clamp(-self.vmax, self.vmax) / c.align_vmax_mm_s
+        w = va.clamp(-self.wmax, self.wmax) / c.align_wmax_deg_s
         tw = torch.cat([v, w], 1)
         self.prev = self.prev + self.s * (tw - self.prev)
         return self.prev.clone()
 
     def reset(self, ids):
         self.prev[ids] = 0
+        self.integ[ids] = 0
 
 
 class StepPolicy:

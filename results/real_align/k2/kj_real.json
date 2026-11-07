@@ -165,5 +165,142 @@
    8.1,
    8.1
   ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5,
+   "roll": 4.0
+  },
+  "k": 512,
+  "n": 1024,
+  "rate": 0.5,
+  "wilson": [
+   0.46943228467080966,
+   0.5305677153291903
+  ],
+  "classes": {
+   "lateral_miss": 223,
+   "grasp_slip": 157,
+   "seated": 512,
+   "tilt": 93,
+   "jam": 37,
+   "deep_unseated": 2
+  },
+  "force_p50": 7.938425064086914,
+  "force_p99": 15.332332181930541,
+  "t_ok_p50": 3.1500000000000004,
+  "t_ok_p99": 8.908999999999999,
+  "cell": "roll4",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   7.9,
+   8.1,
+   8.1
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5,
+   "rx": 4.0
+  },
+  "k": 878,
+  "n": 1024,
+  "rate": 0.857421875,
+  "wilson": [
+   0.834668772632122,
+   0.877503219628164
+  ],
+  "classes": {
+   "lateral_miss": 61,
+   "seated": 878,
+   "grasp_slip": 66,
+   "tilt": 11,
+   "jam": 8
+  },
+  "force_p50": 7.676035404205322,
+  "force_p99": 17.63245294570923,
+  "t_ok_p50": 2.49,
+  "t_ok_p99": 6.029200000000001,
+  "cell": "pitch4",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   7.9,
+   8.1,
+   8.2
+  ]
+ },
+ {
+  "cond": {
+   "gap": 8.0,
+   "ring": 0.5
+  },
+  "k": 993,
+  "n": 1024,
+  "rate": 0.9697265625,
+  "wilson": [
+   0.9573499688245313,
+   0.9785919117142599
+  ],
+  "classes": {
+   "lateral_miss": 20,
+   "seated": 993,
+   "grasp_slip": 8,
+   "jam": 1,
+   "tilt": 2
+  },
+  "force_p50": 6.939586877822876,
+  "force_p99": 16.869443740844723,
+  "t_ok_p50": 1.28,
+  "t_ok_p99": 3.708000000000004,
+  "cell": "gap8",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.1
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 2.0,
+   "roll": 2.0,
+   "rx": 3.0
+  },
+  "k": 818,
+  "n": 1024,
+  "rate": 0.798828125,
+  "wilson": [
+   0.773178065274447,
+   0.8222444200579232
+  ],
+  "classes": {
+   "lateral_miss": 124,
+   "seated": 818,
+   "grasp_slip": 44,
+   "jam": 16,
+   "tilt": 22
+  },
+  "force_p50": 7.63876485824585,
+  "force_p99": 17.06680980682373,
+  "t_ok_p50": 2.48,
+  "t_ok_p99": 6.41920000000001,
+  "cell": "mix",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   7.9,
+   8.1,
+   8.2
+  ]
  }
 ]

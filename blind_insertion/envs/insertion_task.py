@@ -196,6 +196,12 @@ class InsertionCfg:
     # one, believed FK, in mm, above climb_thresh_mm). Axial lead is free (the push needs it).
     climb_coef: float = 0.0
     climb_thresh_mm: float = 8.0
+    # vision_prior_obs (K3): 3 extra actor inputs at the END of the observation (after the in-hand estimate): the port-vision
+    # plug position at the hand-over (mm / 10: across, up, gap), held for the episode, = truth + a per-episode error
+    # N(0, vision_prior_sigma_mm) (run bias, pose-dependent error and the 5-frame median together). On the robot: the align
+    # stage's last fused measurement.
+    vision_prior_obs: bool = False
+    vision_prior_sigma_mm: tuple = (0.4, 0.95, 0.63)
     # ---- AlignTask (blind_insertion/envs/align_task.py): final alignment from a real-like stop to the hand-over pose
     align_task: bool = False
     align_goal_mm: tuple = (0., 0., 6.)
@@ -223,6 +229,7 @@ class InsertionCfg:
     align_speed_coef: float = 0.02
     align_speed_cap_mm_s: float = 12.0
     align_time_coef: float = 0.002
+    align_settle_s: float = 0.5                     # the arm settles after the reset: actions ignored, no metrics (sim reset transient)
 
 
 # Contact values are unmeasured. User directive (2026-10-31): choose values that let insertion work,
@@ -343,6 +350,7 @@ class InsertionTask(BimanualTask):
         self.ho_R = torch.eye(3, device=dev).expand(n, 3, 3).clone()
         self.vel_noise_scale = torch.zeros(n, 1, device=dev)
         self.climb_mm = torch.zeros(n, device=dev)
+        self.vision_prior = torch.zeros(n, 3, device=dev)
         self.pc_start = torch.zeros(n, 7, device=dev)
         self.captured = torch.zeros(n, dtype=torch.bool, device=dev)
         self.strict_run = torch.zeros(n, dtype=torch.long, device=dev)
@@ -675,6 +683,10 @@ class InsertionTask(BimanualTask):
             lo, hi = c.vel_obs_noise_scale
             self.vel_noise_scale[ids] = lo + (hi - lo) * torch.rand(len(ids), 1, device=self.device, generator=self.gen)
         self.climb_mm[ids] = 0
+        if c.vision_prior_obs:
+            pp, _ = self.runtime.plug_in_port()
+            self.vision_prior[ids] = pp[ids] * 1e3 + torch.randn(len(ids), 3, device=self.device, generator=self.gen) \
+                * torch.tensor(c.vision_prior_sigma_mm, device=self.device)
         if self.icfg.inhand_obs:
             sp, sr = self.icfg.inhand_obs_noise
             z = torch.randn(len(ids), 6, device=self.device, generator=self.gen)
@@ -981,7 +993,7 @@ class InsertionTask(BimanualTask):
 
     @property
     def obs_dim(self):
-        return 62 + (6 if self.icfg.inhand_obs else 0) + (18 if self.icfg.privileged_actor else 0)
+        return 62 + (6 if self.icfg.inhand_obs else 0) + (3 if self.icfg.vision_prior_obs else 0) + (18 if self.icfg.privileged_actor else 0)
 
     def _actor_obs(self):
         o = self.observation()
@@ -1009,6 +1021,8 @@ class InsertionTask(BimanualTask):
             parts = [base] + parts[4:]
         if self.icfg.inhand_obs:
             parts.append(self.inhand_est)
+        if self.icfg.vision_prior_obs:
+            parts.append(self.vision_prior / 10)
         if self.icfg.privileged_actor:     # teacher only: plug pose in the live port frame, reader in the TCP
             p, R = self.runtime.plug_in_port()
             rel = self._reader_in_tcp()

@@ -113,11 +113,23 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     cfg, ic, dev = chain.cfg, chain.cfg['insert'], chain.dev
     consts, pol = chain.consts, chain.pol
     scale, cap = 0.04, float(pol.meta['target_cap_rad'])
-    assert pol.meta['action_mode'] == 'accumulate' and pol.obs_dim == consts['obs_dim'] == 68, pol.meta
+    ej_pol = pol.meta.get('env_json') or {}
+    n_prior = 3 if ej_pol.get('vision_prior_obs') else 0
+    assert pol.meta['action_mode'] == 'accumulate' and consts['obs_dim'] == 68 and pol.obs_dim == 68 + n_prior, pol.meta
     H, warm = int(pol.meta['history']), int(consts['warmup_steps'])
     T = int(round(ic['insert_s'] / chain.dt))
     lim = chain.scene.indices['right'][4].to(dev)
     obs_fn = InsertObs(chain.scene, consts, dev)
+    if n_prior:
+        # K3: port-vision plug position at the hand-over (mm / 10: across, up, gap), held (InsertionCfg.vision_prior_obs)
+        ar = getattr(chain, 'align_result', None)
+        if not ar or ar.get('gap_mm') is None or ar.get('lat_mm') is None:
+            raise RuntimeError('this policy needs the align stage hand-over measurement (config align.enabled, mode full)')
+        prior = torch.tensor([float(ar['lat_mm'][0]), float(ar['lat_mm'][1]), float(ar['gap_mm'])], device=dev) / 10
+        _base_fn = obs_fn
+        obs_fn = lambda *a_, _f=_base_fn, _p=prior: torch.cat([_f(*a_), _p[None]], 1)  # noqa: E731
+        obs_fn.ch, obs_fn.base = _base_fn.ch, _base_fn
+        chain.log_event('insert_vision_prior', prior_mm=(prior * 10).tolist())
     # torque hand-over (eval_chain --handover torque): fold the feed-forward torque into the PD target, then FF off
     ff_was_on = chain.rt.comp['right'] is not None
     chain.rt.comp['right'] = None
@@ -134,7 +146,8 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
         if ic.get('obs_recenter'):
             raise RuntimeError('insert.obs_recenter is for policies with absolute pose features; this policy uses rel_pose_obs')
         p_ho, R_ho = chain.scene.tcp_chain.fk(qb[0:1].to(dev).float())
-        obs_fn.p_obs, obs_fn.R_obs = p_ho[0], R_ho[0]
+        tgt = getattr(obs_fn, 'base', obs_fn)
+        tgt.p_obs, tgt.R_obs = p_ho[0], R_ho[0]
         chain.log_event('insert_rel_pose_obs', p_ho=p_ho[0].tolist())
     o = obs_fn(chain.state['q'], chain.state['qd'], prev, jt, inhand6)
     # insert.obs_recenter (docs/real/CONTACT_ALIGN_PLAN_20261107.md): the TCP position and Euler features [50:56] are FK relative to a

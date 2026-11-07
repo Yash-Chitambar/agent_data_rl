@@ -69,7 +69,8 @@ if __name__ == '__main__':
     out = dict(method=A.method, kw=kw, n=n, k=k, rate=k / max(n, 1), wilson=list(wilson(k, n)),
                fail={c: int(sum(x[c] for x in res)) for c in ('pushed', 'far', 'slip', 'bad')}, timeout=n - k - int(sum(x['pushed'] + x['far'] + x['slip'] + x['bad'] > 0 for x in res)),
                t_s_p50_p90=pct(g('steps') * env.dt, [50, 90]), consistent_lat_p50_p95=pct(g('lat'), [50, 95]), true_lat_p50_p95=pct(g('true_lat'), [50, 95]),
-               max_speed_p50_p99=pct(g('max_speed', res), [50, 99]), path_ratio_p50_p90=pct(g('path_mm') / np.maximum(g('start_err'), 1e-3), [50, 90]),
+               max_speed_p50_p99=pct(g('max_speed', res), [50, 99]), max_true_speed_p50_p99=pct(g('max_true_speed', res), [50, 99]),
+               true_path_ratio_p50_p90=pct(g('true_path_mm') / np.maximum(g('start_err'), 1e-3), [50, 90]), path_ratio_p50_p90=pct(g('path_mm') / np.maximum(g('start_err'), 1e-3), [50, 90]),
                overshoot_p95_max=pct(g('overshoot_mm', res), [95, 100]), wall_s=round(time.time() - t0))
     Path(A.out).parent.mkdir(parents=True, exist_ok=True)
     Path(A.out).write_text(json.dumps(out, indent=1))
