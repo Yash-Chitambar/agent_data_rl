@@ -140,6 +140,9 @@ class Runner:
             for kv in a.align_set:
                 k, v = kv.split('=', 1)
                 self.cfg['align'][k] = json.loads(v)
+        al = self.cfg.get('align') or {}
+        if al.get('enabled') and al.get('full_allowed') is False and al.get('mode') == 'full':
+            raise SystemExit('this config does not allow align mode full (align.full_allowed false): use --align-mode align or measure')
         self.dev = torch.device(a.device)
         bundle = ROOT / self.cfg['bundle_dir']
         bad = BU.verify(argparse.Namespace(out=str(bundle)), quiet=True)

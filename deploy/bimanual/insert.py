@@ -130,6 +130,21 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     inhand6 = chain.inhand_est6.reshape(6).to(dev).float()
     prev = torch.zeros(14, device=dev)
     o = obs_fn(chain.state['q'], chain.state['qd'], prev, jt, inhand6)
+    # insert.obs_recenter (docs/real/CONTACT_ALIGN_PLAN_20261107.md): the TCP position and Euler features [50:56] are FK relative to a
+    # fixed nominal pose; on the rig they read ~3 sd outside the sim's hand-over spread (PC pose, encoder offsets). Shift them, once at the
+    # hand-over, to the sim's hand-over mean; the shift is held, so the policy sees motion relative to the hand-over only.
+    rc = ic.get('obs_recenter')
+    if rc:
+        shift = torch.zeros_like(o)
+        shift[:, 50:53] = torch.tensor(rc['tcp_obs'], device=dev) - o[:, 50:53]
+        shift[:, 53:56] = torch.tensor(rc['eul'], device=dev) - o[:, 53:56]
+        if rc.get('inhand') is not None:
+            inhand6 = torch.tensor(rc['inhand'], device=dev, dtype=torch.float32)
+            o = obs_fn(chain.state['q'], chain.state['qd'], prev, jt, inhand6)
+        _obs_fn0 = obs_fn
+        obs_fn = lambda *a_, _f=_obs_fn0, _s=shift: _f(*a_) + _s  # noqa: E731
+        o = o + shift
+        chain.log_event('insert_obs_recenter', shift=shift[0, 50:56].tolist(), inhand=inhand6.tolist())
     hist = o[:, None].expand(-1, H, -1).clone()
     pR = chain.port[1]
     det = SeatDetector(pR[0].cpu(), chain.a.stop * 1e-3 + chain.a.stop_offset_mm[2] * 1e-3, consts['seat_depth_m'],
