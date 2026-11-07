@@ -4,7 +4,7 @@ Branch `real/graph-align`. Details, numbers and code: [PRECISION_CONTROL.md](PRE
 
 ## Result
 
-1. **Plain-PD full chain seated** (`full_173941_align_full9`, `bimanual_align2`): K-J `seated_detected` 2.2 s after the hand-over, depth 7.98 mm. Operator: fully in, the reader stayed in the port. Video: `data/real_runs/2026-11-06/full_173941_align_full9/demo_3cam.mp4`. Plain-PD tally since 2026-11-03: K-J 2 seats of 3 hand-overs, full chain 2 of 6 tries.
+1. **Plain-PD full chain seated** (`full_173941_align_full9`, `bimanual_align2`): K-J `seated_detected` 2.2 s after the hand-over, depth 7.98 mm. Operator: fully in, the reader stayed in the port. Video: `data/real_runs/2026-11-06/full_173941_align_full9/demo_3cam.mp4`. Plain-PD tally since 2026-11-03: K-J 2 seats of 4 hand-overs, full chain 2 of 7 tries. The repeat (`align_full10`) failed like `align_full5`: a good hand-over, then the plug stalled on the case while K-J's target climbed. Both runs that stalled and both that seated started from hand-overs within 0.4 mm, so the hand-over alone does not decide it: the contact policy's search does.
 2. **Precision controller** (features of the athena3 controller, values from this rig): right arm, encoder FK, hand error 0.13 mm median against 4.2 mm on plain PD, 12 of 12 steps settled.
 3. **Gravity system ID, both arms** (our own tool). Held-out torque rms, joints 2/3:
    - Right arm: 0.13 / 0.19 N m (i2rt default 0.82 / 0.61).
@@ -31,6 +31,7 @@ Branch `real/graph-align`. Details, numbers and code: [PRECISION_CONTROL.md](PRE
 | 16:45 | `full_164558_align_full7` | + controller on in contact | stopped at the hand-over (vision-net up 4.49 mm); home stopped (bug) |
 | 16:52 | `full_165244_align_full8` | same, vision-net up limit 5 mm | hand-over 0.15 mm; K-J climbed 9.7 mm in 0.34 s, guard stop |
 | 17:39 | `full_173941_align_full9` | plain PD (`bimanual_align2`) | **seated, confirmed by the operator** |
+| 17:50 | `full_175030_align_full10` | plain PD repeat | **not seated**: hand-over 0.26 / 0.29 mm, gap 5.38 mm; plug stalled on the case at 2-3 mm depth, K-J target climbed to +37 mm, a 5 mm sideways jump at 1.5 s, guard bound at across -9.9 mm (4.3 s) |
 
 ## Safety incidents
 
@@ -39,6 +40,8 @@ Branch `real/graph-align`. Details, numbers and code: [PRECISION_CONTROL.md](PRE
 - Three software stops from my code (a config note read as an arm; settle trim skipped when the controller was off; the stage switch missing on slow moves). Each now has a test or a mock check.
 
 ## Open
+
+- **The contact policy's search (K-J) and the alignment policy need more work** (operator, after align_full10): the failures from good hand-overs are the most useful data for it.
 
 - K-J under the controller: model the controller in the sim and fine-tune or re-evaluate, or change how the hand-over sets the target.
 - The approach servo wind-up (4.4-8.5 mm uncommanded moves); the server's 18 mm stop (`bimanual_align3`) has not run.
