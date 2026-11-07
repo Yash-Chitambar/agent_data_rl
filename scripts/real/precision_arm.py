@@ -62,6 +62,23 @@ def set_payload_com(robot, ipos, body='gripper'):
     return old
 
 
+def use_gravity(robot, name):
+    """Switch i2rt's gravity model between the fitted payload ('fit') and i2rt's default ('default'), when connect got
+    a fit. i2rt reads the factors and the gripper body's mass and centre of mass on every motor cycle."""
+    models = getattr(robot, 'gravity_models', None)
+    if models is None or getattr(robot, 'gravity_in_use', None) == name:
+        return False
+    import mujoco
+    g = models[name]
+    km = robot.kdl.model
+    b = mujoco.mj_name2id(km, mujoco.mjtObj.mjOBJ_BODY, 'gripper')
+    km.body_mass[b] = g['mass']
+    km.body_ipos[b] = g['ipos']
+    robot.gravity_comp_factor = np.asarray(g['factor'], float).copy()
+    robot.gravity_in_use = name
+    return True
+
+
 class ArmController:
     """The precision law on one real arm, in its own thread."""
 
@@ -79,6 +96,7 @@ class ArmController:
         self._lock = threading.Lock()
         self.thread = None
         self.error = None
+        self.enabled = True             # off: the loop writes nothing (SafeArm's fric_comp applies), integral reset
         self.events = []                # (t, event, detail)
         self.n_cycles, self.late_max = 0, 0.0
 
@@ -116,6 +134,24 @@ class ArmController:
             pass
         self._restore_gains()
 
+    def set_enabled(self, on):
+        """Switch the controller's torque on or off. Off: zero torque written once, integral and state reset (it starts
+        fresh when switched on again), nothing written afterwards."""
+        on = bool(on)
+        if on == self.enabled:
+            return
+        with self._lock:
+            self.enabled = on
+            self.law.reset_integral()
+            self.law.last_target, self.law.still_since, self.law.t_prev = None, None, None
+            self.law.fast_until = -np.inf
+            self.law.tau = np.zeros(6)
+        if not on:
+            try:
+                self.write(np.zeros(6))
+            except Exception:  # noqa: BLE001
+                pass
+
     def freeze(self, on=True):
         with self._lock:
             self.law.frozen = bool(on)
@@ -123,7 +159,7 @@ class ArmController:
     def status(self):
         with self._lock:
             s = self.law.status()
-        s.update(error=self.error, cycles=self.n_cycles, late_max_ms=round(self.late_max * 1e3, 2))
+        s.update(error=self.error, cycles=self.n_cycles, late_max_ms=round(self.late_max * 1e3, 2), enabled=self.enabled)
         return s
 
     def _read(self):
@@ -145,11 +181,17 @@ class ArmController:
         try:
             while not self._stop.is_set():
                 t = time.monotonic()
+                if not self.enabled:
+                    t_next += dt
+                    time.sleep(max(0.0, t_next - time.monotonic()))
+                    continue
                 q, qd = self._read()
                 target = np.asarray(self.target_fn(), float)
                 if not (np.all(np.isfinite(q[:6])) and np.all(np.isfinite(target[:6]))):
                     raise RuntimeError(f'non-finite state or target: q {q[:6]}, target {target[:6]}')
                 with self._lock:
+                    if not self.enabled:                 # switched off between the check above and here
+                        continue
                     out = self.law.step(t, q[:6], target[:6], qd[:6])
                     tau = out['tau'].copy()
                 self.write(tau)

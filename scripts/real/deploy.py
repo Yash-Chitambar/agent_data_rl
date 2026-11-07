@@ -340,13 +340,14 @@ class RealArm:
         # (deploy/approach_trim.py: bounded integral on all joints against static friction), until
         # every joint is within SETTLE_TOL of the goal for 0.2 s, at most 15 s.
         trim, recent = None, collections.deque(maxlen=10)
-        if settle_trim and self.ctrl is not None and self.ctrl.active:
+        ctrl_on = (self.ctrl is not None and self.ctrl.active and self.ctrl.enabled
+                   and not self.ctrl.status()['frozen'])      # off or frozen (cannot settle): the old trim, as before it existed
+        if settle_trim and ctrl_on:
             settle_trim = False      # the precision controller's integral does the settling: no second integral
         if settle_trim:
             from deploy.approach_trim import ApproachTrim, settled
             trim = ApproachTrim()
         t_next = time.monotonic()
-        ctrl_on = self.ctrl is not None and self.ctrl.active
         for _ in range(750 if settle_trim else (100 if ctrl_on else 50)):   # with the controller: up to 2 s
             if estop.stopped():
                 self.hold()

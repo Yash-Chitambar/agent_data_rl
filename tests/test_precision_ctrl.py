@@ -230,3 +230,103 @@ def test_gravity_fit_formats(tmp_path):
     assert ours['gravity_comp_factor'].shape == (6,)
     with pytest.raises(ValueError):
         gravity_fit({'ee_mass': 9.0, 'gravity_comp_factor': [1] * 6})
+
+
+def test_chain_freezes_integral_in_configured_stages():
+    import importlib
+    from arm_clearance import deploy_package          # safety.py puts scripts/real first: its deploy.py shadows the package
+    with deploy_package():
+        RealChain = importlib.import_module('deploy.bimanual.chain').RealChain
+    calls = []
+    io = types.SimpleNamespace(precision_freeze=lambda side, on: calls.append((side, on)))
+    cfg = {'arm_control': {'_about': 'a note, as in deploy/config/bimanual_align2_precision.json (2026-11-06 crash)',
+                           'right': {'precision': {'integral': True}, 'freeze_stages': ['5 insert', '6 release']},
+                           'left': None}}
+    me = types.SimpleNamespace(cfg=cfg, io=io)
+    for label in ('4 approach', 'align', '5 insert', '6 release', '7 home'):
+        RealChain._precision_stage(me, label)
+    assert calls == [('right', False), ('right', False), ('right', True), ('right', True), ('right', False)]
+    RealChain._precision_stage(types.SimpleNamespace(cfg=cfg, io=object()), '5 insert')   # sim I/O: nothing to do
+
+
+def test_gravity_switch_matches_i2rt_models():
+    """safety.connect's two gravity models on i2rt's own gravity model, switched by precision_arm.use_gravity: 'default'
+    gives exactly what i2rt computes for EE_MASS with its own factors, 'fit' what it computes for the fitted payload."""
+    import numpy as np
+    from i2rt.robots.get_robot import _load_arm_config
+    from i2rt.robots.utils import ArmType, GripperType, combine_arm_and_gripper_xml
+    from i2rt.utils.mujoco_utils import MuJoCoKDL
+    import safety
+    from precision_arm import gravity_fit, set_payload_com, use_gravity
+    fit = gravity_fit(str(REPO / 'data/real_yam/gravity_id/20261106_150421_right/fit.json'))
+    yam, lin = ArmType.from_string_name('yam'), GripperType.from_string_name('linear_4310')
+    f0 = np.r_[np.asarray(_load_arm_config(yam).gravity_comp_factor, float), 1.0]
+    ref_default = MuJoCoKDL(combine_arm_and_gripper_xml(yam, lin, ee_mass=safety.EE_MASS))
+    robot = types.SimpleNamespace(kdl=MuJoCoKDL(combine_arm_and_gripper_xml(yam, lin, ee_mass=fit['ee_mass'])),
+                                  gravity_comp_factor=np.r_[fit['gravity_comp_factor'], 1.0])
+    # as safety.connect
+    import mujoco
+    ipos0 = set_payload_com(robot, fit['ee_ipos'])
+    km = robot.kdl.model
+    b = mujoco.mj_name2id(km, mujoco.mjtObj.mjOBJ_BODY, 'gripper')
+    robot.gravity_models = {'fit': dict(mass=float(km.body_mass[b]), ipos=km.body_ipos[b].copy(), factor=robot.gravity_comp_factor.copy()),
+                            'default': dict(mass=safety.EE_MASS, ipos=ipos0, factor=f0)}
+    robot.gravity_in_use = 'fit'
+    q = np.array([0.9, 1.5374, 1.0363, -1.1683, -0.4673, 0.514])
+    z = np.zeros(6)
+
+    def tau(r):
+        return r.kdl.compute_inverse_dynamics(q, z, z) * np.asarray(r.gravity_comp_factor)[:6]
+    t_fit = tau(robot)
+    assert use_gravity(robot, 'default') and robot.gravity_in_use == 'default'
+    assert np.allclose(tau(robot), ref_default.compute_inverse_dynamics(q, z, z) * f0[:6])
+    assert not np.allclose(tau(robot), t_fit)
+    assert use_gravity(robot, 'fit') and np.allclose(tau(robot), t_fit)
+    assert not use_gravity(robot, 'fit')                       # already in use: nothing to do
+
+
+def test_move_to_uses_old_settle_trim_when_controller_off(monkeypatch):
+    """2026-11-06 align_prec3: with the controller switched off (outside its active stages) move_to skipped its settle
+    trim and stopped 26 mrad short (> 0.02 rad check). Off -> the old trim; on -> no second integral."""
+    import importlib.util
+    import safety
+    from precision_arm import ArmController
+    spec = importlib.util.spec_from_file_location('real_deploy_test', REPO / 'scripts/real/deploy.py')
+    D = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(D)
+    made = []
+
+    class Trim:                                       # stands in for deploy.approach_trim.ApproachTrim
+        def __init__(self, *a, **k):
+            made.append(self)
+
+        def step(self, err, dt):
+            return np.zeros(6)
+    import deploy.approach_trim as AT
+    monkeypatch.setattr(AT, 'ApproachTrim', Trim)
+    monkeypatch.setattr(AT, 'settled', lambda recent, tol: True)
+    monkeypatch.setattr(D.estop, 'stopped', lambda: False)
+
+    class Instant(FakeRobot):                         # tracks every command at once
+        def command_joint_pos(self, q7):
+            super().command_joint_pos(q7)
+            with self._state_lock:
+                self._joint_state.pos = np.asarray(q7, float).copy()
+
+    class OK:
+        def violation(self, q6):
+            return None
+    for enabled, frozen, want_trim in ((False, False, True), (True, False, False), (True, True, True)):
+        made.clear()
+        arm = object.__new__(D.RealArm)
+        arm.robot = Instant(q=np.r_[0.5, 1.0, 1.0, -0.5, 0.5, 0.5, 1.0])
+        arm.safe = safety.SafeArm(arm.robot, OK())
+        arm.motion_trace = []
+        arm.ctrl = ArmController(arm.robot, lambda: arm.safe.last_safe, dict(integral=True), name='t')
+        arm.ctrl.start()
+        arm.ctrl.set_enabled(enabled)
+        arm.ctrl.freeze(frozen)                       # 2026-11-06 align_full7: frozen from the release, home stopped 24 mrad short
+        arm.safe.ctrl = arm.ctrl
+        arm.move_to(np.r_[0.52, 1.0, 1.0, -0.5, 0.5, 0.5], max_vel=1.0, settle_trim=True)
+        arm.ctrl.stop()
+        assert bool(made) == want_trim, (enabled, frozen, made)

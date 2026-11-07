@@ -19,6 +19,7 @@ import numpy as np
 
 REPO = Path(__file__).resolve().parents[2]
 HAND = ('link_6', 'gripper', 'left_finger', 'right_finger', 'wrist_camera', 'calibrated_webcam_visual')
+HANDS = {'right': HAND, 'left': tuple('left_' + h for h in HAND)}     # the left arm's bodies carry a left_ prefix
 
 
 from contextlib import contextmanager
@@ -67,17 +68,19 @@ class TwoArm:
                         grow = True
             return out
         root = {s: m.jnt_bodyid[m.joint(('' if s == 'right' else 'left_') + 'joint1').id] for s in ('right', 'left')}
-        R = subtree(root['right'])
-        L = subtree(root['left']) | {m.body_parentid[root['left']]}       # with the left base
+        R = subtree(root['right']) | {m.body_parentid[root['right']]}     # each arm with its base
+        L = subtree(root['left']) | {m.body_parentid[root['left']]}
         self.gR = [g for g in range(m.ngeom) if m.geom_bodyid[g] in R]
         self.gL = [g for g in range(m.ngeom) if m.geom_bodyid[g] in L]
+        self.g = {'right': self.gR, 'left': self.gL}
         self._ft = np.zeros(6)
 
     def body(self, g):
         return self.mj.mj_id2name(self.m, self.mj.mjtObj.mjOBJ_BODY, self.m.geom_bodyid[g])
 
     def distance(self, q_right, q_left, cap=0.3):
-        """Smallest distance (m, negative = overlap) between any right-arm geom and any left-arm or left-base geom."""
+        """Smallest distance (m, negative = overlap) between any right-arm or right-base geom and any left-arm or
+        left-base geom (the two bases are 0.6 m apart, so that pair never decides)."""
         m, d = self.m, self.d
         d.qpos[self.qa['right']] = np.asarray(q_right, float)[:6] + self.off['right']
         d.qpos[self.qa['left']] = np.asarray(q_left, float)[:6] + self.off['left']
@@ -90,25 +93,47 @@ class TwoArm:
                     best, pair = x, (a, b)
         return best, (None if pair is None else (self.body(pair[0]), self.body(pair[1])))
 
-    def right_extent(self, q_right):
-        """(max y over all right-arm geoms, min x over the hand's geoms) in the scene (m; centre +- bounding radius)."""
-        m, d = self.m, self.d
-        d.qpos[self.qa['right']] = np.asarray(q_right, float)[:6] + self.off['right']
-        self.mj.mj_kinematics(m, d)
-        y = max(d.geom_xpos[g][1] + m.geom_rbound[g] for g in self.gR)
-        x = min(d.geom_xpos[g][0] - m.geom_rbound[g] for g in self.gR if self.body(g) in HAND)
-        return float(y), float(x)
+    def _pose(self, side, q):
+        self.d.qpos[self.qa[side]] = np.asarray(q, float)[:6] + self.off[side]
+        self.mj.mj_kinematics(self.m, self.d)
 
-    def hand_box(self, q_right):
-        """(min, max) corners (3,) over the hand's geom centres (world, m)."""
-        self.right_extent(q_right)
-        P = np.array([self.d.geom_xpos[g] for g in self.gR if self.body(g) in HAND])
+    def extent(self, side, q):
+        """(min y, max y) over all of the arm's geoms and (min x) over its hand's geoms (scene, m; centre +- radius)."""
+        m, d = self.m, self.d
+        self._pose(side, q)
+        g_ = [g for g in self.g[side] if m.body_parentid[m.geom_bodyid[g]] != 0 or self.body(g).endswith('link_1')]
+        ys = [d.geom_xpos[g][1] for g in g_]
+        rb = [m.geom_rbound[g] for g in g_]
+        x = min(d.geom_xpos[g][0] - m.geom_rbound[g] for g in self.g[side] if self.body(g) in HANDS[side])
+        return float(min(y - r for y, r in zip(ys, rb))), float(max(y + r for y, r in zip(ys, rb))), float(x)
+
+    def hand_box_of(self, side, q):
+        """(min, max) corners (3,) over the hand's geom centres (scene, m)."""
+        self._pose(side, q)
+        P = np.array([self.d.geom_xpos[g] for g in self.g[side] if self.body(g) in HANDS[side]])
         return P.min(0), P.max(0)
 
-    def path_min(self, qa, qb, q_left, n=31):
-        """Smallest distance along the straight joint path qa -> qb."""
-        return min(self.distance((1 - s) * np.asarray(qa, float) + s * np.asarray(qb, float), q_left)[0]
+    def dist(self, side, q_move, q_other, cap=0.3):
+        """distance() with the moving arm named: side's joints q_move, the other arm's q_other."""
+        return self.distance(q_move, q_other, cap) if side == 'right' else self.distance(q_other, q_move, cap)
+
+    def path_min_of(self, side, qa, qb, q_other, n=31):
+        """Smallest distance along side's straight joint path qa -> qb, the other arm at q_other."""
+        return min(self.dist(side, (1 - s) * np.asarray(qa, float) + s * np.asarray(qb, float), q_other)[0]
                    for s in np.linspace(0, 1, n))
+
+    # right-arm names kept for the code written before the left arm (2026-11-06)
+    def right_extent(self, q_right):
+        """(max y over all right-arm geoms, min x over the hand's geoms)."""
+        _, y, x = self.extent('right', q_right)
+        return y, x
+
+    def hand_box(self, q_right):
+        return self.hand_box_of('right', q_right)
+
+    def path_min(self, qa, qb, q_left, n=31):
+        """Smallest distance along the right arm's straight joint path qa -> qb, the left arm at q_left."""
+        return self.path_min_of('right', qa, qb, q_left, n)
 
 
 class ContactGuard:

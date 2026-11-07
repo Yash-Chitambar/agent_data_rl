@@ -65,6 +65,8 @@ class RealIO:
                 arm.safe = safety.SafeArm(arm.robot, chk)
                 arm.safe.ctrl = getattr(arm, 'ctrl', None)
                 arm.safe._hold(np.asarray(arm.robot.get_joint_pos(), float))
+                if 'active_stages' in (ac.get(side) or {}):
+                    self._precision_active(arm, side, False)     # the old behaviour until the chain enters an active stage
                 self.arms[side] = arm
                 info = arm.info()
                 if log is not None:
@@ -148,6 +150,21 @@ class RealIO:
                     self._ctrl_err_logged = {**getattr(self, '_ctrl_err_logged', {}), s: True}
         self.k += 1
         return sent, ff
+
+    def _precision_active(self, arm, side, on):
+        from precision_arm import use_gravity
+        ctrl = getattr(arm, 'ctrl', None)
+        if ctrl is not None:
+            ctrl.set_enabled(on)
+        switched = use_gravity(arm.robot, 'fit' if on else 'default')
+        if self.log is not None:
+            self.log.event('precision_active', side=side, on=bool(on), gravity=getattr(arm.robot, 'gravity_in_use', None),
+                           gravity_switched=bool(switched), k=getattr(self, 'k', 0))
+
+    def precision_active(self, side, on=True):
+        """Controller torque and fitted gravity on (on) or the arm's old behaviour: zero controller torque, integral
+        reset, i2rt's default gravity, the chain's Coulomb feed-forward (cfg arm_control.<side>.active_stages)."""
+        self._precision_active(self.arms[side], side, on)
 
     def precision_freeze(self, side, on=True):
         """Hold (on) or release the precision controller's integral on one arm, e.g. around a contact stage."""

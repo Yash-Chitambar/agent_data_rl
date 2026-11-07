@@ -403,11 +403,27 @@ class RealChain:
             return float(np.clip(g.reading(w), g.close, g.open))
         return float(g.close)
 
+    def _precision_stage(self, label):
+        """cfg arm_control.<side>.active_stages: the controller and the fitted gravity only in these stages; every other
+        stage runs as before the controller existed (2026-11-06: on in the pick, the hand went low onto the table).
+        freeze_stages: hold the integral (torque kept, no integration). Real I/O only."""
+        f = getattr(self.io, 'precision_freeze', None)
+        act = getattr(self.io, 'precision_active', None)
+        if f is None:
+            return
+        for side in ('right', 'left'):                    # the block also holds notes (_about): read the arms only
+            a = (self.cfg.get('arm_control') or {}).get(side)
+            if isinstance(a, dict) and a.get('precision') is not None:
+                if 'active_stages' in a and act is not None:
+                    act(side, label in a['active_stages'])
+                f(side, label in (a.get('freeze_stages') or []))
+
     def hstep(self, qr, ql, label, grip_r=-1., grip_l=-1.):
         """One 20 ms control tick with absolute believed-frame targets for both arms (Harness.step on the robot)."""
         if label != self.label:
             self.log_event('stage', stage=label, prev=self.label, tick=self.k)
             self.label = label
+            self._precision_stage(label)
         tgt = torch.stack([torch.as_tensor(qr, device=self.dev).reshape(6), torch.as_tensor(ql, device=self.dev).reshape(6)]).float()
         if not torch.isfinite(tgt).all():
             raise GuardStop(f'non-finite target at {label}')
@@ -522,6 +538,7 @@ class RealChain:
         if label != self.label:
             self.log_event('stage', stage=label, prev=self.label, tick=self.k)
             self.label = label
+            self._precision_stage(label)      # home and capture move here, not through hstep (2026-11-06 align_full7)
         self.io.move_to({s: self.motor(s, q) for s, q in goals_b.items()}, grip)
         self.read_state()
         self.log_event('moved', goals_b={s: np.asarray(q).tolist() for s, q in goals_b.items()},

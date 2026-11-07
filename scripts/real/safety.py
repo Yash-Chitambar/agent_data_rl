@@ -129,10 +129,21 @@ def connect(side: str, gripper_kp: float = 2.0, gripper_kd: float = 0.5, gravity
     robot = get_yam_robot(channel=rig.can_channel(side), arm_type=ArmType.from_string_name("yam"),
                           gripper_type=GripperType.from_string_name("linear_4310"),
                           gripper_kp=gripper_kp, gripper_kd=gripper_kd, zero_gravity_mode=False, **kw)
-    if fit is not None and fit["ee_ipos"] is not None:
-        from precision_arm import set_payload_com
-        set_payload_com(robot, fit["ee_ipos"])
     robot.gravity_fit = fit
+    if fit is not None:
+        # keep i2rt's default model too: precision_arm.use_gravity switches between them per stage (the pick and the
+        # insertion were tuned on the default; 2026-11-06 the fitted model + controller in the pick drove the hand low)
+        from i2rt.robots.get_robot import _load_arm_config
+        from precision_arm import set_payload_com
+        ipos0 = set_payload_com(robot, fit["ee_ipos"]) if fit["ee_ipos"] is not None else None
+        import mujoco as mj
+        km = robot.kdl.model
+        b = mj.mj_name2id(km, mj.mjtObj.mjOBJ_BODY, "gripper")
+        f0 = np.r_[np.asarray(_load_arm_config(ArmType.from_string_name("yam")).gravity_comp_factor, float), 1.0]
+        robot.gravity_models = {
+            "fit": dict(mass=float(km.body_mass[b]), ipos=km.body_ipos[b].copy(), factor=np.asarray(robot.gravity_comp_factor, float).copy()),
+            "default": dict(mass=EE_MASS, ipos=km.body_ipos[b].copy() if ipos0 is None else ipos0, factor=f0)}
+        robot.gravity_in_use = "fit"
     return robot
 
 
@@ -166,8 +177,9 @@ class SafeArm:
         self.last_safe = q
 
     def _apply_ctrl(self):
-        """command_joint_pos zeroed the torques field: put the precision controller's torque back."""
-        if self.ctrl is not None and self.ctrl.active:
+        """command_joint_pos zeroed the torques field: put the precision controller's torque back. A switched-off
+        controller returns None, so fric_comp applies as it did before the controller existed."""
+        if self.ctrl is not None and self.ctrl.active and self.ctrl.enabled:
             return self.ctrl.write()
         return None
 

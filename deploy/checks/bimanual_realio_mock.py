@@ -191,13 +191,22 @@ def precision_check(cfg, sc, raws, jm):
     from deploy.bimanual import io_real
     from deploy.bimanual.runlog import RunLogger, load_run
     cfg = copy.deepcopy(cfg)
-    cfg['arm_control'] = {'right': {'precision': {'integral': True, 'settle_lock': True}}}
+    # the real run config's block, notes included (2026-11-06: its _about note crashed the chain on the first stage
+    # change; this check had used a hand-made block without notes)
+    cfg['arm_control'] = copy.deepcopy(json.loads((ROOT / 'deploy/config/bimanual_align2_precision.json').read_text())['arm_control'])
+    cfg['arm_control']['right'].pop('gravity', None)          # the fake robot has no i2rt gravity model
     tmp = Path(tempfile.mkdtemp())
     log = RunLogger(tmp, {'check': 'realio_mock_precision'})
     io = io_real.RealIO(cfg, sc.kp.numpy(), sc.kd.numpy(), log=log)
     out = {}
     r = io.arms['right']
     s = io.read()
+    # active_stages given: the arm starts in the old behaviour (controller off, the chain's Coulomb feed-forward goes out)
+    out['starts_off'] = not r.ctrl.enabled
+    sent, ff = io.send(s['q'] + np.array([[0, .004, .004, 0, 0, 0], [0] * 6]), np.array([0.5, 1.0]),
+                       (cfg['fric_comp_right']['tau'], cfg['fric_comp_right']['ramp']))
+    out['off_sends_coulomb_ff'] = bool(np.allclose(r.robot._commands.torques[:6], ff[0]) and not np.allclose(ff[0], 0))
+    io.precision_active('right', True)
     for _ in range(20):
         sent, ff = io.send(s['q'] + np.array([[0, .004, 0, 0, 0, 0], [0] * 6]), np.array([0.5, 1.0]),
                            (cfg['fric_comp_right']['tau'], cfg['fric_comp_right']['ramp']))
@@ -206,6 +215,24 @@ def precision_check(cfg, sc, raws, jm):
     out['ff_is_ctrl_torque'] = bool(np.allclose(ff[0], r.safe.last_ff) and np.allclose(r.robot._commands.torques[:6], r.ctrl.tau(), atol=0.05))
     out['left_has_no_ctrl'] = io.arms['left'].ctrl is None and np.allclose(ff[1], 0)
     out['I_right'] = r.ctrl.status()['I'].round(3).tolist()
+    # the chain's stage changes with this config: freeze in 5 insert, release after
+    import torch
+    from deploy.bimanual.chain import RealChain
+    from deploy.bimanual.guards import Guards
+    from deploy.run_bimanual import gripper_maps
+    consts = json.loads((ROOT / cfg['bundle_dir'] / 'configs/chain_constants.json').read_text())
+    g = Guards(cfg, sc.kp.numpy(), cfg['control_dt'], max_steps=400, estop_fn=lambda: False)
+    ch = RealChain(cfg, io, sc, consts, gripper_maps(cfg), log=log, guards=g, device='cpu', net_device='cpu',
+                   policy_path=ROOT / cfg['bundle_dir'] / 'models/insert_KJ.pt', auto='')
+    on = []
+    for label in ('1 pick', '2 hold', '3 transport', '4 approach', 'align', '5 insert', '6 release', '7 home'):
+        for _ in range(3):
+            ch.hstep(ch.q_b[0], ch.q_b[1], label)
+        on.append(bool(r.ctrl.enabled))
+    out['enabled_by_stage'] = on
+    ch.move({'right': ch.q_b[0].numpy()}, label='5 insert')      # back on through a slow move...
+    ch.move({'right': ch.q_b[0].numpy()}, label='7 home')        # ...and off again: home moves here, not through hstep
+    out['home_move_switches_off'] = not r.ctrl.enabled
     io.hold()
     for a in io.arms.values():
         a.close()
@@ -214,6 +241,9 @@ def precision_check(cfg, sc, raws, jm):
     _, st, _, _ = load_run(tmp)
     out['ctrl_rows'] = len(next(iter(st['ctrl_right'].values()))) if 'ctrl_right' in st else 0
     out['ok'] = bool(out['ctrl_active'] and out['ff_is_ctrl_torque'] and out['left_has_no_ctrl'] and out['zero_after_close']
+                     and out['starts_off'] and out['off_sends_coulomb_ff']
+                     and out['enabled_by_stage'] == [False, False, True, True, True, False, False, False]
+                     and out['home_move_switches_off']
                      and out['ctrl_rows'] >= 20 and out['I_right'][1] != 0)
     return out
 

@@ -1,0 +1,362 @@
+{
+ "_about": "VARIANT bimanual_align2_precision.json: bimanual_align2.json + arm_control (docs/real/PRECISION_CONTROL.md): the right arm on the fitted gravity model and the precision controller with the values of the 2026-11-06 check (hand error 0.13 mm median, encoder FK, 12/12 steps settled); active only in transport, approach and align (see arm_control._about). The chain friction feed-forward (fric_comp_right) is not added while the controller runs (SafeArm). Left arm unchanged until its gravity ID. Bimanual USB-C chain on the real YAMs (deploy/run_bimanual.py). Lengths m, angles rad, times s, forces N, torques N m. Sim-derived values are checked against the sim by deploy/checks/bimanual_conventions.py. Chain settings not listed here are scripts/eval/eval_chain.py defaults (the 99.56-99.66 % sim config). VARIANT bimanual_align2.json: bimanual_align1.json + seat 2 fires on a depth plateau: bimanual_pick3.json with batch A merged (level roll), + align stage, seat detector 2, insert guard, reader kept unless seated (docs/real/ALIGN_STAGE.md). Base: bimanual_pick3.json with the r10 wrist nets of bimanual_pick3_wrist_r10.json (weights in runs/perception_real/, not in the bundle: runbook step): bimanual_pick2.json + pick.grasp_v3 (docs/real/PICK_GRASP_V3.md), no close_press_relief, body clearances restored.",
+ "control_dt": 0.02,
+ "bundle_dir": "deploy/bundle",
+ "chain_args": {
+  "_about": "eval_chain.py arguments for the real chain (the rest are its defaults). believed_frame: plan and command on encoder FK (the only frame the real robot has).",
+  "believed_frame": true,
+  "hold_force": 25.0,
+  "hold_along": -0.02,
+  "look_gap": 30.0,
+  "stop": 6.0,
+  "wrist_net": "../perception_real/wrist_r10w_ft_abs",
+  "fine_net": "../perception_real/wrist_r10f_ft_abs",
+  "inhand_net": "inhand_ih5",
+  "zed_gate": "zed_v1_gate_arm",
+  "handover": "torque",
+  "stop_offset_mm": [
+   0.0,
+   0.12,
+   0.0
+  ]
+ },
+ "pick": {
+  "_about": "Servo-descent pick (blind_insertion/pipeline/pick_servo.py): the 2040/2048 gate settings of scripts/policy/pick_expert_eval.py",
+  "reader_estimator": "reader_zed_cap",
+  "reader_retries": 1,
+  "hover_net": "reader_servo_hover",
+  "near_net": "reader_servo_near",
+  "rot_net": "reader_servo_near6",
+  "fracs": [
+   0.5,
+   0.8,
+   0.92
+  ],
+  "rehover_mm": 8.0,
+  "rehover_max": 2,
+  "settle_max_s": 3.0,
+  "hold_s": 1.0,
+  "episode_s": 90.0,
+  "grasp_v3": {
+   "_about": "blind_insertion/pipeline/grasp_v3.GraspV3Cfg; docs/real/PICK_GRASP_V3.md lists the knobs.",
+   "touchdown": false,
+   "td_speed_m_s": 0.01,
+   "td_max_below_mm": 8.0,
+   "td_drop_mm": 8.0,
+   "td_eps_mm": 0.5,
+   "td_lift_mm": 0.5,
+   "td_friction_ff": true,
+   "wrist_kp": null,
+   "wrist_kd": null,
+   "wrist_ramp_s": 0.3,
+   "holddown_mm": 0.0,
+   "gentle_close": false,
+   "gentle_rate": 0.2,
+   "gentle_delta": 0.12,
+   "squeeze_s": 0.6,
+   "dwell_s": 0.3,
+   "max_attempts": 1,
+   "test_lift_mm": 15.0,
+   "held_band": [
+    0.275,
+    0.36
+   ],
+   "rise_mm": 40.0,
+   "level_roll": true,
+   "level_roll_max_deg": 0.0,
+   "roll_gate_deg": null,
+   "td_follow_frac": 0.2,
+   "td_step_mm_s": 30.0,
+   "lost_ticks": 5,
+   "press_from_attempt": null,
+   "holddown_speed_m_s": 0.02,
+   "holddown_wait_s": 0.2,
+   "hold_from": "press"
+  },
+  "batches": {
+   "_about": "Real test batches, one change at a time (docs/real/PICK_GRASP_V3.md). One attempt per try: no retry, so each try is one count. A, B, C still press in the plan's descent: the pick2 clearances on the commanded pose. D: no press, the default clearances.",
+   "A": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": false,
+     "hold_from": "press",
+     "holddown_mm": 0.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    }
+   },
+   "B": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "hold_from": "press",
+     "holddown_mm": 0.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    }
+   },
+   "C": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "hold_from": "measured",
+     "hold_offset_mm": 0.0,
+     "holddown_mm": 8.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    }
+   },
+   "D": {
+    "grasp_v3": {
+     "touchdown": true,
+     "level_roll": true,
+     "roll_gate_deg": 2.5,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "holddown_mm": 8.0
+    }
+   }
+  },
+  "batch": "A"
+ },
+ "insert": {
+  "_about": "Part 4 K-J (obs_dim 68): accumulate, target cap from the policy meta (0.05), 10 s, 50 Hz; left joint-6 mask inside the loader. Seated detector: plug advance along the port axis (encoder FK) past the servo's stop gap.",
+  "policy": "insert_KJ",
+  "insert_s": 10.0,
+  "seat_margin_m": 0.001,
+  "seat_hold_s": 0.2,
+  "seat_speed_m_s": 0.005,
+  "release_open_s": 0.4,
+  "retreat_m": 0.05,
+  "retreat_v_m_s": 0.02,
+  "left_lift_m": 0.03,
+  "wrong_port_mm": null,
+  "_wrong_port": "log only: in the dry runs (+/-1.5 deg offset DR) the FK lateral of good approaches reached 15 mm, a neighbouring-port lock 11 mm; set a limit only with calibrated offsets",
+  "seat2": {
+   "margin_mm": 1.0,
+   "gate_mm": [
+    3.0,
+    6.0
+   ],
+   "hold_s": 0.3,
+   "speed_mm_s": 3.0,
+   "still_mm": 99.0,
+   "_about": "0.3 s at depth and no axial motion. No lateral stillness: after a true seat K-J keeps moving the hand (dry run: up -5 to -8 mm with the plug at full depth), and the guard then lifted seated plugs. Real ai4 seats at 3.84 s, A and A2 do not."
+  },
+  "guard": {
+   "bound_mm": [
+    5.0,
+    5.0
+   ],
+   "hard_mm": 3.0,
+   "stall_s": 3.0,
+   "stall_eps_mm": 0.3,
+   "lead_min_mm": 3.0,
+   "t_min_s": 1.0
+  },
+  "keep_reader_unless_seated": true,
+  "abort_lift_mm": 20.0,
+  "abort_v_mm_s": 10.0
+ },
+ "gripper": {
+  "_about": "i2rt gripper 0 closed .. 1 open (position PD). Finger opening per finger (m, the sim finger joint) is linear in the reading: right through (1.0, 0.048) and (g_reader, m_reader) (deploy/config/task_h.json, 2026-10-28); left uncalibrated (proportional). close = squeeze target (force NOT calibrated: sim squeeze 12 N).",
+  "right": {
+   "open": 1.0,
+   "close": 0.0,
+   "m_open": 0.048,
+   "g_reader": 0.32,
+   "m_reader": 0.019,
+   "g_empty": 0.015
+  },
+  "left": {
+   "open": 1.0,
+   "close": 0.0,
+   "m_open": 0.048,
+   "g_reader": null,
+   "m_reader": 0.019,
+   "g_empty": null
+  },
+  "right_approach_open_m": 0.024,
+  "full_open_m": 0.0475,
+  "_pick2": "2026-11-01 real: the 55 deg side grasp holds the reader at i2rt 0.311-0.333 (ai1-ai5 transport, mean 0.32), not 0.254 (10-28, top-down grasp); the sim holds it at 19 mm. g_reader 0.254 -> 0.32: the pick descent opening (right_approach_open_m 24 mm) then reads ~0.44 instead of 0.38 (pick1 landed on the reader with 0.38). pick2 run: grasped, but a finger brushed the reader and turned it; right_approach_open_m 0.024 -> 0.026 (reading ~0.48; the wrist nets saw 24 mm fingers in training). pick3/pick4 with 26 mm: the jaws closed empty (0.055 / 0.032), pads rode over the reader's top edges; pick2 with 24 mm closed on the reader (0.305, recovery close at the grasp pose). right_approach_open_m back to 0.024 (reading 0.437). pick6 (24 mm + press relief) grasped; operator: slightly wider would grasp better -> 0.025 (pick7). pick7 (25 mm + relief) failed -> back to 0.024."
+ },
+ "safety": {
+  "_about": "FlexChecker clearances (model frame, above the tabletop) on every target and measured pose; table_z = tabletop in each arm's base frame (bimanual scene: -0.033). Guards: PD torque estimate kp (target - q) + feed-forward per joint; DM4340 (joints 1-3) rated ~9 N m, DM4310 (4-6) ~3 N m.",
+  "table_z": -0.033,
+  "clearance": 0.04,
+  "tip_clearance": -0.015,
+  "body_clearance": {
+   "gripper": 0.003,
+   "link_6": 0.015,
+   "wrist_camera": 0.03,
+   "link_5": 0.03
+  },
+  "tau_peak_nm": [
+   12.0,
+   12.0,
+   12.0,
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tau_peak_s": 0.1,
+  "tau_cont_nm": [
+   9.0,
+   9.0,
+   9.0,
+   3.0,
+   3.0,
+   3.0
+  ],
+  "tau_cont_s": 20.0,
+  "hold_max_s": 60.0,
+  "qd_max_rad_s": 2.5,
+  "tcp_box": {
+   "x": [
+    -0.1,
+    0.6
+   ],
+   "y": [
+    -0.3,
+    0.9
+   ],
+   "z_above_table": [
+    -0.05,
+    0.5
+   ]
+  },
+  "_pick2": "2026-11-01 pick1: SafetyStop at the last descent tick, gripper body 15.0 mm above the table (limit 15 mm); the sim pick bottoms at 17-18 mm. body_clearance.gripper 0.015 -> 0.010 (operator decision). pick2 run: SafetyStop link_5 40.2 mm (limit 40). Sim pick minima: link_5 44-45, link_6 27, gripper 17-18 mm; real pick1/2: link_5 42.3/40.2, link_6 26.1/23.9, gripper 15.1/15.5. link_5 0.040 -> 0.030, link_6 0.020 -> 0.015 (operator approved). pick3 run: SafetyStop gripper 9 mm (limit 10) at the grasp depth: the pick COMMANDS the tips ~13 mm into the table (tip floor), measured tips +0.7 mm, measured gripper body 27 mm; commanded gripper body 9-11 mm after a 4 deg wrist correction. body_clearance.gripper 0.010 -> 0.003 (commanded pose; operator approved).",
+  "_pick3": "No press: the command stays near the measured pose. body_clearance restored gripper 3 -> 10, link_5 30 -> 35 mm; link_6 stays 15."
+ },
+ "fric_comp_right": {
+  "tau": [
+   0.0275,
+   0.546,
+   0.819,
+   0.0463,
+   0.0433,
+   0.0467
+  ],
+  "ramp": 0.005
+ },
+ "cameras": {
+  "res": 320,
+  "max_age_ms": 250,
+  "stream_hz": 2.0
+ },
+ "align": {
+  "_about": "deploy/bimanual/align.py; values and evidence in docs/real/ALIGN_STAGE.md",
+  "enabled": true,
+  "mode": "full",
+  "source": {
+   "kind": "port_vision"
+  },
+  "sim_source": {
+   "kind": "sim_truth",
+   "slope": [
+    1,
+    1,
+    1
+   ],
+   "sigma_mm": [
+    0.1,
+    0.1,
+    0.1
+   ],
+   "pose_sigma_mm": [
+    0.25,
+    0.74,
+    0.49
+   ],
+   "run_bias_sigma_mm": [
+    0.3,
+    0.6,
+    0.4
+   ],
+   "drop_p": 0.1
+  },
+  "_sim_source": "port_vision held-out residuals (docs/real/PORT_VISION.md): frame noise under 0.12 mm, residual over poses across 0.18-0.38, up 0.74, gap 0.49; constant of a run: judgement, y about 0.6 mm",
+  "secondary": {
+   "kind": "wrist_net",
+   "sigma_mm": 1.0
+  },
+  "secondary_required": false,
+  "disagree_mm": [
+   3.0,
+   3.5,
+   2.5
+  ],
+  "_disagree_mm": "GUESS, never run in a loop: net against vision near the port, SD 0.25, 0.71-0.88, 0.46 mm (n = 26), constant across 1.4-1.8, up 1.5-2.0 at A2 (docs/real/WRIST_NETS_REAL.md). Limit = constant + about 2 SD. Checked at the hand-over only. Port vision alone gives the numbers the stage acts on.",
+  "min_clear_fail_mm": 1.0,
+  "_min_clear": "measured gap under 3 mm: back out 1 mm per cycle; stop under 1 mm",
+  "angle": {
+   "axes": [
+    0,
+    1
+   ],
+   "tol_deg": 1.0,
+   "step_deg": 0.75,
+   "max_deg": 7.0,
+   "required": true,
+   "_about": "rx pitch and ry yaw of the plug against the panel: port_vision panel pose + camera mount + mean real grasp. rz (roll) is not corrected: its slope on real frames is 0.39."
+  }
+ },
+ "arm_control": {
+  "_about": "scripts/real/precision_arm.py, blind_insertion/envs/precision_ctrl.py, deploy/bimanual/chain.py _precision_stage. active_stages: the controller and the fitted gravity run ONLY in these stages; every other stage (capture, pick, hold, insert, release, home) runs exactly as before the controller (zero controller torque, i2rt default gravity, the chain Coulomb feed-forward). 2026-11-06: with the controller on in the pick the hand went low onto the table. The insertion is not active: before a full run, decide how the hand-over switches (switching off at the port changes the arm's torque: the plain-PD hold sags 4-6 mm at the hand).",
+  "right": {
+   "gravity": "data/real_yam/gravity_id/20261106_150421_right/fit.json",
+   "precision": {
+    "integral": true,
+    "settle_lock": true,
+    "friction_ff": true,
+    "friction": [
+     0.138,
+     0.447,
+     1.087,
+     0.069,
+     0.091,
+     0.087
+    ],
+    "deadband": 0.0004,
+    "latch_band": 0.001,
+    "unlatch_band": 0.002
+   },
+   "active_stages": [
+    "3 transport",
+    "4 approach",
+    "align"
+   ]
+  },
+  "left": null
+ }
+}

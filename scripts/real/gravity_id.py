@@ -101,50 +101,78 @@ def path_ok(chk, a, b, n=41):
     return all(chk.violation((1 - s) * a + s * b) is None for s in np.linspace(0, 1, n))
 
 
-LEFT_LIMP = [np.zeros(6)] + [np.r_[j1, 0.0, 0.0, j4, j5, j6] for j1 in (-0.25, 0.25) for j4 in (-0.5, 0.5)
-                              for j5 in (-0.5, 0.5) for j6 in (0.0,)]     # left arm limp at rest: where it may lie
+OTHER_REST = [np.zeros(6)] + [np.r_[j1, 0.0, 0.0, j4, j5, j6] for j1 in (-0.25, 0.25) for j4 in (-0.5, 0.5)
+                               for j5 in (-0.5, 0.5) for j6 in (0.0,)]     # the other arm limp at rest: where it may lie
+LEFT_LIMP = OTHER_REST                                                       # name used before the left arm
+# per side: hand box (scene, m), own-side bound for every geom of the arm, joint 1 search range. The right arm's numbers
+# are the ones its 2026-11-06 plan used; the left arm's box comes from its logged hand positions (auto) and its own-side
+# bound mirrors the right one about the midline between the bases (y 0 and 0.608).
+SIDE = {'right': dict(box=((0.0, 0.05, -1.0), (0.22, 0.46, 0.40)), own=('y_max', 0.46), j1=(-0.8, 1.8)),
+        'left': dict(box='auto', own=('y_min', 0.608 - 0.46), j1=(-1.8, 0.8))}
 
 
-def side_ok(two, q, args, left_poses=LEFT_LIMP):
-    """The right arm on its own side (every geom y <= y_max, x >= x_min) and `arm_margin` from the left arm in each
-    of left_poses. Returns (ok, smallest distance m)."""
-    y, x = two.right_extent(q)
-    if y > args.y_max or x < args.x_min:
+def visited_box(two, side, L, pad=0.02, z_up=0.15, z_cap=0.40):
+    """Hand box from the arm's logged configurations: min/max of the hand's geom centres, +-pad in x and y, the top
+    raised by z_up (open space above the table) up to z_cap."""
+    from arm_clearance import HANDS
+    P = []
+    for q in L[::5]:
+        two._pose(side, q)
+        P += [two.d.geom_xpos[g].copy() for g in two.g[side] if two.body(g) in HANDS[side]]
+    P = np.array(P)
+    lo, hi = P.min(0) - [pad, pad, 0.0], P.max(0) + [pad, pad, 0.0]
+    return (float(lo[0]), float(lo[1]), -1.0), (float(hi[0]), float(hi[1]), float(min(z_cap, hi[2] + z_up)))
+
+
+def side_ok(two, q, args, left_poses=OTHER_REST, side='right', box=None):
+    """The arm on its own side, its hand inside `box`, and `arm_margin` from the other arm in each of left_poses
+    (the other arm's joints). Returns (ok, smallest distance m)."""
+    box = box if box is not None else SIDE['right']['box']
+    own, bound = SIDE[side]['own']
+    y_lo, y_hi, x = two.extent(side, q)
+    if (own == 'y_max' and y_hi > bound) or (own == 'y_min' and y_lo < bound) or x < box[0][0]:
         return False, None
-    lo, hi = two.hand_box(q)
-    if np.any(lo < np.r_[args.x_min, args.hand_y_min, -1.0]) or np.any(hi > np.r_[args.x_max, args.y_max, args.z_max]):
+    lo, hi = two.hand_box_of(side, q)
+    if np.any(lo < np.asarray(box[0])) or np.any(hi > np.asarray(box[1])):
         return False, None
-    dmin = min(two.distance(q, ql)[0] for ql in left_poses)
+    dmin = min(two.dist(side, q, qo)[0] for qo in left_poses)
     return dmin >= args.arm_margin, dmin
 
 
 def plan(args):
     """Joints 2-6 from logged configurations (they carry all the gravity); joint 1 (no gravity torque) solved so the
-    whole right arm stays on its own side, away from the left arm, inside the area the hand already used."""
+    whole arm stays on its own side, away from the other arm, with the hand inside the area it already used."""
     import safety
     from arm_clearance import TwoArm
     rng = np.random.default_rng(args.seed)
     chk = safety.Checker(clearance=args.margin, tip_clearance=args.margin)
     two = TwoArm()
-    L = logged_configs(args.side)
+    side = args.side
+    L = logged_configs(side)
+    box = SIDE[side]['box']
+    if box == 'auto':
+        box = visited_box(two, side, L)
+    j1_lo, j1_hi = SIDE[side]['j1'] if args.j1_min is None else (args.j1_min, args.j1_max)
     lo, hi = L.min(0), L.max(0)
     B = rng.uniform(lo, hi, size=(20000, 6))
     d23 = np.min(np.linalg.norm(B[:, None, 1:3] - L[None, ::4, 1:3], axis=2), axis=1)
     C = np.concatenate([L, B[d23 <= args.near]])
     C = C[[chk.violation(q) is None for q in C]]
     w = np.array([0.0, 1.0, 1.0, 1.0, 1.0, 0.5])
-    j1_grid = np.arange(args.j1_min, args.j1_max + 1e-9, 0.02)
+    j1_grid = np.arange(j1_lo, j1_hi + 1e-9, 0.02)
+    own, bound = SIDE[side]['own']
 
     def solve_j1(q):
-        """Joint 1 for this q[1:]: the feasible value nearest the middle of its feasible run (most room both ways)."""
+        """Joint 1 for this q[1:]: the middle of the longest run of feasible values (most room both ways)."""
         ok = []
         for j1 in j1_grid:
             qq = q.copy()
             qq[0] = j1
-            y, x = two.right_extent(qq)
-            lo_, hi_ = two.hand_box(qq)
-            ok.append(y <= args.y_max - 0.02 and x >= args.x_min + 0.02 and lo_[1] >= args.hand_y_min + 0.02
-                      and hi_[0] <= args.x_max - 0.02 and hi_[2] <= args.z_max)
+            y_lo, y_hi, x = two.extent(side, qq)
+            lo_, hi_ = two.hand_box_of(side, qq)
+            own_ok = (y_hi <= bound - 0.02) if own == 'y_max' else (y_lo >= bound + 0.02)
+            ok.append(own_ok and x >= box[0][0] + 0.02 and np.all(lo_[:2] >= np.asarray(box[0][:2]) + 0.02)
+                      and np.all(hi_[:2] <= np.asarray(box[1][:2]) - 0.02) and hi_[2] <= box[1][2])
         ok = np.array(ok)
         if not ok.any():
             return None
@@ -177,7 +205,7 @@ def plan(args):
             pts = [q, q + args.delta, q - args.delta]
             if not all(chk.violation(p) is None for p in pts):
                 continue
-            oks = [side_ok(two, p, args) for p in pts]
+            oks = [side_ok(two, p, args, side=side, box=box) for p in pts]
             if all(o for o, _ in oks) and all(path_ok(chk, q, p, 11) for p in pts[1:]):
                 poses.append(q)
                 dists.append(min(dd for _, dd in oks))
@@ -187,7 +215,7 @@ def plan(args):
     def hop_ok(a_, b_):
         if not path_ok(chk, a_, b_):
             return False
-        return all(side_ok(two, (1 - s) * a_ + s * b_, args)[0] for s in np.linspace(0, 1, 21))
+        return all(side_ok(two, (1 - s) * a_ + s * b_, args, side=side, box=box)[0] for s in np.linspace(0, 1, 21))
     order, left = [0], set(range(1, len(poses)))
     while left:
         cur = poses[order[-1]]
@@ -199,26 +227,28 @@ def plan(args):
         order.append(nxt)
         left.discard(nxt)
     poses, dists = poses[order], dists[order]
-    out = dict(_about=f'gravity_id.py plan: {len(poses)} poses for the {args.side} arm (motor frame, rad). Joints 2-6 from '
+    other = 'left' if side == 'right' else 'right'
+    out = dict(_about=f'gravity_id.py plan: {len(poses)} poses for the {side} arm (motor frame, rad). Joints 2-6 from '
                f'logged real configurations and nearby samples ({args.near} rad on joints 2-3), jitter {args.jitter} rad; '
-               f'joint 1 (no gravity torque) solved so every right-arm geom stays at y <= {args.y_max} m and the hand at x >= '
-               f'{args.x_min} m; the hand inside x {args.x_min}..{args.x_max}, y {args.hand_y_min}..{args.y_max}, z <= {args.z_max} m '
-               f'(where it has been in the logged runs, on the right arm\'s side) in the scene (right base at y 0, left base at y 0.608) and {args.arm_margin * 1e3:.0f} mm '
-               f'from the left arm at rest and at {len(LEFT_LIMP) - 1} limp variations of it. Every pose, both approach '
-               f'points (delta {args.delta} rad, all joints) and every hop path also keep {args.margin * 1e3:.0f} mm above '
-               f'the table. collect re-checks all of it against the left arm\'s measured joints before moving.',
-               side=args.side, delta=args.delta, margin=args.margin, arm_margin=args.arm_margin, y_max=args.y_max,
-               x_min=args.x_min, seed=args.seed, start_hop_needed=True,
+               f'joint 1 (no gravity torque) solved so every geom of the arm keeps {own} {bound:.3f} m (own side; bases at '
+               f'y 0 and 0.608 in the scene) and the hand stays inside the box below (where it has been in the logged runs), '
+               f'{args.arm_margin * 1e3:.0f} mm from the {other} arm at rest and at {len(OTHER_REST) - 1} limp variations of '
+               f'it. Every pose, both approach points (delta {args.delta} rad, all joints) and every hop path also keep '
+               f'{args.margin * 1e3:.0f} mm above the table. collect re-checks all of it against the {other} arm\'s '
+               f'measured joints before moving.',
+               side=side, delta=args.delta, margin=args.margin, arm_margin=args.arm_margin, own_side=[own, bound],
+               hand_box=[list(box[0]), list(box[1])], j1_range=[j1_lo, j1_hi], seed=args.seed,
                poses=[[round(float(x), 5) for x in q] for q in poses],
-               left_distance_mm=[round(float(x) * 1e3, 1) for x in dists])
-    path = REPO / f'deploy/config/gravity_poses_{args.side}.json'
+               other_distance_mm=[round(float(x) * 1e3, 1) for x in dists])
+    path = Path(args.out) if args.out else REPO / f'deploy/config/gravity_poses_{args.side}.json'
     path.write_text(json.dumps(out, indent=1))
     G = Grav()
     T = np.array([G.tau(q) for q in poses])
-    print(f'{len(poses)} poses -> {path.relative_to(REPO)}  (asked {args.n})')
+    print(f'{len(poses)} poses -> {path}  (asked {args.n})')
     print('joint ranges covered:', [f'{a:+.2f}..{b:+.2f}' for a, b in zip(poses.min(0), poses.max(0))])
     print('model gravity torque range per joint (N m):', [f'{a:+.1f}..{b:+.1f}' for a, b in zip(T.min(0), T.max(0))])
-    print(f'smallest distance to the left arm (rest and limp variations): {dists.min() * 1e3:.0f} mm; '
+    print(f'hand box {np.round(box[0], 3).tolist()} .. {np.round(box[1], 3).tolist()}; own side {own} {bound:.3f}')
+    print(f'smallest distance to the {other} arm (rest and limp variations): {dists.min() * 1e3:.0f} mm; '
           f'smallest table clearance above the margin: {min(min_clear(chk, q) for q in poses) * 1e3:.1f} mm')
     return out
 
@@ -248,8 +278,6 @@ def collect(args):
     cfg = json.loads((REPO / f'deploy/config/gravity_poses_{args.side}.json').read_text())
     poses, delta = np.asarray(cfg['poses'], float), float(cfg['delta'])
     other = 'left' if args.side == 'right' else 'right'
-    if args.side != 'right':
-        raise SystemExit('collect: the two-arm check is set up with the right arm moving; plan and check the left arm first')
     chk = safety.Checker(clearance=cfg['margin'], tip_clearance=cfg['margin'])
     for q in poses:
         for p in (q, q + delta, q - delta):
@@ -272,12 +300,12 @@ def collect(args):
                 started=time.strftime('%Y-%m-%d %H:%M:%S'))
 
     def clear(p):
-        return chk.violation(p) is None and two.distance(p, q_other)[0] >= margin
+        return chk.violation(p) is None and two.dist(args.side, p, q_other)[0] >= margin
 
     def hop_ok(a_, b_):
-        return path_ok(chk, a_, b_) and two.path_min(a_, b_, q_other, n=21) >= margin
+        return path_ok(chk, a_, b_) and two.path_min_of(args.side, a_, b_, q_other, n=21) >= margin
 
-    d_start = two.distance(q_start[:6], q_other)[0]
+    d_start = two.dist(args.side, q_start[:6], q_other)[0]
     print(f'{other} arm measured at {np.round(q_other, 3).tolist()}; {args.side} arm starts {d_start * 1e3:.0f} mm from it')
     usable = [i for i, q in enumerate(poses) if i >= args.start and all(clear(p) for p in (q, q + delta, q - delta))]
     skipped += [(i, 'pose or approach point within %.0f mm of the measured %s arm or the table' % (margin * 1e3, other))
@@ -443,8 +471,11 @@ def fit(args):
                             fit_rms_Nm=rms(pred(x, Q[~check]), T[~check]).round(3).tolist(),
                             check_rms_Nm=rms(pred(x, Q[check]), T[check]).round(3).tolist(), cost=float(res.cost))
     # holding error the gravity residual leaves at the work pose on the PD springs alone
-    work = np.asarray(json.loads((REPO / 'deploy/config/precision_poses.json').read_text()).get(f'{meta["args"]["side"]}_work'), float)
+    work = json.loads((REPO / 'deploy/config/precision_poses.json').read_text()).get(f'{meta["args"]["side"]}_work')
     for name, mdl in models.items():
+        if work is None:                                   # no work pose for this arm yet
+            break
+        work = np.asarray(work, float)
         x = np.r_[mdl['ee_mass'], mdl['ee_ipos'], np.asarray(mdl['gravity_comp_factor'])[free]]
         k = int(np.argmin(np.linalg.norm(Q - work, axis=1)))
         resid = pred(x, Q[k:k + 1])[0] - T[k]
@@ -482,13 +513,9 @@ def main():
     p.add_argument('--margin', type=float, default=0.045)
     p.add_argument('--near', type=float, default=0.3)
     p.add_argument('--arm_margin', type=float, default=0.10)
-    p.add_argument('--y_max', type=float, default=0.46)
-    p.add_argument('--x_min', type=float, default=0.0)
-    p.add_argument('--x_max', type=float, default=0.22)
-    p.add_argument('--hand_y_min', type=float, default=0.05)
-    p.add_argument('--z_max', type=float, default=0.40)
-    p.add_argument('--j1_min', type=float, default=-0.8)
-    p.add_argument('--j1_max', type=float, default=1.8)
+    p.add_argument('--j1_min', type=float, default=None, help='joint 1 search range (default per side, SIDE)')
+    p.add_argument('--out', default=None, help='write the plan here instead of deploy/config/gravity_poses_<side>.json')
+    p.add_argument('--j1_max', type=float, default=None)
     p.add_argument('--seed', type=int, default=0)
     c = sub.add_parser('collect')
     c.add_argument('--side', default='right', choices=('right', 'left'))

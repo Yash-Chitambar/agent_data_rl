@@ -27,6 +27,7 @@ import argparse
 import json
 import sys
 import time
+import types
 from pathlib import Path
 
 import numpy as np
@@ -50,12 +51,13 @@ def fk_hand(m, d, q6):
     return d.xpos[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, 'gripper')].copy()
 
 
-def plan(args, q_start=None):
+def plan(args, q_start=None, q_pose=None):
     import safety
-    poses = json.loads((REPO / 'deploy/config/precision_poses.json').read_text())
-    q_pose = np.asarray(poses[args.pose], float)
+    if q_pose is None:
+        poses = json.loads((REPO / 'deploy/config/precision_poses.json').read_text())
+        q_pose = np.asarray(poses[args.pose], float)
     c = safety.Checker()
-    print(f'test pose {args.pose}: {np.round(q_pose, 4).tolist()}  checker: {c.violation(q_pose) or "OK"}')
+    print(f'test pose {"camera view" if getattr(args, "camera_plan", False) else args.pose}: {np.round(q_pose, 4).tolist()}  checker: {c.violation(q_pose) or "OK"}')
     worst = []
     for j in args.joints:
         for dlt in args.deltas:
@@ -101,6 +103,7 @@ def stopped():
 
 
 GUARD = None
+VISION_FRAMES = 10
 
 
 def guard_check(arm, rec, moving):
@@ -114,15 +117,80 @@ def guard_check(arm, rec, moving):
 
 
 def other_clear(two, q_other, q_pose, args, margin):
-    """Every step target and the straight paths pose <-> target keep `margin` (m) from the measured other arm."""
-    worst = two.distance(q_pose, q_other)[0]
+    """Smallest distance (m) from the moving arm to the measured other arm over the test pose, every step target and
+    the straight paths pose <-> target."""
+    worst = two.dist(args.side, q_pose, q_other)[0]
     for j in args.joints:
         for dlt in args.deltas:
             for s in (1, -1):
                 q = q_pose.copy()
                 q[j - 1] += s * dlt
-                worst = min(worst, two.path_min(q_pose, q, q_other, n=7))
+                worst = min(worst, two.path_min_of(args.side, q_pose, q, q_other, n=7))
     return worst
+
+
+def look_point(side, q):
+    """Where the wrist camera's optical axis meets the table (base frame, m)."""
+    import precision_camera as PC
+    T = PC.CamModel(side).T_base_cam(q)
+    o, z = T[:3, 3], T[:3, 2]
+    return o + (-o[2] / z[2]) * z if z[2] < -1e-3 else o
+
+
+def place_board(arm, rec, mode):
+    """Arm holding at the test pose: wait until the board is seen steadily, then until the operator's hands are clear."""
+    import safety
+    while True:
+        hold(arm, rec, 0.5, mode, 0, 0.0)               # guarded; with VISION set it also tries a measurement
+        v = VISION_RECORDS.pop() if VISION_RECORDS else None
+        if v and v['T_cam_board'] is not None and v['n_ok'] >= 0.8 * VISION_FRAMES and v['spread_mm'] < 0.5:
+            print(f'board seen in {v["n_ok"]} of {VISION_FRAMES} frames, spread {v["spread_mm"]:.2f} mm, '
+                  f'reprojection {v["reproj_px"]:.2f} px', flush=True)
+            ans = input('Hands clear of the arm and the board stays where it is? [y = go, r = check again, q = stop] ').strip()
+            if ans == 'y':
+                return
+            if ans == 'q':
+                raise safety.SafetyStop('operator stop while placing the board')
+            continue
+        seen = 0 if not v else v['n_ok']
+        ans = input(f'board seen in {seen} of {VISION_FRAMES} frames: place it flat under the wrist camera (watch camview), '
+                    f'then Enter to look again, q to stop > ').strip()
+        if ans == 'q':
+            raise safety.SafetyStop('operator stop while placing the board')
+
+
+def camera_view(args):
+    """Board pose (ZED, or --board_xyz) and a safe view pose for the wrist camera; refuses an unsafe one."""
+    import safety
+    from arm_clearance import TwoArm
+    import precision_camera as PC
+    import gravity_id as GI
+    C = PC._calib()
+    if args.board_xyz:
+        T_base_board = np.eye(4)
+        T_base_board[:3, 3] = np.asarray([float(x) for x in args.board_xyz.split(',')]) - C.BOARD_CENTER
+        src = 'given'
+    else:
+        T_base_board, rp = PC.board_from_zed(args.side)
+        src = f'ZED, reprojection {rp:.2f} px'
+    c = T_base_board[:3, :3] @ C.BOARD_CENTER + T_base_board[:3, 3]
+    poses = json.loads((REPO / 'deploy/config/precision_poses.json').read_text())
+    gp = json.loads((REPO / f'deploy/config/gravity_poses_{args.side}.json').read_text())['poses']
+    seeds = [poses.get(f'{args.side}_test', gp[0])] + gp
+    q = PC.plan_view(args.side, T_base_board, seeds, dist=args.view_dist)
+    print(f'board centre {np.round(c, 3).tolist()} m in the {args.side} base ({src})')
+    if q is None:
+        raise SystemExit('no IK solution for a view of the board: move the board closer to where the hand works')
+    two, chk = TwoArm(), safety.Checker()
+    side_cfg = GI.SIDE[args.side]
+    box = side_cfg['box'] if side_cfg['box'] != 'auto' else GI.visited_box(two, args.side, GI.logged_configs(args.side))
+    ok, dmin = GI.side_ok(two, q, types.SimpleNamespace(arm_margin=0.10), GI.OTHER_REST, side=args.side, box=box)
+    why = chk.violation(q)
+    print(f'view pose {np.round(q, 4).tolist()}: table {why or "OK"}, other arm at rest / limp >= '
+          f'{"-" if dmin is None else f"{dmin * 1e3:.0f}"} mm, own side and visited hand box {"OK" if ok else "NOT OK"}')
+    if why or not ok:
+        raise SystemExit('the view pose fails a safety check: move the board (toward where the hand works, away from the other arm)')
+    return q, dict(T_base_board=T_base_board.tolist(), board_centre=c.tolist(), source=src, q_view=q.tolist())
 
 
 def move(arm, rec, q_goal, mode, joint, delta, max_vel):
@@ -147,18 +215,34 @@ def move(arm, rec, q_goal, mode, joint, delta, max_vel):
         arm.wait(t_next)
 
 
+VISION = None          # precision_camera.BoardCam with --camera
+VISION_ON = True       # off for the move back to the start pose (the board is not in view there)
+VISION_RECORDS = []
+
+
 def hold(arm, rec, seconds, mode, joint, delta):
     import safety
-    t_end = time.monotonic() + seconds
-    t_next = time.monotonic()
-    while time.monotonic() < t_end:
+
+    def tick():
         if stopped():
             arm.hold()
             raise safety.SafetyStop('software stop (estop)')
         rec.sample('hold', mode, joint, delta)
         guard_check(arm, rec, moving=False)
+    t_end = time.monotonic() + seconds
+    t_next = time.monotonic()
+    while time.monotonic() < t_end:
+        tick()
         t_next += REC_DT
         arm.wait(t_next)
+    if VISION is not None and VISION_ON:                # still holding, still guarded between frames
+        v = VISION.measure(VISION_FRAMES, between=tick)
+        x = rec.rows[-1]
+        VISION_RECORDS.append(dict(mode=mode, joint=joint, delta=delta, q=np.asarray(x['q'], float).tolist(),
+                                   target=np.asarray(x['target'], float).tolist(),
+                                   T_cam_board=None if v is None else v['T_cam_board'].tolist(),
+                                   n_ok=0 if v is None else v['n_ok'], spread_mm=None if v is None else v['spread_mm'],
+                                   reproj_px=None if v is None else v['reproj_px']))
 
 
 def metrics(rows, m, d):
@@ -207,6 +291,11 @@ def main():
     ap.add_argument('--arm_margin', type=float, default=0.08, help='m from the measured other arm')
     ap.add_argument('--gravity', default=None, help='fitted gravity model (gravity_id.py fit.json) for the moving arm; both modes use it')
     ap.add_argument('--set', action='append', default=[], metavar='KEY=JSON', help='precision controller value, e.g. deadband=0.0004')
+    ap.add_argument('--camera', action='store_true', help='camera check: a checkerboard flat on the table, seen by the wrist camera')
+    ap.add_argument('--camera_plan', action='store_true', help='plan a view pose of the board (ZED or --board_xyz) instead of using the test pose')
+    ap.add_argument('--board_xyz', default=None, help='with --camera_plan: board centre x,y,z in the arm base frame (m); default: the ZED measures it')
+    ap.add_argument('--cam_frames', type=int, default=10)
+    ap.add_argument('--view_dist', type=float, default=0.26)
     args = ap.parse_args()
     args.pose = args.pose or f'{args.side}_test'
     args.joints = [int(x) for x in args.joints.split(',')]
@@ -217,7 +306,15 @@ def main():
     assert set(args.modes) <= {'pd', 'precision'}
     if 'friction_ff' in feats and args.friction is None:
         raise SystemExit('friction_ff needs --friction (this rig\'s measured values)')
-    q_pose = plan(args)
+    if args.camera and args.camera_plan:
+        q_pose, view = camera_view(args)
+        q_pose = plan(args, q_pose=q_pose)
+    else:
+        q_pose, view = plan(args), None
+        if args.camera:
+            view = dict(look_at_table=look_point(args.side, q_pose).tolist())
+            print(f'the wrist camera at the test pose looks at the table near {np.round(view["look_at_table"], 3).tolist()} m '
+                  f'(x, y in the {args.side} base frame): the board goes there')
     if args.plan:
         return
 
@@ -253,19 +350,24 @@ def main():
                    info=arm.info())
     try:
         plan(args, q_start)
-        if args.side != 'right':
-            raise SystemExit('the two-arm check is set up with the right arm moving')
         d_pose = other_clear(two, q_other, q_pose, args, args.arm_margin)
-        d_path = two.path_min(q_start[:6], q_pose, q_other, n=41)
+        d_path = two.path_min_of(args.side, q_start[:6], q_pose, q_other, n=41)
         summary['other_arm_clear_mm'] = dict(pose_and_steps=round(d_pose * 1e3, 1), path_from_start=round(d_path * 1e3, 1))
         print(f'{other} arm measured at {np.round(q_other, 3).tolist()}: test pose and steps {d_pose * 1e3:.0f} mm from it, '
               f'path from the start {d_path * 1e3:.0f} mm (need {args.arm_margin * 1e3:.0f})')
         if min(d_pose, d_path) < args.arm_margin:
             raise SystemExit(f'too close to the {other} arm: not moving')
+        if args.camera:
+            global VISION, VISION_FRAMES
+            import precision_camera as PC
+            VISION, VISION_FRAMES = PC.BoardCam(args.side), args.cam_frames
+            summary['camera_view'] = view
         if input(f'\nMove the {args.side} arm to the test pose at {args.max_vel} rad/s? Table clear, no reader. [y/N] ').strip() != 'y':
             raise SystemExit('not moved')
         at_start = False
         move(arm, rec, q_pose, 'pd', 0, 0.0, args.max_vel)
+        if args.camera and not args.camera_plan:
+            place_board(arm, rec, 'pd')
         hold(arm, rec, args.hold_s, 'pd', 0, 0.0)
         for mode in args.modes:
             if mode == 'precision':
@@ -289,6 +391,8 @@ def main():
                 arm.ctrl.stop()
                 arm.safe.ctrl, arm.ctrl = None, None
                 hold(arm, rec, 1.0, 'pd', 0, 0.0)
+        global VISION_ON
+        VISION_ON = False
         move(arm, rec, q_start[:6], 'pd', 0, 0.0, args.max_vel)
         hold(arm, rec, 1.0, 'pd', 0, 0.0)
         at_start = True
@@ -308,6 +412,22 @@ def main():
                                 phase=np.array([r['phase'] for r in rows]), mode=np.array([r['mode'] for r in rows]))
             res = [x for x in metrics(rows, m, d) if x['joint'] >= 1 and x['delta'] != 0.0]
             summary['steps'] = res
+            if VISION_RECORDS:
+                import precision_camera as PC
+                summary['vision_records'] = VISION_RECORDS
+                ok_recs = [r for r in VISION_RECORDS if r['T_cam_board'] is not None]
+                cam = PC.camera_metrics(ok_recs, args.side)
+                summary['camera'] = cam
+                print(f'\ncamera ({len(ok_recs)} of {len(VISION_RECORDS)} holds saw the board): mm')
+                print(f'{"mode":10s} {"j":>2s} {"step mrad":>9s} {"step mm":>7s} {"vis-target":>10s} {"vis-encoder":>11s} {"enc-target":>10s}')
+                for x in cam:
+                    if x['delta'] != 0.0:
+                        print(f'{x["mode"]:10s} {x["joint"]:2d} {x["delta"] * 1e3:+9.0f} {x["step_mm"]:7.2f} {x["vis_vs_target_mm"]:10.2f} '
+                              f'{x["vis_vs_encoders_mm"]:11.2f} {x["encoders_vs_target_mm"]:10.2f}')
+                for mode in ('pd', 'precision'):
+                    rr = [x['return_mm'] for x in cam if x['delta'] == 0.0 and x['mode'] == mode]
+                    if rr:
+                        print(f'{mode}: back at the test pose, vision {np.median(rr):.2f} mm median, {max(rr):.2f} max from the first hold (n={len(rr)})')
             (out_dir / 'summary.json').write_text(json.dumps(summary, indent=1, default=str))
             print(f'\n{"mode":10s} {"j":>2s} {"step mrad":>9s} {"end err":>8s} {"settle s":>8s} {"p-p 1s":>7s} {"others":>7s} {"hand mm":>8s}')
             for x in res:
@@ -317,6 +437,8 @@ def main():
             print(f'\nsaved {out_dir}')
         if arm.ctrl is not None:
             arm.ctrl.stop()
+        if VISION is not None:
+            VISION.close()
         if not at_start:
             print('The arm is NOT at its start pose and holds powered. Support it, then type SUPPORTED to let it go.', flush=True)
             while True:
