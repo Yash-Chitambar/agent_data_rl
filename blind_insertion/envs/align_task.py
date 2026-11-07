@@ -61,6 +61,29 @@ class AlignTask(InsertionTask):
         self.port_R_err = torch.eye(3, device=dev).expand(n, 3, 3).clone()
         self.align_metrics = {}
         self.hist = torch.zeros(n, self.icfg.history, self.obs_dim, device=dev)
+        self.law = None
+        if self.icfg.ctrl_precision:
+            from blind_insertion.envs.precision_ctrl_torch import PrecisionLawTorch
+            pp = dict(self.icfg.ctrl_precision)
+            pp.setdefault('hz', 1.0 / self.dt)
+            pp.setdefault('kp', [80., 80., 80., 30., 30., 30.])           # the sim's PD springs
+            self.law = PrecisionLawTorch(n, pp, device=dev)
+            rt, k_right = self.runtime, 0
+            base = rt.gravity_residual
+            act_r, q_r = rt.indices['right'][2], rt.indices['right'][0]
+
+            def grav_plus_ctrl(k, _base=base):
+                g = _base(k)
+                if k == k_right:
+                    q_enc = rt.q[:, q_r] - rt.encoder_offsets[0]
+                    tgt = rt.ctrl[:, act_r]                 # the sent target (encoder frame), set just before in rt.step
+                    g = g + self.law.step(q_enc, tgt, self.dt)
+                return g
+            rt.gravity_residual = grav_plus_ctrl
+            if not rt.profile:
+                raise ValueError('ctrl_precision needs the runtime dynamics profile (its torque rides on gravity_residual)')
+        W = int(self.icfg.align_still_window)
+        self.tip_win = torch.zeros(W, n, 3, device=dev)
         self._ready = True
         self.reset_all()
 
@@ -131,6 +154,10 @@ class AlignTask(InsertionTask):
         self.q0[ids] = self._measured_model_angles()[ids, 0]
         self.still_steps[ids] = 0
         self.prev_tip[ids] = tp[:, :3]
+        if hasattr(self, 'tip_win'):
+            self.tip_win[:, ids] = tp[None, :, :3]
+        if getattr(self, 'law', None) is not None:
+            self.law.reset(ids)
         self.max_speed[ids], self.path_mm[ids], self.min_gap[ids] = 0, 0, tr[:, 2]
         self.prev_true[ids], self.max_true_speed[ids], self.true_path_mm[ids] = tr[:, :3], 0, 0
         self.start_err[ids] = (tr[:, :3] - self.goal()[:3]).norm(dim=1)
@@ -243,6 +270,11 @@ class AlignTask(InsertionTask):
         # status
         e = self.consistent_error() - self.goal()
         lat, gap_e, ang = e[:, :2].norm(dim=1), e[:, 2].abs(), e[:, 3:].norm(dim=1)
+        if c.align_done_on == 'vision':
+            ev = self.est_now() - self.goal()
+            dl, dg, da = ev[:, :2].norm(dim=1), ev[:, 2].abs(), ev[:, 3:].norm(dim=1)
+        else:
+            dl, dg, da = lat, gap_e, ang
         speed = (tp[:, :3] - self.prev_tip).norm(dim=1) / self.dt
         self.prev_tip = tp[:, :3].clone()
         tsp = (tr[:, :3] - self.prev_true).norm(dim=1) / self.dt          # true plug speed (no encoder quantization)
@@ -258,8 +290,10 @@ class AlignTask(InsertionTask):
         self.min_gap = torch.where(settled, torch.minimum(self.min_gap, tr[:, 2]), self.min_gap)
         self.max_true_speed = torch.maximum(self.max_true_speed, torch.where(settled, tsp, z0))
         self.true_path_mm += torch.where(settled, tsp, z0) * self.dt
-        within = (lat <= c.align_tol_mm[0]) & (gap_e <= c.align_tol_mm[1]) & (ang <= c.align_tol_deg)
-        still = speed <= c.align_still_mm_s
+        within = (dl <= c.align_tol_mm[0]) & (dg <= c.align_tol_mm[1]) & (da <= c.align_tol_deg)
+        self.tip_win = torch.cat([self.tip_win[1:], tp[None, :, :3]], 0)
+        speed_w = (self.tip_win[-1] - self.tip_win[0]).norm(dim=1) / (max(len(self.tip_win) - 1, 1) * self.dt)
+        still = speed_w <= c.align_still_mm_s
         self.still_steps = torch.where(within & still & settled, self.still_steps + 1, torch.zeros_like(self.still_steps))
         success = self.still_steps >= int(round(c.align_hold_s / self.dt))
         rel = self._reader_in_tcp()
@@ -273,8 +307,8 @@ class AlignTask(InsertionTask):
         terminated = success | failure
         truncated = (self.steps >= self.max_steps) & ~terminated
         self.done = terminated | truncated
-        self._last = dict(success=success, slip=slip, pushed=pushed, far=far, bad=bad, lat=lat, gap_e=gap_e, ang=ang, speed=speed,
-                          true_lat=(tr[:, :2] - self.goal()[:2]).norm(dim=1), true_gap=tr[:, 2], steps=self.steps.clone().float(),
+        self._last = dict(success=success, slip=slip, pushed=pushed, far=far, bad=bad, lat=lat, gap_e=gap_e, ang=ang, speed=speed, speed_w=speed_w,
+                          true_lat=(tr[:, :2] - self.goal()[:2]).norm(dim=1), true_gap=tr[:, 2], true_ang=tr[:, 3:].norm(dim=1), steps=self.steps.clone().float(),
                           max_speed=self.max_speed.clone(), path_mm=self.path_mm.clone(), overshoot_mm=(self.goal()[2] - self.min_gap).clamp(min=0),
                           start_err=self.start_err.clone(), max_true_speed=self.max_true_speed.clone(), true_path_mm=self.true_path_mm.clone())
         info = {'success': success.clone(), 'nonfinite': bad, 'slip': slip, 'pushed': pushed, 'far': far, 'steps': self.steps.clone()}
@@ -368,7 +402,7 @@ class StepPolicy:
     def __call__(self, hist=None):
         e, c, dt = self.env, self.env.icfg, self.env.dt
         out = torch.zeros(e.N, 6, device=e.device)
-        speed = e._last['speed'] if hasattr(e, '_last') else torch.zeros(e.N, device=e.device)
+        speed = e._last['speed_w'] if hasattr(e, '_last') else torch.zeros(e.N, device=e.device)
         self.cnt += 1
         # settle -> measure
         s = (self.phase == 0) & (self.cnt * dt >= self.settle) & (speed <= self.still)

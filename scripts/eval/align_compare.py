@@ -41,6 +41,7 @@ if __name__ == '__main__':
     if A.method.startswith('rl:'):
         from blind_insertion.eval_insertion import InsertionPolicy
         net = InsertionPolicy(A.method[3:], 'cuda:0')
+        net.mask_idx = []           # AlignTask's observation has no left-arm entries (the loader's j6 mask is for insertion)
         ej = dict(net.meta['env_json'], **{k: v for k, v in ej.items() if k in ('episode_s', 'friction_scale_range', 'gravity_scale_jitter', 'lateral_m', 'gap_m', 'angle_deg')})
         ej.update(json.loads(A.env_extra))
     env = make_env(argparse.Namespace(nworld=A.nworld, seed=A.seed, action_mode='accumulate', env_json=json.dumps(ej)))

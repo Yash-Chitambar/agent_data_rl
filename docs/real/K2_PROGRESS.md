@@ -158,7 +158,27 @@ The stage stops when the fused vision estimate is within tolerance and the tip i
 
 - `blind_insertion/envs/precision_ctrl_torch.py`: the real law, batched (integral, settle lock, friction feed-forward; no vibration watch). Parity with the NumPy law: max torque difference 0.0 N m over 20 x 600 random steps in float64 (`scripts/eval/align_ctrl_parity.py`). Float32 differs only at exact threshold ties.
 - AlignTask option `ctrl_precision` (keys as `precision_ctrl.DEFAULTS`): the law's torque on the right arm, computed once per 20 ms control step from the sent target and the encoder reading, held over the substeps. Limits: the real law runs at 200 Hz, the sim at 50 Hz. The sim keeps i2rt's default-gravity error (±12 %); the real controller runs with the fitted gravity, so the sim is the harder case.
-- Comparison step / servo x plain PD / Coulomb FF / controller: `scripts/eval/align_ctrl_matrix.sh`, results below when done.
+- Comparison step / servo x plain PD / Coulomb FF / controller: `scripts/eval/align_ctrl_matrix.sh`, `results/real_align/align_ctrl/`.
+
+**Results (vision-done, 0.1 s stillness window, 30 s limit, n = 256 unless noted):**
+
+| Method + joint layer | Done [95 % CI] | Time p50 / p90 s | True lateral p50 / p95 mm | Peak true speed p50 / p99 mm/s | Path ratio p50 / p90 | Overshoot p95 / max mm |
+|---|---|---|---|---|---|---|
+| Step, plain PD | 236 = 92.2 % [88.2, 94.9] | 18.2 / 24.3 | 0.86 / 2.08 | 20.6 / 39.0 | 2.36 / 3.12 | 1.14 / 1.62 |
+| Step, Coulomb FF | 248 = 96.9 % [94.0, 98.4] | 16.7 / 22.7 | 0.91 / 1.99 | 19.0 / 37.8 | 2.33 / 3.05 | 1.29 / 2.13 |
+| Step, controller | 232 = 90.6 % [86.4, 93.6] | 18.7 / 24.3 | 0.87 / 1.80 | 40.1 / 62.5 | 5.44 / 7.85 | 1.45 / 1.96 |
+| Servo, plain PD | 252 = 98.4 % [96.1, 99.4] | 4.6 / 10.7 | 0.80 / 1.68 | 18.1 / 39.8 | 1.52 / 2.50 | 1.26 / 1.82 |
+| **Servo, Coulomb FF** | **255 = 99.6 % [97.8, 99.9]** | **4.4 / 9.4** | 0.74 / 1.77 | **16.0** / 37.5 | **1.37** / 2.36 | 1.21 / 1.88 |
+| Servo, controller | 94 = 36.7 % [31.1, 42.8] | 12.0 / 26.2 | 0.90 / 1.83 | 40.7 / 52.5 | 5.12 / 11.8 | 2.26 / 3.21 |
+| Servo, controller without integral (n = 128) | 125 = 97.7 % [93.3, 99.2] | 4.3 / 11.7 | 0.80 / 1.80 | 19.0 / 36.6 | 1.47 / 2.37 | 1.18 / 1.92 |
+| Servo, controller, integral 4x slower (i_tau 0.48, n = 128) | 91 = 71.1 % [62.7, 78.2] | 9.3 / 23.0 | 0.86 / 1.56 | 19.6 / 36.3 | 2.69 / 6.71 | 1.90 / 2.64 |
+
+**Learnings:**
+- **The continuous servo with the Coulomb feed-forward is the best method in the sim:** 99.6 % in 4.4 s median (9.4 s p90), against 16.7 s for today's step stage, with the straightest path. Its earlier slow tail came from the noisy one-step stillness test, not from the servo.
+- **The precision controller's integral makes the sim motion worse** (peak speed x2, path x3-4, servo 36.7 %). Without the integral the controller equals the Coulomb FF. This does not match the rig, where the controller made the align stage the best so far (align_prec7). The likely cause is the sim, not the law: the sim runs the law at 50 Hz with its torque held 20 ms (real: 200 Hz), so the integral (kp / i_tau = 667 N m per rad s) rings; a 4x slower integral is better but still poor. Not verified: a 200 Hz sim law needs a per-substep hook in the runtime. Until then, the sim says nothing reliable about the controller's integral; do not use these rows against the real result.
+- **RL (A2 at 11.8M steps, n = 128, same env and done test):** 11 done = 8.6 % [4.9, 14.7], 117 timeouts. Its motion is the smoothest of all (peak true speed p50 / p99 13.0 / 16.3 mm/s, path ratio 1.13 / 1.45), but it does not settle inside tolerance and passes the 6 mm goal by 2.1-2.8 mm (p95 / max). A2 trains with the old one-step stillness test (about 5 mm/s of quantization noise against a 2 mm/s limit), so it rarely sees a success; its training success fell from 46 % at 6.6M to 23 % at 11M (curriculum stage 0). Recommendation: restart it on the current env (`align_still_window` 5), keep the smoothness terms; compare at 60M.
+- The remaining peak speed (p99 about 37 mm/s for every layer without the integral) and overshoot (about 1.2-1.9 mm past the 6 mm goal) are common to all methods. The true lateral error at done (p95 1.7-2.1 mm) is the vision model's position-dependent error, the same for every method.
+
 
 ### Bumpless switch-off of the controller (2026-11-07)
 

@@ -231,6 +231,10 @@ class InsertionCfg:
     align_time_coef: float = 0.002
     align_done_on: str = 'truth'                    # 'truth': vision-consistent error (oracle); 'vision': the fused estimate, as the real stage decides
     align_settle_s: float = 0.5                     # the arm settles after the reset: actions ignored, no metrics (sim reset transient)
+    align_still_window: int = 5                     # stillness speed over this many steps (one-step FK speed has ~5 mm/s of encoder quantization)
+    # ctrl_precision: run the real precision controller's law (envs/precision_ctrl_torch.py) on the right arm in AlignTask,
+    # torque added each control step (held over the substeps). Keys as precision_ctrl.DEFAULTS. None = plain PD.
+    ctrl_precision: dict | None = None
 
 
 # Contact values are unmeasured. User directive (2026-10-31): choose values that let insertion work,

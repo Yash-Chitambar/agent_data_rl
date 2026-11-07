@@ -76,6 +76,12 @@ class RealIO:
         except Exception:
             self.close()
             raise
+        # bumpless switch-off (arm_control.<side>.bumpless_off, docs/real/K2_PROGRESS.md): leaving the controller's active
+        # stages folds its torque (integral + feed-forward) and the fitted-minus-default gravity at the measured pose into a
+        # held target bias (tau / kp), in the same send that switches it off, so the commanded equilibrium does not jump.
+        self.bumpless = {s_: bool((ac.get(s_) or {}).get('bumpless_off', False)) for s_ in SIDES}
+        self.bias = {s_: np.zeros(6) for s_ in SIDES}
+        self._pending_off = {s_: False for s_ in SIDES}
         r = self.arms['right'].robot
         self.ff_ok = hasattr(r, '_command_lock') and hasattr(getattr(r, '_commands', None), 'torques')
         if not self.ff_ok:
@@ -135,7 +141,10 @@ class RealIO:
             arm = self.arms[s]
             arm.timing.label = (self.k, s)
             ctrl = getattr(arm, 'ctrl', None)
-            sent[i] = arm.safe.command(np.append(np.asarray(q_motor[i], float), float(grip[i])),
+            if self._pending_off[s]:
+                self._bumpless_off(arm, s)
+            qm = np.asarray(q_motor[i], float) + self.bias[s]
+            sent[i] = arm.safe.command(np.append(qm, float(grip[i])),
                                        ff_right if s == 'right' else None)
             lf = getattr(arm.safe, 'last_ff', None)
             if lf is not None and (ctrl is not None or (s == 'right' and ff_right is not None)):
@@ -163,8 +172,43 @@ class RealIO:
 
     def precision_active(self, side, on=True):
         """Controller torque and fitted gravity on (on) or the arm's old behaviour: zero controller torque, integral
-        reset, i2rt's default gravity, the chain's Coulomb feed-forward (cfg arm_control.<side>.active_stages)."""
-        self._precision_active(self.arms[side], side, on)
+        reset, i2rt's default gravity, the chain's Coulomb feed-forward (cfg arm_control.<side>.active_stages).
+        With arm_control.<side>.bumpless_off, switching off waits for the next send, which folds the torque into a bias."""
+        arm = self.arms[side]
+        ctrl = getattr(arm, 'ctrl', None)
+        if on:
+            self._pending_off[side] = False
+            if np.any(self.bias[side]) and self.log is not None:
+                self.log.event('precision_bias_cleared', side=side, bias=self.bias[side].tolist(), k=getattr(self, 'k', 0))
+            self.bias[side] = np.zeros(6)
+        elif self.bumpless.get(side) and ctrl is not None and ctrl.enabled:
+            self._pending_off[side] = True
+            return
+        self._precision_active(arm, side, on)
+
+    @staticmethod
+    def _gravity_now(robot, q6):
+        kdl = getattr(robot, 'kdl', None)
+        if kdl is None or getattr(robot, 'gravity_models', None) is None:
+            return np.zeros(6)
+        z = np.zeros(6)
+        return np.asarray(kdl.compute_inverse_dynamics(np.asarray(q6, float), z, z), float)[:6] * np.asarray(robot.gravity_comp_factor, float)[:6]
+
+    def _bumpless_off(self, arm, side):
+        """Switch the controller off and hold its torque as a target bias (motor frame, rad): bias = (tau_ctrl + g_now -
+        g_after) / kp, g = i2rt's gravity torque before / after the model switch, at the measured pose."""
+        r = arm.robot
+        q6 = np.asarray(r.get_joint_pos(), float)[:6]
+        tau = np.asarray(arm.ctrl.tau(), float)[:6]
+        g0 = self._gravity_now(r, q6)
+        self._precision_active(arm, side, False)
+        g1 = self._gravity_now(r, q6)
+        kp = np.asarray(r._kp, float)[:6]
+        self.bias[side] = self.bias[side] + (tau + g0 - g1) / kp
+        self._pending_off[side] = False
+        if self.log is not None:
+            self.log.event('precision_bumpless_off', side=side, tau=tau.tolist(), dgrav=(g0 - g1).tolist(),
+                           bias=self.bias[side].tolist(), k=getattr(self, 'k', 0))
 
     def precision_freeze(self, side, on=True):
         """Hold (on) or release the precision controller's integral on one arm, e.g. around a contact stage."""
@@ -199,6 +243,13 @@ class RealIO:
         """Slow checked moves, one arm after the other: {side: q6 motor}; grip {side: i2rt} set first."""
         for s, q in q_motor.items():
             arm = self.arms[s]
+            if self._pending_off.get(s):        # a slow move: switch off plainly (moves start from the measured pose, own trim)
+                self._pending_off[s] = False
+                self._precision_active(arm, s, False)
+            if np.any(self.bias.get(s, 0)):
+                if self.log is not None:
+                    self.log.event('precision_bias_cleared', side=s, bias=self.bias[s].tolist(), k=getattr(self, 'k', 0), at='move_to')
+                self.bias[s] = np.zeros(6)
             if grip is not None and s in grip:
                 q7 = np.asarray(arm.robot.get_joint_pos(), float)
                 q7[6] = grip[s]
