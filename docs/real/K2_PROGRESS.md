@@ -12,6 +12,18 @@ Running log of the work after [CONTACT_ALIGN_PLAN_20261107.md](CONTACT_ALIGN_PLA
 
 ## Learnings
 
+- **2026-11-08. The camera prior works in the sim.** Real-like plant, real hand-over lead, n = 512 per cell (K-J n = 1024), Wilson 95 %:
+
+| Cell | K-J | K2 seed 1 @25M | K3 seed 0 @9M |
+|---|---|---|---|
+| real-like hand-over | 94.8 % [93.3, 96.0] | 98.4 % [96.9, 99.2] | 97.7 % [95.9, 98.7] |
+| roll ±3 deg | 65.0 % [62.1, 67.9] | 90.4 % [87.6, 92.7] | 90.0 % [87.1, 92.3] |
+| ring 4 mm | 81.8 % [79.4, 84.1] | 39.1 % [34.9, 43.4] | 93.0 % [90.4, 94.9] |
+| ring 5 mm | 62.2 % [59.2, 65.1] | 18.9 % [15.8, 22.6] | 88.9 % [85.8, 91.3] |
+| mix (ring 2, roll 2, pitch 3) | 79.9 % [77.3, 82.2] | 57.6 % [53.3, 61.8] | pending |
+
+K2 learned roll (90 % against 65 %) but cannot find an offset port blind. K3 has both. K-J's numbers here use the sim's exact absolute pose; on the rig its pose features are wrong (21.8 % in the offset test). K3 uses no absolute FK, so the rig offsets cannot hurt it the same way. Still to check: the acceptance bar (≥ 98 % real-like, ≥ 95 % ring 4 / roll 3), the final checkpoints, a second seed, and the climb (still 8.0-8.2 mm: joint 5 at its cap).
+
 - **2026-11-07. K-J found the port partly from absolute FK.** K2 (relative pose only) at 10M steps, real-like plant, n = 512: real-like hand-over 89.8 % [86.9, 92.2], roll ±3 deg 47.3 % [43.0, 51.6], ring 4 mm 18.4 % [15.2, 21.9], against K-J's 94.8, 65.0, 81.8 % (n = 1024). Almost all K2 failures are lateral misses. With the absolute pose features, the sim tells K-J where the port is within the PC pose spread; on the rig that information is wrong (the stalls). Without it the policy has to search blind and finds a 4 mm offset 18 % of the time. So the camera prior (K3) is required, not optional: it replaces the wrong absolute information with a measured relative one.
 - **2026-11-07. The align env's early speed peaks were a sim reset artefact.** With zero action the tip reaches 38-43 mm/s in the first 0.3 s (the arm settles under the ±12 % gravity error from targets set at the reset). Fixed: 0.5 s settle with actions ignored and no metrics (`align_settle_s`). During servo motion (2-8 s) the true tip speed is p99 13-17 mm/s, max 36 mm/s. Friction off did not remove the peaks (true speed p99 54 mm/s with the transient included), so stick-slip is not their only source. The first comparison tables (with the transient) are superseded by `results/real_align/align_cmp2/`.
 

@@ -1,0 +1,134 @@
+[
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5
+  },
+  "k": 500,
+  "n": 512,
+  "rate": 0.9765625,
+  "wilson": [
+   0.959483826737197,
+   0.9865430156113069
+  ],
+  "classes": {
+   "lateral_miss": 11,
+   "seated": 500,
+   "grasp_slip": 1
+  },
+  "force_p50": 6.6801488399505615,
+  "force_p99": 19.416019611358642,
+  "t_ok_p50": 1.3,
+  "t_ok_p99": 3.8813999999999984,
+  "cell": "real_ho",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/k3s0_eval_a.pt",
+  "climb_mm_p50_p95_max": [
+   7.9,
+   8.1,
+   8.2
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5,
+   "roll": 3.0
+  },
+  "k": 461,
+  "n": 512,
+  "rate": 0.900390625,
+  "wilson": [
+   0.8713931478177397,
+   0.9234244861226018
+  ],
+  "classes": {
+   "lateral_miss": 31,
+   "grasp_slip": 18,
+   "seated": 461,
+   "tilt": 1,
+   "deep_unseated": 1
+  },
+  "force_p50": 8.83811902999878,
+  "force_p99": 18.767634449005126,
+  "t_ok_p50": 2.52,
+  "t_ok_p99": 6.659999999999984,
+  "cell": "roll3",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/k3s0_eval_a.pt",
+  "climb_mm_p50_p95_max": [
+   7.9,
+   8.1,
+   8.1
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 4.0
+  },
+  "k": 476,
+  "n": 512,
+  "rate": 0.9296875,
+  "wilson": [
+   0.9041927479524696,
+   0.9487822738371652
+  ],
+  "classes": {
+   "lateral_miss": 26,
+   "grasp_slip": 5,
+   "seated": 476,
+   "tilt": 3,
+   "jam": 2
+  },
+  "force_p50": 7.52927827835083,
+  "force_p99": 19.7676930618286,
+  "t_ok_p50": 2.01,
+  "t_ok_p99": 6.825,
+  "cell": "ring4",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/k3s0_eval_a.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.1
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 5.0
+  },
+  "k": 455,
+  "n": 512,
+  "rate": 0.888671875,
+  "wilson": [
+   0.8584796178732639,
+   0.9130750609273601
+  ],
+  "classes": {
+   "lateral_miss": 50,
+   "seated": 455,
+   "grasp_slip": 3,
+   "deep_unseated": 1,
+   "tilt": 2,
+   "jam": 1
+  },
+  "force_p50": 7.354841232299805,
+  "force_p99": 17.711653614044188,
+  "t_ok_p50": 2.42,
+  "t_ok_p99": 7.371599999999991,
+  "cell": "ring5",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/k3s0_eval_a.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.2
+  ]
+ }
+]

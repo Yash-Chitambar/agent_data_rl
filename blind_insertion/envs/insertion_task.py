@@ -229,6 +229,7 @@ class InsertionCfg:
     align_speed_coef: float = 0.02
     align_speed_cap_mm_s: float = 12.0
     align_time_coef: float = 0.002
+    align_done_on: str = 'truth'                    # 'truth': vision-consistent error (oracle); 'vision': the fused estimate, as the real stage decides
     align_settle_s: float = 0.5                     # the arm settles after the reset: actions ignored, no metrics (sim reset transient)
 
 
