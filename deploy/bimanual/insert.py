@@ -129,6 +129,13 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
         log['handover_ff_dq_mrad'] = float((tau_ff / chain.scene.kp[0].to(dev)).abs().max()) * 1e3
     inhand6 = chain.inhand_est6.reshape(6).to(dev).float()
     prev = torch.zeros(14, device=dev)
+    if (pol.meta.get('env_json') or {}).get('rel_pose_obs'):
+        # K2: obs[50:56] relative to the believed TCP pose at the hand-over (InsertionCfg.rel_pose_obs)
+        if ic.get('obs_recenter'):
+            raise RuntimeError('insert.obs_recenter is for policies with absolute pose features; this policy uses rel_pose_obs')
+        p_ho, R_ho = chain.scene.tcp_chain.fk(qb[0:1].to(dev).float())
+        obs_fn.p_obs, obs_fn.R_obs = p_ho[0], R_ho[0]
+        chain.log_event('insert_rel_pose_obs', p_ho=p_ho[0].tolist())
     o = obs_fn(chain.state['q'], chain.state['qd'], prev, jt, inhand6)
     # insert.obs_recenter (docs/real/CONTACT_ALIGN_PLAN_20261107.md): the TCP position and Euler features [50:56] are FK relative to a
     # fixed nominal pose; on the rig they read ~3 sd outside the sim's hand-over spread (PC pose, encoder offsets). Shift them, once at the

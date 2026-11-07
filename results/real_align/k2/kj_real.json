@@ -1,0 +1,169 @@
+[
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5
+  },
+  "k": 971,
+  "n": 1024,
+  "rate": 0.9482421875,
+  "wilson": [
+   0.9329198402012265,
+   0.9602138877973289
+  ],
+  "classes": {
+   "lateral_miss": 27,
+   "seated": 971,
+   "grasp_slip": 20,
+   "tilt": 6
+  },
+  "force_p50": 7.290780544281006,
+  "force_p99": 14.32464874267578,
+  "t_ok_p50": 1.24,
+  "t_ok_p99": 3.5819999999999936,
+  "cell": "real_ho",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.2
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 3.0
+  },
+  "k": 937,
+  "n": 1024,
+  "rate": 0.9150390625,
+  "wilson": [
+   0.896371401696801,
+   0.9306042723759356
+  ],
+  "classes": {
+   "lateral_miss": 52,
+   "seated": 937,
+   "grasp_slip": 22,
+   "jam": 5,
+   "tilt": 8
+  },
+  "force_p50": 7.156696319580078,
+  "force_p99": 15.865712127685544,
+  "t_ok_p50": 2.0,
+  "t_ok_p99": 5.663999999999999,
+  "cell": "ring3",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.1
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 4.0
+  },
+  "k": 838,
+  "n": 1024,
+  "rate": 0.818359375,
+  "wilson": [
+   0.7935688326194098,
+   0.8407701550222658
+  ],
+  "classes": {
+   "lateral_miss": 148,
+   "seated": 838,
+   "grasp_slip": 16,
+   "tilt": 18,
+   "jam": 4
+  },
+  "force_p50": 7.1212568283081055,
+  "force_p99": 17.356240253448483,
+  "t_ok_p50": 2.29,
+  "t_ok_p99": 6.6808,
+  "cell": "ring4",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.2
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 5.0
+  },
+  "k": 637,
+  "n": 1024,
+  "rate": 0.6220703125,
+  "wilson": [
+   0.5919678274795642,
+   0.6512603119535937
+  ],
+  "classes": {
+   "lateral_miss": 323,
+   "grasp_slip": 29,
+   "seated": 637,
+   "tilt": 28,
+   "jam": 6,
+   "deep_unseated": 1
+  },
+  "force_p50": 7.308875322341919,
+  "force_p99": 16.983846435546873,
+  "t_ok_p50": 2.9,
+  "t_ok_p99": 6.8056,
+  "cell": "ring5",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   7.9,
+   8.1,
+   8.1
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5,
+   "roll": 3.0
+  },
+  "k": 666,
+  "n": 1024,
+  "rate": 0.650390625,
+  "wilson": [
+   0.6206708945205728,
+   0.6789861732610776
+  ],
+  "classes": {
+   "lateral_miss": 157,
+   "grasp_slip": 135,
+   "seated": 666,
+   "tilt": 46,
+   "jam": 19,
+   "deep_unseated": 1
+  },
+  "force_p50": 7.949677467346191,
+  "force_p99": 15.237022066116332,
+  "t_ok_p50": 2.33,
+  "t_ok_p99": 9.043000000000005,
+  "cell": "roll3",
+  "plant": "real",
+  "lead": "real",
+  "policy": "deploy/bundle/models/insert_KJ.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.1
+  ]
+ }
+]

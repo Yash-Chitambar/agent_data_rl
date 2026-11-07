@@ -156,6 +156,17 @@ class Runner:
             print(f'NOTE: {a.config} differs from the bundle copy (configs/bimanual.json); the run uses {a.config}', flush=True)
         self.consts = json.loads((bundle / 'configs/chain_constants.json').read_text())
         self.policy_path = bundle / 'models/insert_KJ.pt'
+        pf = (self.cfg.get('insert') or {}).get('policy_file')
+        if pf:      # a policy outside the bundle (K2 and later, docs/real/K2_PROGRESS.md): path + sha256 from the config
+            pp = Path(pf) if Path(pf).is_absolute() else ROOT / pf
+            want = self.cfg['insert'].get('policy_sha256')
+            if not pp.exists():
+                raise SystemExit(f'insert.policy_file {pp} missing: copy it from mason (docs/real/K2_PROGRESS.md)')
+            got = BU.sha256(pp)
+            if not want or not got.startswith(want):
+                raise SystemExit(f'insert.policy_file {pp}: sha256 {got[:16]} does not match the config ({want})')
+            self.policy_path = pp
+            print(f'insertion policy: {pp} (sha256 {got[:16]})', flush=True)
         self.gmaps = gripper_maps(self.cfg)
         self.keys = None if a.dry_run else StopKey()
         self.auto = '' if (a.dry_run or a.yes) else None

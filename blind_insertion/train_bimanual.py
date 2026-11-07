@@ -31,6 +31,13 @@ BASE = dict(lateral_m=(0.002, 0.002), angle_deg=2.0, inhand_pos_m=(0.003, 0.0, 0
 def set_scale(env: InsertionTask, s: float):
     """Scale the start errors (s = 1: the nominal full-DR distribution)."""
     c = env.icfg
+    if getattr(c, 'align_task', False):      # AlignTask: starts come from env_json (lateral_m, gap_m, angle_deg) x s
+        if not hasattr(env, '_align_base'):
+            env._align_base = (tuple(c.lateral_m), c.angle_deg)
+        c.lateral_m = tuple(x * s for x in env._align_base[0])
+        c.angle_deg = env._align_base[1] * s
+        env.refresh_pool()
+        return
     c.lateral_m = tuple(x * s for x in BASE['lateral_m'])
     c.angle_deg = BASE['angle_deg'] * s
     if c.grasp != 'part1':   # Part 1's measured in-hand spread is not scaled by the curriculum
@@ -81,6 +88,9 @@ def make_env(args, nworld=None, seed=None):
     if getattr(args, 'camera', ''):
         p = cfg.task.physics
         p.render_rgb, p.visual_dr, p.camera_resolution, p.camera_names = True, True, args.res, ('wrist_cam',)
+    if cfg.align_task:
+        from blind_insertion.envs.align_task import AlignTask
+        return AlignTask(cfg, seed=args.seed if seed is None else seed)
     return InsertionTask(cfg, seed=args.seed if seed is None else seed)
 
 

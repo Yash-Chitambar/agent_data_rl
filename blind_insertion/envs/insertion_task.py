@@ -175,6 +175,54 @@ class InsertionCfg:
     # Hard limit on the commanded TCP speed (m/s): each action is scaled down so that |J_lin dq| / dt stays
     # below this (J at the believed joint angles: deployable). 0 disables.
     max_tcp_speed_m_s: float = 0.0
+    # ---- K2 (docs/real/K2_PROGRESS.md). All off by default: older policies see the same env.
+    # rel_pose_obs: obs[50:56] (TCP position x10 and XYZ Euler) relative to the believed TCP pose at the reset (the
+    # hand-over), not to the fixed nominal pose. On the rig the absolute features read ~3 sd off (K-J 21.8 % in sim).
+    rel_pose_obs: bool = False
+    # vel_obs_noise: Gaussian noise (rad/s, per joint 1-6, both arms) on the observed encoder velocity, per-world
+    # scale uniform in vel_obs_noise_scale. Real DM telemetry at rest: 0.005-0.04 rad/s rms (joints 4-6 highest).
+    vel_obs_noise: tuple | None = None
+    vel_obs_noise_scale: tuple = (0.5, 1.5)
+    # extra_ang_deg: extra uniform start angle error (rx, ry, roll half-ranges, deg) on this share of pool starts.
+    extra_ang_deg: tuple = (0., 0., 0.)
+    extra_ang_frac: float = 0.0
+    # handover_lead_rad: right joint target - measured at the reset (the chain's plain-PD hand-over lead), times a
+    # per-world factor in handover_lead_scale plus N(0, handover_lead_sd), on this share of resets.
+    handover_lead_rad: tuple | None = None
+    handover_lead_scale: tuple = (0.5, 1.5)
+    handover_lead_sd: float = 0.003
+    handover_lead_frac: float = 0.0
+    # climb penalty: per step, climb_coef x (lateral offset (port x, y) of the commanded plug tip from the measured
+    # one, believed FK, in mm, above climb_thresh_mm). Axial lead is free (the push needs it).
+    climb_coef: float = 0.0
+    climb_thresh_mm: float = 8.0
+    # ---- AlignTask (blind_insertion/envs/align_task.py): final alignment from a real-like stop to the hand-over pose
+    align_task: bool = False
+    align_goal_mm: tuple = (0., 0., 6.)
+    align_tol_mm: tuple = (1.0, 1.0)                # lateral norm, gap (the real stage: 1 mm per axis)
+    align_tol_deg: float = 1.0
+    align_hold_s: float = 0.3
+    align_still_mm_s: float = 2.0
+    align_vmax_mm_s: float = 15.0                   # action scale (twist at |a| = 1)
+    align_wmax_deg_s: float = 8.0
+    align_touch_mm: float = 1.5                     # true gap below this = touching the case (failure)
+    align_far_mm: float = 15.0
+    align_vis_every: int = 5                        # 10 Hz at 50 Hz
+    align_vis_latency: int = 5                      # ~100 ms (82 ms median compute + capture)
+    align_vis_frame_mm: tuple = (0.1, 0.1, 0.1)
+    align_vis_field_mm: tuple = (0.25, 0.74, 0.49)  # pose-dependent error rms (eval_align_batch defaults)
+    align_vis_field_wavelength_mm: tuple = (2., 6.)
+    align_vis_run_bias_mm: tuple = (0.3, 0.6, 0.4)
+    align_vis_slope_err: float = 0.05
+    align_vis_ang_frame_deg: float = 0.3
+    align_vis_ang_run_bias_deg: float = 0.5
+    align_vis_drop: float = 0.1
+    align_port_R_err_deg: float = 1.0
+    align_shaping_mm: float = 2.0
+    align_jerk_coef: float = 0.05
+    align_speed_coef: float = 0.02
+    align_speed_cap_mm_s: float = 12.0
+    align_time_coef: float = 0.002
 
 
 # Contact values are unmeasured. User directive (2026-10-31): choose values that let insertion work,
@@ -291,6 +339,10 @@ class InsertionTask(BimanualTask):
         self.ref_rel = torch.zeros(n, 4, 4, device=dev)       # reader in TCP at end of warmup
         self.inhand_est = torch.zeros(n, 6, device=dev)        # in-hand estimate input (inhand_obs)
         self.inhand_noise = torch.zeros(n, 6, device=dev)
+        self.ho_p = torch.zeros(n, 3, device=dev)                # believed TCP pose at the reset (rel_pose_obs)
+        self.ho_R = torch.eye(3, device=dev).expand(n, 3, 3).clone()
+        self.vel_noise_scale = torch.zeros(n, 1, device=dev)
+        self.climb_mm = torch.zeros(n, device=dev)
         self.pc_start = torch.zeros(n, 7, device=dev)
         self.captured = torch.zeros(n, dtype=torch.bool, device=dev)
         self.strict_run = torch.zeros(n, dtype=torch.long, device=dev)
@@ -481,6 +533,10 @@ class InsertionTask(BimanualTask):
                     rad = c.hard_lat_m[0] + (c.hard_lat_m[1] - c.hard_lat_m[0]) * torch.rand(k, device=dev, generator=gen)
                     th = torch.rand(k, device=dev, generator=gen) * 2 * math.pi
                     lat = torch.where(hard[:, None], torch.stack([rad * torch.cos(th), rad * torch.sin(th)], 1), lat)
+            if c.extra_ang_frac > 0 and any(c.extra_ang_deg):
+                ex = u(k, 3) * torch.tensor(c.extra_ang_deg, device=dev) * math.pi / 180
+                sel = torch.rand(k, 1, device=dev, generator=gen) < c.extra_ang_frac
+                ang = ang + torch.where(sel, ex, torch.zeros_like(ex))
             R_rp = _rpy(ang)
             p_rp = torch.cat([lat, gap[:, None]], 1)
             R_rw = port_R @ R_rp
@@ -603,6 +659,22 @@ class InsertionTask(BimanualTask):
             if len(live):
                 self._restore_live(live)
         self.ref_rel[ids] = self._reader_in_tcp()[ids]
+        c = self.icfg
+        qm = self._measured_model_angles()[ids, 0]
+        if c.handover_lead_rad is not None and c.handover_lead_frac > 0:
+            sel = ids[torch.rand(len(ids), device=self.device, generator=self.gen) < c.handover_lead_frac]
+            if len(sel):
+                lo, hi = c.handover_lead_scale
+                f = lo + (hi - lo) * torch.rand(len(sel), 1, device=self.device, generator=self.gen)
+                lead = torch.tensor(c.handover_lead_rad, device=self.device) * f \
+                    + c.handover_lead_sd * torch.randn(len(sel), 6, device=self.device, generator=self.gen)
+                self.joint_target[sel, 0] = self._measured_model_angles()[sel, 0] + lead
+        p0, R0 = self.right_chain.fk(qm)
+        self.ho_p[ids], self.ho_R[ids] = p0, R0
+        if c.vel_obs_noise is not None:
+            lo, hi = c.vel_obs_noise_scale
+            self.vel_noise_scale[ids] = lo + (hi - lo) * torch.rand(len(ids), 1, device=self.device, generator=self.gen)
+        self.climb_mm[ids] = 0
         if self.icfg.inhand_obs:
             sp, sr = self.icfg.inhand_obs_noise
             z = torch.randn(len(ids), 6, device=self.device, generator=self.gen)
@@ -786,6 +858,10 @@ class InsertionTask(BimanualTask):
             near = L['p'][:, 2] < c.speed_zone_m
             reward = reward - c.force_coef * (Fax - c.force_thresh_n).clamp(min=0) \
                 - c.speed_coef * near.float() * (spd - c.speed_cap_m_s).clamp(min=0)
+        if c.climb_coef:
+            lat = self._climb_lateral_mm()
+            self.climb_mm = torch.maximum(self.climb_mm, lat)
+            reward = reward - c.climb_coef * (lat - c.climb_thresh_mm).clamp(min=0)
         reward = torch.where(L['bad'], torch.zeros_like(reward), reward)
         reward = torch.nan_to_num(reward, 0., 0., 0.)
         self.phi = phi2
@@ -880,6 +956,17 @@ class InsertionTask(BimanualTask):
         else:
             self.inhand_est[ids] = self.inhand_error(self.ref_rel[ids]) + self.inhand_noise[ids]
 
+    def _climb_lateral_mm(self):
+        """Lateral (port x, y) offset of the commanded plug tip from the measured one, believed FK, mm (n,)."""
+        qm = self._measured_model_angles()[:, 0]
+        pm, Rm = self.right_chain.fk(qm)
+        pt, Rt = self.right_chain.fk(self.joint_target[:, 0])
+        s = self.ref_rel[:, :3, 3]                    # reader (plug tip) origin in the TCP frame
+        d = (pt + (Rt @ s[..., None])[..., 0]) - (pm + (Rm @ s[..., None])[..., 0])
+        _, port_R = self._port_pose(self.pc_start)
+        dl = (port_R.transpose(1, 2) @ d[..., None])[..., 0]
+        return dl[:, :2].norm(dim=1) * 1e3
+
     def _reader_in_tcp(self):
         rt = self.runtime
         q = rt.q[:, rt.indices['right'][0]]
@@ -900,13 +987,21 @@ class InsertionTask(BimanualTask):
         o = self.observation()
         qb = self._measured_model_angles()[:, 0]
         p, R, J = self.right_chain.fk(qb, with_jac=True)
-        v = o['encoder_velocity_rad_s'].reshape(-1, 2, 6)[:, 0]
+        vel = o['encoder_velocity_rad_s']
+        if self.icfg.vel_obs_noise is not None:
+            sd = torch.tensor(self.icfg.vel_obs_noise, device=self.device).repeat(2)
+            vel = vel + torch.randn(vel.shape, device=self.device, generator=self.gen) * sd * self.vel_noise_scale
+        v = vel.reshape(-1, 2, 6)[:, 0]
         tw = (J @ v[..., None])[..., 0]
-        R0 = self._R_obs
-        eul = K.euler_xyz(R0.T @ R)
-        pos = p - self._p_obs
+        if self.icfg.rel_pose_obs:
+            eul = K.euler_xyz(self.ho_R.transpose(1, 2) @ R)
+            pos = p - self.ho_p
+        else:
+            R0 = self._R_obs
+            eul = K.euler_xyz(R0.T @ R)
+            pos = p - self._p_obs
         self._last_obs = o
-        enc, vel, prev, terr = o['encoder_rad'], o['encoder_velocity_rad_s'], o['previous_action'], o['target_error_rad']
+        enc, prev, terr = o['encoder_rad'], o['previous_action'], o['target_error_rad']
         parts = [enc, vel, prev, terr, pos * 10, eul, tw]
         if self.icfg.mask_left_obs:
             base = torch.cat(parts[:4], 1).clone()
