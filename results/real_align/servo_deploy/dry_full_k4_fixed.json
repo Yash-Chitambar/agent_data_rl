@@ -1,0 +1,218 @@
+[
+ {
+  "run": "approach_insert_135048_dry_s7121_dry_servo_k4b_s7121",
+  "ok": true,
+  "reason": "within tolerance",
+  "seconds": 9.3,
+  "frames": 90,
+  "est": [
+   0.26,
+   0.77,
+   6.09
+  ],
+  "truth": [
+   0.14,
+   -0.04,
+   5.57
+  ],
+  "truth_rot_deg": [
+   0.72,
+   0.17,
+   -1.41
+  ],
+  "true_err_mm": [
+   0.14,
+   -0.04,
+   -0.43
+  ],
+  "post_press": {
+   "ok": true,
+   "reason": "within tolerance",
+   "seconds": 5.4,
+   "truth": [
+    -0.17,
+    -0.18,
+    5.49
+   ]
+  },
+  "entry_gap_mm": 19.31,
+  "frame_ms_p50": 11.1,
+  "speed_p50_p99_max": [
+   3.0,
+   12.6,
+   14.8
+  ],
+  "age_max_s": 0.28,
+  "ticks": 700,
+  "align_handover": {
+   "ok": true,
+   "reason": "within tolerance",
+   "gap_mm": 6.383705732762579,
+   "lat_mm": [
+    -0.2625673535684931,
+    0.5046696009646039
+   ]
+  },
+  "insert_result": {
+   "outcome": "seated_detected",
+   "t_seat_s": 1.8,
+   "depth_mm": -6.6640620354214555,
+   "true_seated_end": true,
+   "true_depth_mm_end": 5.691998638212681
+  },
+  "align_result": {
+   "ok": true,
+   "reason": "within tolerance",
+   "gap_mm": null,
+   "lat_mm": null,
+   "seconds": 9.299999999999997
+  },
+  "seed": "7121",
+  "completed": true
+ },
+ {
+  "run": "approach_insert_135303_dry_s7122_dry_servo_k4b_s7122",
+  "ok": true,
+  "reason": "within tolerance",
+  "seconds": 4.6,
+  "frames": 43,
+  "est": [
+   0.41,
+   -0.35,
+   5.89
+  ],
+  "truth": [
+   -0.58,
+   0.64,
+   6.61
+  ],
+  "truth_rot_deg": [
+   0.38,
+   -0.01,
+   1.77
+  ],
+  "true_err_mm": [
+   -0.58,
+   0.64,
+   0.61
+  ],
+  "post_press": {
+   "ok": true,
+   "reason": "within tolerance",
+   "seconds": 7.6,
+   "truth": [
+    -0.67,
+    0.1,
+    6.56
+   ]
+  },
+  "entry_gap_mm": 19.21,
+  "frame_ms_p50": 11.9,
+  "speed_p50_p99_max": [
+   3.0,
+   12.6,
+   18.9
+  ],
+  "age_max_s": 0.28,
+  "ticks": 585,
+  "align_handover": {
+   "ok": true,
+   "reason": "within tolerance",
+   "gap_mm": 5.663841344064614,
+   "lat_mm": [
+    -0.4998415317268279,
+    0.046843363196786905
+   ]
+  },
+  "insert_result": {
+   "outcome": "seated_detected",
+   "t_seat_s": 1.18,
+   "depth_mm": -5.556282082884708,
+   "true_seated_end": true,
+   "true_depth_mm_end": 5.696568638086319
+  },
+  "align_result": {
+   "ok": true,
+   "reason": "within tolerance",
+   "gap_mm": null,
+   "lat_mm": null,
+   "seconds": 4.600000000000001
+  },
+  "seed": "7122",
+  "completed": true
+ },
+ {
+  "run": "approach_insert_135500_dry_s7123_dry_servo_k4b_s7123",
+  "ok": true,
+  "reason": "within tolerance",
+  "seconds": 2.7,
+  "frames": 24,
+  "est": [
+   0.33,
+   0.68,
+   6.55
+  ],
+  "truth": [
+   -0.64,
+   0.25,
+   7.46
+  ],
+  "truth_rot_deg": [
+   -1.47,
+   -0.34,
+   2.39
+  ],
+  "true_err_mm": [
+   -0.64,
+   0.25,
+   1.46
+  ],
+  "post_press": {
+   "ok": true,
+   "reason": "within tolerance",
+   "seconds": 6.5,
+   "truth": [
+    -1.01,
+    -1.27,
+    7.18
+   ]
+  },
+  "entry_gap_mm": 17.82,
+  "frame_ms_p50": 12.0,
+  "speed_p50_p99_max": [
+   3.3,
+   14.8,
+   17.5
+  ],
+  "age_max_s": 0.28,
+  "ticks": 435,
+  "align_handover": {
+   "ok": true,
+   "reason": "within tolerance",
+   "gap_mm": 5.525207381054833,
+   "lat_mm": [
+    -0.3091761009552638,
+    0.14670555619113196
+   ]
+  },
+  "insert_result": {
+   "outcome": "press_abort",
+   "t_seat_s": null,
+   "depth_mm": -10.669422561472283,
+   "true_seated_end": false,
+   "true_depth_mm_end": -1.6371249221265316
+  },
+  "align_result": {
+   "ok": true,
+   "reason": "within tolerance",
+   "gap_mm": null,
+   "lat_mm": null,
+   "seconds": 2.6999999999999993
+  },
+  "back_off": {
+   "mm": 20.0
+  },
+  "seed": "7123",
+  "completed": true
+ }
+]

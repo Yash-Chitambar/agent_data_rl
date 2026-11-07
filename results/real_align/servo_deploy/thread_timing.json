@@ -1,0 +1,92 @@
+{
+ "sleep": {
+  "ticks": 500,
+  "period_ms_p50_p99_max": [
+   20.0,
+   20.04,
+   20.05
+  ],
+  "ticks_over_25ms": 0,
+  "late": 0,
+  "frames_per_s": 9.9,
+  "frame_age_ms_p50_p99_max": [
+   140.0,
+   180.1,
+   180.3
+  ]
+ },
+ "cpu": {
+  "ticks": 500,
+  "period_ms_p50_p99_max": [
+   20.0,
+   20.05,
+   20.05
+  ],
+  "ticks_over_25ms": 0,
+  "late": 0,
+  "frames_per_s": 9.9,
+  "frame_age_ms_p50_p99_max": [
+   140.0,
+   180.0,
+   180.2
+  ]
+ },
+ "real_single_call": {
+  "ms": 233.4,
+  "ok": true,
+  "v": [
+   -1.0232177318210973,
+   -1.9841848420560513,
+   5.1866305607587755
+  ]
+ },
+ "real_thread": {
+  "ticks": 495,
+  "period_ms_p50_p99_max": [
+   20.01,
+   34.15,
+   44.08
+  ],
+  "ticks_over_25ms": 16,
+  "late": 15,
+  "frames_per_s": 10.9,
+  "frame_age_ms_p50_p99_max": [
+   128.9,
+   204.9,
+   222.4
+  ]
+ },
+ "real_process": {
+  "ticks": 500,
+  "period_ms_p50_p99_max": [
+   20.0,
+   20.12,
+   23.06
+  ],
+  "ticks_over_25ms": 0,
+  "late": 0,
+  "frames_per_s": 6.0,
+  "frame_age_ms_p50_p99_max": [
+   239.7,
+   359.8,
+   399.8
+  ],
+  "last_ok": null
+ },
+ "baseline_no_worker": {
+  "ticks": 500,
+  "period_ms_p50_p99_max": [
+   20.0,
+   20.05,
+   20.05
+  ],
+  "ticks_over_25ms": 0,
+  "late": 0,
+  "frames_per_s": 49.9,
+  "frame_age_ms_p50_p99_max": [
+   20.0,
+   20.1,
+   20.2
+  ]
+ }
+}

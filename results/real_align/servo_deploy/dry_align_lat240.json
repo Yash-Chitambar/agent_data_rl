@@ -1,0 +1,98 @@
+[
+ {
+  "run": "approach_insert_134959_dry_s7131_dry_servo_lat240_s7131",
+  "ok": true,
+  "reason": "within tolerance",
+  "seconds": 3.54,
+  "frames": 11,
+  "est": [
+   -0.37,
+   0.44,
+   5.44
+  ],
+  "truth": [
+   -0.05,
+   0.0,
+   6.41
+  ],
+  "truth_rot_deg": [
+   -0.24,
+   -0.38,
+   -0.02
+  ],
+  "true_err_mm": [
+   -0.05,
+   0.0,
+   0.41
+  ],
+  "entry_gap_mm": 20.04,
+  "frame_ms_p50": 12.0,
+  "speed_p50_p99_max": [
+   6.1,
+   15.1,
+   15.3
+  ],
+  "age_max_s": 0.58,
+  "ticks": 150,
+  "align_result": {
+   "ok": true,
+   "reason": "aligned; mode align: no insertion",
+   "gap_mm": null,
+   "lat_mm": null,
+   "seconds": 3.539999999999999
+  },
+  "back_off": {
+   "mm": 15.0
+  },
+  "seed": "7131",
+  "completed": true
+ },
+ {
+  "run": "approach_insert_135127_dry_s7132_dry_servo_lat240_s7132",
+  "ok": true,
+  "reason": "within tolerance",
+  "seconds": 6.24,
+  "frames": 20,
+  "est": [
+   -0.53,
+   0.38,
+   6.95
+  ],
+  "truth": [
+   -0.98,
+   0.79,
+   6.36
+  ],
+  "truth_rot_deg": [
+   -0.57,
+   0.07,
+   0.17
+  ],
+  "true_err_mm": [
+   -0.98,
+   0.79,
+   0.36
+  ],
+  "entry_gap_mm": 19.65,
+  "frame_ms_p50": 12.4,
+  "speed_p50_p99_max": [
+   3.5,
+   11.2,
+   12.8
+  ],
+  "age_max_s": 0.58,
+  "ticks": 285,
+  "align_result": {
+   "ok": true,
+   "reason": "aligned; mode align: no insertion",
+   "gap_mm": null,
+   "lat_mm": null,
+   "seconds": 6.240000000000002
+  },
+  "back_off": {
+   "mm": 15.0
+  },
+  "seed": "7132",
+  "completed": true
+ }
+]

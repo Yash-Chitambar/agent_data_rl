@@ -36,6 +36,7 @@ DEFAULTS = dict(
     handover_lead_rad=[[-.0004, .0004], [-.0051, .0156], [-.011, .0129], [-.0024, .0013], [.0144, .0279], [-.0058, .0019]],
     source=dict(kind='stub'), sim_source=dict(kind='sim_truth'), secondary=None, secondary_sim=None, disagree_mm=[2.0, 2.0, 3.0], disagree_mode='gate',
     on_fail='back_off', back_off_mm=15.0, back_off_v_mm_s=10.0, press_release=True, repress_s=1.0, post_press_tol_factor=1.5,
+    servo=None,       # dict: continuous vision servo instead of the steps (ServoStage; docs/real/K2_PROGRESS.md "Servo deploy"); None = the step stage
 )
 
 
@@ -124,7 +125,18 @@ class PortVisionSource:
         raw = self.raw(ch, tag)
         if raw is None:
             return PortMeasure(False, 'no raw frame')
-        m = self.fn(raw, side='right', plug_z_mm=self.plug_z, **self.kw)
+        return self.measure_raw(raw)
+
+    def measure_raw(self, raw):
+        """The measurement of one raw frame (no camera, no logger: the servo's vision thread calls this)."""
+        if self.fn is None:
+            return PortMeasure(False, f'port_vision not available: {self.err}')
+        if self.plug_z is None:
+            return PortMeasure(False, 'no shell depth for this grasp')
+        return self.convert(self.fn(raw, side='right', plug_z_mm=self.plug_z, **self.kw))
+
+    def convert(self, m):
+        """port_vision.PortMeasure -> this stage's PortMeasure (panel and plug angles)."""
         sig = None if m.sigma_mm is None else float(np.max(m.sigma_mm))
         out = PortMeasure(bool(m.ok), str(m.reason), float(m.conf), m.across_mm, m.up_mm, m.gap_mm, sig)
         R = (m.debug or {}).get('R')          # panel in the camera
@@ -779,6 +791,17 @@ class AlignStage:
         lo_ = np.asarray(c['handover_lead_rad'], float)
         self.creep.lead = np.clip(self.creep.lead, lo_[:, 0], lo_[:, 1])
         if c.get('inhand_refresh', True) and ok:        # the in-hand net trained at the 6 mm stop: read it again at the hand-over
+            self.inhand_refresh()
+        q = ch.q_b[0].cpu().numpy().astype(float)
+        cmd = torch.as_tensor(q + self.creep.lead, dtype=torch.float32, device=ch.dev)
+        res = dict(ok=ok, reason=res0['reason'], gap_mm=float(m.gap_mm) if m.ok else None, lat_mm=[float(m.across_mm), float(m.up_mm)] if m.ok else None, lead=self.creep.lead.tolist())
+        ch.log_event('align_handover', **res)
+        return (cmd[None] if ok else None), res
+
+    def inhand_refresh(self):
+        """In-hand net read again at the hand-over gap (it trained at the 6 mm stop); sets ch.inhand_est6."""
+        c, ch = self.c, self.ch
+        if True:
             import torch.nn.functional as F
             net, scale, _ = ch.inhand_net
             fr = ch.render(('wrist_right',), tag='align_inhand')['wrist_cam']
@@ -798,11 +821,6 @@ class AlignStage:
                     new = true6[None].to(new.device)
             ch.log_event('align_inhand', **rec)
             ch.inhand_est6 = new
-        q = ch.q_b[0].cpu().numpy().astype(float)
-        cmd = torch.as_tensor(q + self.creep.lead, dtype=torch.float32, device=ch.dev)
-        res = dict(ok=ok, reason=res0['reason'], gap_mm=float(m.gap_mm) if m.ok else None, lat_mm=[float(m.across_mm), float(m.up_mm)] if m.ok else None, lead=self.creep.lead.tolist())
-        ch.log_event('align_handover', **res)
-        return (cmd[None] if ok else None), res
 
     def back_off(self):
         if self.c.get('back_off_creep'):
@@ -834,6 +852,436 @@ class AlignStage:
         ch.log_event('back_off', mm=mm, tick=ch.k, tip_q=ch.q_b[0].tolist(), creep=True, lead=cr.lead.tolist())
 
 
+SERVO_DEFAULTS = dict(
+    gain=1.5, ang_gain=1.0, vmax_mm_s=8.0, vmin_mm_s=1.5, wmax_deg_s=4.0, deadband_mm=0.4, deadband_deg=0.4, smooth=0.2, ki=0.0,
+    target_cap_rad=0.05, damping=1e-4, ff=True, still_mm_s=2.0, still_window_s=0.1, max_frame_age_s=0.5, max_blind_s=3.0,
+    max_tip_speed_mm_s=60.0, max_time_s=30.0, post_press_s=8.0, cam_latency_s=0.03, sim_latency_ticks=5, sim_period_ticks=5,
+    hold_s=0.3, vision_worker='process',
+)
+
+
+class ServoStage(AlignStage):
+    """Continuous vision servo (config align.servo; docs/real/K2_PROGRESS.md "Servo deploy").
+
+    Every 20 ms tick: fused estimate = the newest port-vision result + the believed FK tip motion since that frame's capture tick (port axes);
+    plug-tip twist = -gain x (estimate - goal) (speed floor outside a dead band, speed caps, first-order smoothing; the same law as
+    blind_insertion/envs/align_task.ServoPolicy, sim: 99.6 % aligned, 4.4 s median, n = 256); joint increment by the believed tip Jacobian
+    (damped least squares); the target accumulates within target_cap_rad of the measured joints; the chain's Coulomb feed-forward is on.
+    Vision runs in a worker thread (vision_thread.py): the 50 Hz ticks never wait for it.
+
+    Gates kept from the step stage: entry gap, gripper change, distance from the stop, minimum clearance, error growth, measurement against FK,
+    measurement scale against FK motion (regression over the frames; probes only on an axis that did not move enough), angle limit,
+    second-source disagreement at the hand-over, time limit. New: no valid frame for max_frame_age_s -> hold; for max_blind_s -> stop;
+    tip faster than max_tip_speed_mm_s (0.1 s window) -> stop. Done: estimate within tol for confirm_n frames in a row and the tip still
+    (0.1 s window: one-tick FK differences carry about 5 mm/s of encoder quantization)."""
+
+    def __init__(self, ch, cmd, q_hold, eR, c):
+        super().__init__(ch, cmd, q_hold, eR, c)
+        sv = dict(SERVO_DEFAULTS)
+        sv.update({k: v for k, v in (c.get('servo') or {}).items() if not k.startswith('_')})
+        self.sv = sv
+        self.hist = []                 # (tick, t, tip (3), R (3x3)) per tick
+        self.tgt = None
+        self.worker = None
+
+    # ------------------------------------------------------------------ helpers
+    def _rec(self):
+        ch = self.ch
+        p, R = self.fk(ch.q_b[0])
+        tip = (p - R @ self.s).numpy().astype(float)
+        rel = self.eR.T @ (tip - self.tip0) * 1e3
+        self.hist.append((ch.k, float(ch.state.get('t', ch.k * ch.dt)), rel, R.numpy().astype(float)))
+        if len(self.hist) > 400:
+            self.hist = self.hist[-400:]
+        return rel, R.numpy().astype(float)
+
+    def _at_tick(self, tick):
+        for h in reversed(self.hist):
+            if h[0] <= tick:
+                return h
+        return self.hist[0]
+
+    def _tick_of_time(self, t):
+        for h in reversed(self.hist):
+            if h[1] <= t:
+                return h[0]
+        return self.hist[0][0]
+
+    def _speed(self):
+        n = max(1, int(round(self.sv['still_window_s'] / self.ch.dt)))
+        if len(self.hist) <= n:
+            return 0.
+        return float(np.linalg.norm(self.hist[-1][2] - self.hist[-1 - n][2]) / (n * self.ch.dt))
+
+    def _rot_since_deg(self, R_cap, R_now):
+        from scipy.spatial.transform import Rotation
+        dR = self.eR.T @ (R_now @ R_cap.T) @ self.eR
+        return Rotation.from_matrix(dR).as_rotvec(degrees=True)
+
+    def _send(self, ql):
+        ch = self.ch
+        q = ch.q_b[0].cpu().numpy().astype(float)
+        cap = float(self.sv['target_cap_rad'])
+        self.tgt = np.clip(self.tgt, q - cap, q + cap)
+        ch.hstep(torch.as_tensor(self.tgt, dtype=torch.float32, device=ch.dev), ql, 'align')
+
+    def _twist_to_dq(self, v_mm_s, w_deg_s):
+        ch = self.ch
+        dev = ch.scene.device
+        q = ch.q_b[0:1].to(dev).float()
+        p, R, J = self.chain.fk(q, with_jac=True)
+        r = (-(R[0] @ self.s.to(dev))).cpu().numpy().astype(float)          # tip - TCP (tip = p - R s)
+        v = self.eR @ (np.asarray(v_mm_s, float) * 1e-3)
+        w = self.eR @ np.radians(np.asarray(w_deg_s, float))
+        x = np.r_[v - np.cross(w, r), w] * ch.dt
+        Jn = J[0].cpu().numpy().astype(float)
+        return Jn.T @ np.linalg.solve(Jn @ Jn.T + float(self.sv['damping']) * np.eye(6), x)
+
+    # ------------------------------------------------------------------ vision
+    def _start_vision(self):
+        ch, sv = self.ch, self.sv
+        self.last_frame_k = None
+        if getattr(ch.io, 'is_sim', False) or not isinstance(self.src, PortVisionSource):
+            from deploy.bimanual.vision_thread import DeferredWorker
+            lat = int(sv['sim_latency_ticks']) if getattr(ch.io, 'is_sim', False) else 0
+            self.worker = DeferredWorker(lambda tag: self.one(self.src, tag), latency_ticks=lat, period_ticks=int(sv['sim_period_ticks']))
+            self.threaded = False
+        else:
+            self.src.plug_in_camera()          # load once on this thread
+            err = lambda e: PortMeasure(False, f'{type(e).__name__}: {e}')  # noqa: E731
+            if sv.get('vision_worker', 'process') == 'process':      # thread: port_vision holds the interpreter lock for part of its 82 ms (loop p99 33 ms, max 50 ms)
+                from deploy.bimanual.vision_thread import ProcessWorker
+                self.worker = ProcessWorker(self.src.kw, lambda: self.src.plug_z, self.src.convert, err)
+            else:
+                from deploy.bimanual.vision_thread import ThreadWorker
+                self.worker = ThreadWorker(self.src.measure_raw, err)
+            self.threaded = True
+            ch.log_event('align_servo_vision_worker', kind=sv.get('vision_worker', 'process'))
+
+    def _vision_tick(self, tag):
+        """Submit the newest frame when the worker is free; return a finished Result or None. Never blocks."""
+        ch = self.ch
+        res = self.worker.poll(now_tick=ch.k)
+        if not self.worker.busy:
+            if self.threaded:
+                pol, raw, t, cnt = ch.io.frames(('wrist_right',))['wrist_right']
+                if raw is not None and cnt != self.last_frame_k:
+                    self.last_frame_k = cnt
+                    tick = self._tick_of_time(t - float(self.sv['cam_latency_s']))
+                    if ch.logger is not None:
+                        ch.logger.frame('wrist_right', raw, tag, t_capture=t, t_use=ch.state['t'], kind='raw', bgr=True, count=cnt, tick=ch.k)
+                    self.worker.submit(raw, tick, t, tag)
+            else:
+                self.worker.submit(None, ch.k, ch.k * ch.dt, tag)
+        return res
+
+    def _valid(self, m):
+        c = self.c
+        if m is None or not m.ok or m.gap_mm is None or m.across_mm is None or m.up_mm is None:
+            return False, f'no measurement ({m.reason if m else "none"})'
+        if m.conf < c['min_conf']:
+            return False, f'low confidence {m.conf:.2f}'
+        if m.sigma_mm is not None and m.sigma_mm > c['max_sigma_mm']:
+            return False, f'sigma {m.sigma_mm:.2f} mm'
+        return True, ''
+
+    # ------------------------------------------------------------------ run
+    def run(self, log):
+        c, ch = self.c, self.ch
+        ch.log_event('align_start', cfg={k: v for k, v in c.items() if not k.startswith('_')}, source=c['source'] if not getattr(ch.io, 'is_sim', False) else c['sim_source'], servo=self.sv)
+        t_start = ch.k * ch.dt
+        ql = ch.q_b[1].clone() if c['press_release'] else self.q_hold
+        q = ch.q_b[0].cpu().numpy().astype(float)
+        lead0 = np.clip((self.cmd0.cpu().numpy().astype(float) - q), -np.asarray(c['lead_max_rad'], float), np.asarray(c['lead_max_rad'], float))
+        ff_was = ch.rt.comp['right'] is not None
+        if self.sv['ff'] and ch.fric is not None:
+            if not ff_was:            # turning the feed-forward on adds torque toward the target: take it out of the target first
+                tau = FC.feedforward(torch.as_tensor(lead0, dtype=torch.float32, device=ch.dev), *ch.fric)
+                lead0 = lead0 - (tau / ch.scene.kp[0].to(ch.dev)).cpu().numpy().astype(float)
+            ch.rt.comp['right'] = ch.fric
+        elif ff_was and ch.fric is not None:
+            tau = FC.feedforward(self.cmd0 - ch.q_b[0], *ch.fric)
+            lead0 = lead0 + (tau / ch.scene.kp[0].to(ch.dev)).cpu().numpy().astype(float)
+            ch.rt.comp['right'] = None
+        self.tgt = q + lead0
+        self.ql = ql
+        if c['press_release']:
+            ch.pressing = False
+            ch.log_event('align_press_off', q_left=ql.tolist(), tick=ch.k)
+        ch.log_event('align_windup_at_entry', lead=lead0.tolist(), cmd=self.cmd0.tolist(), q_b=ch.q_b[0].tolist(), ff=bool(ch.rt.comp['right'] is not None))
+        p0, R0 = self.fk(ch.q_b[0])
+        self.R0, self.tip0 = R0, (p0 - R0 @ self.s).numpy().astype(float)
+        self.R_start = R0.numpy().astype(float)
+        out = dict(ok=False, reason='', cycles=0, gap_mm=None, lat_mm=None)
+        for _ in range(int(round(self.sv['hold_s'] / ch.dt))):
+            self._rec(); self._send(self.ql)
+        if hasattr(self.src, 'prepare'):
+            def between():
+                self._rec(); self._send(self.ql)
+            pr = self.src.prepare(ch, between)
+            ch.log_event('align_prepare', **pr)
+            print(f'align: shell depth for this grasp {pr}', flush=True)
+        self._start_vision()
+        try:
+            self.servo(out, t_start, float(self.sv['max_time_s']), confirm_n=int(c['confirm_n']), ql_fn=lambda k: self.ql, entry=True)
+        finally:
+            if self.worker is not None and c['mode'] != 'full':
+                self.worker.close()
+        out.update(cycles=self.n_frames, slope=self.logic.slope(), seconds=ch.k * ch.dt - t_start)
+        out['last'] = None if self.est is None else self.est[:3].tolist()
+        return out
+
+    def servo(self, out, t_start, max_s, confirm_n, ql_fn, entry=False, count_from_tick=None):
+        """The servo loop until done or fail. Fills out (ok, reason). self.est: last fused estimate (6: mm, deg).
+        count_from_tick: frames captured before this tick do not count toward done (the hand-over: only frames under the full press)."""
+        c, ch, sv, lg = self.c, self.ch, self.sv, self.logic
+        tgt_mm = np.asarray(c['target_mm'], float)
+        tol = np.asarray(c['tol_mm'], float)
+        ax = list((c.get('angle') or {}).get('axes', []))
+        ang = c.get('angle') or {}
+        self.n_frames = getattr(self, 'n_frames', 0)
+        self.est = getattr(self, 'est', None)
+        meas = None                    # (v (3), rv (3) or None, capture tick, tip at capture, R at capture)
+        last_valid_t = ch.k * ch.dt
+        prev_tw = np.zeros(6)
+        integ = np.zeros(3)
+        confirm, pred_bad, best_e = 0, 0, float('inf')
+        prev_cap = None
+        grip0 = getattr(self, 'grip0', None)
+        probe = []                     # queued goal offsets (mm) for the scale gate
+        probe_off = np.zeros(3)
+        extra = int(c['extra_probes'])
+        k0 = ch.k
+        while True:
+            t_now = ch.k * ch.dt
+            tip, R = self._rec()
+            res = self._vision_tick(f'align_servo_{self.n_frames:04d}')
+            new_valid = False
+            if res is not None:
+                self.n_frames += 1
+                ok, why = self._valid(res.m)
+                h = self._at_tick(res.tick)
+                if ok:
+                    v = res.m.vec()
+                    if entry and meas is None and prev_cap is None and c.get('entry_min_gap_mm') is not None and v[2] < c['entry_min_gap_mm']:
+                        out['ok'], out['reason'] = False, f'entry gap {v[2]:.1f} mm below the {c["entry_min_gap_mm"]} mm limit'
+                        ch.log_event('align_entry_too_close', gap_mm=float(v[2]), limit_mm=c['entry_min_gap_mm'], tick=ch.k)
+                        break
+                    if prev_cap is not None:         # measurement against FK between two frames
+                        dm, dtip = v - prev_cap[0], h[2] - prev_cap[1]
+                        lim = c['pred_mm'] + 2 * float(res.m.sigma_mm or 0.)
+                        pred_bad = pred_bad + 1 if (np.abs(dm - dtip) > lim).any() else 0
+                        if pred_bad >= c['pred_n']:
+                            out['ok'], out['reason'] = False, f'measurement against FK: changed {dm.round(2).tolist()} mm, hand moved {dtip.round(2).tolist()} mm'
+                            break
+                    prev_cap = (v, h[2])
+                    if not lg.scale_ok:
+                        lg.levels.append(np.r_[h[2], v])
+                    rv = None if res.m.rv_deg is None else np.asarray(res.m.rv_deg, float)
+                    meas = (v, rv, res.tick, h[2], h[3])
+                    last_valid_t = t_now
+                    new_valid = True
+                ch.log_event('align_servo_frame', tick=ch.k, cap_tick=int(res.tick), ok=bool(ok), why=why, ms=float(res.ms), v=None if not ok else res.m.vec().tolist(),
+                             rv_deg=None if (not ok or res.m.rv_deg is None) else np.asarray(res.m.rv_deg).tolist(), truth=res.m.extra.get('truth') if res.m is not None else None)
+            # gates every tick
+            if t_now - t_start > max_s:
+                out['ok'], out['reason'] = False, 'time limit'
+                break
+            g = float(ch.state['grip'][0])
+            grip0 = g if grip0 is None else grip0
+            self.grip0 = grip0
+            if abs(g - grip0) > c['grip_change']:
+                out['ok'], out['reason'] = False, f'gripper reading changed {grip0:.3f} -> {g:.3f}'
+                break
+            if np.abs(tip[:2]).max() > c['max_lat_mm'] or -tip[2] > c['max_advance_mm']:
+                out['ok'], out['reason'] = False, f'moved too far from the stop ({tip.round(1).tolist()} mm)'
+                break
+            spd = self._speed()
+            if spd > sv['max_tip_speed_mm_s']:
+                out['ok'], out['reason'] = False, f'tip moved {spd:.0f} mm/s (limit {sv["max_tip_speed_mm_s"]})'
+                break
+            age = t_now - last_valid_t
+            if meas is None or age > sv['max_blind_s']:
+                if age > sv['max_blind_s']:
+                    out['ok'], out['reason'] = False, f'no valid frame for {age:.1f} s'
+                    break
+                self._send(ql_fn(ch.k - k0))
+                continue
+            v, rv, cap, tip_cap, R_cap = meas
+            est = v + (tip - tip_cap)
+            rot = self._rot_since_deg(R_cap, R)
+            est_rv = None if rv is None else rv + rot
+            self.est = np.r_[est, est_rv if est_rv is not None else np.full(3, np.nan)]
+            e = float(np.linalg.norm(est - tgt_mm))
+            best_e = min(best_e, e)
+            if e > best_e + c['grow_abs_mm']:
+                out['ok'], out['reason'] = False, f'correction grows: {e:.1f} mm, best {best_e:.1f} mm'
+                break
+            floor_ = c['min_clear_fail_mm'] if c.get('min_clear_fail_mm') is not None else c['min_clear_mm']
+            if est[2] < floor_:
+                out['ok'], out['reason'] = False, f'gap {est[2]:.1f} mm below the {floor_} mm limit'
+                break
+            applied = self._rot_since_deg(self.R_start, R)
+            if ang and np.abs(applied[ax]).max() > ang['max_deg']:
+                out['ok'], out['reason'] = False, f'angle correction above {ang["max_deg"]} deg: {applied.round(1).tolist()}'
+                break
+            if ang and ang.get('required', True) and est_rv is None:
+                out['ok'], out['reason'] = False, 'no angle measurement'
+                break
+            # goal: funnel (hold the gap until lined up), probes for the scale gate
+            goal = tgt_mm + probe_off
+            lat = float(np.hypot(*(est[:2] - tgt_mm[:2])))
+            if lat > c['funnel_lat_mm']:
+                goal = goal.copy()
+                goal[2] = max(goal[2], c['gap_hold_mm'])
+            err = est - goal
+            rot_err = np.zeros(3)
+            if est_rv is not None and ax:
+                rot_err[ax] = est_rv[ax]
+            # done / probes
+            within = (np.abs(err) <= tol).all() and (np.abs(rot_err) <= ang.get('tol_deg', 1e9)).all() and not probe_off.any()
+            still = spd <= sv['still_mm_s']
+            if new_valid:
+                early = count_from_tick is not None and meas[2] < count_from_tick
+                confirm = confirm + 1 if (within and still and not early) else 0
+            if probe_off.any() and np.abs(err).max() <= max(.5, float(tol.min())):     # probe reached: next offset (back to 0 last)
+                probe_off = probe.pop(0) if probe else np.zeros(3)
+                confirm = 0
+            if confirm >= confirm_n:
+                if not lg.scale_ok:
+                    okk, axn, why = lg.slope_check()
+                    if not okk and axn is not None and extra > 0:
+                        extra -= 1
+                        d = np.zeros(3)
+                        d[axn] = c['extra_probe_mm'][axn]
+                        probe_off, probe = d, [np.zeros(3)]
+                        confirm = 0
+                        ch.log_event('align_servo_probe', axis=int(axn), mm=float(d[axn]), why=why, tick=ch.k)
+                    elif not okk:
+                        out['ok'], out['reason'] = False, 'scale gate: ' + why
+                        break
+                    else:
+                        lg.scale_ok = True
+                if lg.scale_ok:
+                    if self.src2 is not None:
+                        m2 = self.one(self.src2, f'align2_servo_{self.n_frames:04d}')
+                        if c.get('secondary_required') and not (m2 and m2.ok):
+                            out['ok'], out['reason'] = False, 'second source has no reading at the hand-over'
+                            break
+                        if m2 is not None and m2.ok and c['disagree_mode'] == 'gate' and (np.abs(est - m2.vec()) > np.asarray(c['disagree_mm'], float)).any():
+                            out['ok'], out['reason'] = False, f'sources disagree at the hand-over {np.abs(est - m2.vec()).round(2).tolist()} mm'
+                            break
+                    lg.final = est.copy()
+                    lg.last_m = est.copy()
+                    out.update(ok=True, reason='within tolerance')
+                    break
+            # twist law (ServoPolicy)
+            inside = float(np.linalg.norm(err)) <= sv['deadband_mm']
+            if not inside:
+                integ = integ + err * ch.dt
+            vp = -sv['gain'] * err - sv['ki'] * integ
+            nv = float(np.linalg.norm(vp))
+            if sv['vmin_mm_s'] > 0 and 1e-6 < nv < sv['vmin_mm_s']:
+                vp = vp / nv * sv['vmin_mm_s']
+            if inside:
+                vp = np.zeros(3)
+            if est[2] < c['min_clear_mm']:                  # too close: out first
+                vp[2] = max(vp[2], sv['vmin_mm_s'])
+            va = -sv['ang_gain'] * rot_err
+            if float(np.linalg.norm(rot_err)) <= sv['deadband_deg']:
+                va = np.zeros(3)
+            tw = np.r_[np.clip(vp, -sv['vmax_mm_s'], sv['vmax_mm_s']), np.clip(va, -sv['wmax_deg_s'], sv['wmax_deg_s'])]
+            if age > sv['max_frame_age_s']:                # stale estimate: hold
+                tw = np.zeros(6)
+            tw = prev_tw + sv['smooth'] * (tw - prev_tw)
+            prev_tw = tw
+            self.tgt = self.tgt + self._twist_to_dq(tw[:3], tw[3:])
+            if ch.logger is not None:
+                ch.logger.row('servo', k=ch.k, est=est, err=err, rot_err=rot_err, twist=tw, tip=tip, speed=spd, age=age, confirm=confirm)
+            self._send(ql_fn(ch.k - k0))
+        tr = ch.truth()
+        ch.log_event('align_servo_end', ok=bool(out['ok']), reason=out['reason'], tick=ch.k, est=None if self.est is None else self.est.tolist(),
+                     truth_mm=None if tr is None else np.asarray(tr['plug_in_port_mm'], float).tolist(), truth_rot_deg=None if tr is None else np.asarray(tr['plug_rot_deg'], float).tolist(),
+                     frames=self.n_frames, seconds=ch.k * ch.dt - t_start)
+        print(f'align servo: {"OK" if out["ok"] else "STOP"} {out["reason"]} ({self.n_frames} frames, {ch.k * ch.dt - t_start:.1f} s, est {None if self.est is None else self.est[:3].round(2).tolist()})', flush=True)
+
+    def handover(self, log):
+        """As AlignStage.handover: press back on (servo holding), a few frames under the press, the joint target lead clipped into the
+        range K-J saw, feed-forward folded into the target and off. Returns (cmd (1, 6) or None, dict)."""
+        c, ch = self.c, self.ch
+        n = int(round(c['repress_s'] / ch.dt))
+        ql0, ql1 = self.ql.clone(), self.q_hold
+        if c['press_release']:
+            ch.pressing = True
+
+            def ql_fn(k):
+                u = min(1., (k + 1) / n)
+                u = u * u * (3 - 2 * u)
+                return ql0 + (ql1 - ql0) * u
+        else:
+            def ql_fn(k):
+                return ql1
+        res0 = dict(ok=False, reason='')
+        settle = int(round(c['settle_s'] / ch.dt))
+        self.servo(res0, ch.k * ch.dt, float(self.sv['post_press_s']) + c['repress_s'], confirm_n=int(c['confirm_n']) + 1, ql_fn=ql_fn,
+                   count_from_tick=ch.k + (n if c['press_release'] else 0) + settle)
+        if c['press_release']:
+            ch.log_event('align_press_on', tick=ch.k)
+        self.ql = ql1
+        self.worker.close()
+        ok = res0['ok']
+        q = ch.q_b[0].cpu().numpy().astype(float)
+        lead = self.tgt - q
+        if ch.rt.comp['right'] is not None and ch.fric is not None:       # fold the feed-forward into the target, then off (as the step stage)
+            tau = FC.feedforward(torch.as_tensor(lead, dtype=torch.float32, device=ch.dev), *ch.fric)
+            lead = lead + (tau / ch.scene.kp[0].to(ch.dev)).cpu().numpy().astype(float)
+            ch.rt.comp['right'] = None
+        lo = np.asarray(c['handover_lead_rad'], float)
+        lead = np.clip(lead, lo[:, 0], lo[:, 1])
+        self.tgt = q + lead
+        if c.get('inhand_refresh', True) and ok:
+            self.inhand_refresh()
+        est = self.est
+        cmd = torch.as_tensor(q + lead, dtype=torch.float32, device=ch.dev)
+        res = dict(ok=ok, reason=res0['reason'], gap_mm=float(est[2]) if ok else None, lat_mm=[float(est[0]), float(est[1])] if ok else None, lead=lead.tolist(), servo=True)
+        ch.log_event('align_handover', **res)
+        return (cmd[None] if ok else None), res
+
+    def back_off(self):
+        """Straight out along the port axis keeping the joint target lead (as back_off_creep), then the feed-forward folded into the target and off."""
+        c, ch = self.c, self.ch
+        if getattr(self, 'worker', None) is not None:
+            self.worker.close()
+        chain = self.chain
+        dev = ch.scene.device
+        q0 = ch.q_b[0:1].to(dev).float()
+        p0, R0 = chain.fk(q0)
+        z = torch.as_tensor(self.eR[:, 2], dtype=torch.float32, device=p0.device)
+        mm, v = float(c['back_off_mm']), float(c['back_off_v_mm_s'])
+        n = max(1, int(round(mm / (v * max(ch.speed, 1e-3)) / ch.dt)))
+        if self.tgt is None:
+            self.tgt = q0[0].cpu().numpy().astype(float)
+        lead = self.tgt - q0[0].cpu().numpy().astype(float)
+        ql = self.ql if not ch.pressing else self.q_hold
+        q = q0
+        for k in range(n):
+            u = (k + 1) / n
+            u = u * u * (3 - 2 * u)
+            q, _, _ = chain.ik(p0 + z[None] * mm * 1e-3 * u, R0, q, iters=10)
+            self.tgt = q[0].cpu().numpy().astype(float) + lead
+            self._send(ql)
+        for _ in range(int(round(1. / ch.dt))):
+            self._send(ql)
+        if ch.rt.comp['right'] is not None and ch.fric is not None:
+            qm = ch.q_b[0].cpu().numpy().astype(float)
+            tau = FC.feedforward(torch.as_tensor(self.tgt - qm, dtype=torch.float32, device=ch.dev), *ch.fric)
+            self.tgt = self.tgt + (tau / ch.scene.kp[0].to(ch.dev)).cpu().numpy().astype(float)
+            ch.rt.comp['right'] = None
+            for _ in range(int(round(.2 / ch.dt))):
+                self._send(ql)
+        ch.log_event('back_off', mm=mm, tick=ch.k, tip_q=ch.q_b[0].tolist(), servo=True, lead=(self.tgt - ch.q_b[0].cpu().numpy().astype(float)).tolist())
+
+
 def back_off_closed(ch, eR, mm, v_mm_s, q_left):
     """Hold the measured pose (no push), then straight out along the port axis, jaws closed. The reader stays in the hand."""
     eR = np.asarray(eR, float).reshape(3, 3)
@@ -856,7 +1304,7 @@ def back_off_closed(ch, eR, mm, v_mm_s, q_left):
 
 def run_align(ch, cmd, q_hold, ep, eR, log, c):
     """Stage entry. Returns dict(ok, cmd (1, 6) or None, ...); on failure the plug is backed off with closed jaws and q_left in res['q_left']."""
-    st = AlignStage(ch, cmd, q_hold, eR, c)
+    st = (ServoStage if c.get('servo') and c['mode'] != 'measure' else AlignStage)(ch, cmd, q_hold, eR, c)     # measure mode never moves: the step stage's measure loop
     out = st.run(log)
     out['q_left'] = st.ql
     out['cmd'] = None

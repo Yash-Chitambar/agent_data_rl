@@ -294,3 +294,44 @@ The align stage's plug angles (`align.py PortVisionSource`) = the panel pose fit
 - **The measured roll is a steady offset:** rz -1.64 ± 0.36 deg (mean ± sd over 15 runs, range -1.1 to -2.3). Seats -1.29 and -1.57, stalls -1.36 and -2.26 (run means): no separation (n = 2 + 2).
 - **Is the -1.6 deg real or a calibration bias?** Not resolved. A model-free check (`scripts/real/roll_image_check.py`: tilt of the shell's sleeve end against the panel's across axis in the same image, 16 runs x up to 40 frames) is too noisy: 1 deg sd per frame, and no relation to the logged rz across runs (correlation -0.20). Its session means differ by about 1.5 deg (11-03 -0.1, 11-06 -1.6 image deg), which may be the PC pose (perspective).
 - **Recommendation: do not add roll to the align stage's corrected axes now.** The vision part (about 0.2-0.5 deg) would be good enough, but the absolute zero (mount roll + grasp roll) is unverified. If the -1.6 deg is a bias, a correction would create a 1.6 deg roll error. Sim cost of 2 deg roll for K-J: 94.5 % against 99.5 % (n = 1024); K2/K3 train with ±3 deg roll, so they should not need it (check K3 at roll ±3 in the matrix). The rig check that would settle it: a roll sweep at the hand-over (wrist ±1.5 deg about the plug axis, measure mode, no insertion), with a square-on photo of the plug's long edge against the port slot, or a calibration of the camera mount roll on the checkerboard (`precision_check.py --camera` setup).
+
+## Servo deploy
+
+### 2026-11-08: continuous vision servo in the real chain's align stage (sim and offline checks only; never run on the arm)
+
+**What it is.** `align.servo` (a dict) in a run config switches the align stage from 1 mm steps to `ServoStage` (`deploy/bimanual/align.py`). Without the key, the step stage runs as before (measure mode always uses the step stage, so it never moves).
+- **Every 20 ms tick:** fused estimate = the newest port-vision result + the believed FK tip motion since that frame's capture tick (port axes); plug-tip twist from the sim's `ServoPolicy` law (gain 1.5/s, speed floor 1.5 mm/s outside a 0.4 mm / 0.4 deg dead band, 8 mm/s and 4 deg/s caps, smoothing 0.2); joint increment by the believed tip Jacobian (damped least squares); target within 0.05 rad of the measured joints; the chain's Coulomb feed-forward on.
+- **Funnel:** the gap goal stays at `gap_hold_mm` (9) until the lateral error is within `funnel_lat_mm` (2). Angle correction on the config's axes (rx, ry); roll is not corrected.
+- **Vision off the loop:** `deploy/bimanual/vision_thread.py`. Default `ProcessWorker`: `port_vision.measure` in a child process, the image through shared memory, the result converted on the main side (`PortVisionSource.convert`, refactored out of `measure`, same numbers). A thread worker is available (`servo.vision_worker: "thread"`) but holds the interpreter lock (below).
+- **Gates kept:** entry gap (12 mm), gripper change, distance from the stop, clearance floor, error growth, measurement against FK between frames, measurement scale against FK motion (regression over all frames; probes only when an axis did not move enough), angle limit (7 deg), second-source disagreement at done, time limit (30 s), back-off on failure (straight out, joint lead kept, feed-forward folded into the target and off at the end). **New:** no valid frame for 0.5 s -> hold still; for 3 s -> stop; tip faster than 60 mm/s over 0.1 s -> stop. **Done:** estimate within tolerance for `confirm_n` frames in a row and the tip still over 0.1 s (one-tick FK differences carry about 5 mm/s of encoder quantization).
+- **Hand-over:** press back on over `repress_s` while the servo holds; only frames captured after the press ramp and a 0.3 s settle count (`confirm_n` + 1); then the lead is clipped into K-J's range, the feed-forward folded into the target and off, in-hand net refreshed, `align_handover` with `gap_mm` / `lat_mm` = the fused estimate (K4's vision prior).
+- **Configs:** `bimanual_align6_servo.json` = `bimanual_align4` + servo, align mode only (`full_allowed` false); `bimanual_align6_servo_k4.json` = `bimanual_align5_k4` + servo (full chain with K4). Conventions check: FAILED: none on both.
+
+**Sim dry runs** (`deploy/checks/align_servo_dryrun.py`; `results/real_align/servo_deploy/`; sim vision = truth + run bias (0.3, 0.6, 0.4) mm + pose error + frame noise, 10 % dropped, 100 ms latency):
+
+| Runs | Aligned | Servo time | True error at done (across, up, gap - 6) | Tip speed p99 / max (0.1 s window) |
+|---|---|---|---|---|
+| align mode, seeds 7100-7103 | 4 of 4 | 5.1, 7.5, 3.4, 3.7 s | (-0.05, -0.24, 0.26), (-0.5, 0.95, 0.57), (0.23, 0.33, -0.84), (0.07, 0.38, 0.02) mm | 11.2-15.2 / 12.2-15.5 mm/s |
+| align mode, vision latency 240 ms and 3.3 frames/s, seeds 7131-7132 | 2 of 2 | 3.5, 6.2 s | (-0.05, 0.0, 0.41), (-0.98, 0.79, 0.36) mm | 15.1, 11.2 / 15.3, 12.8 mm/s |
+| full chain with K4, seeds 7111-7113 (7111 before the press fix) | 3 of 3 | 6.6, 3.5, 2.9 s + press 0.3, 5.4, 2.4 s | | 13.8-20.2 / 16.1-23.0 mm/s (press phase included) |
+| full chain with K4, seeds 7121-7123 | 3 of 3 | 9.3, 4.6, 2.7 s + press 5.4, 7.6, 6.5 s | | 12.6-14.8 / 14.8-18.9 mm/s |
+| step stage, same chain (regression, seed 7141) | 1 of 1 | 32.4 s, 24 cycles | | |
+
+K4 after the servo hand-over: **5 of 6 truly seated** (sim truth at the end; seat at 1.04-1.8 s). The failure (seed 7123): the true hand-over was (-1.01, -1.27, 7.18) mm while the fused vision estimate said (-0.31, 0.15, 5.53): a 1.6 mm vision error (the sim's run bias draw), press abort with the plug on the case. n = 6 is a code-path check, not a rate.
+
+**Vision worker timing** (`deploy/checks/align_servo_thread.py`, 10 s per backend, 50 Hz loop with per-tick torch work, mason CPU loaded by training):
+
+| Worker | Loop period p50 / p99 / max | Ticks over 25 ms | Frames/s | Frame age at use p50 / p99 |
+|---|---|---|---|---|
+| none (baseline) | 20.0 / 20.05 / 20.05 ms | 0 of 500 | - | - |
+| thread, fake 82 ms (sleep or numpy) | 20.0 / 20.05 / 20.05 ms | 0 | 9.9 | 140 / 180 ms |
+| thread, real `port_vision.measure` | 20.0 / 34.2 / 44.1 ms | 16 of 495 (28 in a repeat) | 10.9 | 129 / 205 ms |
+| **child process, real `port_vision.measure`** (default) | 20.0 / 20.1 / 23.1 ms | 0 of 500 | 6.0 | 240 / 360 ms |
+
+port_vision holds Python's interpreter lock for part of its work, so in a thread it delays ticks; in a child process the loop keeps its period. On mason (loaded by training) one call took 108-267 ms (`docs/real/PORT_VISION.md`: 82 ms median on an idle CPU), so the rig should give more frames per second.
+
+**Real frames through the robot-only path** (`deploy/checks/align_servo_realpath.py`, 12 align frames and 9 depth frames of 2026-11-06 `align_full9`): shell depth 119.469 mm (the run logged 119.467); child-process worker against the inline call: same ok flags, max difference 0.0 on position and angles. **Pass.**
+
+**Other checks:** `deploy.checks.align_gates`: FAILED: none (step logic unchanged). The real-I/O mock does not cover the align stage; not run for it.
+
+**Not verified:** anything on the arm. In particular: real stick-slip under a continuously moving target with the feed-forward on (the sim's joint friction model is a Coulomb band, not the measured breakaway behaviour); the camera latency constant (`cam_latency_s` 0.03, a guess) that maps a frame's arrival time to its capture tick; the child process start time on the rig (spawn, port_vision model load); frames per second on the rig CPU; the tip speed limit of 60 mm/s against real breakaways (2026-11-03 steps arrived at 54-78 mm/s: the stop may fire); the fused estimate's FK motion term with real link flex.

@@ -1,0 +1,243 @@
+{
+ "prepare": {
+  "plug_z_mm": 119.46934334361384,
+  "accepted": true,
+  "range": [
+   113.5,
+   123.5
+  ],
+  "frames": 9
+ },
+ "logged_prepare": {
+  "kind": "align_prepare",
+  "t": 445927.748684773,
+  "plug_z_mm": 119.46723421052376,
+  "accepted": true,
+  "range": [
+   113.5,
+   123.5
+  ],
+  "frames": 9
+ },
+ "frames": [
+  {
+   "file": "000172_align_000_0.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    -1.023,
+    -1.984,
+    5.187
+   ],
+   "rv_deg": [
+    -3.421,
+    -1.391,
+    -1.392
+   ],
+   "proc_ms": 223.0
+  },
+  {
+   "file": "000174_align_000_1.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    -1.038,
+    -1.951,
+    5.195
+   ],
+   "rv_deg": [
+    -3.444,
+    -1.39,
+    -1.4
+   ],
+   "proc_ms": 124.2
+  },
+  {
+   "file": "000177_align_000_2.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    -1.061,
+    -1.906,
+    5.233
+   ],
+   "rv_deg": [
+    -3.402,
+    -1.394,
+    -1.371
+   ],
+   "proc_ms": 164.2
+  },
+  {
+   "file": "000179_align_000_3.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    -1.008,
+    -1.895,
+    5.236
+   ],
+   "rv_deg": [
+    -3.473,
+    -1.368,
+    -1.465
+   ],
+   "proc_ms": 267.3
+  },
+  {
+   "file": "000181_align_000_4.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    -0.999,
+    -1.875,
+    5.228
+   ],
+   "rv_deg": [
+    -3.396,
+    -1.421,
+    -1.366
+   ],
+   "proc_ms": 108.2
+  },
+  {
+   "file": "000190_align_001_0.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    0.984,
+    -2.067,
+    5.495
+   ],
+   "rv_deg": [
+    -3.43,
+    -1.328,
+    -1.549
+   ],
+   "proc_ms": 193.0
+  },
+  {
+   "file": "000192_align_001_1.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    0.935,
+    -2.033,
+    5.59
+   ],
+   "rv_deg": [
+    -3.355,
+    -1.368,
+    -1.472
+   ],
+   "proc_ms": 85.5
+  },
+  {
+   "file": "000194_align_001_2.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    0.96,
+    -1.968,
+    5.632
+   ],
+   "rv_deg": [
+    -3.344,
+    -1.335,
+    -1.499
+   ],
+   "proc_ms": 219.4
+  },
+  {
+   "file": "000196_align_001_3.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    0.946,
+    -2.007,
+    5.504
+   ],
+   "rv_deg": [
+    -3.36,
+    -1.298,
+    -1.56
+   ],
+   "proc_ms": 154.9
+  },
+  {
+   "file": "000198_align_001_4.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    0.898,
+    -2.003,
+    5.496
+   ],
+   "rv_deg": [
+    -3.429,
+    -1.431,
+    -1.403
+   ],
+   "proc_ms": 142.6
+  },
+  {
+   "file": "000207_align_002_0.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    -0.982,
+    -1.376,
+    5.145
+   ],
+   "rv_deg": [
+    -3.314,
+    -1.418,
+    -1.352
+   ],
+   "proc_ms": 154.2
+  },
+  {
+   "file": "000209_align_002_1.jpg",
+   "inline_ok": true,
+   "proc_ok": true,
+   "same_ok": true,
+   "max_abs_diff": 0.0,
+   "v": [
+    -1.053,
+    -1.744,
+    5.159
+   ],
+   "rv_deg": [
+    -3.422,
+    -1.369,
+    -1.424
+   ],
+   "proc_ms": 153.8
+  }
+ ],
+ "all_same_ok": true,
+ "worst_abs_diff": 0.0,
+ "pass": true
+}

@@ -1,0 +1,17 @@
+[
+ {
+  "run": "approach_insert_135327_dry_s7141_dry_step_regress_s7141",
+  "align_result": {
+   "ok": true,
+   "reason": "aligned; mode align: no insertion",
+   "gap_mm": null,
+   "lat_mm": null,
+   "seconds": 32.36
+  },
+  "back_off": {
+   "mm": 15.0
+  },
+  "seed": "7141",
+  "completed": true
+ }
+]
