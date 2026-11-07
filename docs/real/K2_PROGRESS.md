@@ -12,6 +12,9 @@ Running log of the work after [CONTACT_ALIGN_PLAN_20261107.md](CONTACT_ALIGN_PLA
 
 ## Learnings
 
+- **2026-11-08. A stronger climb penalty does not change the climb.** K4c = K4 with `climb_thresh_mm` 4, `climb_coef` 0.002 (30M steps from K3 final). n = 1024 per cell: real-like 99.1 % [98.3, 99.5], ring 4 mm 98.3 % [97.4, 99.0], ring 5 mm 98.2 % [97.2, 98.9], roll ±3 deg 99.0 % [98.2, 99.5], mix 98.7 % [97.8, 99.3]; climb still 8.0-8.2 mm in every cell, as K-J, K3 and K4. In the sim the climb is joint 5 held at its 50 mrad target cap, which the policy uses for the push; the reward does not move it. The real 35-40 mm came from joints 2-3 saturating in stalls. Open: watch the climb with K4 on the rig (`kj_real_ref.py`); if it still stalls with the climb, train with a lower wrist target cap. K4c is a backup to K4 (same rates within the intervals; not tested on the real-hand-over replay).
+- **2026-11-08. RL alignment (A3, Coulomb feed-forward, fixed stillness test) reaches 53 % training success at 10M steps** (A2 never passed 46 %). Still far behind the servo (99.6 %); it keeps training.
+
 - **2026-11-08. K4 final is the rig candidate.** K4 = K3 + all left-arm inputs masked, 30M steps from K3 seed 0 final. Real-like plant, real right-arm lead, n = 1024 per cell, Wilson 95 %:
 
 | Cell | K-J | K3 s0 final | K4 s0 final | K4 s1 final |
