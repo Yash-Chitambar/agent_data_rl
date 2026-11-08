@@ -73,6 +73,13 @@ def widen_obs(old, new, d_old):
     return out
 
 
+def aux_target(env):
+    """Privileged offsets for the auxiliary head (train_bimanual --aux_coef): plug tip in the live port frame (mm) and the true
+    in-hand error against the nominal grasp (mm, deg). The policy's own in-hand estimate and vision prior are noisy versions of these."""
+    p, _ = env.runtime.plug_in_port()
+    return torch.cat([p * 1e3, env.inhand_error(env._reader_in_tcp())], 1).clamp(-20, 20)
+
+
 def make_env(args, nworld=None, seed=None):
     cfg = InsertionCfg()
     cfg.task.physics.nworld = nworld or args.nworld
@@ -119,7 +126,12 @@ def train(args):
         def frames():
             fr, age = rt.camera_sensor.observation(rt.sensor_time)
             return fr['wrist_cam'], age['wrist_cam']
-    opt = torch.optim.Adam(ac.parameters(), lr=args.lr or pc.lr)
+    aux = None
+    if args.aux_coef > 0:
+        # RMA study: auxiliary head on the history latent z -> privileged offsets (aux_target), training only; deploy loaders ignore it
+        from blind_insertion.policies.tcn_actor_critic import mlp
+        aux = mlp(ac.latent, (128,), aux_target(env).shape[1]).to(dev)
+    opt = torch.optim.Adam(list(ac.parameters()) + (list(aux.parameters()) if aux is not None else []), lr=args.lr or pc.lr)
     it, total, t_stage = 0, 0, 0
     if args.init:
         ck0 = torch.load(args.init, map_location=dev, weights_only=False)
@@ -136,6 +148,8 @@ def train(args):
     if resuming:
         ck = torch.load(run / 'last.pt', map_location=dev, weights_only=False)
         ac.load_state_dict(ck['model']); opt.load_state_dict(ck['opt'])
+        if aux is not None and 'aux' in ck:
+            aux.load_state_dict(ck['aux'])
         it, total, stage, t_stage = ck['iter'], ck['steps'], ck['stage'], ck.get('t_stage', ck['steps'])
         set_scale(env, stages[stage]); env.reset_all()
         print(f'[{args.name}] resumed at it {it}, {total/1e6:.1f}M steps, stage {stage}', flush=True)
@@ -149,6 +163,8 @@ def train(args):
                done=torch.zeros(T, N, device=dev), tout=torch.zeros(T, N, device=dev),
                valid=torch.zeros(T, N, device=dev),
                lab=torch.zeros(T, N, env.n_labels, dtype=torch.long, device=dev))
+    if aux is not None:
+        buf['aux'] = torch.zeros(T, N, aux_target(env).shape[1], device=dev)
     if vis:
         buf['frames'] = torch.zeros(T, N, args.res, args.res, 3, dtype=torch.uint8, device=dev)
         buf['age'] = torch.zeros(T, N, device=dev)
@@ -165,6 +181,7 @@ def train(args):
                 't_stage': t_stage, 'scale': stages[stage], 'obs_dim': D, 'act_dim': A, 'critic_dim': C,
                 'n_points': env.n_labels, 'history': H, 'action_mode': args.action_mode,
                 'env_json': args.env_json, 'wall': time.time() - t0,
+                **({'aux': aux.state_dict(), 'aux_target': args.aux_target} if aux is not None else {}),
                 **({'visual': {'res': args.res, 'cams': ['wrist_cam']}} if vis else {})}
 
     while total < args.steps:
@@ -189,6 +206,8 @@ def train(args):
                 buf['logp'][t] = d.log_prob(a).sum(-1)
                 buf['val'][t] = ac.value(hist, crit)
                 buf['lab'][t] = env.current_labels()
+                if aux is not None:
+                    buf['aux'][t] = aux_target(env)
                 hist, crit, r, done, info = env.step(a)
                 buf['rew'][t] = r
                 buf['done'][t] = done.float()
@@ -248,6 +267,10 @@ def train(args):
                 lab = flat['lab'][j]
                 ce = F.cross_entropy(logits.reshape(-1, 3), lab.reshape(-1), weight=cw)
                 loss = loss + args.contact_coef * ce
+                if aux is not None:
+                    al = F.smooth_l1_loss(aux(z), flat['aux'][j])
+                    loss = loss + args.aux_coef * al
+                    st['aux'] = st.get('aux', 0.) + al.item()
                 opt.zero_grad(set_to_none=True)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(ac.parameters(), pc.max_grad)
@@ -320,6 +343,8 @@ def parser():
     ap.add_argument('--res', type=int, default=64)
     ap.add_argument('--lr', type=float, default=0.0, help='0: PPOCfg.lr (3e-4)')
     ap.add_argument('--target_kl', type=float, default=0.0, help='>0: stop the update epochs once mean KL exceeds this')
+    ap.add_argument('--aux_coef', type=float, default=0.0, help='>0: auxiliary loss, history latent -> privileged offsets (RMA study)')
+    ap.add_argument('--aux_target', default='plug_inhand', help="plug_inhand: plug tip in the port (mm, 3) + true in-hand error (mm, deg, 6)")
     ap.add_argument('--init', default='', help='start from this checkpoint (weights + normalizers), fresh optimizer')
     return ap
 

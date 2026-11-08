@@ -41,7 +41,8 @@ if __name__ == '__main__':
     seen = {d['cell'] for d in done}
     torch.manual_seed(A.seed)
     pol = InsertionPolicy(A.policy, 'cuda:0')
-    ej = dict(pol.meta['env_json'], hard_frac=0., scale_range_frac=0., live_frac=0., extra_ang_frac=0., handover_lead_frac=0.)
+    ej = dict(pol.meta['env_json'], hard_frac=0., scale_range_frac=0., live_frac=0., extra_ang_frac=0., handover_lead_frac=0.,
+              vision_prior_sigma_scale=None)     # training-only DR off (K5: wider prior error in training)
     ej.update(PLANT[A.plant]); ej.update(json.loads(A.env_extra))
     env = make_env(argparse.Namespace(nworld=A.nworld, seed=A.seed, action_mode='accumulate', env_json=json.dumps(ej)))
     base = rows_base()

@@ -1,0 +1,33 @@
+[
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5
+  },
+  "k": 1016,
+  "n": 1024,
+  "rate": 0.9921875,
+  "wilson": [
+   0.9846597450413721,
+   0.9960361131531201
+  ],
+  "classes": {
+   "lateral_miss": 6,
+   "seated": 1016,
+   "grasp_slip": 2
+  },
+  "force_p50": 6.46332573890686,
+  "force_p99": 15.330136528015132,
+  "t_ok_p50": 1.22,
+  "t_ok_p99": 3.58,
+  "cell": "real_ho",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/k5w_16M.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.1
+  ]
+ }
+]

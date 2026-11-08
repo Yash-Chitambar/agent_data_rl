@@ -387,3 +387,82 @@ Details: [RETRY_SPEED_20261108.md](RETRY_SPEED_20261108.md); runbook block D in 
 - Backlash preload (`servo.preload_mm` 1.0, `bimanual_align7_preload`): servo to 7 mm, then 1 mm toward the port. Dry runs 4/4 aligned and seated; tip moved 0.6-0.9 mm.
 - Open: the dry-run release pulls a seated reader out in 5 of 9 seated runs, the reference config included.
 - Correction: K4 is not memoryless (history 30 frames, 0.6 s). The RMA exploration tests an explicit estimator on top of that.
+
+## History and online offset estimation (RMA)
+
+### 2026-11-08 (fork F, sim only)
+
+Question: can an explicit estimator (RMA style) find the hidden offsets online, beyond the 30-frame history that K4 already has?
+K4 actor: a TCN over 30 frames (0.6 s) of the 71-dim observation gives a 32-dim latent z. The MLP actor gets z and the current observation.
+
+**1. Probe of K4 (no training).** Script: `scripts/eval/rma_probe.py`. Ridge probes from z, from the current observation, and from the raw history. Targets: the plug position in the port now, the vision-prior error, the right encoder offset error, the hand-over lead, and the in-hand estimate error. 70/30 world split, ring 4 mm, real-like plant, real lead, n = 1024. Results: `results/real_align/rma/probe_k4*.json`.
+- z does not hold the vision-prior error: R² ≈ 0 (−0.07 to 0.10) at 0, 0.2, 0.5, 1.0 and 1.5 s.
+- After the first contact, the probe error of the plug position stays at the prior error. Across: 0.43-0.47 mm (prior SD 0.41). Up: 0.93-0.96 mm (prior SD 0.98). The history adds 0.01-0.04 mm.
+- With the prior error ×3 the result is the same: across 1.0-1.2 mm, up 2.0 mm, from 0 to over 1 s after contact.
+- Conclusion: K4 does not find the port from contact. It goes where the vision prior points, and its search tolerance does the rest.
+
+**2. K4 sensitivity to the prior error** (n = 1024 per cell; `results/real_align/rma/k4_*.json`). New eval-only InsertionCfg fields, default off:
+- `vision_prior_sigma_scale`: per-episode scale of the prior error;
+- `vision_prior_bias_mm`: constant prior offset.
+
+| Prior error | real_ho | ring 3 mm | mix |
+|---|---|---|---|
+| nominal sigma (0.4, 0.95, 0.63) mm | 99.1 % [98.3, 99.5] | 98.6 % [97.7, 99.2] | 97.9 % [96.9, 98.7] |
+| sigma ×2 | 94.8 % [93.3, 96.0] | 94.6 % [93.1, 95.9] | 91.8 % [90.0, 93.3] |
+| sigma ×3 | 81.8 % [79.4, 84.1] | 81.1 % [78.5, 83.3] | 77.3 % [74.7, 79.8] |
+| bias (+1.5, +1.5, 0) mm | 97.8 % [96.7, 98.5] | 96.6 % [95.3, 97.5] | 96.5 % [95.2, 97.4] |
+
+A constant 2 mm bias costs little. Larger random tails cost a lot.
+
+**3. Two fine-tunes from K4 s0 final**, 15.7M steps each (stopped at about half the K4 budget; the result was clear):
+- **K5w** (control): K4 env + `vision_prior_sigma_scale` [0.5, 3.0] in training only (`runs/k5_rma_env.json`). Weights: `runs/k5w_16M.pt`.
+- **K5a**: K5w + an auxiliary head on z that predicts the plug position in the port and the true in-hand error (`train_bimanual --aux_coef 0.5`; the head is in the checkpoint as `aux`; deploy loaders ignore it). Weights: `runs/k5a_16M.pt`.
+
+A full RMA two-phase run (privileged teacher, then an adapter on 50-100 frames) was not run. The aux head result (below) shows that the history does not hold the needed information, so an adapter on the same signals cannot recover it.
+
+**Eval bug, corrected.** `k2_matrix.py` takes the policy's env_json as its base, so the training-only prior scale was also active in the first K5 evals. Those results are in `results/real_align/rma/invalid_scale/` and must not be used. `k2_matrix.py` and `rma_probe.py` now turn `vision_prior_sigma_scale` off.
+
+Results (real-like plant, real right-arm lead, n = 1024 per cell; seat time p50/p99 in s):
+
+| Cell | K4 | K5w | K5a |
+|---|---|---|---|
+| real_ho | 99.1 % [98.3, 99.5] 1.20/3.70 | 99.2 % [98.5, 99.6] 1.20/3.12 | 99.1 % [98.3, 99.5] 1.20/2.79 |
+| ring 3 mm | 98.6 % [97.7, 99.2] | 98.5 % [97.6, 99.1] | 99.2 % [98.5, 99.6] |
+| ring 4 mm | 98.2 % [97.2, 98.9] 1.44/4.78 | 96.9 % [95.6, 97.8] 2.00/6.86 | 96.1 % [94.7, 97.1] |
+| ring 5 mm | **97.9 % [96.9, 98.7]** | **90.6 % [88.7, 92.3]** | **89.0 % [86.9, 90.7]** |
+| roll ±3° | 98.4 % [97.5, 99.0] | 99.4 % [98.7, 99.7] | 98.8 % [98.0, 99.3] |
+| roll ±4° | 97.6 % [96.4, 98.3] | 98.6 % [97.7, 99.2] | 97.5 % [96.3, 98.3] |
+| pitch ±4° | 97.5 % [96.3, 98.3] | 98.8 % [98.0, 99.3] | 99.3 % [98.6, 99.7] |
+| gap 8 mm | 96.5 % [95.2, 97.4] | 95.6 % [94.2, 96.7] | 97.3 % [96.1, 98.1] |
+| mix | 97.9 % [96.9, 98.7] | 98.4 % [97.5, 99.0] | 98.3 % [97.4, 99.0] |
+| prior ×2: real_ho / ring 3 / mix | 94.8 / 94.6 / 91.8 % | 99.2 / 97.6 / 97.1 % | 99.2 / 97.5 / 98.2 % |
+| prior ×3: real_ho / ring 3 / mix | 81.8 / 81.1 / 77.3 % | **98.2 / 95.1 / 95.2 %** | 98.2 / 92.7 / 95.5 % |
+| bias 1.5 mm: real_ho / ring 3 / mix | 97.8 / 96.6 / 96.5 % | 98.8 / 97.6 / 95.7 % | not run |
+
+Wilson 95 % intervals for the prior ×3 rows: K4 real_ho [79.4, 84.1], K5w [97.2, 98.9]; K4 mix [74.7, 79.8], K5w [93.7, 96.4].
+
+Real hand-over replay, real left lead, n = 256 per run (`results/real_align/rma/replay_k5*.json`; K4 from `results/real_align/replay/replay_k4_leftlead.json`):
+
+| Run | K4 | K5w | K5a |
+|---|---|---|---|
+| align_full2 | 96.5 % | 98.4 % | 94.9 % |
+| align_full5 | 91.8 % | 98.4 % | 93.8 % |
+| align_full8 | 95.7 % | 97.7 % | 94.5 % |
+| align_full9 | 96.5 % | 98.4 % | 94.1 % |
+| align_full10 | 95.7 % | 94.5 % | 97.3 % |
+| older, no align stage (ai2, ai4, ai5, A, A2) | 0 / 34 / 23 / 48 / 78 % | 0 / 11 / 2 / 49 / 18 % | 0 / 10 / 3 / 48 / 30 % |
+
+Estimate quality of the K5a aux head (ring 4 mm, prior ×3), RMSE of the plug position (across, up):
+- before contact: 1.40, 2.42 mm;
+- 0-0.2 s after contact: 1.28, 2.27 mm;
+- 0.2-0.5 s: 1.11, 2.20 mm;
+- 0.5-1 s: 1.09, 2.22 mm.
+
+That is the prior error (SD 1.2, 2.9 mm) and no better than a probe of the current observation. The gap is known well (0.16-0.27 mm) because the axial motion shows it.
+
+**Learnings**
+- The proprioceptive history does not locate the port laterally, in K4 or in the trained estimator. An explicit RMA estimator adds nothing (K5a ≈ K5w; at prior ×3 K5a is slightly lower on ring 3: 92.7 % [90.9, 94.1] against 95.1 % [93.6, 96.3]).
+- Training with a wider prior error (K5w) makes the policy robust to a bad prior: at prior ×3, 98.2 % against 81.8 %. The cost: it trusts a correct large offset less, so ring 5 mm falls from 97.9 % to 90.6 %, ring 4 mm from 98.2 % to 96.9 %, and the old non-aligned real hand-overs fall. The seat time p99 at ring 4 mm goes from 4.8 to 6.9 s. The robustness comes from more search, not from estimation.
+- With the align stage (starts within about 1 mm), K5w is equal to or better than K4 in the replay (94.5-98.4 % against 91.8-96.5 %).
+
+**Recommendation.** Keep K4 for Monday. It is the tested config and has a sha256 entry in the runbook. Drop the RMA/aux line. K5w is the backup if the rig shows a port-vision prior error much larger than the sim's sigma (stalls with a good alignment and a prior that disagrees with the side camera). Before K5w can replace K4, it needs: a full 30M run or a second seed, a scale range that keeps ring 5 mm (for example [0.5, 2.0]), and the deploy loader check (obs_dim 71, same as K4). Measure the real prior error on Monday: compare the `align_handover` lat_mm with the seated pose from the side camera.

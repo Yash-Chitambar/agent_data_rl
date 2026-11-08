@@ -1,0 +1,102 @@
+[
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5
+  },
+  "k": 883,
+  "n": 1024,
+  "rate": 0.8623046875,
+  "wilson": [
+   0.8398410408708599,
+   0.8820600769667526
+  ],
+  "classes": {
+   "lateral_miss": 131,
+   "seated": 883,
+   "grasp_slip": 7,
+   "tilt": 3
+  },
+  "force_p50": 6.919358730316162,
+  "force_p99": 15.350470895767206,
+  "t_ok_p50": 1.44,
+  "t_ok_p99": 8.654399999999997,
+  "cell": "real_ho",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/k5w_16M.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.1
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 3.0
+  },
+  "k": 833,
+  "n": 1024,
+  "rate": 0.8134765625,
+  "wilson": [
+   0.7884621347261185,
+   0.8361477273382307
+  ],
+  "classes": {
+   "lateral_miss": 184,
+   "seated": 833,
+   "grasp_slip": 3,
+   "deep_unseated": 1,
+   "tilt": 3
+  },
+  "force_p50": 7.232008695602417,
+  "force_p99": 16.922400035858153,
+  "t_ok_p50": 2.02,
+  "t_ok_p99": 7.941599999999994,
+  "cell": "ring3",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/k5w_16M.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.2
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 2.0,
+   "roll": 2.0,
+   "rx": 3.0
+  },
+  "k": 831,
+  "n": 1024,
+  "rate": 0.8115234375,
+  "wilson": [
+   0.7864211797060756,
+   0.8342970321273431
+  ],
+  "classes": {
+   "lateral_miss": 181,
+   "seated": 831,
+   "grasp_slip": 9,
+   "tilt": 2,
+   "jam": 1
+  },
+  "force_p50": 7.43318510055542,
+  "force_p99": 18.469024448394762,
+  "t_ok_p50": 2.38,
+  "t_ok_p99": 8.71400000000001,
+  "cell": "mix",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/k5w_16M.pt",
+  "climb_mm_p50_p95_max": [
+   7.9,
+   8.1,
+   8.2
+  ]
+ }
+]

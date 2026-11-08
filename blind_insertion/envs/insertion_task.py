@@ -202,6 +202,10 @@ class InsertionCfg:
     # stage's last fused measurement.
     vision_prior_obs: bool = False
     vision_prior_sigma_mm: tuple = (0.4, 0.95, 0.63)
+    # RMA study (docs/real/K2_PROGRESS.md "History and online offset estimation"): per-episode scale of the prior error, uniform in
+    # [lo, hi] (None: 1), and a constant prior offset in mm (across, up, gap; None: 0; eval stress of a biased port vision).
+    vision_prior_sigma_scale: tuple | None = None
+    vision_prior_bias_mm: tuple | None = None
     # ---- AlignTask (blind_insertion/envs/align_task.py): final alignment from a real-like stop to the hand-over pose
     align_task: bool = False
     align_goal_mm: tuple = (0., 0., 6.)
@@ -690,8 +694,13 @@ class InsertionTask(BimanualTask):
         self.climb_mm[ids] = 0
         if c.vision_prior_obs:
             pp, _ = self.runtime.plug_in_port()
-            self.vision_prior[ids] = pp[ids] * 1e3 + torch.randn(len(ids), 3, device=self.device, generator=self.gen) \
-                * torch.tensor(c.vision_prior_sigma_mm, device=self.device)
+            sig = torch.tensor(c.vision_prior_sigma_mm, device=self.device).expand(len(ids), 3)
+            if c.vision_prior_sigma_scale is not None:
+                lo, hi = c.vision_prior_sigma_scale
+                sig = sig * (lo + (hi - lo) * torch.rand(len(ids), 1, device=self.device, generator=self.gen))
+            self.vision_prior[ids] = pp[ids] * 1e3 + torch.randn(len(ids), 3, device=self.device, generator=self.gen) * sig
+            if c.vision_prior_bias_mm is not None:
+                self.vision_prior[ids] = self.vision_prior[ids] + torch.tensor(c.vision_prior_bias_mm, device=self.device)
         if self.icfg.inhand_obs:
             sp, sr = self.icfg.inhand_obs_noise
             z = torch.randn(len(ids), 6, device=self.device, generator=self.gen)
