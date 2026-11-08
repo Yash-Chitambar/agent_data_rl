@@ -124,6 +124,7 @@ def parse(argv=None):
     ap.add_argument('--out', default=str(ROOT / 'data/real_runs'))
     ap.add_argument('--no-left-wrist', action='store_true', help='do not open the left wrist camera (logging only)')
     ap.add_argument('--check-obs', action='store_true', help='dry run: compare the insertion observation with InsertionTask._actor_obs every tick')
+    ap.add_argument('--dry-retry-test', type=float, default=0., metavar='MM', help='dry run only: move the plug MM across after the alignment (first attempt only), to test insert.retry')
     ap.add_argument('--no-home', action='store_true', help='stay at the end pose (holding) instead of returning to the start pose')
     return ap.parse_args(argv)
 
@@ -239,9 +240,10 @@ class Runner:
             raise GuardStop(f'operator abort before {what}')
         return not ans.lower().startswith('s')
 
-    def confirm_in_press(self, ch, what):
-        """Prompt while the left arm presses: a watchdog holds both arms (press released) at hold_max_s."""
-        if not self.a.pause_in_press or self.a.dry_run:
+    def confirm_in_press(self, ch, what, always=False):
+        """Prompt while the left arm presses: a watchdog holds both arms (press released) at hold_max_s.
+        Only with --pause-in-press, unless always (the insertion retry: asks on every real run)."""
+        if self.a.dry_run or not (self.a.pause_in_press or always):
             return True
         left = self.cfg['safety']['hold_max_s'] - ch.guards.hold_ticks * ch.dt
         timer = threading.Timer(max(left, 1.0), lambda: (print('\nwatchdog: press time over, holding both arms', flush=True), self.io.hold()))
@@ -425,9 +427,18 @@ class Runner:
             raise GuardStop('operator stop in the press')
         sim_obs = self.sim_obs_fn() if (a.dry_run and a.check_obs) else None
         from deploy.bimanual.insert import run_insertion
+        if a.dry_run and a.dry_retry_test:
+            # dry-run test of insert.retry: move the plug sideways after the alignment, so the first attempt lands on the case
+            from deploy.bimanual.align import move_tip_closed
+            move_tip_closed(ch, eR[0].cpu().numpy(), [a.dry_retry_test, 0., 0.], 2.0, q_hold.reshape(6), kind='dry_retry_test_shift')
+            cmd = ch.q_b[0].clone()[None]
         r = run_insertion(ch, cmd, q_hold, log, sim_obs=sim_obs)
         res['insert'] = r
         print(f'insertion: {r}', flush=True)
+        r = self.retry_insertion(ch, r, res, q_hold, ep, eR, log, ac)
+        if r['outcome'] == 'retry_align_stop':        # the retry's align stage already backed the plug off (press off): no second lift
+            self.end_no_insert(ch, None, q_hold)
+            return res
         if self.cfg['insert'].get('keep_reader_unless_seated') and r['outcome'] != 'seated_detected':
             # real run 2026-11-02 A: the time limit opened the jaws in front of the port and the reader fell. Not seated: out with closed jaws
             from deploy.bimanual.align import back_off_closed
@@ -443,6 +454,53 @@ class Runner:
             res['true_seated_after_release'] = bool(tr['seated'])
         self.finish(ch)
         return res
+
+    def retry_insertion(self, ch, r, res, q_hold, ep, eR, log, ac):
+        """Config insert.retry (docs/real/RETRY_SPEED_20261108.md): after an attempt that did not seat (outcome in retry.on), back the plug
+        straight out along the port axis to the servo's entry gap, jaws closed, run the align stage again (vision servo, press off, re-press,
+        new vision prior and in-hand estimate), then the insertion policy again. At most max_retries more attempts. No retry when the align
+        stage is off or not in full mode, when the press clock has less than min_press_left_s left, or when the operator answers s.
+        Returns the last attempt's result; res['insert_attempts'] holds every attempt."""
+        rc = {k: v for k, v in (self.cfg['insert'].get('retry') or {}).items() if not k.startswith('_')}
+        res['insert_attempts'] = [r]
+        if not rc or ac is None or ac['mode'] != 'full':
+            return r
+        from deploy.bimanual.align import move_tip_closed, run_align
+        from deploy.bimanual.insert import run_insertion
+        on = set(rc.get('on', ('timeout', 'guard_bound', 'press_abort')))
+        n_max = int(rc.get('max_retries', 2))
+        e3 = eR[0].cpu().numpy()
+        for i in range(1, n_max + 1):
+            if r['outcome'] == 'seated_detected' or r['outcome'] not in on:
+                break
+            left_s = self.cfg['safety']['hold_max_s'] - ch.guards.hold_ticks * ch.dt
+            if left_s < float(rc.get('min_press_left_s', 20.)):
+                ch.log_event('insert_retry_skip', attempt=i, reason='press clock', press_left_s=left_s)
+                print(f'retry: skipped, {left_s:.0f} s of press time left', flush=True)
+                break
+            gap_ho = float((getattr(ch, 'align_result', None) or {}).get('gap_mm') or ac['target_mm'][2])
+            mm = max(0., float(r.get('advance_mm', 0.))) + float(rc.get('entry_gap_mm', 15.)) - gap_ho
+            mm = float(np.clip(mm, 0., float(rc.get('max_back_off_mm', 35.))))
+            ch.log_event('insert_retry', attempt=i, prev_outcome=r['outcome'], back_off_mm=mm, press_left_s=left_s, advance_mm=r.get('advance_mm'))
+            print(f'retry {i}/{n_max}: {r["outcome"]}; back off {mm:.1f} mm, align again', flush=True)
+            move_tip_closed(ch, e3, [0., 0., mm], float(rc.get('back_off_v_mm_s', 10.)), q_hold.reshape(6), kind='retry_back_off')
+            if rc.get('confirm', True) and not self.confirm_in_press(ch, f'retry {i}: align again and insert', always=True):
+                ch.log_event('insert_retry_skip', attempt=i, reason='operator')
+                break
+            ar = run_align(ch, ch.q_b[0].clone()[None], q_hold, ep, eR, log, ac)
+            res.setdefault('align_retries', []).append({k: v for k, v in ar.items() if k not in ('cmd', 'q_left')})
+            if ar['cmd'] is None:          # the align stage backed the plug off with closed jaws: no insertion; the caller ends without a seat
+                r = dict(r, outcome='retry_align_stop', retry_align_reason=ar.get('reason'))
+                res['insert_attempts'].append(dict(outcome='retry_align_stop', reason=ar.get('reason')))
+                break
+            r = run_insertion(ch, ar['cmd'], q_hold, log)
+            r['attempt'] = i
+            res['insert_attempts'].append(r)
+            print(f'insertion (retry {i}): {r}', flush=True)
+        res['insert'] = r
+        res['insert_n_attempts'] = len(res['insert_attempts'])
+        ch.log_event('insert_retry_result', n_attempts=len(res['insert_attempts']), outcomes=[x.get('outcome') for x in res['insert_attempts']])
+        return r
 
     def end_no_insert(self, ch, q_left, q_hold):
         """No insertion or no seat: left press off (if on) and lifted, reader to the operator's hand, home."""

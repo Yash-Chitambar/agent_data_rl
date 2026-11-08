@@ -1,0 +1,64 @@
+{
+ "method": "servo",
+ "kw": {
+  "vmin_mm_s": 1.5,
+  "deadband_mm": 0.4,
+  "deadband_deg": 0.4,
+  "gain": 1.5,
+  "vmax_mm_s": 8
+ },
+ "n": 256,
+ "k": 255,
+ "rate": 0.99609375,
+ "wilson": [
+  0.9782084757546238,
+  0.9993101355839765
+ ],
+ "fail": {
+  "pushed": 0,
+  "far": 1,
+  "slip": 0,
+  "bad": 0
+ },
+ "timeout": 0,
+ "t_s_p50_p90": [
+  4.32,
+  7.68
+ ],
+ "consistent_lat_p50_p95": [
+  0.55,
+  1.29
+ ],
+ "true_lat_p50_p95": [
+  0.77,
+  1.81
+ ],
+ "true_gap_err_p95": [
+  1.25
+ ],
+ "true_ang_p50_p95": [
+  0.82,
+  1.56
+ ],
+ "max_speed_p50_p99": [
+  20.76,
+  40.15
+ ],
+ "max_true_speed_p50_p99": [
+  15.95,
+  37.5
+ ],
+ "true_path_ratio_p50_p90": [
+  1.4,
+  2.0
+ ],
+ "path_ratio_p50_p90": [
+  1.8,
+  2.63
+ ],
+ "overshoot_p95_max": [
+  1.13,
+  1.64
+ ],
+ "wall_s": 379
+}

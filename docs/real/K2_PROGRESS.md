@@ -338,3 +338,52 @@ port_vision holds Python's interpreter lock for part of its work, so in a thread
 **Other checks:** `deploy.checks.align_gates`: FAILED: none (step logic unchanged). The real-I/O mock does not cover the align stage; not run for it.
 
 **Not verified:** anything on the arm. In particular: real stick-slip under a continuously moving target with the feed-forward on (the sim's joint friction model is a Coulomb band, not the measured breakaway behaviour); the camera latency constant (`cam_latency_s` 0.03, a guess) that maps a frame's arrival time to its capture tick; the child process start time on the rig (spawn, port_vision model load); frames per second on the rig CPU; the tip speed limit of 60 mm/s against real breakaways (2026-11-03 steps arrived at 54-78 mm/s: the stop may fire); the fused estimate's FK motion term with real link flex.
+
+## Plug and port in one wrist image
+
+2026-11-08, fork E. Operator request: measure the plug tip against the port in one right wrist image, with the measured reader dimensions. Offline only. No arm motion.
+
+**The direct measurement already runs.** `deploy/bimanual/port_vision.measure` finds the plug shell and the port row in the same raw frame. It gives the tip against port 2 (across, up, gap) with no encoders and no in-hand estimate. The align stage (step and servo) uses this number, and K4's vision prior is this number. So the encoder FK error and the grasp position error do not enter the alignment target. The earlier note "the vision prior only measures the port" was wrong.
+
+**Measured dimensions** (`data/real_yam/usbc_lab_20261027/measurements.csv`, calipers, operator): silver body 34.6 x 29.6 x 8.75 mm; black neck 43.4 mm long, 12.96 mm wide, 7.0 mm thick; metal plug protrusion from the neck edge 5.8 mm (three readings). The shell width and thickness are not measured: port_vision uses the USB-C specification (8.25 x 2.40 mm; effective rim width 8.15 mm from frames). Check: 5.8 mm of protrusion at 117 mm depth and 63 deg view angle projects to 30.1 px; port_vision's empirical constant is 32 px. They agree within 6 %.
+
+**Visibility.** The shell and the port row are both visible in all 8 real hand-over frames (2026-11-06 prec4-7, full7-10; port_vision ok 8 of 8). Sheet: `results/real_align/relvis/sheet_handover.jpg` (`scripts/real/relvis_sheet.py`).
+
+**The black neck is not a usable second depth scale.** It is black on a dark table. Edge step about 2 grey levels, SNR 1.3-2.2. Depth from the neck: SD 10-24 mm per run; from the shell width: 0.35-1.1 mm (8 runs, 20-42 frames each; `relvis_neck.py`, `neck.json`). Up stays the weak axis (held-out residual 0.73 mm, docs/real/PORT_VISION.md).
+
+**Grasp error leak (geometric test, `relvis_geom.py`, `geom_sensitivity.json`).** Real camera, panel pose and tip of the 8 hand-overs; shell model from the measured protrusion and the spec shell; port_vision's arithmetic. Maximum error change over the 8 poses:
+
+| Grasp error | across | up | gap (mm) |
+|---|---|---|---|
+| shift 3 mm (any axis) | 0.04 | 0.04 | 0.02 |
+| pitch 5 deg | 0.00 | 0.26 | 0.04 |
+| yaw 5 deg | 0.30 | 0.44 | 0.24 |
+| roll 5 deg | 0.11 | 0.59 | 0.29 |
+
+A port-only measurement with the tip from the in-hand estimate passes the in-hand error 1:1. Limits: this test does not include the image detector; a shift of more than about 10 mm takes the shell out of `PLUG_ROI` (refusal, not a wrong number). The model's constant offset against the empirical constants is (0.0, -0.2, +0.7) mm, the same on all 8 poses.
+
+**Real frames: direct against "port + mount + in-hand"** (`relvis_compare.py`, `compare_inhand.json`). Same panel pose; the alternative takes the tip from the camera mount and the grasp model.
+- The direct reading at rest (last 6 frames per run): SD 0.03-0.18 across, 0.08-0.35 up, 0.04-0.21 gap (mm).
+- Direct minus alternative, nominal grasp, n = 8 runs: mean -2.6, -6.5, +1.2 mm; SD over runs 0.5, 1.7, 0.8 mm.
+- With the run's in-hand net estimate, n = 3 runs: mean -2.6, -4.2, -2.4 mm; SD 0.06, 0.7, 0.2 mm.
+- The direct reading led to real seats: full9 handed over at (-0.3, -0.6, 5.4) and seated. If the alternative were right, the plug would have been 2.6 mm across and 6 mm up off at that hand-over. So the direct path is the one to trust. The constant difference is the mount and grasp model; the run-to-run SD is grasp variation that only the image sees.
+
+**Roll in the image is too noisy.** The plug angles still use a fixed mount and the mean grasp. I fitted the shell's sleeve-end edge against the panel axis in the same image (`relvis_roll.py`). Against the collect sweep's FK roll labels (one grasp, n = 88 frames, label range -3.0 to +3.3 deg): slope 0.76 [0.21, 1.34] (bootstrap 95 %), residual SD 3.9 deg per frame. On the 8 hand-overs the image roll reads +3.7 deg (SD over runs 2.0) against the align stage's -1.9 deg. The image roll cannot settle the open roll question. Do not correct roll from it.
+
+**Deploy status.** No change needed: the direct measurement is already the align source and the prior. No new config. Not tested: port_vision on sim frames (no sim render of the real wrist view exists), and with a different grasp roll.
+
+**For the rig session (no extra motion needed for the first two):**
+1. Keep every align raw frame (the runs already log them). The server repeats `relvis_compare.py` on the new runs.
+2. Operator check per run, side clip at the hand-over: is the plug in line with port 2? This is the only independent check of the direct reading.
+3. To settle the roll: at the stop, turn joint 6 by +3 deg and -3 deg (one go each), 10 frames still at each. The image roll and the align stage's rv z must both change by 3 deg. This needs the operator's approval as a motion.
+
+## Insertion retry, speed, backlash preload (2026-11-08)
+
+Details: [RETRY_SPEED_20261108.md](RETRY_SPEED_20261108.md); runbook block D in [NEXT_RIG_20261109.md](NEXT_RIG_20261109.md).
+
+- Retry loop (`insert.retry`, `bimanual_align7_retry`): back out to a 15 mm gap, align again with the servo, K4 again, at most 2 retries, operator prompt each time. Dry run with a 4 mm forced miss: the code path works; the second alignment then stopped under the press because the stall had turned the plug 2° in the hand. A stall can change the grasp; a retry does not fix that.
+- Speed: on the rig the step alignment took 39 s of a 200 s run (`align_full9`); the servo is 4-5 s in the sim. Insertion limit 10 → 6 s per attempt (K4 sim seat p50 1.2-1.9 s).
+- A faster servo (vmax 12) was best in AlignTask (100.0 % [98.5, 100], n = 256), but AlignTask has no press. In the full-chain dry runs it hunted under the press and hit the time limit in 3 of 6. Kept vmax 8. Higher gains hunt in both (10 Hz vision, about 0.1 s latency).
+- Backlash preload (`servo.preload_mm` 1.0, `bimanual_align7_preload`): servo to 7 mm, then 1 mm toward the port. Dry runs 4/4 aligned and seated; tip moved 0.6-0.9 mm.
+- Open: the dry-run release pulls a seated reader out in 5 of 9 seated runs, the reference config included.
+- Correction: K4 is not memoryless (history 30 frames, 0.6 s). The RMA exploration tests an explicit estimator on top of that.

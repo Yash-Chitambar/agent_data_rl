@@ -1230,6 +1230,8 @@ class ServoStage(AlignStage):
         self.ql = ql1
         self.worker.close()
         ok = res0['ok']
+        if ok and float(self.sv.get('preload_mm', 0.)) > 0:
+            self._preload(float(self.sv['preload_mm']), float(self.sv.get('preload_v_mm_s', 2.)))
         q = ch.q_b[0].cpu().numpy().astype(float)
         lead = self.tgt - q
         if ch.rt.comp['right'] is not None and ch.fric is not None:       # fold the feed-forward into the target, then off (as the step stage)
@@ -1246,6 +1248,28 @@ class ServoStage(AlignStage):
         res = dict(ok=ok, reason=res0['reason'], gap_mm=float(est[2]) if ok else None, lat_mm=[float(est[0]), float(est[1])] if ok else None, lead=lead.tolist(), servo=True)
         ch.log_event('align_handover', **res)
         return (cmd[None] if ok else None), res
+
+    def _preload(self, mm, v_mm_s):
+        """Backlash preload (servo.preload_mm; docs/real/RETRY_SPEED_20261108.md): the last motion before the hand-over is a straight move of
+        mm toward the port (gap down), so the joint gears carry their lash in the insertion direction when the policy starts. Run the servo
+        to a goal gap preload_mm larger (align.target_mm). Open loop on the believed FK (a displacement); the fused estimate moves with it."""
+        ch = self.ch
+        tip0, _ = self._rec()
+        n = max(1, int(round(mm / v_mm_s / ch.dt)))
+        for k in range(n):          # speed profile sin: zero at both ends, mean v_mm_s, integral mm
+            self.tgt = self.tgt + self._twist_to_dq(np.array([0., 0., -mm / (n * ch.dt) * np.pi / 2 * np.sin(np.pi * (k + .5) / n)]), np.zeros(3))
+            self._rec()
+            self._send(self.ql)
+        for _ in range(int(round(max(float(self.c['settle_s']), .3) / ch.dt))):
+            self._rec()
+            self._send(self.ql)
+        tip1, _ = self._rec()
+        d = tip1 - tip0
+        if self.est is not None:
+            self.est[:3] = self.est[:3] + d
+        tr = ch.truth()
+        ch.log_event('align_preload', mm=mm, tip_moved_mm=d.tolist(), est=None if self.est is None else self.est.tolist(),
+                     truth_mm=None if tr is None else np.asarray(tr['plug_in_port_mm'], float).tolist(), tick=ch.k)
 
     def back_off(self):
         """Straight out along the port axis keeping the joint target lead (as back_off_creep), then the feed-forward folded into the target and off."""
@@ -1284,22 +1308,29 @@ class ServoStage(AlignStage):
 
 def back_off_closed(ch, eR, mm, v_mm_s, q_left):
     """Hold the measured pose (no push), then straight out along the port axis, jaws closed. The reader stays in the hand."""
+    move_tip_closed(ch, eR, [0., 0., mm], v_mm_s, q_left, kind='back_off')
+
+
+def move_tip_closed(ch, eR, d_mm, v_mm_s, q_left, kind='tip_move', hold_s=.2):
+    """Hold the measured pose for hold_s (no push), then a straight TCP move of d_mm (port axes: across, up, out of the port) at v_mm_s,
+    orientation kept, jaws closed (smoothstep profile). Believed FK: a displacement, so the encoder offsets cancel to first order."""
     eR = np.asarray(eR, float).reshape(3, 3)
-    for _ in range(int(round(.2 / ch.dt))):
+    for _ in range(int(round(hold_s / ch.dt))):
         ch.hstep(ch.q_b[0].clone(), q_left, ch.label)
     chain = ch.scene.chain['right']
     dev = ch.scene.device
     q0 = ch.q_b[0:1].to(dev).float()
     p0, R0 = chain.fk(q0)
-    z = torch.as_tensor(eR[:, 2], dtype=torch.float32, device=p0.device)
+    d = torch.as_tensor(eR @ np.asarray(d_mm, float), dtype=torch.float32, device=p0.device)
+    mm = float(np.linalg.norm(d_mm))
     n = max(1, int(round(mm / (v_mm_s * max(ch.speed, 1e-3)) / ch.dt)))
     q = q0
     for k in range(n):
         u = (k + 1) / n
         u = u * u * (3 - 2 * u)
-        q, _, _ = chain.ik(p0 + z[None] * mm * 1e-3 * u, R0, q, iters=10)
+        q, _, _ = chain.ik(p0 + d[None] * 1e-3 * u, R0, q, iters=10)
         ch.hstep(q[0].to(ch.dev), q_left, ch.label)
-    ch.log_event('back_off', mm=mm, tick=ch.k, tip_q=ch.q_b[0].tolist())
+    ch.log_event(kind, mm=mm, d_mm=[float(x) for x in d_mm], tick=ch.k, tip_q=ch.q_b[0].tolist())
 
 
 def run_align(ch, cmd, q_hold, ep, eR, log, c):

@@ -238,8 +238,11 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     # stop the push: hold the measured right pose for 0.2 s (the left keeps its press)
     for _ in range(int(round(0.2 / chain.dt))):
         chain.hstep(chain.q_b[0].clone(), q_hold.reshape(6), '5 insert')
+    p_end, _ = chain.scene.tcp_chain.fk(chain.q_b[0:1])
+    z_port = torch.as_tensor(pR[0], dtype=torch.float32).reshape(3, 3)[:, 2].to(p_end.device)
+    advance_mm = float(-((p_end[0] - p0[0].to(p_end.device)) @ z_port)) * 1e3     # TCP advance into the port since the hand-over (believed FK displacement)
     res = dict(outcome=outcome, steps=t + 1, t_seat_s=None if t_seat is None else t_seat * chain.dt,
-               depth_mm=det.prev * 1e3, true_seat_tick=truth_seat)
+               depth_mm=det.prev * 1e3, true_seat_tick=truth_seat, advance_mm=advance_mm)
     if obs_err:
         # obs_max_abs_err: dims 0:50 only. The pose features [50:56] (nominal-relative in the sim env, hand-over-relative
         # for rel_pose_obs policies), twist/in-hand [56:68] and the K3 vision prior [68:71] (the sim env's own reset draw,
