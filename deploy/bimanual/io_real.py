@@ -34,7 +34,7 @@ SIDES = ('right', 'left')
 class RealIO:
     is_sim = False
 
-    def __init__(self, cfg, kp, kd, cams=('top', 'wrist_right', 'wrist_left'), log=None):
+    def __init__(self, cfg, kp, kd, cams=('top', 'wrist_right', 'wrist_left'), log=None, stream=False):
         import estop
         import safety
         from deploy.backends import real_loop
@@ -43,7 +43,7 @@ class RealIO:
         self.cfg, self.log, self.dt = cfg, log, cfg['control_dt']
         from deploy import conventions as C
         self.off = np.stack([C.joint_offsets(s) for s in SIDES])
-        self.cams = {}
+        self.cams, self.stream, self.claims = {}, bool(stream), []
         # GIL convoy: i2rt's motor threads release/re-take the GIL on every CAN send/receive; while the control loop
         # runs NumPy-heavy code (FastChain IK, the hold plan) each re-take waits up to the switch interval (5 ms
         # default). Real run 2026-11-01 hold_160735: 250-270 ms without CAN readings during the hold plan. Offline
@@ -100,6 +100,15 @@ class RealIO:
         import rig
         from deploy.cameras import WristCam, ZedTop
         spec, res = load_spec(rig.SPEC), self.cfg['cameras']['res']
+        share = {}
+        if self.stream:
+            # live viewer (scripts/real/camview.py): take each camera from the viewer before opening it, then publish frames to it
+            # from the camera thread (camshare.Claim.publish: 5 Hz, 640 px, ~2 ms; never in the control loop)
+            import camshare
+            for n in names:
+                cl = camshare.claim({'top': 'zed'}.get(n, n), 'run_bimanual')
+                self.claims.append(cl)
+                share[n] = cl
         for n in names:
             if n == 'top':
                 c = ZedTop()
@@ -108,6 +117,7 @@ class RealIO:
                 side = n.split('_')[1]
                 c = WristCam(side)
                 c.prep = (lambda s: (lambda f: real_policy_image(f, spec, res, s)))(side)
+            c.share = share.get(n)
             self.cams[n] = c
         t0 = time.monotonic()
         while any(c.latest_policy()[0] is None for c in self.cams.values()):
@@ -337,6 +347,12 @@ class RealIO:
                 except Exception:  # noqa: BLE001
                     pass
             self.cams = {}
+            for cl in self.claims:
+                try:
+                    cl.release()
+                except Exception:  # noqa: BLE001
+                    pass
+            self.claims = []
 
     def _close_arms(self, read_line):
         if not getattr(self, 'arms', None):

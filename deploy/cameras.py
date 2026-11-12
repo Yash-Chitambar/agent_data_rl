@@ -34,6 +34,7 @@ class _Grabber:
     def __init__(self, name):
         self.name, self.frame, self.t, self.n = name, None, None, 0
         self.prep, self.policy = None, None      # prep(raw) -> policy image, set by Cameras
+        self.share = None                        # camshare.Claim: publish frames to scripts/real/camview.py
         self.lock, self.stop_ev = threading.Lock(), threading.Event()
         self.th = threading.Thread(target=self._loop, daemon=True)
 
@@ -46,6 +47,12 @@ class _Grabber:
             pol = self.prep(f) if self.prep is not None else None
             with self.lock:
                 self.frame, self.policy, self.t, self.n = f, pol, t, self.n + 1
+            sh = self.share
+            if sh is not None:
+                try:
+                    sh.publish(f)          # live viewer, rate limited inside (camshare)
+                except Exception:  # noqa: BLE001
+                    pass
 
     def latest(self):
         with self.lock:

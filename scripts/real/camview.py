@@ -117,6 +117,66 @@ def fit_width(img, w):
     return cv2.resize(img, (w, round(img.shape[0] * w / img.shape[1])), interpolation=cv2.INTER_AREA)
 
 
+RUN_STATE = camshare.DIR / "run_state.json"   # written by deploy/bimanual/live.py (run_bimanual --stream / --demo)
+NODE_COLORS = {"pending": (75, 75, 75), "done": (70, 150, 70), "now": (0, 150, 255), "failed": (50, 50, 210)}
+
+
+def draw_graph(st, w=640):
+    """The GaP stage graph of the running chain: done green, current orange, failed red, the policy of each node under it."""
+    nodes = st.get("nodes") or []
+    rows = [nodes[:5], nodes[5:]]
+    bw, bh, gx, gy, top = (w - 40) // 5 - 10, 54, 10, 34, 46
+    h = top + 2 * (bh + gy) + 58
+    img = np.full((h, w, 3), 30, np.uint8)
+    el = (st.get("t", time.time()) if st.get("finished") else time.time()) - st.get("t0", time.time())
+    alive = camshare.alive(st.get("pid", -1))
+    head = f"{st.get('run', '')}   {int(el // 60)}:{int(el % 60):02d}" + ("" if alive or st.get("finished") else "   (runner gone)")
+    cv2.putText(img, head, (12, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (230, 230, 230), 1, cv2.LINE_AA)
+    cv2.putText(img, str(st.get("config", "")), (12, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (160, 160, 160), 1, cv2.LINE_AA)
+    pol = st.get("policies") or {}
+    centers = {}
+    for r, row in enumerate(rows):
+        for i, n in enumerate(row):
+            x0 = 20 + i * (bw + gx) + (0 if r == 0 else (bw + gx) // 2)
+            y0 = top + 8 + r * (bh + gy)
+            kind = ("failed" if st.get("failed") == n else "now" if st.get("node") == n else
+                    "done" if n in (st.get("done") or []) else "pending")
+            cv2.rectangle(img, (x0, y0), (x0 + bw, y0 + bh), NODE_COLORS[kind], -1)
+            if kind == "now":
+                cv2.rectangle(img, (x0 - 2, y0 - 2), (x0 + bw + 2, y0 + bh + 2), (255, 255, 255), 2)
+            cv2.putText(img, n, (x0 + 6, y0 + 22), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
+            sub = str(pol.get(n, ""))
+            for j, part in enumerate([sub[:16], sub[16:32]] if len(sub) > 16 else [sub]):
+                cv2.putText(img, part, (x0 + 6, y0 + 38 + 12 * j), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (235, 235, 235), 1, cv2.LINE_AA)
+            centers[n] = (x0, y0)
+    seq = [n for n in nodes if n in centers]
+    for a_, b_ in zip(seq, seq[1:]):
+        (xa, ya), (xb, yb) = centers[a_], centers[b_]
+        if ya == yb:
+            cv2.arrowedLine(img, (xa + bw, ya + bh // 2), (xb, yb + bh // 2), (200, 200, 200), 1, cv2.LINE_AA, tipLength=0.4)
+        else:   # down from the end of row 1, back along the gap, down into row 2
+            ym = ya + bh + gy // 2
+            pts = np.array([(xa + bw // 2, ya + bh), (xa + bw // 2, ym), (xb + bw // 2, ym)], np.int32)
+            cv2.polylines(img, [pts], False, (200, 200, 200), 1, cv2.LINE_AA)
+            cv2.arrowedLine(img, (xb + bw // 2, ym), (xb + bw // 2, yb), (200, 200, 200), 1, cv2.LINE_AA, tipLength=0.5)
+    y = top + 2 * (bh + gy) + 14
+    cv2.putText(img, str(st.get("status", ""))[:80], (12, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+    out = st.get("outcome")
+    if out or st.get("finished"):
+        ok = out == "seated_detected"
+        txt = "SEATED" if ok else str(out or "finished").upper()
+        cv2.putText(img, txt, (12, y + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (90, 220, 90) if ok else (80, 80, 240), 2, cv2.LINE_AA)
+    return img
+
+
+def read_run_state():
+    try:
+        import json
+        return json.loads(RUN_STATE.read_text()), RUN_STATE.stat().st_mtime
+    except (FileNotFoundError, ValueError, OSError):
+        return None, None
+
+
 def rig_scripts():
     """Running rig scripts: (pid, short command line)."""
     out = []
@@ -151,6 +211,8 @@ def main():
 
     server = viser.ViserServer(host=host, port=a.port, label="duchamp3 cameras", verbose=False)
     server.gui.configure_theme(control_width="large", show_logo=False)
+    graph = server.gui.add_image(card("GaP graph: no run yet\n(run_bimanual --stream or --demo)", 640, 120), format="jpeg", jpeg_quality=80,
+                                 label="GaP stage")
     status = server.gui.add_markdown("starting")
     with server.gui.add_folder("Stream"):
         fps = server.gui.add_slider("fps", min=1, max=15, step=1, initial_value=5)
@@ -227,6 +289,12 @@ def main():
                 views[n]._jpeg_quality = int(quality.value)
                 views[n].image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 sent[n] = key
+        st, st_m = read_run_state()
+        if clients and st is not None:
+            gkey = (st_m, int(t0) if not st.get("finished") else 0)   # redraw on a change, and each second for the clock
+            if gkey != sent.get("_graph"):
+                graph.image = cv2.cvtColor(draw_graph(st), cv2.COLOR_BGR2RGB)
+                sent["_graph"] = gkey
         if a.share and t0 - url_checked > 60:   # links expire after 24 h: get a new one
             url_checked = t0
             threading.Thread(target=share, daemon=True).start()

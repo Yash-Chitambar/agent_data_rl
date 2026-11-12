@@ -3,6 +3,17 @@
 Running log for `docs/archive/RESEARCH_PLAN_single_arm.md`. Dated entries; newest first within each section.
 Figures and data referenced here live in `results/<phase>/`.
 
+## 2026-11-11 (Pacific): milestone, real pick-to-insert with K4 seats every time it reaches the port (duchamp3)
+
+The full chain runs on the real rig: ZED capture, servo pick, left hold, transport, approach, step alignment, K4 insertion (`runs/insert_K4.pt`, sim-trained, relative pose obs + vision prior, left inputs masked), 15 mm final push, release, home. Config `deploy/config/bimanual_align5_k4_push15_seat6.json` (and `_fastmove`, capture/home moves at 0.4 rad/s).
+- **Insertion: 10 of 10 seated** with this config when the plug reached the port (2026-11-10: k4_3, k4_4, k4_5, k4_6; 2026-11-11: demo_1, demo_2, demo_3, demo_4, speed075_1, fastmove_1; Wilson 95 % 72-100 %). K4 seats in 1.1-1.7 s (one at 3.9 s), depth 6.8-8.6 mm; the push adds 2.0-2.6 mm. Operator: demo_4 and fastmove_1 fully inserted. With the earlier 3 mm/s seat check, K4 was 5 of 6 (k4_2 was in, not detected, and the guard pulled it out).
+- **End to end: 10 of 15 starts** (one camera-fault start not counted). Not insertions: 3 align safety stops at the hand-over (2 wrist-net up disagreement, 3.51 and 3.54 mm against a 3.5 mm gate; 1 post-press hand jump), 1 empty pick close (hand 7 mm high), 1 process end in transport. Each rerun seated.
+- **Speed:** 213.7 s at `--speed 0.5` -> 164.3 s at 0.75 with 0.4 rad/s capture/home moves; the step alignment (35-50 s) is now the slowest part.
+- **Limits of the claim:** one PC spot (port about (231, 394) mm, yaw 3-6 deg, outside the sim box in y) and one reader strip spot (x 121-142, y 438-459 mm); generalization to other placements is not tested.
+- Open: wrist-net up bias about +3 mm against vision (12 of 13 hand-overs), approach jump over 3 mm on some runs (operator accepted), push skipped twice by its 2.5 mm lateral gate.
+
+Details: `docs/real/SESSION_20261110_duchamp3.md`, `docs/real/SESSION_20261111_duchamp3.md`; videos `data/real_runs/2026-11-11/showcase/` (not in git).
+
 ## 2026-11-03 (Pacific): wrist nets on real frames, root cause and new nets (offline)
 
 The nets had not seen the real PC. Same poses in sim with panel and lid textures from real frames: `wrist_v14w` slope 0.94, 0.88, 0.98 -> 0.44, 0.33, 0.59; real frames 0.50, 0.32, 0.59. Preprocessing is correct. New nets `runs/perception_real/wrist_r10{f,w}_ft_abs.pt`, hold-out real frames (contiguous blocks, n = 60): slope 0.97, 0.94, 0.97 and 0.98, 0.96, 0.99. A2 - A height 5.3 and 5.6 mm (FK 6.8, vision 3.9). One run, one reader spot, one PC, no closed loop; 1.5 mm across disagreement with vision at A, A2 is open. Details: `docs/real/WRIST_NETS_REAL.md`.

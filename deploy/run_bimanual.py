@@ -117,6 +117,8 @@ def parse(argv=None):
     ap.add_argument('--sim-inhand', default='', help='dry run only, stage approach_insert: in-hand pose from this real-grasp preset (v2), one draw per episode')
     ap.add_argument('--enc-offset-deg', type=float, default=None, help='dry run only: encoder-offset error DR, +/- deg (default eval_chain: 1.5)')
     ap.add_argument('--yes', action='store_true', help='answer every prompt with Enter (dry runs default to this)')
+    ap.add_argument('--stream', action='store_true', help='publish the camera frames and the GaP stage to the live viewer (scripts/real/camview.py)')
+    ap.add_argument('--demo', action='store_true', help='hands-free: --yes + --stream; still asks after a stop and before opening the jaws on a lifted reader')
     ap.add_argument('--pause-in-press', action='store_true', help='also prompt between hold, transport, approach and insertion (the press keeps running; a watchdog unloads at hold_max_s)')
     ap.add_argument('--device', default='cpu', help='kinematics, controllers and the insertion policy (one world: CPU is faster than GPU launches)')
     ap.add_argument('--net-device', default='cuda:0' if torch.cuda.is_available() else 'cpu', help='perception nets')
@@ -170,7 +172,10 @@ class Runner:
             print(f'insertion policy: {pp} (sha256 {got[:16]})', flush=True)
         self.gmaps = gripper_maps(self.cfg)
         self.keys = None if a.dry_run else StopKey()
+        if a.demo:
+            a.yes, a.stream = True, True
         self.auto = '' if (a.dry_run or a.yes) else None
+        self.live = None
         from deploy.bimanual.scene import SceneModel
         self.scene = SceneModel(self.dev)
         self.io = None
@@ -209,7 +214,7 @@ class Runner:
         from deploy.bimanual.io_real import RealIO
         cams = ('top', 'wrist_right') if self.a.no_left_wrist else ('top', 'wrist_right', 'wrist_left')
         kp, kd = self.scene.kp.cpu().numpy(), self.scene.kd.cpu().numpy()
-        self.io = RealIO(self.cfg, kp, kd, cams=cams, log=log)
+        self.io = RealIO(self.cfg, kp, kd, cams=cams, log=log, stream=self.a.stream)
 
     def new_logger(self, seed=None):
         a = self.a
@@ -230,6 +235,17 @@ class Runner:
         return RealChain(self.cfg, self.io, self.scene, self.consts, self.gmaps, log=log, keys=self.keys, guards=g,
                          speed=self.a.speed, hold_force=self.a.hold_force, device=str(self.dev),
                          policy_path=self.policy_path, auto=self.auto, net_device=self.a.net_device)
+
+    def node_policies(self):
+        """What runs in each GaP node, for the live viewer."""
+        c = self.cfg
+        ins = Path(self.policy_path).stem if self.policy_path else str(c['insert'].get('policy', 'insert'))
+        fp = c['insert'].get('final_push')
+        al = c.get('align') or {}
+        return dict(capture='ZED port pose', pick='servo pick', hold='left press', transport='scripted', approach='IK to 18 mm',
+                    align=('vision servo' if al.get('servo') else 'vision steps') + ('' if al.get('enabled', True) else ' (off)'),
+                    insert=ins.replace('insert_', '') + ' (RL)' + (f" + {fp['mm']:.0f} mm push" if fp else ''),
+                    release='open, retreat', home='home')
 
     # ------------------------------------------------------------------ prompts
     def confirm(self, ch, what):
@@ -268,6 +284,10 @@ class Runner:
                                          'method': 'sim truth (dry run)', 'unc_mm': 0.0})
         ch = self.make_chain(log)
         ch.seed = seed or 0
+        if a.stream and not a.dry_run:
+            from deploy.bimanual.live import LiveState
+            self.live = LiveState(log.dir.name, Path(a.config).name, self.node_policies())
+            ch.live = self.live
         ch.pick_test = a.pick_test
         res = {}
         out = dict(stage=a.stage, completed=False)
@@ -290,6 +310,8 @@ class Runner:
             tr = ch.truth()
             if tr is not None:
                 out['sim_truth_end'] = {k: (v.tolist() if hasattr(v, 'tolist') else v) for k, v in tr.items() if k in ('seated', 'tip_depth_mm', 'finite', 'plug_in_port_mm')}
+            if self.live is not None:
+                self.live.finish(out)
             label = self.outcome_prompt(ch, out)
             log.close(result=out, outcome=label)
             print(f'log: {log.dir}', flush=True)
@@ -300,7 +322,7 @@ class Runner:
             self.keys.clear()
         while True:
             ans = ch.ask('Both arms hold their measured pose. u = unload left press, h = return home (slow, checked), '
-                         'r = unload + home, x = stay holding >', 'x')
+                         'r = unload + home, x = stay holding >', 'x', confirm=True)
             try:
                 if ans in ('u', 'r'):
                     ch.guards.reset_counts()
@@ -543,7 +565,7 @@ class Runner:
         return ch.q_b[0].clone()
 
     def release_by_hand(self, ch):
-        ch.ask('Reader lifted. Hold it, then Enter opens the gripper >', '')
+        ch.ask('Reader lifted. Hold it, then Enter opens the gripper >', '', confirm=True)
         for _ in range(int(round(1.0 / ch.dt))):
             ch.hstep(ch.q_b[0].clone(), ch.q_b[1].clone(), '6 release', grip_r=1., grip_l=1.)
 

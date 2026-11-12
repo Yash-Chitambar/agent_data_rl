@@ -300,6 +300,12 @@ class RealChain:
     def log_event(self, kind, **kw):
         if self.logger is not None:
             self.logger.event(kind, **kw)
+        live = getattr(self, 'live', None)
+        if live is not None:
+            try:
+                live.event(kind, kw)
+            except Exception:  # noqa: BLE001  (the viewer state never stops a run)
+                pass
 
     def truth(self):
         return self.io.truth() if getattr(self.io, 'is_sim', False) else None
@@ -524,10 +530,11 @@ class RealChain:
             return torch.full((1, 3), float('nan'), device=self.dev), torch.full((1, 3, 3), float('nan'), device=self.dev)
         return torch.tensor(tr['inhand_p'], device=self.dev)[None], torch.tensor(tr['inhand_R'], device=self.dev)[None]
 
-    def ask(self, text, default=''):
+    def ask(self, text, default='', confirm=False):
+        """confirm: a prompt where a person must act (recovery after a stop, holding the reader): asked even with --yes/--demo."""
         if self.keys is None:
             return default if self.auto is None else self.auto
-        return self.keys.ask(text, auto=self.auto)
+        return self.keys.ask(text, auto=None if confirm else self.auto)
 
     # ------------------------------------------------------------------ poses
     def motor(self, side, q_believed):
@@ -539,7 +546,10 @@ class RealChain:
             self.log_event('stage', stage=label, prev=self.label, tick=self.k)
             self.label = label
             self._precision_stage(label)      # home and capture move here, not through hstep (2026-11-06 align_full7)
-        self.io.move_to({s: self.motor(s, q) for s, q in goals_b.items()}, grip)
+        # peak joint speed of these smoothstep moves (capture, home, park); 0.15 rad/s unless the config sets
+        # safety.move_max_vel_rad_s (2026-11-11: about 95 s of each run was these moves at 0.15)
+        vmax = float(self.cfg['safety'].get('move_max_vel_rad_s', 0.15))
+        self.io.move_to({s: self.motor(s, q) for s, q in goals_b.items()}, grip, max_vel=vmax)
         self.read_state()
         self.log_event('moved', goals_b={s: np.asarray(q).tolist() for s, q in goals_b.items()},
                        reached_b=(self.state['q'] + self.off).tolist())

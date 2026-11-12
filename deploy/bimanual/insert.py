@@ -106,6 +106,70 @@ def contact_summary(pol, hist):
     return p.mean(0).cpu().numpy(), torch.bincount(p.argmax(-1), minlength=p.shape[-1]).cpu().numpy()
 
 
+def final_push(chain, pR, q_left, fp):
+    """insert.final_push: after a detected seat (and the 0.2 s hold that drops the policy's target lead), move the right-arm target
+    straight into the port along its axis by fp['mm'] at fp['v_mm_s'] (scaled by --speed, smoothstep), orientation kept, jaws closed,
+    hold fp['hold_s'], then hold the measured pose for 0.3 s so the release starts with no lead. Position-controlled: the push force is
+    the PD stiffness times the part of fp['mm'] the plug cannot travel (rig, 2026-11-10: K-J left the plug 1.5-1.8 mm short with a
+    ~10 mm deep, 22-28 mm high target). No upward component, unlike K-J's late target."""
+    R = torch.as_tensor(pR, dtype=torch.float32).reshape(3, 3)
+    tc = chain.scene.chain['right']
+    dev = chain.scene.device
+    q0 = chain.q_b[0:1].to(dev).float()
+    p0, R0 = tc.fk(q0)
+    d = (-R[:, 2] * float(fp['mm']) * 1e-3).to(p0.device)          # -z of the port frame = into the port
+    v = float(fp['v_mm_s']) * max(float(chain.speed), 1e-3)
+    n = max(1, int(round(float(fp['mm']) / v / chain.dt)))
+    zp = R[:, 2].to(p0.device)
+    lc = chain.scene.chain['left']
+    pl0, _ = lc.fk(chain.q_b[1:2].to(dev).float())
+    g0 = [float(x) for x in chain.state['grip']]
+    max_adv, max_left, max_grip = float(fp.get('max_advance_mm', 4.0)), float(fp.get('max_left_mm', 2.0)), float(fp.get('max_grip_change', 0.02))
+    stop, worst = None, dict(advance_mm=0., left_mm=0., grip_change=[0., 0.])
+
+    def watch():
+        p, _ = tc.fk(chain.q_b[0:1].to(dev).float())
+        pl, _ = lc.fk(chain.q_b[1:2].to(dev).float())
+        a_ = float(-((p[0] - p0[0]) @ zp)) * 1e3
+        l_ = float((pl[0] - pl0[0]).norm()) * 1e3
+        g_ = [abs(float(chain.state['grip'][i]) - g0[i]) for i in range(2)]
+        worst['advance_mm'], worst['left_mm'] = max(worst['advance_mm'], a_), max(worst['left_mm'], l_)
+        worst['grip_change'] = [max(worst['grip_change'][i], g_[i]) for i in range(2)]
+        if a_ > max_adv:
+            return f'hand advanced {a_:.2f} mm > {max_adv} (plug moved more than a seated plug can, or slipped in the jaws)'
+        if l_ > max_left:
+            return f'left hand moved {l_:.2f} mm > {max_left} (the PC press gave way)'
+        if max(g_) > max_grip:
+            return f'gripper reading changed {[round(x, 3) for x in g_]} > {max_grip} (right, left)'
+        return None
+
+    q = q0
+    for k in range(n):
+        u = (k + 1) / n
+        u = u * u * (3 - 2 * u)
+        q, _, _ = tc.ik(p0 + d[None] * u, R0, q, iters=10)
+        chain.hstep(q[0].to(chain.dev), q_left, '5 insert')
+        stop = watch()
+        if stop:
+            break
+    if stop is None:
+        for _ in range(int(round(float(fp['hold_s']) / chain.dt))):
+            chain.hstep(q[0].to(chain.dev), q_left, '5 insert')
+            stop = watch()
+            if stop:
+                break
+    p1, _ = tc.fk(chain.q_b[0:1].to(dev).float())
+    adv = float(-((p1[0] - p0[0]) @ zp)) * 1e3
+    for _ in range(int(round(0.3 / chain.dt))):          # drop the push: measured right pose, the left keeps its press target
+        chain.hstep(chain.q_b[0].clone(), q_left, '5 insert')
+    tr = chain.truth()
+    chain.log_event('insert_final_push', mm=float(fp['mm']), v_mm_s=float(fp['v_mm_s']), hold_s=float(fp['hold_s']), advance_mm=adv,
+                    stopped=stop, worst=worst, true_depth_mm=None if tr is None else tr['tip_depth_mm'], tick=chain.k)
+    print(f'final push: advance {adv:.2f} mm, left hand moved {worst["left_mm"]:.2f} mm, grip change {[round(x, 3) for x in worst["grip_change"]]}'
+          + (f'; STOPPED: {stop}' if stop else ''), flush=True)
+    return adv
+
+
 def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     """Hand-over and insertion from the approach command `cmd` (1, 6 believed) with the left at q_hold (1, 6).
     Returns a dict (outcome, steps, seated tick, depth). sim_obs(jt, prev, inhand) -> the sim env's actor obs for
@@ -174,6 +238,7 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     gd, det2 = make_guards(chain, qb, pR, consts) if (ic.get('guard') or ic.get('seat2')) else (None, None)
     chain.log_event('insert_start', jt=jt.tolist(), inhand6=inhand6.tolist(), cap=cap, warm=warm, T=T)
     outcome, t_seat, obs_err, truth_seat = 'timeout', None, [], None
+    s2 = None
     obs_seg = []
     for t in range(T):
         with torch.no_grad():
@@ -238,6 +303,23 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     # stop the push: hold the measured right pose for 0.2 s (the left keeps its press)
     for _ in range(int(round(0.2 / chain.dt))):
         chain.hstep(chain.q_b[0].clone(), q_hold.reshape(6), '5 insert')
+    fp = ic.get('final_push')
+    if fp and outcome == 'seated_detected':
+        # push only into a plug that already reads as in the port: both seat readings at depth, close to the axis
+        d2 = None if s2 is None else float(s2['depth'][0])
+        l2 = None if s2 is None else [float(x) for x in s2['lat'][0]]
+        why = None
+        if d2 is None:
+            why = 'no seat-2 reading (insert.seat2 off)'
+        elif d2 < float(fp.get('min_depth_mm', 5.0)):
+            why = f'depth {d2:.2f} mm < {fp.get("min_depth_mm", 5.0)}'
+        elif max(abs(x) for x in l2) > float(fp.get('max_lat_mm', 2.5)):
+            why = f'lateral {l2} mm beyond {fp.get("max_lat_mm", 2.5)}'
+        if why is None:
+            final_push(chain, pR[0], q_hold.reshape(6), fp)
+        else:
+            chain.log_event('insert_final_push_skipped', reason=why, depth2_mm=d2, lat2_mm=l2, tick=chain.k)
+            print(f'final push skipped: {why}', flush=True)
     p_end, _ = chain.scene.tcp_chain.fk(chain.q_b[0:1])
     z_port = torch.as_tensor(pR[0], dtype=torch.float32).reshape(3, 3)[:, 2].to(p_end.device)
     advance_mm = float(-((p_end[0] - p0[0].to(p_end.device)) @ z_port)) * 1e3     # TCP advance into the port since the hand-over (believed FK displacement)

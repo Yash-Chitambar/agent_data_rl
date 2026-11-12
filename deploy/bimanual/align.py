@@ -956,7 +956,7 @@ class ServoStage(AlignStage):
                 from deploy.bimanual.vision_thread import ThreadWorker
                 self.worker = ThreadWorker(self.src.measure_raw, err)
             self.threaded = True
-            ch.log_event('align_servo_vision_worker', kind=sv.get('vision_worker', 'process'))
+            ch.log_event('align_servo_vision_worker', worker=sv.get('vision_worker', 'process'))
 
     def _vision_tick(self, tag):
         """Submit the newest frame when the worker is free; return a finished Result or None. Never blocks."""

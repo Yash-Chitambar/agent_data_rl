@@ -4,6 +4,8 @@ Task: right YAM picks the SanDisk USB-C SD reader and inserts it into port 2 of 
 mini PC; left YAM holds the PC. Recipe and question: [README](../../README.md),
 [research direction](../research/RESEARCH_DIRECTION.md). Dated detail: [FINDINGS](FINDINGS.md).
 
+**Real rig (2026-11-11), milestone:** full pick-to-insert chain with the sim-trained K4 insertion policy: 10 of 10 seated when the plug reached the port, 10 of 15 starts end to end (stops: 3 align, 1 pick, 1 process end), 164 s per run with faster moves. One PC spot and one reader spot so far; next: other PC and reader placements. [FINDINGS](FINDINGS.md), `docs/real/SESSION_20261111_duchamp3.md`.
+
 **Real rig (2026-11-02):** real pick fixed by level roll (batch A 10 of 10). `full` runs to the port and fails to insert: the wrist nets report a third or less of the real motion. Next: correct the sim in-hand pose, fix the wrist nets on real frames (`data/real_training/port_v1`), port edge detection. `docs/real/SESSION_20261102_duchamp3.md`.
 
 **Real rig (2026-11-01):** approach + insertion inserted on the robot; the servo pick grasp is marginal (2/8) because
