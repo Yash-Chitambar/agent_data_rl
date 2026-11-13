@@ -376,7 +376,7 @@ Ranked by the size of the gap they close for their cost. Items 1 to 3 need no ri
 3. **Depth from the contact head and from the plug band** (offline, 1 to 2 days; ideas 2 and 5). Output: a depth signal that does not need the operator.
 4. **Depth session on the rig** (the runbook exists): hand measurements of the port first, then the force push (3 runs), then K6d (3 runs), with the true depth recorded for every run. Pass: fully in on 3 of 3.
 5. **Fast alignment on the rig**: 10 runs with `bimanual_align8_fastalign`. Pass: wall time 20 s or less, hand-over within 1 mm, no new stop.
-6. **Placement test with a locked set**: PC ±1 to 2 cm and yaw 0 to 15 degrees, reader across its strip; for example 9 placements, 2 runs each, fixed before the session. This closes the largest gap in the claim. Report per-stage failures.
+6. **Placement test with a locked set**: PC ±1 to 2 cm and yaw 0 to +6 degrees with today's K4 (sim K4 seats 58.6 % at +14 degrees and 1.2 % at +19 degrees, n = 256, `docs/real/ROBUSTNESS_PLAN_20261113.md` on `real/graph-align`; yaw to 15 degrees only after the wide-placement retrain passes), reader across its strip; for example 9 placements, 2 runs each, fixed before the session. This closes the largest gap in the claim. Report per-stage failures.
 7. **Automatic extraction** (idea 6), then n = 50 at one placement. This turns "10 of 10" into a rate.
 8. **Stick-slip identification and the tuned servo** (idea 7), then the parameter optimiser on the whole graph.
 9. **A real residual on K4**: only if item 4 fails with both the force push and K6d, and only after items 3 and 7 give a depth signal and a reset.
