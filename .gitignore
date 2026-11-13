@@ -30,3 +30,8 @@ data/task_h/
 deploy/bundle/
 deploy/bundle.tar
 data/real_runs/
+
+# raw dry-run folders of the placement sweeps (frames, ticks): keep only result.json / point.json
+results/placement/*/*/20*/
+results/placement/**/_logs/
+results/placement/*.log
