@@ -367,6 +367,8 @@ Eight ideas of our own. Each has a test and a result that would prove it wrong. 
 | 7 | **A tuned servo before any RL alignment.** The servo aligned in 2.9 to 7.8 s on the rig and failed only the sway limit. The sway is joint stick-slip. Put stick-slip in the sim, tune the servo gains with the optimiser, and train RL alignment only if that fails | Sim with a stick-slip model fitted to a real joint sweep; optimiser on 4 to 6 gains; then 5 rig runs in align-only mode | 1 rig hour + 3 days | The tuned servo still exceeds the sway limit (tip speed p99 15 mm/s) on the rig |
 | 8 | **The agent writes the triage table itself.** After every session the agent computes the five measurements per node and proposes a class and a fix class | Blind test on three past sessions (2026-11-01, 11-02, 11-10): compare the agent's fix class with the one that worked | 2 days | Agreement under 50 %, or the agent proposes RL where a config change solved it |
 
+**Update 2026-11-14 (offline tests run, `docs/real/GATE_REPLAY_20261114.md` on `real/graph-align`).** Idea 2 is falsified: the contact-head flip spreads over 0.7 to 3.1 mm and depth from it agrees poorly with the operator (rho 0.37, n = 8); the present rest depth ranks the six hand-read frames perfectly. Idea 5 is weak so far: the band follows the rest depth for K4 (rho 0.86, n = 8) but does not separate fully in from short; it needs a frame at rest and the hand-placed calibration. The gate replay (35 gates, 37 real runs) supports the safety/quality split: no safety gate gave a false stop, and all stops of fine runs came from four quality gates.
+
 ## Ranked next experiments
 
 Ranked by the size of the gap they close for their cost. Items 1 to 3 need no rig.
