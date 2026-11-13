@@ -56,21 +56,27 @@ def main():
     ap.add_argument('--seed', type=int, default=8100)
     ap.add_argument('--out', required=True)
     ap.add_argument('--reader-net', default=None, help='reader estimator name in runs/perception (default: the config pick.reader_estimator)')
+    ap.add_argument('--pc-poses', default=None, help='JSON list of [tag, dx_mm, dy_mm, dyaw_deg] PC offsets from the real spot '
+                    '(reader at the real spot); replaces the default sweep (zed_v5 checks, docs/real/ZED_V5_20261114.md)')
     a = ap.parse_args()
     cfg = json.loads(Path(a.config).read_text())
     poses = []
-    for dx in (-40, -30, -20, -10, 0, 10, 20, 30, 40):
-        poses.append(('pc', (REAL_PC[0] + dx * 1e-3, REAL_PC[1], REAL_PC[2]), REAL_RD, f'pc dx {dx:+d}'))
-    for dy in (-60, -45, -30, -20, -10, 10, 20, 30, 40):
-        poses.append(('pc', (REAL_PC[0], REAL_PC[1] + dy * 1e-3, REAL_PC[2]), REAL_RD, f'pc dy {dy:+d}'))
-    for dyaw in (-20, -15, -10, -5, 5, 10, 15, 20, 25):
-        poses.append(('pc', (REAL_PC[0], REAL_PC[1], REAL_PC[2] + dyaw), REAL_RD, f'pc yaw {dyaw:+d}'))
-    for dx in (-60, -40, -20, 20, 40, 60):
-        poses.append(('rd', REAL_PC, (REAL_RD[0] + dx * 1e-3, REAL_RD[1], REAL_RD[2]), f'rd dx {dx:+d}'))
-    for dy in (-60, -40, -20, 20, 40, 60):
-        poses.append(('rd', REAL_PC, (REAL_RD[0], REAL_RD[1] + dy * 1e-3, REAL_RD[2]), f'rd dy {dy:+d}'))
-    for yaw in (50, 60, 70, 80, 100, 110, 120, 130):
-        poses.append(('rd', REAL_PC, (REAL_RD[0], REAL_RD[1], yaw), f'rd yaw {yaw}'))
+    if a.pc_poses:
+        for tag, dx, dy, dyaw in json.loads(Path(a.pc_poses).read_text()):
+            poses.append(('pc', (REAL_PC[0] + dx * 1e-3, REAL_PC[1] + dy * 1e-3, REAL_PC[2] + dyaw), REAL_RD, tag))
+    else:
+        for dx in (-40, -30, -20, -10, 0, 10, 20, 30, 40):
+            poses.append(('pc', (REAL_PC[0] + dx * 1e-3, REAL_PC[1], REAL_PC[2]), REAL_RD, f'pc dx {dx:+d}'))
+        for dy in (-60, -45, -30, -20, -10, 10, 20, 30, 40):
+            poses.append(('pc', (REAL_PC[0], REAL_PC[1] + dy * 1e-3, REAL_PC[2]), REAL_RD, f'pc dy {dy:+d}'))
+        for dyaw in (-20, -15, -10, -5, 5, 10, 15, 20, 25):
+            poses.append(('pc', (REAL_PC[0], REAL_PC[1], REAL_PC[2] + dyaw), REAL_RD, f'pc yaw {dyaw:+d}'))
+        for dx in (-60, -40, -20, 20, 40, 60):
+            poses.append(('rd', REAL_PC, (REAL_RD[0] + dx * 1e-3, REAL_RD[1], REAL_RD[2]), f'rd dx {dx:+d}'))
+        for dy in (-60, -40, -20, 20, 40, 60):
+            poses.append(('rd', REAL_PC, (REAL_RD[0], REAL_RD[1] + dy * 1e-3, REAL_RD[2]), f'rd dy {dy:+d}'))
+        for yaw in (50, 60, 70, 80, 100, 110, 120, 130):
+            poses.append(('rd', REAL_PC, (REAL_RD[0], REAL_RD[1], yaw), f'rd yaw {yaw}'))
     poses.insert(0, ('pc', REAL_PC, REAL_RD, 'real'))
     pc = [p[1] for p in poses for _ in range(a.reps)]
     rd = [p[2] for p in poses for _ in range(a.reps)]

@@ -1,0 +1,260 @@
+{
+ "method": "ZED v2 gate: presence CNN + Mahalanobis OOD + predicted-uncertainty check for the arm-pose-robust ZED\npose net (zed_v2: trained with varied arm poses and gripper openings, heteroscedastic output).\n\nTraining / calibration renders (policy/v1 visual DR, reader on the Part 1 strip) use\nrender_data.vary_arms(scale 1): right arm at rest or perturbed, right fingers closed..fully open, left arm\nrest / parked / pressing (2 or 3.5 cm) / perturbed. Negatives move the PC out of view. Thresholds:\nMahalanobis 1.25 x the 99.9th percentile, predicted std at the 99.5th percentile of held-out positives.\nTests: held-out positives per arm category; positives with arm poses beyond the training spread\n(vary_arms scale 2.5) -- the gate should reject the frames it cannot handle; negatives; real ZED first\nframes of the 24 curated sessions (by-eye labels) and the stationary session vs its manual landmark.\n\n    CUDA_VISIBLE_DEVICES=4 PYTHONPATH=. .venv/bin/python scripts/perception/train_zed_gate_v2.py\nWrites runs/perception/zed_v2_gate.pt, results/usbc/policy/approach/zed_v2_gate.json",
+ "pose_nets": [
+  "zed_v5s0",
+  "zed_v5s1"
+ ],
+ "thresholds": {
+  "ood_thresh": 13.508790016174316,
+  "ood_scale": 1.25,
+  "presence_thresh": 0.5,
+  "disagree_xy_thresh_mm": 2.824856758117676,
+  "disagree_yaw_thresh_deg": 1.51406729221344
+ },
+ "sim_in_distribution": {
+  "n": 2048,
+  "accept": 0.9892578125,
+  "xy_mm_accepted": {
+   "p50": 0.5913841724395752,
+   "p99": 2.206563711166382
+  },
+  "xy_mm_rejected": {
+   "p50": 1.395965814590454,
+   "p99": 3.449047803878784
+  },
+  "xy_mm_all": {
+   "p50": 0.5976974964141846,
+   "p99": 2.3526864051818848
+  },
+  "yaw_deg_accepted_p99": 1.1796960830688477
+ },
+ "sim_by_arm_category": {
+  "left_rest": {
+   "n": 2048,
+   "accept": 0.9892578125,
+   "xy_mm_p50": 0.5913841724395752,
+   "xy_mm_p99": 2.206563711166382
+  }
+ },
+ "sim_reset_pose": {
+  "n": 1024,
+  "accept": 0.9833984375,
+  "xy_mm_accepted": {
+   "p50": 0.5763499140739441,
+   "p99": 2.056715965270996
+  },
+  "xy_mm_rejected": {
+   "p50": 1.2910583019256592,
+   "p99": 3.3967878818511963
+  },
+  "xy_mm_all": {
+   "p50": 0.5821290016174316,
+   "p99": 2.3462045192718506
+  },
+  "yaw_deg_accepted_p99": 1.1290148496627808
+ },
+ "sim_arms_beyond_training_x2.5": {
+  "n": 1024,
+  "accept": 0.5986328125,
+  "xy_mm_accepted": {
+   "p50": 8.200982093811035,
+   "p99": 22.368942260742188
+  },
+  "xy_mm_rejected": {
+   "p50": 10.155604362487793,
+   "p99": 37.738380432128906
+  },
+  "xy_mm_all": {
+   "p50": 8.927921295166016,
+   "p99": 26.380613327026367
+  },
+  "yaw_deg_accepted_p99": 4.311041831970215
+ },
+ "sim_no_pc": {
+  "n": 1024,
+  "accept": 0.0
+ },
+ "real": {
+  "first_frames": {
+   "n": 24,
+   "pc_frames_accepted": "6/17",
+   "no_pc_frames_rejected": "7/7",
+   "per_session": {
+    "bimanual_stationary_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 1.0,
+     "mahalanobis": 10.66148853302002,
+     "sigma_xy_mm": 0.0
+    },
+    "board_rgb_001": {
+     "pc_in_view_by_eye": false,
+     "pose_returned": false,
+     "presence": 0.9998325109481812,
+     "mahalanobis": 12.830018043518066,
+     "sigma_xy_mm": 0.0
+    },
+    "contact_approach_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 1.0,
+     "mahalanobis": 10.43885326385498,
+     "sigma_xy_mm": 0.0
+    },
+    "contact_final_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 0.9999998807907104,
+     "mahalanobis": 11.134879112243652,
+     "sigma_xy_mm": 0.0
+    },
+    "contact_final_002": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 0.9999998807907104,
+     "mahalanobis": 11.182168960571289,
+     "sigma_xy_mm": 0.0
+    },
+    "contact_interactive_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 1.0,
+     "mahalanobis": 10.40127944946289,
+     "sigma_xy_mm": 0.0
+    },
+    "contact_interactive_002": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 1.0,
+     "mahalanobis": 10.779833793640137,
+     "sigma_xy_mm": 0.0
+    },
+    "initial_rgb_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 0.17870165407657623,
+     "mahalanobis": 17.14800453186035,
+     "sigma_xy_mm": 0.0
+    },
+    "left_elevated_j3_001": {
+     "pc_in_view_by_eye": false,
+     "pose_returned": false,
+     "presence": 0.00010753737296909094,
+     "mahalanobis": 16.048418045043945,
+     "sigma_xy_mm": 0.0
+    },
+    "left_free_settle_001": {
+     "pc_in_view_by_eye": false,
+     "pose_returned": false,
+     "presence": 0.012503386475145817,
+     "mahalanobis": 19.697040557861328,
+     "sigma_xy_mm": 0.0
+    },
+    "left_free_settle_002": {
+     "pc_in_view_by_eye": false,
+     "pose_returned": false,
+     "presence": 0.0118773328140378,
+     "mahalanobis": 19.627199172973633,
+     "sigma_xy_mm": 0.0
+    },
+    "left_free_settle_003": {
+     "pc_in_view_by_eye": false,
+     "pose_returned": false,
+     "presence": 0.012273049913346767,
+     "mahalanobis": 19.600982666015625,
+     "sigma_xy_mm": 0.0
+    },
+    "left_pc_view_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": true,
+     "presence": 0.9999997615814209,
+     "mahalanobis": 11.143576622009277,
+     "sigma_xy_mm": 0.0
+    },
+    "left_reader_002": {
+     "pc_in_view_by_eye": false,
+     "pose_returned": false,
+     "presence": 0.00019367964705452323,
+     "mahalanobis": 15.665282249450684,
+     "sigma_xy_mm": 0.0
+    },
+    "left_rest_sweep_001": {
+     "pc_in_view_by_eye": false,
+     "pose_returned": false,
+     "presence": 0.00010078653576783836,
+     "mahalanobis": 15.743424415588379,
+     "sigma_xy_mm": 0.0
+    },
+    "left_standoff_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": true,
+     "presence": 1.0,
+     "mahalanobis": 11.609634399414062,
+     "sigma_xy_mm": 0.0
+    },
+    "left_standoff_002": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": true,
+     "presence": 1.0,
+     "mahalanobis": 11.497729301452637,
+     "sigma_xy_mm": 0.0
+    },
+    "left_standoff_003": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": true,
+     "presence": 1.0,
+     "mahalanobis": 11.521571159362793,
+     "sigma_xy_mm": 0.0
+    },
+    "pc_contact_survey_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": true,
+     "presence": 0.9999998807907104,
+     "mahalanobis": 11.231622695922852,
+     "sigma_xy_mm": 0.0
+    },
+    "pc_manual_motion_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 0.9999995231628418,
+     "mahalanobis": 12.673388481140137,
+     "sigma_xy_mm": 0.0
+    },
+    "pc_stickers_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 0.9999998807907104,
+     "mahalanobis": 10.398176193237305,
+     "sigma_xy_mm": 0.0
+    },
+    "pc_stickers_002": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": true,
+     "presence": 1.0,
+     "mahalanobis": 11.317411422729492,
+     "sigma_xy_mm": 0.0
+    },
+    "pc_stickers_003": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 0.010081863962113857,
+     "mahalanobis": 13.26063346862793,
+     "sigma_xy_mm": 0.0
+    },
+    "rear_brace_patch_001": {
+     "pc_in_view_by_eye": true,
+     "pose_returned": false,
+     "presence": 1.0,
+     "mahalanobis": 14.47208309173584,
+     "sigma_xy_mm": 0.0
+    }
+   }
+  },
+  "stationary_vs_landmark": {
+   "n": 123,
+   "accepted": 0,
+   "mean_offset_mm": null,
+   "std_mm": null
+  }
+ }
+}

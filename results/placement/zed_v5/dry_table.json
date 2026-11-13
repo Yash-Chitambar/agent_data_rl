@@ -1,0 +1,321 @@
+[
+ {
+  "tag": "c_s7041",
+  "pc": [
+   0.231,
+   0.394,
+   4.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 5.046643286447309,
+  "zed_yaw": 3.586628809595722,
+  "zed_true_yaw": 4.0000001389380255,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 39.300000000000004,
+  "insert_outcome": "press_abort",
+  "stage": "insert",
+  "why": "press_abort",
+  "true_seated": null,
+  "completed": true
+ },
+ {
+  "tag": "c_s7043",
+  "pc": [
+   0.231,
+   0.394,
+   4.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7043,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 2.2523147575554234,
+  "zed_yaw": 3.6182786255490917,
+  "zed_true_yaw": 4.0000001389380255,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 41.28,
+  "insert_outcome": "seated_detected",
+  "stage": "done",
+  "why": "",
+  "true_seated": false,
+  "completed": true
+ },
+ {
+  "tag": "pcc+20+20+10_s7041",
+  "pc": [
+   0.251,
+   0.414,
+   14.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 5.1162911527684765,
+  "zed_yaw": 13.935714364526117,
+  "zed_true_yaw": 14.000003643864021,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 45.760000000000005,
+  "insert_outcome": "press_abort",
+  "stage": "insert",
+  "why": "press_abort",
+  "true_seated": null,
+  "completed": true
+ },
+ {
+  "tag": "pcc-25+25-10_s7041",
+  "pc": [
+   0.206,
+   0.419,
+   -6.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 6.008279398886971,
+  "zed_yaw": -6.096362610209867,
+  "zed_true_yaw": -6.000002555030771,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": false,
+  "align_reason": "entry gap 4.9 mm below the 12.0 mm limit",
+  "align_s": 0.740000000000002,
+  "insert_outcome": null,
+  "stage": "align",
+  "why": "entry gap 4.9 mm below the 12.0 mm limit",
+  "true_seated": null,
+  "completed": true
+ },
+ {
+  "tag": "pcx+20_s7041",
+  "pc": [
+   0.251,
+   0.394,
+   4.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 4.918611018914615,
+  "zed_yaw": 4.329919023380482,
+  "zed_true_yaw": 4.0000001389380255,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 47.120000000000005,
+  "insert_outcome": "guard_bound",
+  "stage": "insert",
+  "why": "guard_bound",
+  "true_seated": null,
+  "completed": true
+ },
+ {
+  "tag": "pcx-25_s7041",
+  "pc": [
+   0.206,
+   0.394,
+   4.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 5.517977719995014,
+  "zed_yaw": 3.3941897238344936,
+  "zed_true_yaw": 4.0000001389380255,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 36.559999999999995,
+  "insert_outcome": "guard_bound",
+  "stage": "insert",
+  "why": "guard_bound",
+  "true_seated": null,
+  "completed": true
+ },
+ {
+  "tag": "pcy+20_s7041",
+  "pc": [
+   0.231,
+   0.414,
+   4.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 5.163113201868564,
+  "zed_yaw": 3.767655716470917,
+  "zed_true_yaw": 4.0000001389380255,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 38.980000000000004,
+  "insert_outcome": "seated_detected",
+  "stage": "done",
+  "why": "",
+  "true_seated": true,
+  "completed": true
+ },
+ {
+  "tag": "pcy+30_s7041",
+  "pc": [
+   0.231,
+   0.424,
+   4.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 6.311086859106311,
+  "zed_yaw": 3.693319352639083,
+  "zed_true_yaw": 4.0000001389380255,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": false,
+  "align_reason": "after the press: step limit",
+  "align_s": 42.080000000000005,
+  "insert_outcome": null,
+  "stage": "align",
+  "why": "after the press: step limit",
+  "true_seated": null,
+  "completed": true
+ },
+ {
+  "tag": "pcy-25_s7041",
+  "pc": [
+   0.231,
+   0.369,
+   4.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 3.8302742277652513,
+  "zed_yaw": 4.31496304353227,
+  "zed_true_yaw": 4.0000001389380255,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 44.279999999999994,
+  "insert_outcome": "seated_detected",
+  "stage": "done",
+  "why": "",
+  "true_seated": false,
+  "completed": true
+ },
+ {
+  "tag": "pcyaw+10_s7041",
+  "pc": [
+   0.231,
+   0.394,
+   14.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 5.230497110650339,
+  "zed_yaw": 13.991111467563153,
+  "zed_true_yaw": 14.000003643864021,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 38.980000000000004,
+  "insert_outcome": "press_abort",
+  "stage": "insert",
+  "why": "press_abort",
+  "true_seated": null,
+  "completed": true
+ },
+ {
+  "tag": "pcyaw-15_s7041",
+  "pc": [
+   0.231,
+   0.394,
+   -11.0
+  ],
+  "reader": [
+   0.131,
+   0.448,
+   92.0
+  ],
+  "seed": 7041,
+  "config": "deploy/config/bimanual_align8_zedv5.json",
+  "zed_ok": true,
+  "zed_err_xy_mm": 4.7545763844465885,
+  "zed_yaw": -10.961150759286285,
+  "zed_true_yaw": -11.00000211687318,
+  "pick_outcome": "held",
+  "hold_latched": true,
+  "align_ok": true,
+  "align_reason": "within tolerance",
+  "align_s": 29.660000000000004,
+  "insert_outcome": "guard_bound",
+  "stage": "insert",
+  "why": "guard_bound",
+  "true_seated": null,
+  "completed": true
+ }
+]

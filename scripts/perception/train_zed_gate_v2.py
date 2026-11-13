@@ -136,6 +136,8 @@ def main():
                     'xy_mm_p99': float(torch.quantile(e[m & ok], .99))}
     for lo, hi in ((0, .012), (.012, .03), (.03, .0475)):
         m = (Lp[:, 4] >= lo) & (Lp[:, 4] < hi + 1e-9)
+        if not (m & ok).any():      # gates fit at one arm pose (zed_v5): the fingers sit in one bin
+            continue
         cats[f'right_fingers_{lo * 1e3:.0f}-{hi * 1e3:.0f}mm'] = {'n': int(m.sum()), 'accept': float(ok[m].float().mean()),
                                                                     'xy_mm_p50': float(torch.quantile(e[m & ok], .5)), 'xy_mm_p99': float(torch.quantile(e[m & ok], .99))}
     out['sim_in_distribution'] = ind; out['sim_by_arm_category'] = cats

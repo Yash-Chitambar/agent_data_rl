@@ -1,0 +1,144 @@
+{
+ "v1": {
+  "step2 box (+/-25 mm, +/-15 deg)": {
+   "poses": 27,
+   "worlds": 216,
+   "gate_ok": 148,
+   "gate_rate": 0.6851851851851852,
+   "err_p50_of_pose_p50": 4.548012733459473,
+   "worst_pose_err_p50": [
+    36.83110046386719,
+    "c25 -25 +25 +15"
+   ],
+   "poses_gate_passes_err_p50_over_10mm": [
+    "pc dy +20",
+    "pc dy +25",
+    "c25 -25 +25 -15",
+    "c25 -25 +25 +15",
+    "c25 +25 +25 -15"
+   ],
+   "poses_gate_passes_yaw_err_p50_over_3deg": [
+    "c25 -25 -25 +15",
+    "c25 -25 +25 -15",
+    "c25 -25 +25 +15",
+    "c25 +25 +25 -15"
+   ],
+   "worst_pose_yaw_err_p50": [
+    13.246124267578125,
+    "c25 +25 +25 +15"
+   ]
+  },
+  "v5 box rim (<= 40 mm, <= 20 deg)": {
+   "poses": 18,
+   "worlds": 144,
+   "gate_ok": 67,
+   "gate_rate": 0.4652777777777778,
+   "err_p50_of_pose_p50": 11.049568176269531,
+   "worst_pose_err_p50": [
+    75.8599853515625,
+    "c40 +40 +40 +20"
+   ],
+   "poses_gate_passes_err_p50_over_10mm": [
+    "pc dx +40",
+    "pc dy +30",
+    "pc dy +40",
+    "c40 -40 +40 -20",
+    "c40 -40 +40 +20"
+   ],
+   "poses_gate_passes_yaw_err_p50_over_3deg": [
+    "pc yaw -20",
+    "c40 -40 -40 -20",
+    "c40 -40 +40 -20",
+    "c40 -40 +40 +20"
+   ],
+   "worst_pose_yaw_err_p50": [
+    22.722774505615234,
+    "c40 +40 +40 +20"
+   ]
+  },
+  "outside v5 box": {
+   "poses": 12,
+   "worlds": 96,
+   "gate_ok": 43,
+   "gate_rate": 0.4479166666666667,
+   "err_p50_of_pose_p50": 9.115698337554932,
+   "worst_pose_err_p50": [
+    79.98957824707031,
+    "pc dy +60"
+   ],
+   "poses_gate_passes_err_p50_over_10mm": [
+    "pc dx -60",
+    "pc dx +50",
+    "pc dx +60"
+   ],
+   "poses_gate_passes_yaw_err_p50_over_3deg": [
+    "pc yaw -30",
+    "pc yaw -25"
+   ],
+   "worst_pose_yaw_err_p50": [
+    24.91513442993164,
+    "pc yaw +30"
+   ]
+  }
+ },
+ "v5": {
+  "step2 box (+/-25 mm, +/-15 deg)": {
+   "poses": 27,
+   "worlds": 216,
+   "gate_ok": 214,
+   "gate_rate": 0.9907407407407407,
+   "err_p50_of_pose_p50": 3.7064859867095947,
+   "worst_pose_err_p50": [
+    5.354948043823242,
+    "pc dy -10"
+   ],
+   "poses_gate_passes_err_p50_over_10mm": [],
+   "poses_gate_passes_yaw_err_p50_over_3deg": [],
+   "worst_pose_yaw_err_p50": [
+    0.6909880638122559,
+    "c25 -25 -25 -15"
+   ]
+  },
+  "v5 box rim (<= 40 mm, <= 20 deg)": {
+   "poses": 18,
+   "worlds": 144,
+   "gate_ok": 138,
+   "gate_rate": 0.9583333333333334,
+   "err_p50_of_pose_p50": 3.816537857055664,
+   "worst_pose_err_p50": [
+    5.520674228668213,
+    "pc dy +40"
+   ],
+   "poses_gate_passes_err_p50_over_10mm": [],
+   "poses_gate_passes_yaw_err_p50_over_3deg": [],
+   "worst_pose_yaw_err_p50": [
+    1.1194586753845215,
+    "c40 -40 +40 +20"
+   ]
+  },
+  "outside v5 box": {
+   "poses": 12,
+   "worlds": 96,
+   "gate_ok": 79,
+   "gate_rate": 0.8229166666666666,
+   "err_p50_of_pose_p50": 6.1892454624176025,
+   "worst_pose_err_p50": [
+    24.47296142578125,
+    "pc dx -60"
+   ],
+   "poses_gate_passes_err_p50_over_10mm": [
+    "pc dx -60",
+    "pc dy -60",
+    "pc dy +60"
+   ],
+   "poses_gate_passes_yaw_err_p50_over_3deg": [
+    "pc yaw -30",
+    "pc yaw +30"
+   ],
+   "worst_pose_yaw_err_p50": [
+    6.920510768890381,
+    "pc yaw -30"
+   ]
+  }
+ }
+}
