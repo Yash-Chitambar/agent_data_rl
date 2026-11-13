@@ -35,3 +35,5 @@ USB-C chain runner is `deploy/run_bimanual.py` (`deploy/bimanual/`). The first r
 - [PICK_GRASP_SIM_HANDOFF_20261101.md](PICK_GRASP_SIM_HANDOFF_20261101.md), [GRASP_FIDELITY.md](GRASP_FIDELITY.md), [PICK_BATCH_RUNBOOK.md](PICK_BATCH_RUNBOOK.md): the real pick failure, the sim grasp model that fixed it, and the pick batch runbook.
 - [INHAND_REAL.md](INHAND_REAL.md), [WRIST_NETS_REAL.md](WRIST_NETS_REAL.md): real in-hand pose and reader look in the sim; wrist nets on real frames (r10).
 - [NEXT_RIG_SESSION.md](NEXT_RIG_SESSION.md), [ANSWERS_20261103.md](ANSWERS_20261103.md): older runbooks (align stage, 2026-11-03/06); kept for history.
+- [DATA_REVIEW_20261113.md](DATA_REVIEW_20261113.md), [FULL_DEPTH_20261113.md](FULL_DEPTH_20261113.md), [ALIGN_FAST_20261113.md](ALIGN_FAST_20261113.md), [ROBUSTNESS_PLAN_20261113.md](ROBUSTNESS_PLAN_20261113.md): server work after the milestone (real-run review, full insertion depth, fast alignment, placement robustness + wrist-net bias + approach jump).
+- [NEXT_RIG_20261114.md](NEXT_RIG_20261114.md): **the current rig runbook** (one change per block, then `bimanual_align9_all`).
