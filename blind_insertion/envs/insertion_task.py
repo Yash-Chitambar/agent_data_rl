@@ -206,6 +206,11 @@ class InsertionCfg:
     # [lo, hi] (None: 1), and a constant prior offset in mm (across, up, gap; None: 0; eval stress of a biased port vision).
     vision_prior_sigma_scale: tuple | None = None
     vision_prior_bias_mm: tuple | None = None
+    # Mating force (docs/real/FULL_DEPTH_20261113.md): the real USB-C port resists the plug (contact springs, latch; spec 5-20 N to
+    # mate), the mjfit port does not. (lo, hi) N: per-episode peak of a force along the port axis between the plug and the PC,
+    # zero up to mate_start_m of depth, then linear to the peak at the seat depth, set each control step. None: off (K4 and older).
+    mate_force_n: tuple | None = None
+    mate_start_m: float = 0.002
     # ---- AlignTask (blind_insertion/envs/align_task.py): final alignment from a real-like stop to the hand-over pose
     align_task: bool = False
     align_goal_mm: tuple = (0., 0., 6.)
@@ -347,6 +352,11 @@ class InsertionTask(BimanualTask):
             self.icfg.grasp_p = self.grasp_height()
         self.grasp_info = {'grasp': self.icfg.grasp, 'spread_scale': self.icfg.inhand_spread_scale} \
             if self.icfg.grasp == 'part1' else self.grasp_info
+        if self.icfg.mate_force_n is not None:
+            import warp as wp
+            self.mate_xfrc = wp.to_torch(rt.d.xfrc_applied)
+            self.mate_peak = torch.zeros(self.N, device=dev)
+            self.mate_bodies = (int(m.body('peg').id), int(m.body('fixture').id))
         self._init_nominal()
         # buffers
         n = self.N
@@ -701,6 +711,9 @@ class InsertionTask(BimanualTask):
             self.vision_prior[ids] = pp[ids] * 1e3 + torch.randn(len(ids), 3, device=self.device, generator=self.gen) * sig
             if c.vision_prior_bias_mm is not None:
                 self.vision_prior[ids] = self.vision_prior[ids] + torch.tensor(c.vision_prior_bias_mm, device=self.device)
+        if c.mate_force_n is not None:
+            lo, hi = c.mate_force_n
+            self.mate_peak[ids] = lo + (hi - lo) * torch.rand(len(ids), device=self.device, generator=self.gen)
         if self.icfg.inhand_obs:
             sp, sr = self.icfg.inhand_obs_noise
             z = torch.randn(len(ids), 6, device=self.device, generator=self.gen)
@@ -811,8 +824,24 @@ class InsertionTask(BimanualTask):
         a[:, 6] = -1.      # right gripper closed
         a[:, 13] = -1.     # left gripper closed
         self.done[:] = False
+        if self.icfg.mate_force_n is not None:
+            self._mate_force()
         _, _, terminated, truncated, info = BimanualTask.step(self, a)
         return self._post_step(terminated, truncated, info, warm)
+
+    def _mate_force(self):
+        """Port-axis force between the plug and the PC (icfg.mate_force_n), from the live plug depth; equal and opposite, both at
+        the body centres of mass (no moment: the plug is guided by the port)."""
+        rt = self.runtime
+        p, _ = rt.plug_in_port()
+        fa = rt.pc_qadr
+        z = K.quat_to_mat(rt.q[:, fa + 3:fa + 7])[:, :, 2]                       # port axis (out of the port), world
+        lat_ok = (p[:, :2].abs() < torch.tensor([0.002, 0.001], device=self.device)).all(1)     # only a plug that is in the opening
+        e = ((-p[:, 2] - self.icfg.mate_start_m) / max(self.seat_depth - self.icfg.mate_start_m, 1e-6)).clamp(0, 1)
+        f = (self.mate_peak * e * lat_ok)[:, None] * z
+        pb, fb = self.mate_bodies
+        self.mate_xfrc[:, pb, :3] = f
+        self.mate_xfrc[:, fb, :3] = -f
 
     def _transition(self):
         """Episode status (insertion version): success after the seated hold, failure classes."""

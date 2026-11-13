@@ -1,0 +1,66 @@
+[
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 0.5
+  },
+  "k": 0,
+  "n": 512,
+  "rate": 0.0,
+  "wilson": [
+   0.0,
+   0.007447247372061501
+  ],
+  "classes": {
+   "lateral_miss": 3,
+   "grasp_slip": 488,
+   "jam": 4,
+   "tilt": 17
+  },
+  "force_p50": 6.003185033798218,
+  "force_p99": 24.21933177947997,
+  "t_ok_p50": NaN,
+  "t_ok_p99": NaN,
+  "cell": "real_ho",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/insert_K4.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.1
+  ]
+ },
+ {
+  "cond": {
+   "gap": 5.5,
+   "ring": 3.0
+  },
+  "k": 0,
+  "n": 512,
+  "rate": 0.0,
+  "wilson": [
+   0.0,
+   0.007447247372061501
+  ],
+  "classes": {
+   "lateral_miss": 2,
+   "grasp_slip": 483,
+   "jam": 10,
+   "tilt": 17
+  },
+  "force_p50": 6.266915321350098,
+  "force_p99": 26.505198211669914,
+  "t_ok_p50": NaN,
+  "t_ok_p99": NaN,
+  "cell": "ring3",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/insert_K4.pt",
+  "climb_mm_p50_p95_max": [
+   8.0,
+   8.1,
+   8.1
+  ]
+ }
+]

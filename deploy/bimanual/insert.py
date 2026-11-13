@@ -170,6 +170,102 @@ def final_push(chain, pR, q_left, fp):
     return adv
 
 
+def final_push_force(chain, pR, q_left, fp, lat_mm=None):
+    """insert.final_push with mode "force" (docs/real/FULL_DEPTH_20261113.md). The position push (final_push) gives a force
+    that depends on the arm stiffness, and on the rig the hand moved 5-6 mm down while the plug advanced 2 mm. Here the
+    right-arm target is the MEASURED pose plus the joint step whose PD torque equals a chosen Cartesian load:
+    kp dq = J^T [F, M], F = force_n along -port_z (ramp ramp_n_s, hold hold_s) + a lateral spring lat_k_n_mm that keeps the
+    hand on a reference line, M = a rotation spring rot_k_nm_rad on the start orientation. So the axial PD force is at most
+    force_n (joint friction only lowers it; the joint torques are scaled together to stay under tau_max_nm), and the hand stays on the line. With centre_max_mm > 0 the reference line first
+    moves toward the port axis by the seat reading lat_mm (clipped), at centre_v_mm_s: after a K4 seat the hand can sit
+    2-4 mm off the axis with the plug in the port (2026-11-11 demo_1, speed075_1: up -3.5 / -3.3 mm, reader hanging).
+    Stops as final_push (advance, left hand, gripper readings) plus the hand leaving the line by max_lat_err_mm.
+    Ends early when the hand has not advanced by still_mm in still_s at full force (the plug is home or stuck)."""
+    dev = chain.scene.device
+    tc, lc = chain.scene.chain['right'], chain.scene.chain['left']
+    R = torch.as_tensor(pR, dtype=torch.float32).reshape(3, 3).to(dev)
+    kp = chain.scene.kp[0].to(dev).float()
+    q0 = chain.q_b[0:1].to(dev).float()
+    p0, R0 = tc.fk(q0)
+    pl0, _ = lc.fk(chain.q_b[1:2].to(dev).float())
+    g0 = [float(x) for x in chain.state['grip']]
+    f_max, ramp = float(fp['force_n']), float(fp.get('ramp_n_s', 4.0)) * max(float(chain.speed), 1e-3)
+    hold_s, k_lat, f_lat_max = float(fp.get('hold_s', 1.0)), float(fp.get('lat_k_n_mm', 2.0)), float(fp.get('lat_f_max_n', 6.0))
+    k_rot, m_max = float(fp.get('rot_k_nm_rad', 6.0)), float(fp.get('rot_m_max_nm', 0.5))
+    tau_max = torch.as_tensor(fp.get('tau_max_nm', [6.0, 6.0, 6.0, 2.5, 2.0, 2.0]), dtype=torch.float32, device=dev)
+    max_adv, max_left, max_grip = float(fp.get('max_advance_mm', 4.0)), float(fp.get('max_left_mm', 2.0)), float(fp.get('max_grip_change', 0.02))
+    max_lat_err = float(fp.get('max_lat_err_mm', 3.0))
+    still_mm, still_s = float(fp.get('still_mm', 0.15)), float(fp.get('still_s', 0.6))
+    c_max, c_v = float(fp.get('centre_max_mm', 0.0)), float(fp.get('centre_v_mm_s', 2.0)) * max(float(chain.speed), 1e-3)
+    shift = torch.zeros(2, device=dev)                      # reference line against the start, port x (across), y (up), mm
+    goal = torch.zeros(2, device=dev)
+    if c_max > 0 and lat_mm is not None:
+        goal = (-torch.as_tensor(lat_mm, dtype=torch.float32, device=dev)).clamp(-c_max, c_max)
+    stop, worst = None, dict(advance_mm=0., left_mm=0., grip_change=[0., 0.], lat_err_mm=0.)
+    f, t_full, hist, k, done = 0., None, [], 0, None
+    n_max = int(round((float(goal.abs().max()) / max(c_v, 1e-3) + f_max / max(ramp, 1e-3) + hold_s + 1.0) / chain.dt))
+    while k < n_max:
+        q = chain.q_b[0:1].to(dev).float()
+        p, Rm, J = tc.fk(q, with_jac=True)
+        rel = (p[0] - p0[0]) @ R * 1e3                     # hand against the push start, port axes, mm
+        adv = float(-rel[2])
+        step = (goal - shift).clamp(-c_v * chain.dt, c_v * chain.dt)
+        shift = shift + step
+        centring = bool((goal - shift).abs().max() > 1e-6)
+        if not centring:
+            f = min(f_max, f + ramp * chain.dt)
+        e_lat = shift - rel[:2]                            # mm
+        F_lat = (k_lat * e_lat).clamp(-f_lat_max, f_lat_max)
+        F = R[:, 0] * F_lat[0] + R[:, 1] * F_lat[1] - R[:, 2] * f
+        Re = R0[0] @ Rm[0].T
+        w = torch.stack([Re[2, 1] - Re[1, 2], Re[0, 2] - Re[2, 0], Re[1, 0] - Re[0, 1]]) / 2      # small-angle rotation vector
+        M = (k_rot * w).clamp(-m_max, m_max)
+        tau = J[0].T.float() @ torch.cat([F, M])
+        tau = tau * float((tau_max / tau.abs().clamp(min=1e-9)).clamp(max=1.).min())      # one scale for all joints: the load direction is kept
+        dq = tau / kp
+        chain.hstep((q[0] + dq).to(chain.dev), q_left, '5 insert')
+        k += 1
+        pl, _ = lc.fk(chain.q_b[1:2].to(dev).float())
+        l_ = float((pl[0] - pl0[0]).norm()) * 1e3
+        g_ = [abs(float(chain.state['grip'][i]) - g0[i]) for i in range(2)]
+        le = float(e_lat.norm())
+        worst['advance_mm'], worst['left_mm'], worst['lat_err_mm'] = max(worst['advance_mm'], adv), max(worst['left_mm'], l_), max(worst['lat_err_mm'], le)
+        worst['grip_change'] = [max(worst['grip_change'][i], g_[i]) for i in range(2)]
+        if adv > max_adv:
+            stop = f'hand advanced {adv:.2f} mm > {max_adv} (plug moved more than a seated plug can, or slipped in the jaws)'
+        elif l_ > max_left:
+            stop = f'left hand moved {l_:.2f} mm > {max_left} (the PC press gave way)'
+        elif max(g_) > max_grip:
+            stop = f'gripper reading changed {[round(x, 3) for x in g_]} > {max_grip} (right, left)'
+        elif le > max_lat_err:
+            stop = f'hand {le:.2f} mm off the push line > {max_lat_err}'
+        if stop:
+            break
+        if f >= f_max:
+            t_full = k if t_full is None else t_full
+            hist.append(adv)
+            n_still = int(round(still_s / chain.dt))
+            if len(hist) > n_still and abs(hist[-1] - hist[-1 - n_still]) < still_mm:
+                done = 'still'
+                break
+            if (k - t_full) * chain.dt >= hold_s:
+                done = 'hold'
+                break
+    p1, _ = tc.fk(chain.q_b[0:1].to(dev).float())
+    adv = float(-((p1[0] - p0[0]) @ R[:, 2])) * 1e3
+    for _ in range(int(round(0.3 / chain.dt))):          # drop the push: measured right pose, the left keeps its press target
+        chain.hstep(chain.q_b[0].clone(), q_left, '5 insert')
+    p2, _ = tc.fk(chain.q_b[0:1].to(dev).float())
+    rest = float(-((p2[0] - p0[0]) @ R[:, 2])) * 1e3
+    tr = chain.truth()
+    chain.log_event('insert_final_push', mode='force', force_n=f_max, force_reached_n=f, centre_mm=shift.tolist(), advance_mm=adv, rest_advance_mm=rest,
+                    stopped=stop, end=done, worst=worst, true_depth_mm=None if tr is None else tr['tip_depth_mm'], ticks=k, tick=chain.k)
+    print(f'final push (force {f:.1f} of {f_max} N): advance {adv:.2f} mm, at rest {rest:.2f} mm, centred {[round(float(x), 2) for x in shift]} mm, '
+          f'left hand {worst["left_mm"]:.2f} mm, off line {worst["lat_err_mm"]:.2f} mm, grip change {[round(x, 3) for x in worst["grip_change"]]}'
+          + (f'; STOPPED: {stop}' if stop else ''), flush=True)
+    return adv
+
+
 def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     """Hand-over and insertion from the approach command `cmd` (1, 6 believed) with the left at q_hold (1, 6).
     Returns a dict (outcome, steps, seated tick, depth). sim_obs(jt, prev, inhand) -> the sim env's actor obs for
@@ -316,7 +412,10 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
         elif max(abs(x) for x in l2) > float(fp.get('max_lat_mm', 2.5)):
             why = f'lateral {l2} mm beyond {fp.get("max_lat_mm", 2.5)}'
         if why is None:
-            final_push(chain, pR[0], q_hold.reshape(6), fp)
+            if fp.get('mode', 'position') == 'force':
+                final_push_force(chain, pR[0], q_hold.reshape(6), fp, lat_mm=l2)
+            else:
+                final_push(chain, pR[0], q_hold.reshape(6), fp)
         else:
             chain.log_event('insert_final_push_skipped', reason=why, depth2_mm=d2, lat2_mm=l2, tick=chain.k)
             print(f'final push skipped: {why}', flush=True)
@@ -325,6 +424,13 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     advance_mm = float(-((p_end[0] - p0[0].to(p_end.device)) @ z_port)) * 1e3     # TCP advance into the port since the hand-over (believed FK displacement)
     res = dict(outcome=outcome, steps=t + 1, t_seat_s=None if t_seat is None else t_seat * chain.dt,
                depth_mm=det.prev * 1e3, true_seat_tick=truth_seat, advance_mm=advance_mm)
+    if fp and fp.get('full_depth_mm') is not None and outcome == 'seated_detected':
+        # depth at rest (no push force) in the seat reading's units: advance since the hand-over minus the measured gap
+        gap0 = float(det2.gap0[0]) if det2 is not None else det.gap0 * 1e3
+        res['rest_depth_mm'] = advance_mm - gap0
+        res['full_depth'] = bool(res['rest_depth_mm'] >= float(fp['full_depth_mm']))
+        chain.log_event('insert_depth', rest_depth_mm=res['rest_depth_mm'], full_depth_mm=float(fp['full_depth_mm']), full_depth=res['full_depth'], gap_mm=gap0)
+        print(f"depth at rest {res['rest_depth_mm']:.2f} mm (fully in from {fp['full_depth_mm']} mm): {'FULL' if res['full_depth'] else 'SHORT'}", flush=True)
     if obs_err:
         # obs_max_abs_err: dims 0:50 only. The pose features [50:56] (nominal-relative in the sim env, hand-over-relative
         # for rel_pose_obs policies), twist/in-hand [56:68] and the K3 vision prior [68:71] (the sim env's own reset draw,

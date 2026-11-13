@@ -1,0 +1,603 @@
+[
+ {
+  "run": "full_145824_kjrc_1",
+  "operator": "seated, hangs",
+  "outcome": "seated_detected",
+  "gap_mm": 5.576251245417712,
+  "lat_mm": [
+   0.06347654322750101,
+   0.5989651505606028
+  ],
+  "seat_step": 111,
+  "seat_depth2_mm": 6.593869209289551,
+  "push_advance_mm": null,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 11.577669531106949,
+  "seat_lat2_mm": [
+   -1.1,
+   1.83
+  ],
+  "at_seat": {
+   "tcp": 7.05,
+   "tip": 6.59,
+   "up": 1.23,
+   "F": 6.7
+  },
+  "after_hold": {
+   "tcp": 6.0,
+   "tip": 5.57,
+   "up": 0.08,
+   "F": -0.0
+  },
+  "max_depth": {
+   "tcp": 7.05,
+   "tip": 6.62,
+   "F_max": 6.7
+  },
+  "before_release": {
+   "tcp": 6.0,
+   "tip": 5.57,
+   "up": 0.08,
+   "F": -0.0
+  },
+  "grip": [
+   0.2991,
+   0.2991
+  ]
+ },
+ {
+  "run": "full_150628_kjrc_2",
+  "operator": "seated, hangs, ~1 mm short",
+  "outcome": "seated_detected",
+  "gap_mm": 6.059998293760007,
+  "lat_mm": [
+   0.735960951157999,
+   0.398961802515985
+  ],
+  "seat_step": 88,
+  "seat_depth2_mm": 6.344223976135254,
+  "push_advance_mm": null,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 11.640960350632668,
+  "seat_lat2_mm": [
+   -0.38,
+   1.44
+  ],
+  "at_seat": {
+   "tcp": 6.53,
+   "tip": 6.34,
+   "up": 1.04,
+   "F": 2.5
+  },
+  "after_hold": {
+   "tcp": 5.58,
+   "tip": 5.42,
+   "up": 0.07,
+   "F": -0.0
+  },
+  "max_depth": {
+   "tcp": 6.61,
+   "tip": 6.43,
+   "F_max": 5.2
+  },
+  "before_release": {
+   "tcp": 5.58,
+   "tip": 5.42,
+   "up": 0.07,
+   "F": -0.0
+  },
+  "grip": [
+   0.3027,
+   0.3026
+  ]
+ },
+ {
+  "run": "full_152149_kjrc_3_push",
+  "operator": "seated, ~3 mm short",
+  "outcome": "seated_detected",
+  "gap_mm": 5.571230532930528,
+  "lat_mm": [
+   0.39212003346295987,
+   -0.3946382768653125
+  ],
+  "seat_step": 70,
+  "seat_depth2_mm": 5.990838527679443,
+  "push_advance_mm": 0.929941947106272,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 11.34300883859396,
+  "seat_lat2_mm": [
+   -0.37,
+   0.01
+  ],
+  "at_seat": {
+   "tcp": 6.14,
+   "tip": 5.99,
+   "up": 0.4,
+   "F": 0.3
+  },
+  "after_hold": {
+   "tcp": 5.38,
+   "tip": 5.25,
+   "up": -1.15,
+   "F": -0.1
+  },
+  "max_depth": {
+   "tcp": 6.4,
+   "tip": 6.29,
+   "F_max": 5.2
+  },
+  "before_release": {
+   "tcp": 5.77,
+   "tip": 5.66,
+   "up": -3.22,
+   "F": 0.1
+  },
+  "push_end": {
+   "tcp": 6.16,
+   "tip": 6.04,
+   "up": -2.96,
+   "F": 0.2
+  },
+  "push_F_max": 5.2,
+  "grip": [
+   0.302,
+   0.3019
+  ]
+ },
+ {
+  "run": "full_152717_k4_1",
+  "operator": "seated, ~3 mm short",
+  "outcome": "seated_detected",
+  "gap_mm": 5.688661647360595,
+  "lat_mm": [
+   -0.19187040327667848,
+   0.755492863790141
+  ],
+  "seat_step": 76,
+  "seat_depth2_mm": 8.023344039916992,
+  "push_advance_mm": 0.38064972613938153,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 11.818415485322475,
+  "seat_lat2_mm": [
+   1.26,
+   0.34
+  ],
+  "at_seat": {
+   "tcp": 8.08,
+   "tip": 8.02,
+   "up": -0.42,
+   "F": 5.0
+  },
+  "after_hold": {
+   "tcp": 6.37,
+   "tip": 6.26,
+   "up": -3.46,
+   "F": -0.0
+  },
+  "max_depth": {
+   "tcp": 8.08,
+   "tip": 8.02,
+   "F_max": 7.7
+  },
+  "before_release": {
+   "tcp": 6.13,
+   "tip": 5.98,
+   "up": -5.17,
+   "F": -0.0
+  },
+  "push_end": {
+   "tcp": 6.71,
+   "tip": 6.56,
+   "up": -4.74,
+   "F": 0.1
+  },
+  "push_F_max": 4.2,
+  "grip": [
+   0.3036,
+   0.3036
+  ]
+ },
+ {
+  "run": "full_154422_k4_2",
+  "operator": "in, not detected, pulled out",
+  "outcome": "guard_bound",
+  "gap_mm": 6.011450781015192,
+  "lat_mm": [
+   -0.11983898698513862,
+   -0.29924111169887535
+  ],
+  "seat_step": null,
+  "seat_depth2_mm": null,
+  "push_advance_mm": null,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 13.243972323834896,
+  "seat_lat2_mm": [
+   -0.1,
+   -8.43
+  ],
+  "max_depth": {
+   "tcp": 9.53,
+   "tip": 9.04,
+   "F_max": 12.7
+  },
+  "before_release": {
+   "tcp": -11.7,
+   "tip": -12.62,
+   "up": -12.83,
+   "F": 0.3
+  },
+  "grip": [
+   0.3029,
+   0.2978
+  ]
+ },
+ {
+  "run": "full_155541_k4_3",
+  "operator": "seated, really well",
+  "outcome": "seated_detected",
+  "gap_mm": 5.924370814972896,
+  "lat_mm": [
+   0.08054943846496876,
+   0.20407027489972762
+  ],
+  "seat_step": 84,
+  "seat_depth2_mm": 8.46694278717041,
+  "push_advance_mm": 2.168998820707202,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 13.28683365136385,
+  "seat_lat2_mm": [
+   1.47,
+   -0.8
+  ],
+  "at_seat": {
+   "tcp": 8.55,
+   "tip": 8.47,
+   "up": -1.01,
+   "F": 4.5
+  },
+  "after_hold": {
+   "tcp": 6.72,
+   "tip": 6.59,
+   "up": -3.59,
+   "F": -0.0
+  },
+  "max_depth": {
+   "tcp": 8.93,
+   "tip": 8.67,
+   "F_max": 9.0
+  },
+  "before_release": {
+   "tcp": 7.36,
+   "tip": 7.1,
+   "up": -9.54,
+   "F": -0.0
+  },
+  "push_end": {
+   "tcp": 8.67,
+   "tip": 8.42,
+   "up": -9.01,
+   "F": 0.3
+  },
+  "push_F_max": 9.0,
+  "grip": [
+   0.3093,
+   0.2993
+  ]
+ },
+ {
+  "run": "full_155351_demo_1",
+  "operator": "seated, hangs slightly (push skipped)",
+  "outcome": "seated_detected",
+  "gap_mm": 6.1699692615939234,
+  "lat_mm": [
+   0.0934369126611625,
+   -0.03223319906510724
+  ],
+  "seat_step": 71,
+  "seat_depth2_mm": 8.22964096069336,
+  "push_advance_mm": null,
+  "push_stopped": null,
+  "push_skipped": "lateral [-0.5758571624755859, -3.4954280853271484] mm beyond 2.5",
+  "result_advance_mm": 13.11007421463728,
+  "seat_lat2_mm": [
+   -0.58,
+   -3.5
+  ],
+  "at_seat": {
+   "tcp": 8.23,
+   "tip": 8.23,
+   "up": -3.46,
+   "F": 11.3
+  },
+  "after_hold": {
+   "tcp": 6.94,
+   "tip": 6.93,
+   "up": -4.38,
+   "F": 3.8
+  },
+  "max_depth": {
+   "tcp": 8.25,
+   "tip": 8.24,
+   "F_max": 11.3
+  },
+  "before_release": {
+   "tcp": 6.94,
+   "tip": 6.93,
+   "up": -4.38,
+   "F": 3.8
+  },
+  "grip": [
+   0.292,
+   0.292
+  ]
+ },
+ {
+  "run": "full_160310_demo_2",
+  "operator": "seated",
+  "outcome": "seated_detected",
+  "gap_mm": 6.264688043384394,
+  "lat_mm": [
+   -0.45759145323931827,
+   -0.14011487243531295
+  ],
+  "seat_step": 70,
+  "seat_depth2_mm": 7.468569278717041,
+  "push_advance_mm": 2.3496972862631083,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 12.958815321326256,
+  "seat_lat2_mm": [
+   0.95,
+   0.28
+  ],
+  "at_seat": {
+   "tcp": 7.46,
+   "tip": 7.47,
+   "up": 0.42,
+   "F": 8.8
+  },
+  "after_hold": {
+   "tcp": 5.82,
+   "tip": 5.83,
+   "up": -1.99,
+   "F": 3.8
+  },
+  "max_depth": {
+   "tcp": 8.22,
+   "tip": 8.18,
+   "F_max": 13.3
+  },
+  "before_release": {
+   "tcp": 6.69,
+   "tip": 6.64,
+   "up": -7.51,
+   "F": 3.7
+  },
+  "push_end": {
+   "tcp": 7.91,
+   "tip": 7.87,
+   "up": -7.03,
+   "F": 4.1
+  },
+  "push_F_max": 13.3,
+  "grip": [
+   0.3033,
+   0.3026
+  ]
+ },
+ {
+  "run": "full_161223_demo_3",
+  "operator": "seated",
+  "outcome": "seated_detected",
+  "gap_mm": 6.5463914241395,
+  "lat_mm": [
+   -0.4985665799847252,
+   -0.08148037221773718
+  ],
+  "seat_step": 56,
+  "seat_depth2_mm": 7.359344482421875,
+  "push_advance_mm": 2.3874654434621334,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 13.193465769290924,
+  "seat_lat2_mm": [
+   1.09,
+   1.48
+  ],
+  "at_seat": {
+   "tcp": 7.39,
+   "tip": 7.36,
+   "up": 1.56,
+   "F": 5.7
+  },
+  "after_hold": {
+   "tcp": 5.65,
+   "tip": 5.63,
+   "up": -1.11,
+   "F": -0.0
+  },
+  "max_depth": {
+   "tcp": 8.12,
+   "tip": 8.08,
+   "F_max": 9.8
+  },
+  "before_release": {
+   "tcp": 6.65,
+   "tip": 6.59,
+   "up": -7.33,
+   "F": -0.1
+  },
+  "push_end": {
+   "tcp": 7.81,
+   "tip": 7.76,
+   "up": -7.58,
+   "F": 0.4
+  },
+  "push_F_max": 9.8,
+  "grip": [
+   0.3206,
+   0.3109
+  ]
+ },
+ {
+  "run": "full_161705_demo_4",
+  "operator": "fully inserted (best)",
+  "outcome": "seated_detected",
+  "gap_mm": 6.617478915085979,
+  "lat_mm": [
+   0.455865712793867,
+   -0.031316437799700836
+  ],
+  "seat_step": 65,
+  "seat_depth2_mm": 8.382589340209963,
+  "push_advance_mm": 2.092903247103095,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 14.179120771586895,
+  "seat_lat2_mm": [
+   -0.04,
+   -0.65
+  ],
+  "at_seat": {
+   "tcp": 8.41,
+   "tip": 8.38,
+   "up": -0.62,
+   "F": 6.6
+  },
+  "after_hold": {
+   "tcp": 7.0,
+   "tip": 6.97,
+   "up": -2.2,
+   "F": -0.0
+  },
+  "max_depth": {
+   "tcp": 9.14,
+   "tip": 9.05,
+   "F_max": 11.0
+  },
+  "before_release": {
+   "tcp": 7.56,
+   "tip": 7.47,
+   "up": -7.69,
+   "F": -0.0
+  },
+  "push_end": {
+   "tcp": 8.87,
+   "tip": 8.78,
+   "up": -7.87,
+   "F": 0.4
+  },
+  "push_F_max": 11.0,
+  "grip": [
+   0.3057,
+   0.3049
+  ]
+ },
+ {
+  "run": "full_163144_speed075_1",
+  "operator": "success (push skipped)",
+  "outcome": "seated_detected",
+  "gap_mm": 6.933304999334059,
+  "lat_mm": [
+   -0.27435777365044567,
+   0.1677034502832413
+  ],
+  "seat_step": 194,
+  "seat_depth2_mm": 6.774619102478027,
+  "push_advance_mm": null,
+  "push_stopped": null,
+  "push_skipped": "lateral [-1.033254861831665, -3.3315093517303467] mm beyond 2.5",
+  "result_advance_mm": 12.830338440835476,
+  "seat_lat2_mm": [
+   -1.03,
+   -3.33
+  ],
+  "at_seat": {
+   "tcp": 6.82,
+   "tip": 6.77,
+   "up": -3.5,
+   "F": 7.3
+  },
+  "after_hold": {
+   "tcp": 5.9,
+   "tip": 5.84,
+   "up": -4.51,
+   "F": -0.1
+  },
+  "max_depth": {
+   "tcp": 6.86,
+   "tip": 6.81,
+   "F_max": 9.3
+  },
+  "before_release": {
+   "tcp": 5.9,
+   "tip": 5.84,
+   "up": -4.51,
+   "F": -0.1
+  },
+  "grip": [
+   0.312,
+   0.312
+  ]
+ },
+ {
+  "run": "full_171905_fastmove_1",
+  "operator": "inserted perfectly",
+  "outcome": "seated_detected",
+  "gap_mm": 6.011087523415554,
+  "lat_mm": [
+   0.19025147239499063,
+   -0.20043764523267882
+  ],
+  "seat_step": 73,
+  "seat_depth2_mm": 8.59814167022705,
+  "push_advance_mm": 2.0382169168442488,
+  "push_stopped": null,
+  "push_skipped": null,
+  "result_advance_mm": 13.330324552953243,
+  "seat_lat2_mm": [
+   1.16,
+   0.75
+  ],
+  "at_seat": {
+   "tcp": 8.65,
+   "tip": 8.6,
+   "up": 0.95,
+   "F": 7.8
+  },
+  "after_hold": {
+   "tcp": 6.72,
+   "tip": 6.62,
+   "up": -1.6,
+   "F": -0.1
+  },
+  "max_depth": {
+   "tcp": 8.78,
+   "tip": 8.6,
+   "F_max": 9.5
+  },
+  "before_release": {
+   "tcp": 7.32,
+   "tip": 7.08,
+   "up": -7.92,
+   "F": 0.0
+  },
+  "push_end": {
+   "tcp": 8.47,
+   "tip": 8.23,
+   "up": -7.66,
+   "F": 0.4
+  },
+  "push_F_max": 9.5,
+  "grip": [
+   0.3037,
+   0.303
+  ]
+ }
+]

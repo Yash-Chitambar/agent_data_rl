@@ -140,11 +140,35 @@ class SimIO:
             if self.rt.grip_target is None:
                 self.rt.grip_target = torch.full((1,), float('nan'), device=self.dev)
             self.rt.grip_target[0] = float(self.gmaps['right'].finger_m(grip[0])) if self.grip_position else float('nan')
+        self._mate_force()
         self.h.step(b[0][None], sign[0], b[1][None], sign[1])
         self.t += self.dt
         self.k += 1
         sent = np.concatenate([np.asarray(q_motor, float), np.asarray(grip, float)[:, None]], 1)
         return sent, ff
+
+    def _mate_force(self):
+        """Dry run only, env SIM_MATE_FORCE_N=<N> (default off): USB-C mating force as InsertionCfg.mate_force_n (zero up to 2 mm of
+        depth, linear to N at the seat depth), between the plug and the PC along the port axis. docs/real/FULL_DEPTH_20261113.md."""
+        import os
+        peak = float(os.environ.get('SIM_MATE_FORCE_N', 0) or 0)
+        if peak <= 0:
+            return
+        import warp as wp
+        from blind_insertion.envs import kinematics as K
+        rt = self.rt
+        if not hasattr(self, '_mate'):
+            m = rt.mjm
+            depth = float((rt.lay.seating_depth if rt.lay.seating_depth is not None else rt.lay.depth)[0])
+            self._mate = (wp.to_torch(rt.d.xfrc_applied), int(m.body('peg').id), int(m.body('fixture').id), depth)
+        xfrc, pb, fb, depth = self._mate
+        p, _ = rt.plug_in_port()
+        z = K.quat_to_mat(rt.q[:, rt.pc_qadr + 3:rt.pc_qadr + 7])[:, :, 2]
+        ok = (p[:, :2].abs() < torch.tensor([0.002, 0.001], device=self.dev)).all(1)
+        e = ((-p[:, 2] - 0.002) / (depth - 0.002)).clamp(0, 1)
+        f = (peak * e * ok)[:, None] * z
+        xfrc[:, pb, :3] = f
+        xfrc[:, fb, :3] = -f
 
     def set_gains(self, side, kp, kd):
         """Arm joint gains (6,), one world: the same PD change RealIO.set_gains makes (kd capped at the DM MIT limit)."""
