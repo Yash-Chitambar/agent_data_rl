@@ -1,5 +1,7 @@
 # Insertion retry, faster alignment, backlash preload (2026-11-08)
 
+> **Rig status (2026-11-13): not run on the arm.** Block D needed the servo alignment, and the servo failed its tip-speed check on the rig (2026-11-10, 2 of 2). The milestone config (`bimanual_align5_k4_push15_seat6`) uses the step alignment, K4, no retry and no preload. The retry code is off unless a config sets `insert.retry`. Insertion stalls did not happen with the milestone config (10 of 10 seated), so the retry is not a priority now. The servo speed sweep is input for [SERVER_TASKS_20261112.md](SERVER_TASKS_20261112.md) task 2.
+
 Operator request 2026-11-08: add a retry loop to the insertion, make the alignment and the insertion faster, and add the backlash preload (idea 8).
 Everything here is sim and dry-run only. **Nothing here has run on the arm.**
 

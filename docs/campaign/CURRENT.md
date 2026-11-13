@@ -1,4 +1,4 @@
-# Current campaign (updated 2026-10-31)
+# Current campaign (updated 2026-11-13)
 
 Task: right YAM picks the SanDisk USB-C SD reader and inserts it into port 2 of the GMKtec
 mini PC; left YAM holds the PC. Recipe and question: [README](../../README.md),

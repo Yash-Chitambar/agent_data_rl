@@ -2,6 +2,8 @@
 
 Running log of the work after [CONTACT_ALIGN_PLAN_20261107.md](CONTACT_ALIGN_PLAN_20261107.md). Newest entries at the top of each section. Every number has its n; sim numbers are sim only.
 
+**Rig result (2026-11-10/11):** K4 with the step alignment and a 15 mm final push seated 10 of 10 when the plug reached the port ([FINDINGS](../campaign/FINDINGS.md), [SESSION_20261111_duchamp3.md](SESSION_20261111_duchamp3.md)). The servo, the retry and the preload were not run on the rig (servo sway, see [RETRY_SPEED_20261108.md](RETRY_SPEED_20261108.md)). K5w (RMA section below) stays a sim-only backup.
+
 ## Operator decisions (2026-11-07)
 
 - K2 spec: yes, including the climb penalty.
