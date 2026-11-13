@@ -37,7 +37,38 @@ DEFAULTS = dict(
     source=dict(kind='stub'), sim_source=dict(kind='sim_truth'), secondary=None, secondary_sim=None, disagree_mm=[2.0, 2.0, 3.0], disagree_mode='gate',
     on_fail='back_off', back_off_mm=15.0, back_off_v_mm_s=10.0, press_release=True, repress_s=1.0, post_press_tol_factor=1.5,
     servo=None,       # dict: continuous vision servo instead of the steps (ServoStage; docs/real/K2_PROGRESS.md "Servo deploy"); None = the step stage
+    # fast step stage (docs/real/ALIGN_FAST_20261113.md); every default keeps the old behaviour
+    reach_mode='strict',      # 'strict': step done when the FK tip is within move_tol_mm of the asked motion; 'loose': reach_ok (below)
+    reach_rel=.5, reach_side_mm=.6, reach_hold_ticks=3, reach_frac_min=.6, reach_stall_s=.5, reach_stall_mm=.15, reach_freeze=False,
+    slope_prior=None,         # dict(known_axes=[2]): no probe motion; the scale gate fails only on clear evidence (2 standard errors out of range); axes in known_axes must be known
+    gap_step_ratio=None, gap_step_max_mm=3.,   # gap step cap = clip(ratio x (gap - target gap), step_mm[2], gap_step_max_mm) while lined up; None: step_mm[2]
+    fresh_frames='all',       # 'first': only the first frame of a measurement waits for two new camera frames; the others wait for one new frame
+    secondary_near_mm=None,   # second source only when the primary is within tol + this (it is used only at the hand-over); None: every cycle
 )
+
+
+def reach_ok(c, hist, delta, dt=.02):
+    """Step completion test. hist: FK tip motion since the step start (port axes, mm), one per control tick, newest last; delta: asked motion (mm).
+    strict: |moved - delta| <= move_tol_mm (real 2026-11-10/11: 123 of 229 steps ran to the 3 s timeout, median moved / asked 1.09 there).
+    loose, per axis: every asked axis (|delta_i| > move_tol_mm) within move_tol_mm + reach_rel x |delta_i|, every other axis within reach_side_mm, for reach_hold_ticks ticks in a row; or every axis asked more than
+    move_tol_mm has done at least reach_frac_min of its part and the tip moved under reach_stall_mm in the last reach_stall_s (stick-slip: the
+    joints sit in their friction band). Per axis, so a step that closes the gap but leaves "up" behind does not count (dry run seed 7041 with a
+    norm test: up moved 0.08 of 1 mm, the step counted). The next measurement corrects the rest."""
+    d = np.asarray(delta, float)
+    h = np.asarray(hist[-1], float)
+    if c.get('reach_mode', 'strict') != 'loose':
+        return bool(np.linalg.norm(h - d) <= c['move_tol_mm'])
+    tol = np.where(np.abs(d) > c['move_tol_mm'], c['move_tol_mm'] + c['reach_rel'] * np.abs(d), c['reach_side_mm'])     # asked axes: relative; the others: reach_side_mm
+    n = int(c['reach_hold_ticks'])
+    if len(hist) >= n and all((np.abs(np.asarray(x, float) - d) <= tol).all() for x in hist[-n:]):
+        return True
+    w = max(1, int(round(c['reach_stall_s'] / dt)))
+    big = np.abs(d) > c['move_tol_mm']
+    if big.any() and len(hist) > w:
+        done = (h * np.sign(d) >= c['reach_frac_min'] * np.abs(d)) | ~big
+        if done.all() and np.linalg.norm(h - np.asarray(hist[-1 - w], float)) <= c['reach_stall_mm']:
+            return True
+    return False
 
 
 def align_cfg(cfg):
@@ -93,8 +124,20 @@ class PortVisionSource:
         except ImportError as e:
             self.fn, self.err = None, str(e)
 
-    def raw(self, ch, tag):
-        pol, raw, t, cnt = ch.io.fresh_frames(('wrist_right',))['wrist_right']
+    def raw(self, ch, tag, fresh=True):
+        """fresh: wait for two new camera frames (a frame captured after this call). Else wait for one frame newer than the last one used (the arm is
+        already at rest: the later frames of one measurement; real 2026-11-10/11: the two-frame wait was about 60 of the 87 ms per frame)."""
+        last = getattr(self, 'last_cnt', None)
+        if fresh or last is None or not hasattr(ch.io, 'frames'):
+            pol, raw, t, cnt = ch.io.fresh_frames(('wrist_right',))['wrist_right']
+        else:
+            t0 = time.monotonic()
+            while True:
+                pol, raw, t, cnt = ch.io.frames(('wrist_right',))['wrist_right']
+                if cnt > last or time.monotonic() - t0 > .5:
+                    break
+                time.sleep(.002)
+        self.last_cnt = cnt
         if ch.logger is not None:
             ch.logger.frame('wrist_right', pol, tag, t_capture=t, t_use=ch.state['t'], kind='policy', count=cnt, tick=ch.k)
             if raw is not None:
@@ -122,7 +165,7 @@ class PortVisionSource:
             return PortMeasure(False, f'port_vision not available: {self.err}')
         if self.plug_z is None:
             return PortMeasure(False, 'no shell depth for this grasp')
-        raw = self.raw(ch, tag)
+        raw = self.raw(ch, tag, fresh=getattr(self, 'fresh_next', True))
         if raw is None:
             return PortMeasure(False, 'no raw frame')
         return self.measure_raw(raw)
@@ -305,6 +348,27 @@ class AlignLogic:
             return False, need, f'{AXES[need]}: motion too small to check the measurement scale (se {se[need]:.2f})'
         return True, None, ''
 
+    def slope_check_prior(self):
+        """Fixed slope prior (config slope_prior; real 2026-11-10/11, n = 14 runs: across 0.94-1.10, up 0.76-0.98, gap 1.02-1.12): an axis that moved enough
+        must lie in [slope_min, slope_max]; an axis that moved little fails only when it is out of the range by more than 2 standard errors. The axes in
+        known_axes (default gap, which moves about 10 mm on the way in) must be known within slope_se_max. Returns (ok, axis needing motion or None, reason)."""
+        c = self.c
+        known = list((c.get('slope_prior') or {}).get('known_axes', [2]))
+        sl, se = self.slope_se()
+        for i in range(3):
+            if sl[i] is None:
+                if i in known:
+                    return False, i, f'{AXES[i]}: no motion to check the measurement scale'
+                continue
+            if se[i] <= c['slope_se_max']:
+                if not (c['slope_min'] <= sl[i] <= c['slope_max']):
+                    return False, None, f'{AXES[i]}: measurement moves {sl[i]:.2f} mm per mm of FK motion (allowed {c["slope_min"]}-{c["slope_max"]})'
+            elif i in known:
+                return False, i, f'{AXES[i]}: motion too small to check the measurement scale (se {se[i]:.2f})'
+            elif sl[i] + 2 * se[i] < c['slope_min'] or sl[i] - 2 * se[i] > c['slope_max']:
+                return False, None, f'{AXES[i]}: measurement moves {sl[i]:.2f} mm per mm of FK motion (se {se[i]:.2f}, prior range {c["slope_min"]}-{c["slope_max"]})'
+        return True, None, ''
+
     def fail(self, reason, **kw):
         return dict(kind='fail', reason=reason, delta=np.zeros(3), **kw)
 
@@ -422,7 +486,7 @@ class AlignLogic:
                 if dis is not None and c['disagree_mode'] == 'gate' and (dis > np.asarray(c['disagree_mm'], float)).any():
                     return self.fail(f'sources disagree at the hand-over {dis.round(2).tolist()} mm', err=err)
                 if not self.scale_ok:
-                    ok, ax, why = self.slope_check()
+                    ok, ax, why = self.slope_check_prior() if c.get('slope_prior') else self.slope_check()
                     if not ok and ax is not None and self.extra_probes > 0:      # not known well enough yet: another probe on that axis, and back
                         self.extra_probes -= 1
                         d = np.zeros(3)
@@ -446,7 +510,10 @@ class AlignLogic:
             d[2] = c['gap_hold_mm'] - vf[2]
         elif not lat_ok:
             d[2] = min(0., c['gap_hold_mm'] - vf[2])
-        d = np.clip(d, -self.step_cap, self.step_cap)
+        cap = self.step_cap.copy()
+        if c.get('gap_step_ratio') and lat_ok:            # lined up and far: larger gap steps (the last millimetres keep step_mm)
+            cap[2] = float(np.clip(c['gap_step_ratio'] * (vf[2] - self.t[2]), self.step_cap[2], max(c['gap_step_max_mm'], self.step_cap[2])))
+        d = np.clip(d, -cap, cap)
         d[2] = max(d[2], c['min_clear_mm'] - vf[2])       # never plan below the clearance
         self.moved_since = True
         dec = dict(kind='step', delta=d, err=err, e=e, reason='correct')
@@ -579,8 +646,10 @@ class AlignStage:
         c, ch = self.c, self.ch
         ms = []
         for i in range(int(c['frames'])):      # one control tick between frames: the arm keeps its 50 Hz commands as far as the camera allows
+            self.src.fresh_next = i == 0 or c.get('fresh_frames', 'all') != 'first'
             ms.append(self.one(self.src, f'{tag}_{i}'))
             self.creep.tick()
+        self.src.fresh_next = True
         good = [m for m in ms if m.ok and m.gap_mm is not None and m.across_mm is not None and m.up_mm is not None]
         if not good:
             out = ms[-1]
@@ -626,15 +695,18 @@ class AlignStage:
         if goal is None:
             return dict(moved=np.zeros(3), frac=0., timeout=False, ik=False)
         cr.goal = goal
-        want = start + np.asarray(delta, float)
         n = int(round(c['step_timeout_s'] / ch.dt))
         reached = False
         k = 0
+        hist = []
         for k in range(n):
             cr.tick()
-            if np.linalg.norm(self.tip_rel() - want) <= c['move_tol_mm']:
+            hist.append(self.tip_rel() - start)
+            if reach_ok(c, hist, delta, ch.dt):
                 reached = True
                 break
+        if reached and c.get('reach_mode') == 'loose' and c.get('reach_freeze'):      # stop here: the goal becomes the measured pose (no breakaway during the measurement)
+            cr.goal = ch.q_b[0].cpu().numpy().astype(float).copy()
         moved = self.tip_rel() - start
         asked = float(np.linalg.norm(delta))
         frac = float(moved @ np.asarray(delta, float) / max(asked ** 2, 1e-9))
@@ -698,7 +770,9 @@ class AlignStage:
         while True:
             self.still()
             m, ms = self.measure(f'align_{self.logic.cycle:03d}')
-            m2 = self.one(self.src2, f'align2_{self.logic.cycle:03d}') if self.src2 is not None else None
+            near = c.get('secondary_near_mm')
+            want2 = near is None or (m.ok and m.gap_mm is not None and (np.abs(m.vec() - self.logic.t) <= self.logic.tol + float(near)).all())
+            m2 = self.one(self.src2, f'align2_{self.logic.cycle:03d}') if self.src2 is not None and want2 else None
             tip = self.tip_rel()
             stuck = bool(last and last.get('timeout') and last.get('frac', 1.) < .25)
             emin = c.get('entry_min_gap_mm')
@@ -857,7 +931,22 @@ SERVO_DEFAULTS = dict(
     target_cap_rad=0.05, damping=1e-4, ff=True, still_mm_s=2.0, still_window_s=0.1, max_frame_age_s=0.5, max_blind_s=3.0,
     max_tip_speed_mm_s=60.0, max_time_s=30.0, post_press_s=8.0, cam_latency_s=0.03, sim_latency_ticks=5, sim_period_ticks=5,
     hold_s=0.3, vision_worker='process',
+    lead_cut=False, lead_cut_release=.3, lead_cut_eps_rad=.0005,    # cut a joint's target lead when it breaks free from rest (stick-slip; docs/real/ALIGN_FAST_20261113.md)
+    near_mm=None, vmax_near_mm_s=3.0,                               # speed cap vmax_near_mm_s when the estimate is within near_mm of the goal; None: off
 )
+
+
+def servo_lead_cut(tgt, q, q_prev, st, sv):
+    """Servo option lead_cut (the creep's cut, per tick): a joint that was at rest and now moves toward its target keeps only lead_cut_release of its
+    target lead, so less stored spring is left when it breaks free (real 2026-11-10 servo runs: joints caught up their 5-35 mrad lag in jumps,
+    tip speed p99 24-25 mm/s for a commanded 9-11 mm/s). Returns dict(tgt, rest)."""
+    tgt, q, q_prev = (np.asarray(x, float) for x in (tgt, q, q_prev))
+    e = tgt - q
+    eps = float(sv['lead_cut_eps_rad'])
+    rest = np.ones(6, bool) if st is None else st['rest']
+    broke = rest & ((q - q_prev) * np.sign(e) >= eps) & (np.abs(e) > eps)
+    out = np.where(broke, q + float(sv['lead_cut_release']) * e, tgt)
+    return dict(tgt=out, rest=np.abs(q - q_prev) < eps * .5, cuts=int(broke.sum()))
 
 
 class ServoStage(AlignStage):
@@ -1190,12 +1279,20 @@ class ServoStage(AlignStage):
             va = -sv['ang_gain'] * rot_err
             if float(np.linalg.norm(rot_err)) <= sv['deadband_deg']:
                 va = np.zeros(3)
-            tw = np.r_[np.clip(vp, -sv['vmax_mm_s'], sv['vmax_mm_s']), np.clip(va, -sv['wmax_deg_s'], sv['wmax_deg_s'])]
+            vmax = sv['vmax_mm_s']
+            if sv.get('near_mm') is not None and float(np.linalg.norm(err)) < sv['near_mm']:
+                vmax = min(vmax, sv['vmax_near_mm_s'])
+            tw = np.r_[np.clip(vp, -vmax, vmax), np.clip(va, -sv['wmax_deg_s'], sv['wmax_deg_s'])]
             if age > sv['max_frame_age_s']:                # stale estimate: hold
                 tw = np.zeros(6)
             tw = prev_tw + sv['smooth'] * (tw - prev_tw)
             prev_tw = tw
             self.tgt = self.tgt + self._twist_to_dq(tw[:3], tw[3:])
+            if sv.get('lead_cut'):
+                qn = ch.q_b[0].cpu().numpy().astype(float)
+                self._lc = servo_lead_cut(self.tgt, qn, getattr(self, '_q_prev', qn), getattr(self, '_lc', None), sv)
+                self.tgt = self._lc['tgt']
+                self._q_prev = qn
             if ch.logger is not None:
                 ch.logger.row('servo', k=ch.k, est=est, err=err, rot_err=rot_err, twist=tw, tip=tip, speed=spd, age=age, confirm=confirm)
             self._send(ql_fn(ch.k - k0))
