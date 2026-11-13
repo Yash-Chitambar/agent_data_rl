@@ -1,0 +1,1 @@
+{"pc": [0.231, 0.394, 4.0], "reader": [0.091, 0.448, 92.0], "seed": 7041, "config": "deploy/config/bimanual_align8_nojump.json", "speed": 1.0, "zed_ood_scale": null}

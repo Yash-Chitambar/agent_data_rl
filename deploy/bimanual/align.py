@@ -212,6 +212,9 @@ class WristNetSource:
         self.spec = spec          # secondary source of bimanual_align1: the new nets are fast and cannot refuse a frame, and across sits 1.4-1.8 mm from vision (docs/real/WRIST_NETS_REAL.md)
         self.sigma = float(spec.get('sigma_mm', 1.0))
         self.conf = float(spec.get('conf', 1.0))
+        # constant offset of the net against port vision (across, up, gap), subtracted from every reading; default none.
+        # Real hand-overs 2026-11-03..11: the net's up reads about +2.6 mm high (docs/real/ROBUSTNESS_PLAN_20261113.md part B).
+        self.bias = np.asarray(spec.get('bias_mm', [0., 0., 0.]), float)
         name = spec.get('net')
         if name:
             from deploy.bimanual import netcache as NC
@@ -232,7 +235,7 @@ class WristNetSource:
 
     def measure(self, ch, tag):
         fr = ch.render(('wrist_right',), tag=tag)['wrist_cam']
-        v = self.predict(fr, ch.ndev)
+        v = self.predict(fr, ch.ndev) - self.bias
         return PortMeasure(True, 'net', self.conf, float(v[0]), float(v[1]), float(v[2]), self.sigma)
 
 

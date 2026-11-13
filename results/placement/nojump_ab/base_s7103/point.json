@@ -1,0 +1,1 @@
+{"pc": [0.231, 0.394, 4.0], "reader": [0.131, 0.448, 92.0], "seed": 7103, "config": "deploy/config/bimanual_align5_k4_push15_seat6_fastmove.json", "speed": 0.75, "zed_ood_scale": null}

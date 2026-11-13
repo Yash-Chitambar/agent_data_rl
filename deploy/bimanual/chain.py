@@ -238,6 +238,50 @@ class _LogNet(torch.nn.Module):
         return y.to(x.device)
 
 
+class _StopDeadband(torch.nn.Module):
+    """approach_nojump.stop_deadband_mm (off by default): wraps the approach's wrist net (after _LogNet, so the log keeps
+    the raw output). In '4 approach', from the first iteration at the stop (eval_chain's schedule: max(iters - 1, 1)
+    coarse iterations, then final_iters at the stop), each port axis (across, up, gap) of the estimate within its
+    deadband_mm (scalar or 3 values) of the stop target reads as the target: the servo asks no step on that axis (the
+    rotation is already zero there: eval_chain final_pos_only). Elsewhere (align's use of ch.fine) it passes through.
+    Why (docs/real/ROBUSTNESS_PLAN_20261113.md, part C): at the 18 mm stop the servo integrated 0.3-6 mm net corrections
+    on its command (eval_chain plans from FK of the command) while joints 2/3 stuck in Coulomb friction; the command
+    built up a lead (joint 2 error swing up to ~45 mrad) and the joint broke free: a 3.6-5.0 mm hand jump."""
+
+    def __init__(self, net, scale, chain, deadband_mm, tgt_mm, n_coarse):
+        super().__init__()
+        db = np.asarray(deadband_mm, float).reshape(-1)
+        self.net, self.ch, self.db = net, chain, torch.as_tensor(np.broadcast_to(db, (3,)).copy(), dtype=torch.float32)
+        self.scale = scale
+        self.tgt = torch.as_tensor(tgt_mm, dtype=torch.float32)
+        self.n_coarse = int(n_coarse)
+
+    def forward(self, x):
+        y = self.net(x)
+        ch = self.ch
+        if ch.label != '4 approach':
+            return y
+        key = getattr(ch, '_stage_k0', None)          # one iteration count per approach, shared by the wrist and fine wrappers
+        if getattr(ch, '_nj_key', None) != key:
+            ch._nj_key, ch._nj_calls = key, 0
+        it = ch._nj_calls
+        ch._nj_calls += 1
+        if it < self.n_coarse:
+            return y
+        sc = self.scale.to(y.device)
+        est = y * sc
+        tgt = self.tgt.to(y.device)
+        err = est[0, :3] - tgt
+        skip = err.abs() < self.db.to(y.device)          # per port axis (across, up, gap)
+        ch.log_event('approach_deadband', iteration=it, est=est[0].tolist(), err_mm=err.tolist(), deadband_mm=self.db.tolist(),
+                     skip=skip.tolist(), tick=ch.k)
+        if not bool(skip.any()):
+            return y
+        out = y.clone()
+        out[0, :3] = torch.where(skip, tgt / sc[:3], y[0, :3])   # an axis inside its band reads as the target: no step on it
+        return out
+
+
 class RealChain:
     # eval_chain stage code, shared verbatim
     site_target = EC.Chain.site_target
@@ -261,6 +305,18 @@ class RealChain:
         if self.speed != 1.0:   # scripted motions slower (the sim used 1.0); policies run at their own rate
             a.transport_s = tuple(t / self.speed for t in a.transport_s)
             a.ramp_s, a.settle_s, a.grasp_settle_s = a.ramp_s / self.speed, a.settle_s / self.speed, a.grasp_settle_s / self.speed
+        # approach_nojump (off unless the config has the block): chain_args.iters / final_iters were never passed to
+        # eval_chain (chain_argv), so every real approach ran 6 iterations at the stop (eval_chain defaults) instead
+        # of the 2 the configs ask for; this block applies them, plus a deadband at the stop (_StopDeadband)
+        nj = cfg.get('approach_nojump') or {}
+        self.nojump = nj if nj.get('enabled', False) else None
+        if self.nojump is not None:
+            a.iters = int(nj.get('iters', a.iters))
+            a.final_iters = int(nj.get('final_iters', a.final_iters))
+            if a.final_pos_only > a.final_iters:
+                a.final_pos_only = a.final_iters
+            self.log_event('approach_nojump', iters=a.iters, final_iters=a.final_iters, final_pos_only=a.final_pos_only,
+                           stop_deadband_mm=nj.get('stop_deadband_mm'))
         self.a = a
         self.rt = _Rt(scene)
         self.h = RealHarness(self)
@@ -279,6 +335,11 @@ class RealChain:
         self.wrist = (_LogNet(w[0], w[1], a.wrist_net, self), w[1].to(self.dev), w[2])
         self.fine = (_LogNet(f[0], f[1], a.fine_net, self), f[1].to(self.dev), f[2])
         self.inhand_net = (_LogNet(ih[0], ih[1], a.inhand_net, self), ih[1].to(self.dev), ih[2])
+        if self.nojump is not None and self.nojump.get('stop_deadband_mm'):
+            tgt = (a.stop_offset_mm[0], a.stop_offset_mm[1], a.stop + a.stop_offset_mm[2])   # eval_chain's tgt_p at the stop (mm)
+            n_coarse = max(a.iters - 1, 1)
+            self.wrist = (_StopDeadband(self.wrist[0], self.wrist[1], self, self.nojump['stop_deadband_mm'], tgt, n_coarse),) + self.wrist[1:]
+            self.fine = (_StopDeadband(self.fine[0], self.fine[1], self, self.nojump['stop_deadband_mm'], tgt, n_coarse),) + self.fine[1:]
         self.R_sr0, self.p_sr0 = measured_mean(device=self.dev)
         self.pol = load_insertion_policy(str(policy_path), str(self.dev))
         self.fric = FC.parse(cfg['fric_comp_right'], side='right')
@@ -429,6 +490,7 @@ class RealChain:
         if label != self.label:
             self.log_event('stage', stage=label, prev=self.label, tick=self.k)
             self.label = label
+            self._stage_k0 = self.k
             self._precision_stage(label)
         tgt = torch.stack([torch.as_tensor(qr, device=self.dev).reshape(6), torch.as_tensor(ql, device=self.dev).reshape(6)]).float()
         if not torch.isfinite(tgt).all():

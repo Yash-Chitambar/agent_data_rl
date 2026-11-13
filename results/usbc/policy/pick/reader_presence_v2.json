@@ -1,0 +1,32 @@
+{
+ "n_train": 24576,
+ "heldout_present_accepted": 0.9912109375,
+ "heldout_absent_rejected": 0.99560546875,
+ "real_no_reader_rejected": "24/24",
+ "real_p_present": {
+  "bimanual_stationary_001": 1.8960661691380665e-05,
+  "board_rgb_001": 2.767095566014177e-06,
+  "contact_approach_001": 1.1592894225032069e-05,
+  "contact_final_001": 8.852143946569413e-05,
+  "contact_final_002": 8.473610068904236e-05,
+  "contact_interactive_001": 0.00013698512339033186,
+  "contact_interactive_002": 2.8892587579321116e-05,
+  "initial_rgb_001": 0.0003635928442236036,
+  "left_elevated_j3_001": 0.0002921522536780685,
+  "left_free_settle_001": 0.0004108655557502061,
+  "left_free_settle_002": 0.00024367804871872067,
+  "left_free_settle_003": 0.0005604428006336093,
+  "left_pc_view_001": 2.6922837150777923e-06,
+  "left_reader_002": 0.0006199036724865437,
+  "left_rest_sweep_001": 0.00024387563462369144,
+  "left_standoff_001": 5.281577614368871e-06,
+  "left_standoff_002": 1.1334926057315897e-05,
+  "left_standoff_003": 1.2211865396238863e-05,
+  "pc_contact_survey_001": 3.5843563637172338e-06,
+  "pc_manual_motion_001": 0.0001836244628066197,
+  "pc_stickers_001": 1.6057883556186425e-07,
+  "pc_stickers_002": 3.785363878705539e-05,
+  "pc_stickers_003": 0.0002479136164765805,
+  "rear_brace_patch_001": 4.977831395081012e-06
+ }
+}

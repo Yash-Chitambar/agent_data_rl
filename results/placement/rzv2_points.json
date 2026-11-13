@@ -1,0 +1,62 @@
+[
+{
+"tag": "rz_c_s7041",
+"pc": [
+0.231,
+0.394,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7041,
+"config": "deploy/config/bimanual_align8_nojump_retry2_rzv2.json"
+},
+{
+"tag": "rz_rdx+40_s7041",
+"pc": [
+0.231,
+0.394,
+4.0
+],
+"reader": [
+0.171,
+0.448,
+92.0
+],
+"seed": 7041,
+"config": "deploy/config/bimanual_align8_nojump_retry2_rzv2.json"
+},
+{
+"tag": "rz_rdyaw70_s7041",
+"pc": [
+0.231,
+0.394,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+70.0
+],
+"seed": 7041,
+"config": "deploy/config/bimanual_align8_nojump_retry2_rzv2.json"
+},
+{
+"tag": "rz_rdyaw110_s7041",
+"pc": [
+0.231,
+0.394,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+110.0
+],
+"seed": 7041,
+"config": "deploy/config/bimanual_align8_nojump_retry2_rzv2.json"
+}
+]
