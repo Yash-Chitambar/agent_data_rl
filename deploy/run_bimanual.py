@@ -244,7 +244,9 @@ class Runner:
         al = c.get('align') or {}
         return dict(capture='ZED port pose', pick='servo pick', hold='left press', transport='scripted', approach='IK to 18 mm',
                     align=('vision servo' if al.get('servo') else 'vision steps') + ('' if al.get('enabled', True) else ' (off)'),
-                    insert=ins.replace('insert_', '') + ' (RL)' + (f" + {fp['mm']:.0f} mm push" if fp else ''),
+                    insert=ins.replace('insert_', '') + ' (RL)' + (
+                        '' if not fp else f" + {float(fp.get('force_n', 0)):.0f} N push" if fp.get('mode', 'position') == 'force'
+                        else f" + {float(fp['mm']):.0f} mm push"),
                     release='open, retreat', home='home')
 
     # ------------------------------------------------------------------ prompts

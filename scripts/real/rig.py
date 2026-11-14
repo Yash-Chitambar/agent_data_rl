@@ -22,7 +22,9 @@ CAN_BITRATE = 1_000_000
 # Specs: blind_insertion/configs/real_cameras_duchamp3.json.
 WRIST_CAM = {
     "right": "/dev/v4l/by-path/pci-0000:16:00.4-usb-0:2:1.0-video-index0",  # USB 7-2
-    "left": "/dev/v4l/by-path/pci-0000:16:00.3-usb-0:2:1.0-video-index0",   # USB 5-2
+    # 2026-11-13: left moved to this port (operator re-cabled for a ZED 2i; was pci-0000:16:00.3-usb-0:2, USB 5-2).
+    # Side checked by its frame (the left wrist view, same as its last published frame), operator approved.
+    "left": "/dev/v4l/by-path/pci-0000:13:00.0-usb-0:4:1.0-video-index0",
 }
 WRIST_CAM_RESOLUTION = (640, 480)  # generic UVC (Realtek 0bda:5883); MJPG 60 fps, YUYV 30 fps
 ZED_SERIAL = 20120598  # top camera, ZED 2; needs a USB 3 link for the SDK (HD720 at 30 fps)
