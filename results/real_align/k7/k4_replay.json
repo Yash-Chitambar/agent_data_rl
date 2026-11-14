@@ -1,0 +1,524 @@
+[
+ {
+  "cond": {
+   "real": "approach_insert_164528_ai2"
+  },
+  "k": 1,
+  "n": 256,
+  "rate": 0.00390625,
+  "wilson": [
+   0.0006898644160236098,
+   0.02179152424537626
+  ],
+  "classes": {
+   "lateral_miss": 253,
+   "seated": 1,
+   "grasp_slip": 2
+  },
+  "force_p50": 8.27208137512207,
+  "force_p99": 14.753750228881833,
+  "t_ok_p50": 1.56,
+  "t_ok_p99": 1.56,
+  "run": "approach_insert_164528_ai2",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   2.3454048023170833,
+   -16.077618399506143,
+   11.788948842467839
+  ],
+  "angles": null,
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "approach_insert_171123_ai4"
+  },
+  "k": 81,
+  "n": 256,
+  "rate": 0.31640625,
+  "wilson": [
+   0.26250667844323466,
+   0.3757344653920866
+  ],
+  "classes": {
+   "lateral_miss": 171,
+   "seated": 81,
+   "grasp_slip": 2,
+   "jam": 2
+  },
+  "force_p50": 5.5899436473846436,
+  "force_p99": 16.979067707061766,
+  "t_ok_p50": 2.62,
+  "t_ok_p99": 8.048000000000002,
+  "run": "approach_insert_171123_ai4",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": true,
+  "outcome_log": "timeout",
+  "real_plant": "plain_pd",
+  "vision": [
+   4.2259546473555725,
+   -2.4222347653668233,
+   9.896767984456101
+  ],
+  "angles": null,
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "approach_insert_173731_ai5"
+  },
+  "k": 87,
+  "n": 256,
+  "rate": 0.33984375,
+  "wilson": [
+   0.28457056639746137,
+   0.399852559075904
+  ],
+  "classes": {
+   "lateral_miss": 150,
+   "seated": 87,
+   "grasp_slip": 14,
+   "tilt": 3,
+   "jam": 1,
+   "deep_unseated": 1
+  },
+  "force_p50": 9.07728910446167,
+  "force_p99": 18.15289068222045,
+  "t_ok_p50": 3.46,
+  "t_ok_p99": 8.228,
+  "run": "approach_insert_173731_ai5",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   -1.4809955682700346,
+   3.1405127390522387,
+   14.342112037893653
+  ],
+  "angles": null,
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "full_174850_full_A"
+  },
+  "k": 113,
+  "n": 256,
+  "rate": 0.44140625,
+  "wilson": [
+   0.38188965966779864,
+   0.5026553862370912
+  ],
+  "classes": {
+   "lateral_miss": 140,
+   "seated": 113,
+   "jam": 1,
+   "tilt": 2
+  },
+  "force_p50": 0.0,
+  "force_p99": 14.43452672958373,
+  "t_ok_p50": 2.42,
+  "t_ok_p99": 8.603200000000001,
+  "run": "full_174850_full_A",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "timeout",
+  "real_plant": "plain_pd",
+  "vision": [
+   -0.10722346860447413,
+   5.204289793865574,
+   8.501893634022935
+  ],
+  "angles": null,
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "full_175742_full_A2"
+  },
+  "k": 205,
+  "n": 256,
+  "rate": 0.80078125,
+  "wilson": [
+   0.7475661742791557,
+   0.8451025900757436
+  ],
+  "classes": {
+   "lateral_miss": 38,
+   "grasp_slip": 4,
+   "seated": 205,
+   "jam": 3,
+   "tilt": 5,
+   "deep_unseated": 1
+  },
+  "force_p50": 7.396523475646973,
+  "force_p99": 14.801569175720205,
+  "t_ok_p50": 3.08,
+  "t_ok_p99": 9.4784,
+  "run": "full_175742_full_A2",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   -5.255704738498767,
+   9.096563206473363,
+   8.05887637753104
+  ],
+  "angles": null,
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "full_155211_align_full2"
+  },
+  "k": 242,
+  "n": 256,
+  "rate": 0.9453125,
+  "wilson": [
+   0.9103096388011672,
+   0.9671480123216708
+  ],
+  "classes": {
+   "lateral_miss": 11,
+   "seated": 242,
+   "grasp_slip": 2,
+   "tilt": 1
+  },
+  "force_p50": 7.643054723739624,
+  "force_p99": 16.29706182479856,
+  "t_ok_p50": 1.74,
+  "t_ok_p99": 8.237200000000003,
+  "run": "full_155211_align_full2",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": true,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.3839675567279204,
+   -0.6238885507742591,
+   5.817331351264181
+  ],
+  "angles": [
+   -0.7173108380230786,
+   0.002583752333149426,
+   -1.4532984436287155
+  ],
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "full_164912_align_full5"
+  },
+  "k": 234,
+  "n": 256,
+  "rate": 0.9140625,
+  "wilson": [
+   0.8733168298757226,
+   0.9425648457297233
+  ],
+  "classes": {
+   "seated": 234,
+   "grasp_slip": 1,
+   "lateral_miss": 19,
+   "deep_unseated": 1,
+   "tilt": 1
+  },
+  "force_p50": 6.773432731628418,
+  "force_p99": 17.833560562133783,
+  "t_ok_p50": 1.93,
+  "t_ok_p99": 9.228999999999992,
+  "run": "full_164912_align_full5",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.35374699225119466,
+   0.35852581590677524,
+   5.269073871897997
+  ],
+  "angles": [
+   -0.8973544883699915,
+   0.19468613359457299,
+   -1.8170499401440172
+  ],
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "full_165244_align_full8"
+  },
+  "k": 239,
+  "n": 256,
+  "rate": 0.93359375,
+  "wilson": [
+   0.8962370309862306,
+   0.9581296293175854
+  ],
+  "classes": {
+   "lateral_miss": 15,
+   "seated": 239,
+   "grasp_slip": 1,
+   "tilt": 1
+  },
+  "force_p50": 7.310860633850098,
+  "force_p99": 17.14228210449219,
+  "t_ok_p50": 1.92,
+  "t_ok_p99": 7.852400000000005,
+  "run": "full_165244_align_full8",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "controller",
+  "vision": [
+   0.1529771310693694,
+   -0.09395878236743505,
+   5.773400107796791
+  ],
+  "angles": [
+   -0.27532691271990456,
+   -0.016037462218924554,
+   -2.0228398291688716
+  ],
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "full_173941_align_full9"
+  },
+  "k": 241,
+  "n": 256,
+  "rate": 0.94140625,
+  "wilson": [
+   0.9055869414654005,
+   0.9641737127177634
+  ],
+  "classes": {
+   "seated": 241,
+   "grasp_slip": 1,
+   "lateral_miss": 11,
+   "tilt": 3
+  },
+  "force_p50": 7.465694189071655,
+  "force_p99": 18.39841051101684,
+  "t_ok_p50": 1.8,
+  "t_ok_p99": 7.912,
+  "run": "full_173941_align_full9",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": true,
+  "outcome_log": "seated_detected",
+  "real_plant": "plain_pd",
+  "vision": [
+   -0.28412750247826546,
+   -0.28220625807194244,
+   5.4521931271314825
+  ],
+  "angles": [
+   -0.3531871000229828,
+   -0.04785466968552123,
+   -1.6832091743472828
+  ],
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ },
+ {
+  "cond": {
+   "real": "full_175030_align_full10"
+  },
+  "k": 240,
+  "n": 256,
+  "rate": 0.9375,
+  "wilson": [
+   0.9008969618819807,
+   0.9611666953615092
+  ],
+  "classes": {
+   "lateral_miss": 16,
+   "seated": 240
+  },
+  "force_p50": 7.326996088027954,
+  "force_p99": 17.408083438873284,
+  "t_ok_p50": 1.97,
+  "t_ok_p99": 8.914799999999989,
+  "run": "full_175030_align_full10",
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plant": "real",
+  "truth_seated": false,
+  "outcome_log": "guard_bound",
+  "real_plant": "plain_pd",
+  "vision": [
+   0.2607797900857656,
+   0.29438819161440377,
+   5.382776932858923
+  ],
+  "angles": [
+   -0.2315421665715043,
+   -0.011730154978694948,
+   -2.1959471027581983
+  ],
+  "real_obs": false,
+  "vision_noise": true,
+  "inhand_obs": true,
+  "angles_src": "run",
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "mate_force_n": null,
+   "vision_prior_sigma_scale": null
+  },
+  "real_left_lead": true
+ }
+]

@@ -5,6 +5,8 @@ Figures and data referenced here live in `results/<phase>/`.
 
 ## 2026-11-13 (Pacific): server work after the milestone (sim and real-log analysis; nothing on the arm)
 
+**2026-11-14, K7 (sim only, `docs/real/K7_20261114.md`).** K7 = K4 fine-tuned on the wide PC box (+/-30 mm, +/-15 deg) with a 0-10 N sim mating force. It passes the acceptance rule: every cell of the +/-25 mm, +/-15 deg box >= 97.1 % (K4: 0.0 % at the +yaw corners), real spot 98.9 % (K4 97.4 %), 10 N mating force 99.1 % (K4 0.0 %), n = 1024 per cell. K4p (box only) and K7w (plus prior-noise scale) fail the rule (K7w: gap8 -4.0 points, but vision noise x3 93.3 % against K7's 82.9 %). On the replay of real hand-overs without the step alignment K7 is below K4 (full_A2 54.3 against 80.1 %, n = 256); after the step alignment they are equal. Dry runs with `bimanual_align9_k7`: 4 of 4 seat detected, 2 of 4 not seated after the release (open). Not on the arm.
+
 Task list `docs/real/SERVER_TASKS_20261112.md`. Runbook for the rig: `docs/real/NEXT_RIG_20261114.md`. All rig changes are new configs; new code is off by default.
 
 - **Data review** (`docs/real/DATA_REVIEW_20261113.md`; 19 runs with logs, 7 run folders of 2026-11-10 are empty on mason). The align stage takes 59.7 s median wall time (42.4-69.4, n = 15), not 34-55 s. The approach jump is over 3 mm on 7 of 18 approaches. The joint error of `approach_jump.py` has a constant offset (joint 2 +12.7 mrad). "Fully in" cannot be read from the logs: the operator must record the real depth per run.
