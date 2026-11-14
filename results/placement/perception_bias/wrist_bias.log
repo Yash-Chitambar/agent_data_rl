@@ -1,0 +1,32 @@
+/home/yashchitambar/wt/graph-align/scripts/real/wrist_bias_correlates.py:167: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  rs, ps = spearmanr(x[m], y[m])
+/home/yashchitambar/wt/graph-align/scripts/real/wrist_bias_correlates.py:168: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  rp, pp = pearsonr(x[m], y[m])
+/home/yashchitambar/wt/graph-align/scripts/real/wrist_bias_correlates.py:169: RankWarning: Polyfit may be poorly conditioned
+  k = np.polyfit(x[m], y[m], 1)
+/home/yashchitambar/wt/graph-align/scripts/real/wrist_bias_correlates.py:169: RankWarning: Polyfit may be poorly conditioned
+  k = np.polyfit(x[m], y[m], 1)
+LOO {"tip_cy_stop/handover": {"n": 25, "fit": [0.3949, 0.0328], "loo_resid": [-0.82, 0.94], "loo_sd": 0.51, "const_resid": [-2.66, 0.96]}, "tip_cy_stop/all": {"n": 40, "fit": [0.6299, -1.5784], "loo_resid": [-2.79, 2.31], "loo_sd": 1.03, "const_resid": [-6.1, 2.61]}, "tip_cy/handover": {"n": 25, "fit": [0.3666, 0.1964], "loo_resid": [-0.81, 0.95], "loo_sd": 0.5, "const_resid": [-2.66, 0.96]}, "tip_cy/all": {"n": 40, "fit": [0.5857, -1.2941], "loo_resid": [-2.76, 2.18], "loo_sd": 0.98, "const_resid": [-6.1, 2.61]}}
+runs 40 (with a measurement at gap <= 10.0 mm), measurements 685
+d_up per run: +1.88 +1.26 +1.73 -1.79 +2.88 -4.15 +0.80 +2.20 +0.01 +1.66 +1.19 +2.06 +4.56 +1.15 +1.19 +2.49 +0.85 +1.73 +2.33 +3.01 +2.61 +2.34 +2.42 +3.11 +2.45 +2.94 +2.50 +2.86 -0.19 +3.43 +3.22 +2.81 +3.51 +3.07 +2.07 +0.53 +1.83 +2.94 +3.28 +2.94
+net_up         n  40 rho +0.76 (p 0.000) r +0.62 slope +0.494
+tip_cy         n  40 rho +0.70 (p 0.000) r +0.82 slope +0.586
+plug_v         n  40 rho +0.68 (p 0.000) r +0.81 slope +0.105
+tip_cz         n  40 rho +0.66 (p 0.000) r +0.80 slope +0.737
+shell_w        n  40 rho -0.66 (p 0.000) r -0.80 slope -1.879
+shell_z        n  40 rho +0.66 (p 0.000) r +0.80 slope +0.733
+tip_cy_stop    n  40 rho +0.65 (p 0.000) r +0.80 slope +0.630
+panel_tz       n  40 rho +0.57 (p 0.000) r +0.47 slope +0.470
+port_v         n  40 rho +0.56 (p 0.000) r +0.73 slope +0.096
+panel_ty       n  40 rho +0.56 (p 0.000) r +0.72 slope +0.520
+net_ry         n  40 rho +0.53 (p 0.000) r +0.52 slope +1.477
+net_rz         n  40 rho -0.51 (p 0.001) r -0.35 slope -0.699
+vis_rz         n  40 rho -0.49 (p 0.001) r -0.40 slope -0.967
+ihn_0          n  40 rho +0.48 (p 0.002) r +0.48 slope +0.436
+q4             n  40 rho +0.46 (p 0.003) r +0.46 slope +9.732
+vis_ry         n  40 rho +0.46 (p 0.003) r +0.33 slope +0.831
+q3             n  40 rho -0.44 (p 0.004) r -0.40 slope -15.066
+vis_gap        n  40 rho +0.43 (p 0.006) r +0.20 slope +0.445
+q6             n  40 rho -0.41 (p 0.009) r -0.39 slope -19.438
+iha_0          n  22 rho +0.40 (p 0.066) r +0.78 slope +0.665
+within-run {"n_meas": 685, "gap": {"n": 685, "spearman": -0.353, "p_spearman": 0.0, "pearson": -0.461, "p_pearson": 0.0, "slope": -0.0383, "intercept": 0.378}, "bright_crop": {"n": 685, "spearman": -0.119, "p_spearman": 0.0019, "pearson": -0.157, "p_pearson": 0.0, "slope": -0.0247, "intercept": 2.814}, "vis_up": {"n": 685, "spearman": 0.3, "p_spearman": 0.0, "pearson": 0.256, "p_pearson": 0.0, "slope": 0.0521, "intercept": 0.034}, "pooled_gap": {"n": 685, "spearman": 0.061, "p_spearman": 0.1087, "pearson": 0.014, "p_pearson": 0.7165, "slope": 0.0033, "intercept": 1.925}}

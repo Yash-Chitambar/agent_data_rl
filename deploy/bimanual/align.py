@@ -119,6 +119,7 @@ class PortVisionSource:
         self.z_range = spec.get('plug_z_range_mm', [113.5, 123.5])
         self.R_cs_T_R_rs = None
         self.plug_z = None
+        self.stop_tip, self.stop_tip_y = False, None     # set by AlignStage only when the secondary has a bias_model (off by default)
         try:
             from deploy.bimanual import port_vision
             self.fn, self.depth = port_vision.measure, port_vision.plug_depth
@@ -167,6 +168,9 @@ class PortVisionSource:
             if ref is not None:
                 self.kw['plug_ref'] = ref       # before the servo's vision worker starts: it copies kw
             out['shell_ref'] = ref
+        if self.stop_tip and self.plug_z is not None:     # secondary.bias_model: this grasp's plug height in the camera, at the stop
+            self.stop_tip_y = stop_tip_y(self.fn, fr, self.plug_z, self.kw)
+            out['stop_tip_y_mm'] = self.stop_tip_y
         return out
 
     def measure(self, ch, tag):
@@ -214,6 +218,25 @@ class PortVisionSource:
         return self.R_cs_T_R_rs
 
 
+def stop_tip_y(fn, frames, plug_z, kw=None):
+    """Median y (mm, OpenCV camera axes: down in the image) of the plug tip in the right wrist camera over the still frames at the stop
+    (port_vision.measure debug tip_cam). The camera is fixed to the hand, so this is the plug height in the jaws of this grasp.
+    None when fewer than 3 frames measure. docs/real/PERCEPTION_BIAS_20261115.md, Part B."""
+    kw = {k: v for k, v in (kw or {}).items() if k != 'plug_z_mm'}
+    T = []
+    for f in frames:
+        try:
+            m = fn(f, side='right', plug_z_mm=plug_z, **kw)
+        except Exception:  # noqa: BLE001
+            continue
+        if m.ok and (m.debug or {}).get('tip_cam') is not None:
+            T.append(float(m.debug['tip_cam'][1]))
+    return float(np.median(T)) if len(T) >= 3 else None
+
+
+BIAS_MODEL_KEYS = {'kind', 'a_mm', 'b', 'clip_mm'}
+
+
 class WristNetSource:
     """The fine wrist net (eval_chain's crop): real slope about 0.34, 0.17, 0.35 per mm (docs/real/SESSION_20261102_duchamp3.md), so the slope gate rejects it until retrained."""
 
@@ -224,6 +247,15 @@ class WristNetSource:
         # constant offset of the net against port vision (across, up, gap), subtracted from every reading; default none.
         # Real hand-overs 2026-11-03..11: the net's up reads about +2.6 mm high (docs/real/ROBUSTNESS_PLAN_20261113.md part B).
         self.bias = np.asarray(spec.get('bias_mm', [0., 0., 0.]), float)
+        # OFF by default. bias_model {'kind': 'stop_tip_y', 'a_mm', 'b', 'clip_mm': [lo, hi]}: the up offset of this grasp is
+        # a_mm + b * (plug tip y in the camera at the stop, from the primary port vision's prepare frames), clipped; across and gap
+        # keep bias_mm. Without that value (no prepare, < 3 frames) the up offset stays bias_mm[1]. docs/real/PERCEPTION_BIAS_20261115.md.
+        self.bias_model = spec.get('bias_model')
+        if self.bias_model is not None:
+            bad = set(self.bias_model) - BIAS_MODEL_KEYS - {k for k in self.bias_model if k.startswith('_')}
+            if bad or self.bias_model.get('kind') != 'stop_tip_y':
+                raise ValueError(f'secondary.bias_model: kind must be stop_tip_y, unknown keys {sorted(bad)}')
+        self.primary = None
         name = spec.get('net')
         if name:
             from deploy.bimanual import netcache as NC
@@ -244,8 +276,16 @@ class WristNetSource:
 
     def measure(self, ch, tag):
         fr = ch.render(('wrist_right',), tag=tag)['wrist_cam']
-        v = self.predict(fr, ch.ndev) - self.bias
+        v = self.predict(fr, ch.ndev) - self.cur_bias()
         return PortMeasure(True, 'net', self.conf, float(v[0]), float(v[1]), float(v[2]), self.sigma)
+
+    def cur_bias(self):
+        b = self.bias.copy()
+        y = getattr(self.primary, 'stop_tip_y', None)
+        if self.bias_model is not None and y is not None:
+            lo, hi = self.bias_model.get('clip_mm', [-np.inf, np.inf])
+            b[1] = float(np.clip(float(self.bias_model['a_mm']) + float(self.bias_model['b']) * y, lo, hi))
+        return b
 
 
 class SimTruthSource:
@@ -607,6 +647,8 @@ class AlignStage:
         self.src = make_source(ch, spec)
         spec2 = c['secondary_sim'] if getattr(ch.io, 'is_sim', False) else c['secondary']
         self.src2 = make_source(ch, spec2) if spec2 else None
+        if self.src2 is not None and getattr(self.src2, 'bias_model', None) is not None and isinstance(self.src, PortVisionSource):
+            self.src.stop_tip, self.src2.primary = True, self.src       # secondary.bias_model (off by default)
         self.logic = AlignLogic(c)
         self.cmd0 = cmd.reshape(6).to(ch.dev).float()
         self.ql = ch.q_b[1].clone()
