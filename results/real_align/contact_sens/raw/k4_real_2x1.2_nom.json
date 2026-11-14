@@ -1,0 +1,159 @@
+[
+ {
+  "n": 1024,
+  "k": 914,
+  "rate": 0.892578125,
+  "wilson": [
+   0.8721235537732087,
+   0.9100981426438267
+  ],
+  "full_depth_rate": 0.85546875,
+  "full_k": 876,
+  "t_seat_p50_p90_p99": [
+   1.31,
+   2.56,
+   5.14
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.524,
+   5.68
+  ],
+  "release_n": 934,
+  "release_in_k": 848,
+  "release_ended_early": 176,
+  "release_in_frac": 0.9079229122055674,
+  "release_depth_mm_p1_p5_p50": [
+   5.228,
+   5.479,
+   5.664
+  ],
+  "classes": {
+   "seated": 914,
+   "lateral_miss": 82,
+   "grasp_slip": 21,
+   "jam": 1,
+   "full_no_seat_test": 5,
+   "tilt": 1
+  },
+  "variant": "base",
+  "params": {},
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "place": "real",
+  "pad": "2x1.2",
+  "plug": "nom",
+  "seed": 8100,
+  "in_training": false,
+  "start_row_mismatch": 0,
+  "wall_s": 797,
+  "batch_worlds": 3072
+ },
+ {
+  "n": 1024,
+  "k": 949,
+  "rate": 0.9267578125,
+  "wilson": [
+   0.9091552881624272,
+   0.9411702872958925
+  ],
+  "full_depth_rate": 0.857421875,
+  "full_k": 878,
+  "t_seat_p50_p90_p99": [
+   1.24,
+   1.744,
+   4.251
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.486,
+   5.67
+  ],
+  "release_n": 952,
+  "release_in_k": 836,
+  "release_ended_early": 152,
+  "release_in_frac": 0.8781512605042017,
+  "release_depth_mm_p1_p5_p50": [
+   5.078,
+   5.436,
+   5.656
+  ],
+  "classes": {
+   "seated": 949,
+   "lateral_miss": 66,
+   "grasp_slip": 5,
+   "jam": 1,
+   "full_no_seat_test": 3
+  },
+  "variant": "pmu_lo",
+  "params": {
+   "port_mu": [
+    0.05,
+    0.08
+   ]
+  },
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "place": "real",
+  "pad": "2x1.2",
+  "plug": "nom",
+  "seed": 8100,
+  "in_training": false,
+  "start_row_mismatch": 0,
+  "wall_s": 797,
+  "batch_worlds": 3072
+ },
+ {
+  "n": 1024,
+  "k": 290,
+  "rate": 0.283203125,
+  "wilson": [
+   0.2564566696951403,
+   0.3115701546715714
+  ],
+  "full_depth_rate": 0.2890625,
+  "full_k": 296,
+  "t_seat_p50_p90_p99": [
+   2.03,
+   4.8,
+   8.662
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.097,
+   5.684
+  ],
+  "release_n": 373,
+  "release_in_k": 291,
+  "release_ended_early": 120,
+  "release_in_frac": 0.7801608579088471,
+  "release_depth_mm_p1_p5_p50": [
+   4.832,
+   5.097,
+   5.665
+  ],
+  "classes": {
+   "lateral_miss": 599,
+   "seated": 290,
+   "tilt": 7,
+   "grasp_slip": 115,
+   "full_no_seat_test": 9,
+   "deep_unseated": 2,
+   "jam": 2
+  },
+  "variant": "pmu_hi",
+  "params": {
+   "port_mu": [
+    0.35,
+    0.6
+   ]
+  },
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "place": "real",
+  "pad": "2x1.2",
+  "plug": "nom",
+  "seed": 8100,
+  "in_training": false,
+  "start_row_mismatch": 0,
+  "wall_s": 797,
+  "batch_worlds": 3072
+ }
+]
