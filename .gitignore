@@ -35,3 +35,4 @@ data/real_runs/
 results/placement/*/*/20*/
 results/placement/**/_logs/
 results/placement/*.log
+results/placement/zed_edgefit/dry/grid/
