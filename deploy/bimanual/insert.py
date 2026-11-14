@@ -182,6 +182,8 @@ def final_push_force(chain, pR, q_left, fp, lat_mm=None, depth0_mm=None):
     Stops as final_push (advance, left hand, gripper readings) plus the hand leaving the line by max_lat_err_mm.
     Ends early when the hand has not advanced by still_mm in still_s at full force (the plug is home or stuck).
     fp['unload'] (optional, off by default; docs/real/DEPTH_SPRINGBACK_20261114.md) replaces the 0.3 s drop: see unload_force.
+    fp['lat_bias_n'] (optional, absent = [0, 0]; docs/real/FORCE_BUDGET_20261115.md): a lateral load [across, up] (N, port axes) added to
+    the lateral spring, scaled with the axial load (f / force_n), so it ramps up and down with it; the sum stays under lat_f_max_n.
     depth0_mm: depth (seat-2 units) at the push start, for fp['depth_report'] only."""
     dev = chain.scene.device
     tc, lc = chain.scene.chain['right'], chain.scene.chain['left']
@@ -197,6 +199,7 @@ def final_push_force(chain, pR, q_left, fp, lat_mm=None, depth0_mm=None):
     tau_max = torch.as_tensor(fp.get('tau_max_nm', [6.0, 6.0, 6.0, 2.5, 2.0, 2.0]), dtype=torch.float32, device=dev)
     max_adv, max_left, max_grip = float(fp.get('max_advance_mm', 4.0)), float(fp.get('max_left_mm', 2.0)), float(fp.get('max_grip_change', 0.02))
     max_lat_err = float(fp.get('max_lat_err_mm', 3.0))
+    lat_bias = torch.as_tensor(fp.get('lat_bias_n', [0.0, 0.0]), dtype=torch.float32, device=dev)
     still_mm, still_s = float(fp.get('still_mm', 0.15)), float(fp.get('still_s', 0.6))
     c_max, c_v = float(fp.get('centre_max_mm', 0.0)), float(fp.get('centre_v_mm_s', 2.0)) * max(float(chain.speed), 1e-3)
     shift = torch.zeros(2, device=dev)                      # reference line against the start, port x (across), y (up), mm
@@ -212,7 +215,7 @@ def final_push_force(chain, pR, q_left, fp, lat_mm=None, depth0_mm=None):
         p, Rm, J = tc.fk(q, with_jac=True)
         rel = (p[0] - p0[0]) @ R * 1e3                     # hand against the push start, port axes, mm
         e_lat = shift_ - rel[:2]                           # mm
-        F_lat = (k_lat * e_lat).clamp(-f_lat_max, f_lat_max)
+        F_lat = (k_lat * e_lat + lat_bias * (f_ax / max(f_max, 1e-6))).clamp(-f_lat_max, f_lat_max)
         F = R[:, 0] * F_lat[0] + R[:, 1] * F_lat[1] - R[:, 2] * f_ax
         Re = R0[0] @ Rm[0].T
         w = torch.stack([Re[2, 1] - Re[1, 2], Re[0, 2] - Re[2, 0], Re[1, 0] - Re[0, 1]]) / 2      # small-angle rotation vector

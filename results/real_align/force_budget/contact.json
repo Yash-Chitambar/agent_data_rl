@@ -1,0 +1,762 @@
+[
+ {
+  "run": "kjrc_1",
+  "date": "2026-11-10",
+  "label": "short",
+  "push": null,
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 4.2,
+   "F_tip_p90_n": 3.3,
+   "F_pd_max_n": 6.7,
+   "seat_s": 2.24,
+   "F_tip_at_seat_n": 3.1
+  },
+  "friction_band_n": 0.72
+ },
+ {
+  "run": "kjrc_2",
+  "date": "2026-11-10",
+  "label": "short",
+  "push": null,
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 4.8,
+   "F_tip_p90_n": 4.1,
+   "F_pd_max_n": 5.2,
+   "seat_s": 1.78,
+   "F_tip_at_seat_n": 3.1
+  },
+  "friction_band_n": 0.69
+ },
+ {
+  "run": "kjrc_3_push",
+  "date": "2026-11-10",
+  "label": "short",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 3.4,
+   "F_tip_p90_n": 2.3,
+   "F_pd_max_n": 4.6,
+   "seat_s": 1.42,
+   "F_tip_at_seat_n": 1.3
+  },
+  "friction_band_n": 0.7,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -0.75,
+    -0.01,
+    0.19,
+    0.35,
+    0.03,
+    -0.09
+   ],
+   "tau_per_n": [
+    -0.374,
+    -0.018,
+    0.056,
+    0.026,
+    0.079,
+    0.0
+   ],
+   "F_at_tau_max_n": 16.1,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0001,
+   "left_mm": 0.0,
+   "F_up_end_n": -2.0,
+   "F_across_end_n": -1.6
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 4.0,
+   "F_tip_end_n": 3.7,
+   "F_wrench_end_n": 4.2,
+   "F_local_end_n": 4.1,
+   "F_tip_peak_n": 4.9,
+   "friction_band_end_n": 0.7,
+   "adv_end_mm": 0.97,
+   "adv_rest_mm": 0.44,
+   "F_tip_rest_n": 0.7,
+   "comp_load_mm_per_n": 0.276,
+   "comp_load_pd_mm_per_n": 0.291,
+   "comp_unload_mm_per_n": 0.172,
+   "push_s": 3.0,
+   "comp_low_half": 0.228,
+   "comp_high_half": 0.272,
+   "F_lat_end_n": 2.5
+  }
+ },
+ {
+  "run": "k4_1",
+  "date": "2026-11-10",
+  "label": "short",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 6.8,
+   "F_tip_p90_n": 6.4,
+   "F_pd_max_n": 7.7,
+   "seat_s": 1.54,
+   "F_tip_at_seat_n": 4.6
+  },
+  "friction_band_n": 0.64,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -0.83,
+    0.03,
+    -0.03,
+    0.41,
+    0.04,
+    -0.12
+   ],
+   "tau_per_n": [
+    -0.374,
+    -0.021,
+    0.067,
+    0.035,
+    0.098,
+    0.0
+   ],
+   "F_at_tau_max_n": 16.1,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0,
+   "left_mm": 0.18,
+   "F_up_end_n": -2.8,
+   "F_across_end_n": -1.7
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 4.0,
+   "F_tip_end_n": 4.2,
+   "F_wrench_end_n": 4.6,
+   "F_local_end_n": 4.2,
+   "F_tip_peak_n": 4.8,
+   "friction_band_end_n": 0.64,
+   "adv_end_mm": 0.65,
+   "adv_rest_mm": -0.02,
+   "F_tip_rest_n": -0.1,
+   "comp_load_mm_per_n": 0.109,
+   "comp_load_pd_mm_per_n": 0.118,
+   "comp_unload_mm_per_n": 0.157,
+   "push_s": 3.0,
+   "comp_low_half": 0.461,
+   "comp_high_half": 0.031,
+   "F_lat_end_n": 3.3
+  }
+ },
+ {
+  "run": "k4_3",
+  "date": "2026-11-10",
+  "label": "full",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 7.2,
+   "F_tip_p90_n": 6.3,
+   "F_pd_max_n": 6.7,
+   "seat_s": 1.7,
+   "F_tip_at_seat_n": 5.9
+  },
+  "friction_band_n": 0.63,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -2.09,
+    0.18,
+    0.37,
+    0.92,
+    0.18,
+    -0.21
+   ],
+   "tau_per_n": [
+    -0.375,
+    -0.023,
+    0.07,
+    0.038,
+    0.102,
+    0.0
+   ],
+   "F_at_tau_max_n": 16.0,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0098,
+   "left_mm": 0.12,
+   "F_up_end_n": -4.2,
+   "F_across_end_n": -3.8
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 8.9,
+   "F_tip_end_n": 9.1,
+   "F_wrench_end_n": 9.6,
+   "F_local_end_n": 9.1,
+   "F_tip_peak_n": 9.5,
+   "friction_band_end_n": 0.63,
+   "adv_end_mm": 2.16,
+   "adv_rest_mm": 0.61,
+   "F_tip_rest_n": 0.4,
+   "comp_load_mm_per_n": 0.289,
+   "comp_load_pd_mm_per_n": 0.283,
+   "comp_unload_mm_per_n": 0.178,
+   "push_s": 8.0,
+   "comp_low_half": 0.155,
+   "comp_high_half": 0.347,
+   "F_lat_end_n": 5.7
+  }
+ },
+ {
+  "run": "k4_4",
+  "date": "2026-11-10",
+  "label": "unlabelled",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 6.4,
+   "F_tip_p90_n": 5.7,
+   "F_pd_max_n": 7.4,
+   "seat_s": 1.46,
+   "F_tip_at_seat_n": 5.2
+  },
+  "friction_band_n": 0.67,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -1.74,
+    0.09,
+    0.72,
+    0.75,
+    0.32,
+    -0.17
+   ],
+   "tau_per_n": [
+    -0.374,
+    -0.022,
+    0.065,
+    0.032,
+    0.092,
+    0.0
+   ],
+   "F_at_tau_max_n": 16.0,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0202,
+   "left_mm": 0.15,
+   "F_up_end_n": -2.0,
+   "F_across_end_n": -2.9
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 7.6,
+   "F_tip_end_n": 7.4,
+   "F_wrench_end_n": 8.0,
+   "F_local_end_n": 8.2,
+   "F_tip_peak_n": 8.6,
+   "friction_band_end_n": 0.67,
+   "adv_end_mm": 2.8,
+   "adv_rest_mm": 1.59,
+   "F_tip_rest_n": 0.3,
+   "comp_load_mm_per_n": 0.258,
+   "comp_load_pd_mm_per_n": 0.22,
+   "comp_unload_mm_per_n": 0.171,
+   "push_s": 7.34,
+   "comp_low_half": 0.193,
+   "comp_high_half": 0.282,
+   "F_lat_end_n": 3.5
+  }
+ },
+ {
+  "run": "k4_5",
+  "date": "2026-11-10",
+  "label": "full",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 6.5,
+   "F_tip_p90_n": 4.5,
+   "F_pd_max_n": 7.1,
+   "seat_s": 1.56,
+   "F_tip_at_seat_n": 4.2
+  },
+  "friction_band_n": 0.66,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -2.01,
+    0.17,
+    0.43,
+    0.96,
+    0.18,
+    -0.2
+   ],
+   "tau_per_n": [
+    -0.376,
+    -0.022,
+    0.068,
+    0.035,
+    0.097,
+    0.0
+   ],
+   "F_at_tau_max_n": 16.0,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0092,
+   "left_mm": 0.07,
+   "F_up_end_n": -3.4,
+   "F_across_end_n": -4.1
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 9.1,
+   "F_tip_end_n": 9.1,
+   "F_wrench_end_n": 9.6,
+   "F_local_end_n": 9.6,
+   "F_tip_peak_n": 9.4,
+   "friction_band_end_n": 0.66,
+   "adv_end_mm": 2.58,
+   "adv_rest_mm": 1.12,
+   "F_tip_rest_n": 0.0,
+   "comp_load_mm_per_n": 0.329,
+   "comp_load_pd_mm_per_n": 0.321,
+   "comp_unload_mm_per_n": 0.162,
+   "push_s": 8.0,
+   "comp_low_half": 0.276,
+   "comp_high_half": 0.332,
+   "F_lat_end_n": 5.4
+  }
+ },
+ {
+  "run": "k4_6",
+  "date": "2026-11-10",
+  "label": "unlabelled",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 6.7,
+   "F_tip_p90_n": 5.9,
+   "F_pd_max_n": 7.5,
+   "seat_s": 1.38,
+   "F_tip_at_seat_n": 5.8
+  },
+  "friction_band_n": 0.67,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -2.11,
+    0.07,
+    0.55,
+    0.82,
+    0.17,
+    -0.21
+   ],
+   "tau_per_n": [
+    -0.376,
+    -0.021,
+    0.063,
+    0.031,
+    0.091,
+    0.0
+   ],
+   "F_at_tau_max_n": 16.0,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0113,
+   "left_mm": 0.25,
+   "F_up_end_n": -3.3,
+   "F_across_end_n": -3.7
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 9.3,
+   "F_tip_end_n": 9.1,
+   "F_wrench_end_n": 9.9,
+   "F_local_end_n": 9.6,
+   "F_tip_peak_n": 9.4,
+   "friction_band_end_n": 0.67,
+   "adv_end_mm": 2.49,
+   "adv_rest_mm": 1.03,
+   "F_tip_rest_n": 0.5,
+   "comp_load_mm_per_n": 0.294,
+   "comp_load_pd_mm_per_n": 0.269,
+   "comp_unload_mm_per_n": 0.171,
+   "push_s": 8.0,
+   "comp_low_half": 0.254,
+   "comp_high_half": 0.333,
+   "F_lat_end_n": 5.0
+  }
+ },
+ {
+  "run": "demo_1",
+  "date": "2026-11-11",
+  "label": "short",
+  "push": null,
+  "force_n": null,
+  "skipped": true,
+  "k4_insert": {
+   "F_tip_max_n": 5.9,
+   "F_tip_p90_n": 5.3,
+   "F_pd_max_n": 7.3,
+   "seat_s": 1.44,
+   "F_tip_at_seat_n": 5.6
+  },
+  "friction_band_n": 0.71
+ },
+ {
+  "run": "demo_2",
+  "date": "2026-11-11",
+  "label": "unlabelled",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 5.7,
+   "F_tip_p90_n": 4.6,
+   "F_pd_max_n": 6.1,
+   "seat_s": 1.42,
+   "F_tip_at_seat_n": 5.4
+  },
+  "friction_band_n": 0.72,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -2.19,
+    0.23,
+    0.53,
+    0.96,
+    0.13,
+    -0.16
+   ],
+   "tau_per_n": [
+    -0.372,
+    -0.023,
+    0.072,
+    0.037,
+    0.093,
+    0.0
+   ],
+   "F_at_tau_max_n": 16.1,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0006,
+   "left_mm": 0.07,
+   "F_up_end_n": -3.8,
+   "F_across_end_n": -4.3
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 9.6,
+   "F_tip_end_n": 9.8,
+   "F_wrench_end_n": 10.2,
+   "F_local_end_n": 9.7,
+   "F_tip_peak_n": 10.3,
+   "friction_band_end_n": 0.72,
+   "adv_end_mm": 2.35,
+   "adv_rest_mm": 0.88,
+   "F_tip_rest_n": 0.6,
+   "comp_load_mm_per_n": 0.296,
+   "comp_load_pd_mm_per_n": 0.31,
+   "comp_unload_mm_per_n": 0.159,
+   "push_s": 8.0,
+   "comp_low_half": 0.342,
+   "comp_high_half": 0.28,
+   "F_lat_end_n": 5.7
+  }
+ },
+ {
+  "run": "demo_3",
+  "date": "2026-11-11",
+  "label": "unlabelled",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 6.0,
+   "F_tip_p90_n": 5.4,
+   "F_pd_max_n": 7.6,
+   "seat_s": 1.14,
+   "F_tip_at_seat_n": 4.8
+  },
+  "friction_band_n": 0.7,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -2.18,
+    -0.13,
+    0.48,
+    0.74,
+    0.15,
+    -0.2
+   ],
+   "tau_per_n": [
+    -0.381,
+    -0.017,
+    0.052,
+    0.026,
+    0.09,
+    0.0
+   ],
+   "F_at_tau_max_n": 15.7,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0095,
+   "left_mm": 0.13,
+   "F_up_end_n": -3.6,
+   "F_across_end_n": -3.6
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 9.2,
+   "F_tip_end_n": 8.9,
+   "F_wrench_end_n": 9.7,
+   "F_local_end_n": 9.8,
+   "F_tip_peak_n": 9.5,
+   "friction_band_end_n": 0.7,
+   "adv_end_mm": 2.39,
+   "adv_rest_mm": 0.96,
+   "F_tip_rest_n": 0.6,
+   "comp_load_mm_per_n": 0.253,
+   "comp_load_pd_mm_per_n": 0.23,
+   "comp_unload_mm_per_n": 0.173,
+   "push_s": 8.0,
+   "comp_low_half": 0.214,
+   "comp_high_half": 0.252,
+   "F_lat_end_n": 5.1
+  }
+ },
+ {
+  "run": "demo_4",
+  "date": "2026-11-11",
+  "label": "full",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 6.7,
+   "F_tip_p90_n": 5.9,
+   "F_pd_max_n": 8.5,
+   "seat_s": 1.32,
+   "F_tip_at_seat_n": 5.6
+  },
+  "friction_band_n": 0.7,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -2.26,
+    -0.06,
+    0.27,
+    0.96,
+    0.14,
+    -0.21
+   ],
+   "tau_per_n": [
+    -0.383,
+    -0.017,
+    0.053,
+    0.026,
+    0.092,
+    0.0
+   ],
+   "F_at_tau_max_n": 15.6,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0006,
+   "left_mm": 0.16,
+   "F_up_end_n": -3.6,
+   "F_across_end_n": -4.7
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 10.4,
+   "F_tip_end_n": 9.7,
+   "F_wrench_end_n": 10.9,
+   "F_local_end_n": 10.5,
+   "F_tip_peak_n": 10.6,
+   "friction_band_end_n": 0.7,
+   "adv_end_mm": 2.07,
+   "adv_rest_mm": 0.57,
+   "F_tip_rest_n": 0.6,
+   "comp_load_mm_per_n": 0.241,
+   "comp_load_pd_mm_per_n": 0.222,
+   "comp_unload_mm_per_n": 0.165,
+   "push_s": 8.0,
+   "comp_low_half": 0.172,
+   "comp_high_half": 0.237,
+   "F_lat_end_n": 5.9
+  }
+ },
+ {
+  "run": "speed075_1",
+  "date": "2026-11-11",
+  "label": "unlabelled",
+  "push": null,
+  "force_n": null,
+  "skipped": true,
+  "k4_insert": {
+   "F_tip_max_n": 5.8,
+   "F_tip_p90_n": 5.1,
+   "F_pd_max_n": 9.3,
+   "seat_s": 3.9,
+   "F_tip_at_seat_n": 5.2
+  },
+  "friction_band_n": 0.7
+ },
+ {
+  "run": "fastmove_1",
+  "date": "2026-11-11",
+  "label": "full",
+  "push": "position",
+  "force_n": null,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 7.4,
+   "F_tip_p90_n": 6.8,
+   "F_pd_max_n": 9.0,
+   "seat_s": 1.48,
+   "F_tip_at_seat_n": 5.9
+  },
+  "friction_band_n": 0.66,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -2.11,
+    -0.01,
+    0.22,
+    0.93,
+    0.19,
+    -0.2
+   ],
+   "tau_per_n": [
+    -0.384,
+    -0.019,
+    0.057,
+    0.031,
+    0.102,
+    0.0
+   ],
+   "F_at_tau_max_n": 15.6,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0006,
+   "left_mm": 0.1,
+   "F_up_end_n": -3.9,
+   "F_across_end_n": -4.1
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 9.1,
+   "F_tip_end_n": 9.0,
+   "F_wrench_end_n": 9.7,
+   "F_local_end_n": 9.3,
+   "F_tip_peak_n": 9.4,
+   "friction_band_end_n": 0.66,
+   "adv_end_mm": 2.02,
+   "adv_rest_mm": 0.57,
+   "F_tip_rest_n": 0.5,
+   "comp_load_mm_per_n": 0.289,
+   "comp_load_pd_mm_per_n": 0.278,
+   "comp_unload_mm_per_n": 0.171,
+   "push_s": 5.5,
+   "comp_low_half": 0.215,
+   "comp_high_half": 0.363,
+   "F_lat_end_n": 5.7
+  }
+ },
+ {
+  "run": "all9_full_1",
+  "date": "2026-11-13",
+  "label": "short",
+  "push": "force",
+  "force_n": 10.0,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 5.2,
+   "F_tip_p90_n": 3.9,
+   "F_pd_max_n": 5.9,
+   "seat_s": 1.14,
+   "F_tip_at_seat_n": 4.3
+  },
+  "friction_band_n": 0.61,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -3.63,
+    -0.08,
+    0.63,
+    0.32,
+    0.81,
+    -0.06
+   ],
+   "tau_per_n": [
+    -0.38,
+    -0.018,
+    0.057,
+    0.029,
+    0.089,
+    0.0
+   ],
+   "F_at_tau_max_n": 15.8,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0001,
+   "left_mm": 0.16,
+   "F_up_end_n": -2.1,
+   "F_across_end_n": -0.1
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 10.0,
+   "F_tip_end_n": 10.4,
+   "F_wrench_end_n": 10.6,
+   "F_local_end_n": 9.9,
+   "F_tip_peak_n": 10.7,
+   "friction_band_end_n": 0.61,
+   "adv_end_mm": 2.61,
+   "adv_rest_mm": 0.66,
+   "F_tip_rest_n": 0.3,
+   "comp_load_mm_per_n": 0.288,
+   "comp_load_pd_mm_per_n": 0.288,
+   "comp_unload_mm_per_n": 0.192,
+   "push_s": 3.94,
+   "comp_low_half": 0.272,
+   "comp_high_half": 0.331,
+   "F_lat_end_n": 2.1
+  }
+ },
+ {
+  "run": "all9b_full_1",
+  "date": "2026-11-13",
+  "label": "short",
+  "push": "force",
+  "force_n": 14.0,
+  "skipped": false,
+  "k4_insert": {
+   "F_tip_max_n": 6.4,
+   "F_tip_p90_n": 4.9,
+   "F_pd_max_n": 7.7,
+   "seat_s": 1.28,
+   "F_tip_at_seat_n": 5.4
+  },
+  "friction_band_n": 0.62,
+  "push_limits": {
+   "tau_pd_end_nm": [
+    -5.02,
+    -0.49,
+    1.19,
+    0.52,
+    1.16,
+    -0.09
+   ],
+   "tau_per_n": [
+    -0.38,
+    -0.018,
+    0.057,
+    0.028,
+    0.088,
+    0.0
+   ],
+   "F_at_tau_max_n": 15.8,
+   "joint_at_tau_max": 1,
+   "grip_change": 0.0097,
+   "left_mm": 0.2,
+   "F_up_end_n": -1.7,
+   "F_across_end_n": -0.6
+  },
+  "push_stats": {
+   "F_cmd_pd_end_n": 14.0,
+   "F_tip_end_n": 14.3,
+   "F_wrench_end_n": 14.4,
+   "F_local_end_n": 14.1,
+   "F_tip_peak_n": 14.7,
+   "friction_band_end_n": 0.63,
+   "adv_end_mm": 4.03,
+   "adv_rest_mm": 0.68,
+   "F_tip_rest_n": 0.0,
+   "comp_load_mm_per_n": 0.248,
+   "comp_load_pd_mm_per_n": 0.245,
+   "comp_unload_mm_per_n": 0.235,
+   "push_s": 7.04,
+   "comp_low_half": 0.222,
+   "comp_high_half": 0.298,
+   "F_lat_end_n": 1.8
+  }
+ }
+]

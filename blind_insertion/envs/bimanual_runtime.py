@@ -103,6 +103,12 @@ class BimanualCfg:
     # PC panel and lid textures taken from real wrist frames (scripts/real/wrist_real_textures.py): a directory with
     # panel.png, top.png. None keeps the rear photo and the sticker blocks.
     pc_real_look: str | None = None
+    # Series compliance of the right arm (docs/real/FORCE_BUDGET_20261115.md, Part 2): per-joint stiffness (N m/rad) between the
+    # motor (encoder) and the link, 6 entries (None = rigid joint). The real FK hand advances 0.25-0.29 mm/N under a push with the
+    # plug held (2026-11-13); the sim arm 0.02-0.04 mm/N. The PD acts on the motor angle: kp_eff = kp k / (kp + k) on the link, and
+    # the encoder reads link + PD torque / k. Fitted push plant: joint 1 only, k = 640 N m/rad (0.22 mm/N along the port axis at the
+    # push pose). A later gain change (e.g. SimIO.set_gains) must apply the same scale. None (default): rigid arm, as before.
+    right_series_stiffness: tuple | None = None
 
 
 def _add_pc_real_look(sp, path):
@@ -278,6 +284,19 @@ class BimanualRuntime:
             self.driver_gravity = AR.DriverGravity(self.device)
             self._sample_dynamics(torch.arange(c.nworld,device=self.device))
         self.fidelity = GF.GraspFidelity(self, gf, gf_geoms) if gf is not None else None
+        self.series_k = None
+        if c.right_series_stiffness is not None:
+            k = torch.tensor([float('inf') if x is None else float(x) for x in c.right_series_stiffness], device=self.device, dtype=self.q.dtype)
+            if k.shape != (6,) or (k <= 0).any():
+                raise ValueError('right_series_stiffness: 6 positive entries or None')
+            act = list(self.indices['right'][2])
+            gain, bias = wp.to_torch(self.m.actuator_gainprm), wp.to_torch(self.m.actuator_biasprm)
+            kp = gain[0, act, 0].clone()                 # arm gains are the same in every world (gainprm may be batched for grip DR)
+            kp_eff = torch.where(torch.isinf(k), kp, kp * k / (kp + k))
+            gain[:, act, 0] = kp_eff
+            bias[:, act, 1] = -kp_eff
+            self.series_k = k
+            self._act_force = wp.to_torch(self.d.actuator_force)
         if c.render_rgb:
             ids = [m.camera(name).id for name in self.camera_names]
             active = [i in ids for i in range(m.ncam)]
@@ -488,6 +507,9 @@ class BimanualRuntime:
         q = torch.stack([self.q[:,self.indices[side][0]] for side in ('right','left')],dim=1)
         v = torch.stack([self.v[:,self.indices[side][1]] for side in ('right','left')],dim=1)
         enc=q-self.encoder_offsets
+        if self.series_k is not None:           # motor-side encoder: link angle + wind-up of the PD torque (right arm)
+            enc=enc.clone()
+            enc[:,0]=enc[:,0]+self._act_force[:,list(self.indices['right'][2])]/self.series_k
         if self.cfg.quantize_encoders:
             # DM native position telemetry: unsigned 16-bit encoding over +/-12.5 rad.
             enc=((enc+12.5)*(65535./25.)).round().clamp(0,65535)*(25./65535.)-12.5
