@@ -170,7 +170,7 @@ def final_push(chain, pR, q_left, fp):
     return adv
 
 
-def final_push_force(chain, pR, q_left, fp, lat_mm=None):
+def final_push_force(chain, pR, q_left, fp, lat_mm=None, depth0_mm=None):
     """insert.final_push with mode "force" (docs/real/FULL_DEPTH_20261113.md). The position push (final_push) gives a force
     that depends on the arm stiffness, and on the rig the hand moved 5-6 mm down while the plug advanced 2 mm. Here the
     right-arm target is the MEASURED pose plus the joint step whose PD torque equals a chosen Cartesian load:
@@ -180,7 +180,9 @@ def final_push_force(chain, pR, q_left, fp, lat_mm=None):
     moves toward the port axis by the seat reading lat_mm (clipped), at centre_v_mm_s: after a K4 seat the hand can sit
     2-4 mm off the axis with the plug in the port (2026-11-11 demo_1, speed075_1: up -3.5 / -3.3 mm, reader hanging).
     Stops as final_push (advance, left hand, gripper readings) plus the hand leaving the line by max_lat_err_mm.
-    Ends early when the hand has not advanced by still_mm in still_s at full force (the plug is home or stuck)."""
+    Ends early when the hand has not advanced by still_mm in still_s at full force (the plug is home or stuck).
+    fp['unload'] (optional, off by default; docs/real/DEPTH_SPRINGBACK_20261114.md) replaces the 0.3 s drop: see unload_force.
+    depth0_mm: depth (seat-2 units) at the push start, for fp['depth_report'] only."""
     dev = chain.scene.device
     tc, lc = chain.scene.chain['right'], chain.scene.chain['left']
     R = torch.as_tensor(pR, dtype=torch.float32).reshape(3, 3).to(dev)
@@ -204,26 +206,30 @@ def final_push_force(chain, pR, q_left, fp, lat_mm=None):
     stop, worst = None, dict(advance_mm=0., left_mm=0., grip_change=[0., 0.], lat_err_mm=0.)
     f, t_full, hist, k, done = 0., None, [], 0, None
     n_max = int(round((float(goal.abs().max()) / max(c_v, 1e-3) + f_max / max(ramp, 1e-3) + hold_s + 1.0) / chain.dt))
-    while k < n_max:
+    def load_step(f_ax, shift_, grip_r=-1.):
+        """One tick of the load law: axial f_ax (N) + lateral spring to the line shift_ + rotation spring. Returns (adv, e_lat)."""
         q = chain.q_b[0:1].to(dev).float()
         p, Rm, J = tc.fk(q, with_jac=True)
         rel = (p[0] - p0[0]) @ R * 1e3                     # hand against the push start, port axes, mm
-        adv = float(-rel[2])
-        step = (goal - shift).clamp(-c_v * chain.dt, c_v * chain.dt)
-        shift = shift + step
-        centring = bool((goal - shift).abs().max() > 1e-6)
-        if not centring:
-            f = min(f_max, f + ramp * chain.dt)
-        e_lat = shift - rel[:2]                            # mm
+        e_lat = shift_ - rel[:2]                           # mm
         F_lat = (k_lat * e_lat).clamp(-f_lat_max, f_lat_max)
-        F = R[:, 0] * F_lat[0] + R[:, 1] * F_lat[1] - R[:, 2] * f
+        F = R[:, 0] * F_lat[0] + R[:, 1] * F_lat[1] - R[:, 2] * f_ax
         Re = R0[0] @ Rm[0].T
         w = torch.stack([Re[2, 1] - Re[1, 2], Re[0, 2] - Re[2, 0], Re[1, 0] - Re[0, 1]]) / 2      # small-angle rotation vector
         M = (k_rot * w).clamp(-m_max, m_max)
         tau = J[0].T.float() @ torch.cat([F, M])
         tau = tau * float((tau_max / tau.abs().clamp(min=1e-9)).clamp(max=1.).min())      # one scale for all joints: the load direction is kept
         dq = tau / kp
-        chain.hstep((q[0] + dq).to(chain.dev), q_left, '5 insert')
+        chain.hstep((q[0] + dq).to(chain.dev), q_left, '5 insert', grip_r=grip_r)
+        return float(-rel[2]), e_lat
+
+    while k < n_max:
+        step = (goal - shift).clamp(-c_v * chain.dt, c_v * chain.dt)
+        shift = shift + step
+        centring = bool((goal - shift).abs().max() > 1e-6)
+        if not centring:
+            f = min(f_max, f + ramp * chain.dt)
+        adv, e_lat = load_step(f, shift)
         k += 1
         pl, _ = lc.fk(chain.q_b[1:2].to(dev).float())
         l_ = float((pl[0] - pl0[0]).norm()) * 1e3
@@ -253,17 +259,142 @@ def final_push_force(chain, pR, q_left, fp, lat_mm=None):
                 break
     p1, _ = tc.fk(chain.q_b[0:1].to(dev).float())
     adv = float(-((p1[0] - p0[0]) @ R[:, 2])) * 1e3
-    for _ in range(int(round(0.3 / chain.dt))):          # drop the push: measured right pose, the left keeps its press target
-        chain.hstep(chain.q_b[0].clone(), q_left, '5 insert')
+    tr = chain.truth()
+    true_loaded = None if tr is None else tr['tip_depth_mm']
+    uc = fp.get('unload')
+    un = None
+    if uc and stop is None:
+        un = unload_force(chain, fp, uc, f, shift, load_step, dict(p0=p0, R=R, pl0=pl0, g0=g0, max_adv=max_adv, max_left=max_left,
+                                                                    max_grip=max_grip, max_lat_err=max_lat_err, q_left=q_left), worst)
+    else:
+        for _ in range(int(round(0.3 / chain.dt))):          # drop the push: measured right pose, the left keeps its press target
+            chain.hstep(chain.q_b[0].clone(), q_left, '5 insert')
     p2, _ = tc.fk(chain.q_b[0:1].to(dev).float())
     rest = float(-((p2[0] - p0[0]) @ R[:, 2])) * 1e3
     tr = chain.truth()
     chain.log_event('insert_final_push', mode='force', force_n=f_max, force_reached_n=f, centre_mm=shift.tolist(), advance_mm=adv, rest_advance_mm=rest,
-                    stopped=stop, end=done, worst=worst, true_depth_mm=None if tr is None else tr['tip_depth_mm'], ticks=k, tick=chain.k)
-    print(f'final push (force {f:.1f} of {f_max} N): advance {adv:.2f} mm, at rest {rest:.2f} mm, centred {[round(float(x), 2) for x in shift]} mm, '
+                    stopped=stop, end=done, worst=worst, true_depth_mm=None if tr is None else tr['tip_depth_mm'], true_depth_loaded_mm=true_loaded,
+                    unload=un, ticks=k, tick=chain.k)
+    print(f'final push (force {f:.1f} of {f_max} N): advance {adv:.2f} mm, at rest {rest:.2f} mm' + (' (jaws open)' if un else '')
+          + f', centred {[round(float(x), 2) for x in shift]} mm, '
           f'left hand {worst["left_mm"]:.2f} mm, off line {worst["lat_err_mm"]:.2f} mm, grip change {[round(x, 3) for x in worst["grip_change"]]}'
           + (f'; STOPPED: {stop}' if stop else ''), flush=True)
+    if un:
+        print(f"unload: load {un['f_start_n']:.1f} -> {un['f_open_n']:.1f} N over {un['ramp_s']:.2f} s (jaws closed): hand back {un['back_mm']:.2f} mm "
+              f"({un['slope_mm_per_n']:.3f} mm/N); jaws opened at {un['f_open_n']:.1f} N: hand moved {un['open_move_mm']:+.2f} mm; "
+              f"after the relax {un['relax_adv_mm']:.2f} mm" + (f"; STOPPED: {un['stopped']}" if un['stopped'] else ''), flush=True)
+    if fp.get('depth_report') and depth0_mm is not None:
+        rep = dict(push_start_mm=depth0_mm, loaded_mm=depth0_mm + adv,
+                   closed_low_load_mm=None if not un else depth0_mm + un['adv_low_mm'], rest_mm=depth0_mm + rest, jaws_open_at_rest=bool(un),
+                   label='not verified', note=str(fp['depth_report']))
+        chain.log_event('insert_depth_report', **rep)
+        print(f"depth (seat-2 units, FK of the hand, not the plug): push start {depth0_mm:.2f}, loaded {depth0_mm + adv:.2f}"
+              + (f", jaws closed at {un['f_open_n']:.1f} N {depth0_mm + un['adv_low_mm']:.2f}" if un else f', at rest {depth0_mm + rest:.2f}')
+              + ' mm. FULL/SHORT: NOT VERIFIED by FK (2026-11-14: no FK threshold separates the operator labels); the operator checks the silver band.', flush=True)
     return adv
+
+
+def unload_force(chain, fp, uc, f_start, shift, load_step, ref, worst):
+    """fp['unload'] (docs/real/DEPTH_SPRINGBACK_20261114.md): after the force push, instead of dropping the load in one tick (the hand then
+    springs back 1.9-3.4 mm in 40-200 ms with the jaws closed, rig 2026-11-13):
+      1. ramp the axial load from the reached force down to open_force_n at ramp_n_s (x --speed), jaws closed, the same load law;
+      2. open the right jaws with open_force_n still on, for open_s (open_force_n 0: the right target is held fixed at the pose
+         reached at 0 N, a stiff position hold, while the jaws open);
+      3. ramp the remaining load to zero over relax_s (jaws open; skipped at 0 N), then hold the measured pose for hold_s.
+    Dry run 2026-11-14 (seed 7043): with 3 N on and the jaws open the hand jumped 2.47 mm (the 1.0 mm watch fired at 1.64 mm, one
+    tick late): a residual load at the jaw opening is a fast force source; the config uses open_force_n 0.
+    The left arm keeps its press target throughout (the PC stays clamped while the jaws open). Watches every tick: hand advance since the
+    push start > max_advance_mm, left hand > max_left_mm, hand off the line > max_lat_err_mm (as the push); the gripper readings must not
+    change by more than max_grip_change while the jaws are closed (step 1) and the left one in all steps (the right jaws open on purpose in
+    steps 2-3); and in steps 2-3 the hand must not advance by more than open_max_adv_mm beyond its pose at the start of step 2 (a force
+    source with nothing to push moves). A stop holds the measured pose (no load) and the release follows as before."""
+    dev = chain.scene.device
+    tc, lc = chain.scene.chain['right'], chain.scene.chain['left']
+    p0, R, pl0, g0 = ref['p0'], ref['R'], ref['pl0'], ref['g0']
+    spd = max(float(chain.speed), 1e-3)
+    f_open = float(uc.get('open_force_n', 3.0))
+    rate = float(uc.get('ramp_n_s', 4.0)) * spd
+    open_s, relax_s, hold_s = float(uc.get('open_s', 0.6)) / spd, float(uc.get('relax_s', 0.4)) / spd, float(uc.get('hold_s', 0.2))
+    open_max = float(uc.get('open_max_adv_mm', 1.0))
+    f_open = min(f_open, f_start)
+    out = dict(f_start_n=f_start, f_open_n=f_open, stopped=None, step=None, tick_start=chain.k)
+
+    def adv_now():
+        p, _ = tc.fk(chain.q_b[0:1].to(dev).float())
+        return float(-((p[0] - p0[0]) @ R[:, 2])) * 1e3
+
+    def watch(adv, e_lat, right_grip, adv_open=None):
+        pl, _ = lc.fk(chain.q_b[1:2].to(dev).float())
+        l_ = float((pl[0] - pl0[0]).norm()) * 1e3
+        g_ = [abs(float(chain.state['grip'][i]) - g0[i]) for i in range(2)]
+        le = float(e_lat.norm())
+        worst['advance_mm'], worst['left_mm'], worst['lat_err_mm'] = max(worst['advance_mm'], adv), max(worst['left_mm'], l_), max(worst['lat_err_mm'], le)
+        if right_grip:
+            worst['grip_change'][0] = max(worst['grip_change'][0], g_[0])
+        worst['grip_change'][1] = max(worst['grip_change'][1], g_[1])
+        if adv > ref['max_adv']:
+            return f'hand advanced {adv:.2f} mm > {ref["max_adv"]} (unload)'
+        if l_ > ref['max_left']:
+            return f'left hand moved {l_:.2f} mm > {ref["max_left"]} (the PC press gave way; unload)'
+        if (right_grip and g_[0] > ref['max_grip']) or g_[1] > ref['max_grip']:
+            return f'gripper reading changed {[round(x, 3) for x in g_]} > {ref["max_grip"]} (right, left; unload)'
+        if le > ref['max_lat_err']:
+            return f'hand {le:.2f} mm off the push line > {ref["max_lat_err"]} (unload)'
+        if adv_open is not None and adv - adv_open > open_max:
+            return f'hand advanced {adv - adv_open:.2f} mm while the jaws opened > {open_max} (unload)'
+        return None
+
+    a_start = adv_now()
+    f, stop, trace = f_start, None, []
+    while f > f_open and stop is None:                                    # 1. ramp down, jaws closed
+        f = max(f_open, f - rate * chain.dt)
+        adv, e_lat = load_step(f, shift)
+        trace.append((f, adv))
+        stop = watch(adv, e_lat, True)
+        out['step'] = 'ramp'
+    a_low = adv_now()
+    tr = chain.truth()
+    out['true_depth_low_mm'] = None if tr is None else tr['tip_depth_mm']
+    a_open0 = a_low
+    out['tick_open'] = chain.k
+    q_fix = chain.q_b[0].clone()                                          # open_force_n 0: a fixed position hold while the jaws open
+    if stop is None:                                                      # 2. open the jaws with f_open on (or the fixed hold)
+        out['step'] = 'open'
+        for _ in range(int(round(open_s / chain.dt))):
+            if f_open > 0:
+                adv, e_lat = load_step(f, shift, grip_r=1.)
+            else:
+                chain.hstep(q_fix, ref['q_left'], '5 insert', grip_r=1.)
+                p_, _ = tc.fk(chain.q_b[0:1].to(dev).float())
+                rel_ = (p_[0] - p0[0]) @ R * 1e3
+                adv, e_lat = float(-rel_[2]), shift - rel_[:2]
+            stop = watch(adv, e_lat, False, a_open0)
+            if stop:
+                break
+    a_opened = adv_now()
+    out['tick_relax'] = chain.k
+    if stop is None and f_open > 0:                                       # 3. relax the rest of the load, jaws open
+        out['step'] = 'relax'
+        n = max(1, int(round(relax_s / chain.dt)))
+        for i in range(n):
+            adv, e_lat = load_step(f * (1 - (i + 1) / n), shift, grip_r=1.)
+            stop = watch(adv, e_lat, False, a_open0)
+            if stop:
+                break
+    for _ in range(int(round(hold_s / chain.dt))):                        # hold the measured pose (no load), jaws open unless a closed-jaw stop
+        chain.hstep(chain.q_b[0].clone(), ref['q_left'], '5 insert', grip_r=1. if out['step'] != 'ramp' else -1.)
+    out['stopped'] = stop
+    if stop is None:
+        out['step'] = 'done'
+    tr = chain.truth()
+    fs = np.array([x[0] for x in trace]) if trace else np.zeros(0)
+    ad = np.array([x[1] for x in trace]) if trace else np.zeros(0)
+    slope = float(np.polyfit(fs, ad, 1)[0]) if len(fs) > 5 and np.ptp(fs) > 0.5 else float('nan')
+    out.update(adv_start_mm=a_start, adv_low_mm=a_low, back_mm=a_start - a_low, slope_mm_per_n=slope, ramp_s=len(trace) * chain.dt,
+               open_move_mm=a_opened - a_open0, relax_adv_mm=adv_now(), true_depth_end_mm=None if tr is None else tr['tip_depth_mm'])
+    chain.log_event('insert_unload', **out)
+    return out
+
 
 
 def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
@@ -413,7 +544,12 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
             why = f'lateral {l2} mm beyond {fp.get("max_lat_mm", 2.5)}'
         if why is None:
             if fp.get('mode', 'position') == 'force':
-                final_push_force(chain, pR[0], q_hold.reshape(6), fp, lat_mm=l2)
+                d0 = None
+                if fp.get('depth_report'):
+                    p_now, _ = chain.scene.tcp_chain.fk(chain.q_b[0:1])
+                    zp_ = torch.as_tensor(pR[0], dtype=torch.float32).reshape(3, 3)[:, 2].to(p_now.device)
+                    d0 = float(-((p_now[0] - p0[0].to(p_now.device)) @ zp_)) * 1e3 - float(det2.gap0[0])
+                final_push_force(chain, pR[0], q_hold.reshape(6), fp, lat_mm=l2, depth0_mm=d0)
             else:
                 final_push(chain, pR[0], q_hold.reshape(6), fp)
         else:

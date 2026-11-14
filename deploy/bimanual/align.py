@@ -113,7 +113,8 @@ class PortVisionSource:
     docs/real/PORT_VISION.md: without it, 3 of 12 detections at gap 0-5 mm were false and the up residual was 1.49 mm. About 82 ms per call."""
 
     def __init__(self, ch, spec):
-        self.kw = {k: v for k, v in spec.items() if k not in ('kind', 'depth_frames', 'plug_z_range_mm')}
+        self.kw = {k: v for k, v in spec.items() if k not in ('kind', 'depth_frames', 'plug_z_range_mm', 'shell_ref') and not k.startswith('_')}
+        self.shell_ref = bool(spec.get('shell_ref', False))    # off by default: docs/real/PORT_VISION_WIDTH_20261114.md
         self.n_depth = int(spec.get('depth_frames', 9))
         self.z_range = spec.get('plug_z_range_mm', [113.5, 123.5])
         self.R_cs_T_R_rs = None
@@ -121,6 +122,7 @@ class PortVisionSource:
         try:
             from deploy.bimanual import port_vision
             self.fn, self.depth = port_vision.measure, port_vision.plug_depth
+            self.ref_fn = port_vision.plug_ref
         except ImportError as e:
             self.fn, self.err = None, str(e)
 
@@ -158,7 +160,14 @@ class PortVisionSource:
         z = self.depth(fr) if len(fr) >= 3 else None
         lo, hi = self.z_range           # hand-placed grasps of 2026-11-01 read 133 and 142 mm, wrong for this model; picked grasps 117.7-121.5
         self.plug_z = z if z is not None and lo <= z <= hi else None
-        return dict(plug_z_mm=z, accepted=self.plug_z is not None, range=[lo, hi], frames=len(fr))
+        out = dict(plug_z_mm=z, accepted=self.plug_z is not None, range=[lo, hi], frames=len(fr))
+        self.kw.pop('plug_ref', None)
+        if self.shell_ref:      # this grasp's shell edges: one side edge pulled off by a bright patch is put back (port_vision.ref_fix)
+            ref = self.ref_fn(fr) if len(fr) >= 3 and self.plug_z is not None else None
+            if ref is not None:
+                self.kw['plug_ref'] = ref       # before the servo's vision worker starts: it copies kw
+            out['shell_ref'] = ref
+        return out
 
     def measure(self, ch, tag):
         if self.fn is None:

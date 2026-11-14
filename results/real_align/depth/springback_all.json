@@ -1,0 +1,2768 @@
+[
+ {
+  "run": "full_152149_kjrc_3_push",
+  "config": "deploy/config/bimanual_align4_kjrc_push.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 5490,
+   "seat": 5561,
+   "push0": 5571,
+   "drop": 5721,
+   "release": 5736,
+   "retreat": 5756,
+   "retreat_end": 6006,
+   "home": 6181
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 0.929941947106272,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 5571,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.3,
+    "grip": 0.302,
+    "finger_mm": 18.23,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "push_peak": {
+    "k": 5687,
+    "adv_mm": 1.06,
+    "up_mm": -0.86,
+    "across_mm": -0.68,
+    "F_pd_n": 4.9,
+    "F_eff_n": 5.4,
+    "grip": 0.3019,
+    "finger_mm": 18.23,
+    "left_mm": 0.0,
+    "dq_mrad": 12.5
+   },
+   "push_end": {
+    "k": 5720,
+    "adv_mm": 0.97,
+    "up_mm": -1.46,
+    "across_mm": -0.15,
+    "F_pd_n": 4.0,
+    "F_eff_n": 3.6,
+    "grip": 0.3019,
+    "finger_mm": 18.23,
+    "left_mm": 0.0,
+    "dq_mrad": 9.5
+   },
+   "drop_end": {
+    "k": 5735,
+    "adv_mm": 0.43,
+    "up_mm": -1.7,
+    "across_mm": 0.24,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.6,
+    "grip": 0.3019,
+    "finger_mm": 18.23,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "open_end": {
+    "k": 5755,
+    "adv_mm": 0.61,
+    "up_mm": -1.9,
+    "across_mm": 0.24,
+    "F_pd_n": -0.2,
+    "F_eff_n": -0.3,
+    "grip": 0.4043,
+    "finger_mm": 22.6,
+    "left_mm": 3.26,
+    "dq_mrad": 1.5
+   },
+   "retreat_5mm": {
+    "k": 5839,
+    "adv_mm": -12.37,
+    "up_mm": -4.85,
+    "across_mm": 2.67,
+    "F_pd_n": -3.9,
+    "F_eff_n": -4.0,
+    "grip": 0.4249,
+    "finger_mm": 23.47,
+    "left_mm": 3.26,
+    "dq_mrad": 16.3
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 0.82,
+    "change": 0.82
+   },
+   "drop": {
+    "start": 0.97,
+    "end": 0.43,
+    "change": -0.54
+   },
+   "open": {
+    "start": 0.43,
+    "end": 0.61,
+    "change": 0.17
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 5719,
+    "adv_mm": 0.97,
+    "F_pd_n": 4.0,
+    "F_eff_n": 4.2
+   },
+   {
+    "k": 5720,
+    "adv_mm": 0.97,
+    "F_pd_n": 4.0,
+    "F_eff_n": 3.6
+   },
+   {
+    "k": 5721,
+    "adv_mm": 0.82,
+    "F_pd_n": 0.2,
+    "F_eff_n": 2.2
+   },
+   {
+    "k": 5722,
+    "adv_mm": 0.8,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.0
+   },
+   {
+    "k": 5723,
+    "adv_mm": 0.76,
+    "F_pd_n": 0.3,
+    "F_eff_n": -0.4
+   },
+   {
+    "k": 5724,
+    "adv_mm": 0.61,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.9
+   },
+   {
+    "k": 5725,
+    "adv_mm": 0.6,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.8
+   },
+   {
+    "k": 5726,
+    "adv_mm": 0.44,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.8
+   },
+   {
+    "k": 5727,
+    "adv_mm": 0.47,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 5728,
+    "adv_mm": 0.44,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 5729,
+    "adv_mm": 0.44,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.6
+   },
+   {
+    "k": 5730,
+    "adv_mm": 0.44,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 5731,
+    "adv_mm": 0.44,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 5732,
+    "adv_mm": 0.44,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 5733,
+    "adv_mm": 0.44,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.6
+   },
+   {
+    "k": 5734,
+    "adv_mm": 0.44,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 5735,
+    "adv_mm": 0.43,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.6
+   },
+   {
+    "k": 5736,
+    "adv_mm": 0.44,
+    "F_pd_n": -0.1,
+    "F_eff_n": 0.4
+   }
+  ],
+  "jaw_moves_tick": 5737,
+  "jaw_full_open_tick": 5776,
+  "grip_change_push": 0.0001
+ },
+ {
+  "run": "full_152717_k4_1",
+  "config": "deploy/config/bimanual_align5_k4_push.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 5456,
+   "seat": 5533,
+   "push0": 5543,
+   "drop": 5693,
+   "release": 5708,
+   "retreat": 5728,
+   "retreat_end": 5978,
+   "home": 6153
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 0.38064972613938153,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 5543,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.3,
+    "grip": 0.3036,
+    "finger_mm": 18.3,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "push_peak": {
+    "k": 5685,
+    "adv_mm": 0.72,
+    "up_mm": -0.72,
+    "across_mm": -0.82,
+    "F_pd_n": 4.0,
+    "F_eff_n": 4.3,
+    "grip": 0.3036,
+    "finger_mm": 18.3,
+    "left_mm": 0.0,
+    "dq_mrad": 12.1
+   },
+   "push_end": {
+    "k": 5692,
+    "adv_mm": 0.56,
+    "up_mm": -0.94,
+    "across_mm": -0.85,
+    "F_pd_n": 4.0,
+    "F_eff_n": 4.2,
+    "grip": 0.3036,
+    "finger_mm": 18.3,
+    "left_mm": 0.0,
+    "dq_mrad": 12.4
+   },
+   "drop_end": {
+    "k": 5707,
+    "adv_mm": -0.06,
+    "up_mm": -1.23,
+    "across_mm": -0.56,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.6,
+    "grip": 0.3036,
+    "finger_mm": 18.3,
+    "left_mm": 0.13,
+    "dq_mrad": 0.0
+   },
+   "open_end": {
+    "k": 5727,
+    "adv_mm": -0.77,
+    "up_mm": -2.36,
+    "across_mm": -0.93,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.3,
+    "grip": 0.4052,
+    "finger_mm": 22.63,
+    "left_mm": 2.5,
+    "dq_mrad": 8.4
+   },
+   "retreat_5mm": {
+    "k": 5811,
+    "adv_mm": -12.24,
+    "up_mm": -4.32,
+    "across_mm": 0.69,
+    "F_pd_n": -3.1,
+    "F_eff_n": -3.6,
+    "grip": 0.4257,
+    "finger_mm": 23.51,
+    "left_mm": 2.5,
+    "dq_mrad": 19.1
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 0.52,
+    "change": 0.52
+   },
+   "drop": {
+    "start": 0.56,
+    "end": -0.06,
+    "change": -0.62
+   },
+   "open": {
+    "start": -0.06,
+    "end": -0.77,
+    "change": -0.71
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 5691,
+    "adv_mm": 0.66,
+    "F_pd_n": 4.0,
+    "F_eff_n": 4.3
+   },
+   {
+    "k": 5692,
+    "adv_mm": 0.56,
+    "F_pd_n": 4.0,
+    "F_eff_n": 4.2
+   },
+   {
+    "k": 5693,
+    "adv_mm": 0.52,
+    "F_pd_n": 0.1,
+    "F_eff_n": 2.1
+   },
+   {
+    "k": 5694,
+    "adv_mm": 0.41,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.4
+   },
+   {
+    "k": 5695,
+    "adv_mm": 0.12,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.8
+   },
+   {
+    "k": 5696,
+    "adv_mm": 0.01,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.9
+   },
+   {
+    "k": 5697,
+    "adv_mm": 0.04,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 5698,
+    "adv_mm": 0.13,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 5699,
+    "adv_mm": 0.11,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5700,
+    "adv_mm": 0.1,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.0
+   },
+   {
+    "k": 5701,
+    "adv_mm": 0.09,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5702,
+    "adv_mm": 0.09,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 5703,
+    "adv_mm": 0.09,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 5704,
+    "adv_mm": 0.08,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 5705,
+    "adv_mm": 0.08,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5706,
+    "adv_mm": -0.06,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.8
+   },
+   {
+    "k": 5707,
+    "adv_mm": -0.06,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.6
+   },
+   {
+    "k": 5708,
+    "adv_mm": -0.06,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.5
+   }
+  ],
+  "jaw_moves_tick": 5709,
+  "jaw_full_open_tick": 5750,
+  "grip_change_push": 0.0
+ },
+ {
+  "run": "full_155541_k4_3",
+  "config": "deploy/config/bimanual_align5_k4_push15_seat6.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 5345,
+   "seat": 5430,
+   "push0": 5440,
+   "drop": 5840,
+   "release": 5855,
+   "retreat": 5875,
+   "retreat_end": 6125,
+   "home": 6300
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 2.168998820707202,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 5440,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.1,
+    "grip": 0.3092,
+    "finger_mm": 18.54,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "push_peak": {
+    "k": 5802,
+    "adv_mm": 2.17,
+    "up_mm": -4.03,
+    "across_mm": -1.92,
+    "F_pd_n": 8.9,
+    "F_eff_n": 9.3,
+    "grip": 0.2994,
+    "finger_mm": 18.12,
+    "left_mm": 0.1,
+    "dq_mrad": 26.0
+   },
+   "push_end": {
+    "k": 5839,
+    "adv_mm": 2.13,
+    "up_mm": -4.08,
+    "across_mm": -1.94,
+    "F_pd_n": 8.9,
+    "F_eff_n": 8.9,
+    "grip": 0.2994,
+    "finger_mm": 18.12,
+    "left_mm": 0.1,
+    "dq_mrad": 26.1
+   },
+   "drop_end": {
+    "k": 5854,
+    "adv_mm": 0.61,
+    "up_mm": -4.63,
+    "across_mm": -0.43,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.0,
+    "grip": 0.2993,
+    "finger_mm": 18.12,
+    "left_mm": 0.12,
+    "dq_mrad": 0.0
+   },
+   "open_end": {
+    "k": 5874,
+    "adv_mm": 0.54,
+    "up_mm": -4.71,
+    "across_mm": -0.55,
+    "F_pd_n": -0.1,
+    "F_eff_n": 0.2,
+    "grip": 0.4045,
+    "finger_mm": 22.6,
+    "left_mm": 2.67,
+    "dq_mrad": 0.8
+   },
+   "retreat_5mm": {
+    "k": 5958,
+    "adv_mm": -11.31,
+    "up_mm": -6.49,
+    "across_mm": 0.22,
+    "F_pd_n": -2.7,
+    "F_eff_n": -3.5,
+    "grip": 0.4232,
+    "finger_mm": 23.4,
+    "left_mm": 2.62,
+    "dq_mrad": 17.8
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 1.92,
+    "change": 1.92
+   },
+   "drop": {
+    "start": 2.13,
+    "end": 0.61,
+    "change": -1.53
+   },
+   "open": {
+    "start": 0.61,
+    "end": 0.54,
+    "change": -0.06
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 5838,
+    "adv_mm": 2.13,
+    "F_pd_n": 8.9,
+    "F_eff_n": 9.4
+   },
+   {
+    "k": 5839,
+    "adv_mm": 2.13,
+    "F_pd_n": 8.9,
+    "F_eff_n": 8.9
+   },
+   {
+    "k": 5840,
+    "adv_mm": 1.92,
+    "F_pd_n": 0.3,
+    "F_eff_n": 4.2
+   },
+   {
+    "k": 5841,
+    "adv_mm": 1.28,
+    "F_pd_n": 0.7,
+    "F_eff_n": 0.7
+   },
+   {
+    "k": 5842,
+    "adv_mm": 1.0,
+    "F_pd_n": 0.6,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 5843,
+    "adv_mm": 0.77,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 5844,
+    "adv_mm": 0.77,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 5845,
+    "adv_mm": 0.69,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.0
+   },
+   {
+    "k": 5846,
+    "adv_mm": 0.63,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 5847,
+    "adv_mm": 0.63,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5848,
+    "adv_mm": 0.62,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 5849,
+    "adv_mm": 0.62,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5850,
+    "adv_mm": 0.62,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5851,
+    "adv_mm": 0.61,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 5852,
+    "adv_mm": 0.62,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 5853,
+    "adv_mm": 0.61,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 5854,
+    "adv_mm": 0.61,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.0
+   },
+   {
+    "k": 5855,
+    "adv_mm": 0.61,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3
+   }
+  ],
+  "jaw_moves_tick": 5856,
+  "jaw_full_open_tick": 5889,
+  "grip_change_push": 0.0098
+ },
+ {
+  "run": "full_161011_k4_4",
+  "config": "deploy/config/bimanual_align5_k4_push15_seat6.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 5607,
+   "seat": 5680,
+   "push0": 5690,
+   "drop": 6057,
+   "release": 6072,
+   "retreat": 6092,
+   "retreat_end": 6342,
+   "home": 6517
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 2.744783880189061,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": "gripper reading changed [0.02, 0.0] > 0.02 (right, left)",
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 5690,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.3,
+    "grip": 0.3003,
+    "finger_mm": 18.16,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "push_peak": {
+    "k": 6041,
+    "adv_mm": 2.93,
+    "up_mm": -6.85,
+    "across_mm": -1.15,
+    "F_pd_n": 7.7,
+    "F_eff_n": 8.4,
+    "grip": 0.289,
+    "finger_mm": 17.68,
+    "left_mm": 0.13,
+    "dq_mrad": 28.6
+   },
+   "push_end": {
+    "k": 6056,
+    "adv_mm": 2.78,
+    "up_mm": -7.7,
+    "across_mm": -1.41,
+    "F_pd_n": 7.5,
+    "F_eff_n": 7.9,
+    "grip": 0.2801,
+    "finger_mm": 17.3,
+    "left_mm": 0.13,
+    "dq_mrad": 35.0
+   },
+   "drop_end": {
+    "k": 6071,
+    "adv_mm": 1.59,
+    "up_mm": -8.94,
+    "across_mm": -0.27,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.5,
+    "grip": 0.2781,
+    "finger_mm": 17.21,
+    "left_mm": 0.13,
+    "dq_mrad": 0.0
+   },
+   "open_end": {
+    "k": 6091,
+    "adv_mm": 1.22,
+    "up_mm": -9.48,
+    "across_mm": -0.47,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.1,
+    "grip": 0.4012,
+    "finger_mm": 22.46,
+    "left_mm": 3.23,
+    "dq_mrad": 3.8
+   },
+   "retreat_5mm": {
+    "k": 6175,
+    "adv_mm": -11.22,
+    "up_mm": -11.98,
+    "across_mm": 0.8,
+    "F_pd_n": -2.7,
+    "F_eff_n": -3.2,
+    "grip": 0.4239,
+    "finger_mm": 23.43,
+    "left_mm": 3.19,
+    "dq_mrad": 14.4
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 2.83,
+    "change": 2.83
+   },
+   "drop": {
+    "start": 2.78,
+    "end": 1.59,
+    "change": -1.19
+   },
+   "open": {
+    "start": 1.59,
+    "end": 1.22,
+    "change": -0.37
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 6055,
+    "adv_mm": 2.85,
+    "F_pd_n": 7.5,
+    "F_eff_n": 8.2
+   },
+   {
+    "k": 6056,
+    "adv_mm": 2.78,
+    "F_pd_n": 7.5,
+    "F_eff_n": 7.9
+   },
+   {
+    "k": 6057,
+    "adv_mm": 2.83,
+    "F_pd_n": 0.0,
+    "F_eff_n": 5.0
+   },
+   {
+    "k": 6058,
+    "adv_mm": 2.16,
+    "F_pd_n": 0.6,
+    "F_eff_n": 1.2
+   },
+   {
+    "k": 6059,
+    "adv_mm": 1.89,
+    "F_pd_n": 0.3,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 6060,
+    "adv_mm": 1.58,
+    "F_pd_n": 0.3,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 6061,
+    "adv_mm": 1.53,
+    "F_pd_n": 0.2,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 6062,
+    "adv_mm": 1.65,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 6063,
+    "adv_mm": 1.65,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 6064,
+    "adv_mm": 1.64,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.7
+   },
+   {
+    "k": 6065,
+    "adv_mm": 1.63,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.6
+   },
+   {
+    "k": 6066,
+    "adv_mm": 1.63,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 6067,
+    "adv_mm": 1.63,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.6
+   },
+   {
+    "k": 6068,
+    "adv_mm": 1.58,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 6069,
+    "adv_mm": 1.6,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 6070,
+    "adv_mm": 1.59,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 6071,
+    "adv_mm": 1.59,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 6072,
+    "adv_mm": 1.58,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   }
+  ],
+  "jaw_moves_tick": 6073,
+  "jaw_full_open_tick": 6108,
+  "grip_change_push": 0.0202
+ },
+ {
+  "run": "full_163515_k4_5",
+  "config": "deploy/config/bimanual_align5_k4_push15_seat6.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 5979,
+   "seat": 6057,
+   "push0": 6067,
+   "drop": 6467,
+   "release": 6482,
+   "retreat": 6502,
+   "retreat_end": 6752,
+   "home": 6927
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 2.621473977342248,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 6067,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": -0.1,
+    "F_eff_n": 0.4,
+    "grip": 0.3133,
+    "finger_mm": 18.71,
+    "left_mm": 0.0,
+    "dq_mrad": 0.8
+   },
+   "push_peak": {
+    "k": 6409,
+    "adv_mm": 2.66,
+    "up_mm": -4.1,
+    "across_mm": -1.71,
+    "F_pd_n": 9.0,
+    "F_eff_n": 9.5,
+    "grip": 0.3132,
+    "finger_mm": 18.71,
+    "left_mm": 0.0,
+    "dq_mrad": 24.4
+   },
+   "push_end": {
+    "k": 6466,
+    "adv_mm": 2.57,
+    "up_mm": -4.27,
+    "across_mm": -1.71,
+    "F_pd_n": 9.1,
+    "F_eff_n": 9.3,
+    "grip": 0.3041,
+    "finger_mm": 18.32,
+    "left_mm": 0.0,
+    "dq_mrad": 25.2
+   },
+   "drop_end": {
+    "k": 6481,
+    "adv_mm": 1.12,
+    "up_mm": -4.85,
+    "across_mm": -0.46,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.3,
+    "grip": 0.3041,
+    "finger_mm": 18.32,
+    "left_mm": 0.0,
+    "dq_mrad": 0.0
+   },
+   "open_end": {
+    "k": 6501,
+    "adv_mm": 0.65,
+    "up_mm": -5.48,
+    "across_mm": -0.86,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.3,
+    "grip": 0.4066,
+    "finger_mm": 22.69,
+    "left_mm": 3.37,
+    "dq_mrad": 5.0
+   },
+   "retreat_5mm": {
+    "k": 6585,
+    "adv_mm": -10.7,
+    "up_mm": -7.97,
+    "across_mm": 0.52,
+    "F_pd_n": -3.6,
+    "F_eff_n": -4.2,
+    "grip": 0.4253,
+    "finger_mm": 23.49,
+    "left_mm": 3.23,
+    "dq_mrad": 19.8
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 2.47,
+    "change": 2.47
+   },
+   "drop": {
+    "start": 2.57,
+    "end": 1.12,
+    "change": -1.45
+   },
+   "open": {
+    "start": 1.12,
+    "end": 0.65,
+    "change": -0.47
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 6465,
+    "adv_mm": 2.61,
+    "F_pd_n": 9.1,
+    "F_eff_n": 9.3
+   },
+   {
+    "k": 6466,
+    "adv_mm": 2.57,
+    "F_pd_n": 9.1,
+    "F_eff_n": 9.3
+   },
+   {
+    "k": 6467,
+    "adv_mm": 2.47,
+    "F_pd_n": 0.3,
+    "F_eff_n": 4.6
+   },
+   {
+    "k": 6468,
+    "adv_mm": 1.69,
+    "F_pd_n": 0.7,
+    "F_eff_n": 1.3
+   },
+   {
+    "k": 6469,
+    "adv_mm": 1.35,
+    "F_pd_n": 0.5,
+    "F_eff_n": 0.8
+   },
+   {
+    "k": 6470,
+    "adv_mm": 1.2,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 6471,
+    "adv_mm": 1.22,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 6472,
+    "adv_mm": 1.2,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 6473,
+    "adv_mm": 1.19,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 6474,
+    "adv_mm": 1.16,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.8
+   },
+   {
+    "k": 6475,
+    "adv_mm": 1.13,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.9
+   },
+   {
+    "k": 6476,
+    "adv_mm": 1.13,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 6477,
+    "adv_mm": 1.12,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 6478,
+    "adv_mm": 1.12,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 6479,
+    "adv_mm": 1.12,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 6480,
+    "adv_mm": 1.12,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 6481,
+    "adv_mm": 1.12,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 6482,
+    "adv_mm": 1.12,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.5
+   }
+  ],
+  "jaw_moves_tick": 6483,
+  "jaw_full_open_tick": 6523,
+  "grip_change_push": 0.0092
+ },
+ {
+  "run": "full_170521_k4_6",
+  "config": "deploy/config/bimanual_align5_k4_push15_seat6.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 5545,
+   "seat": 5614,
+   "push0": 5624,
+   "drop": 6024,
+   "release": 6039,
+   "retreat": 6059,
+   "retreat_end": 6309,
+   "home": 6484
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 2.460327697917819,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 5624,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.1,
+    "grip": 0.3029,
+    "finger_mm": 18.27,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "push_peak": {
+    "k": 5959,
+    "adv_mm": 2.62,
+    "up_mm": -4.47,
+    "across_mm": -1.74,
+    "F_pd_n": 9.1,
+    "F_eff_n": 9.5,
+    "grip": 0.3022,
+    "finger_mm": 18.24,
+    "left_mm": 0.0,
+    "dq_mrad": 25.6
+   },
+   "push_end": {
+    "k": 6023,
+    "adv_mm": 2.49,
+    "up_mm": -4.97,
+    "across_mm": -1.72,
+    "F_pd_n": 9.3,
+    "F_eff_n": 9.1,
+    "grip": 0.2916,
+    "finger_mm": 17.79,
+    "left_mm": 0.07,
+    "dq_mrad": 26.4
+   },
+   "drop_end": {
+    "k": 6038,
+    "adv_mm": 1.03,
+    "up_mm": -5.59,
+    "across_mm": -0.5,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3,
+    "grip": 0.2916,
+    "finger_mm": 17.79,
+    "left_mm": 0.0,
+    "dq_mrad": 0.0
+   },
+   "open_end": {
+    "k": 6058,
+    "adv_mm": 0.88,
+    "up_mm": -6.25,
+    "across_mm": -0.72,
+    "F_pd_n": -0.3,
+    "F_eff_n": -0.4,
+    "grip": 0.4031,
+    "finger_mm": 22.55,
+    "left_mm": 2.62,
+    "dq_mrad": 5.0
+   },
+   "retreat_5mm": {
+    "k": 6142,
+    "adv_mm": -11.8,
+    "up_mm": -9.29,
+    "across_mm": 0.99,
+    "F_pd_n": -3.4,
+    "F_eff_n": -4.2,
+    "grip": 0.4251,
+    "finger_mm": 23.48,
+    "left_mm": 2.62,
+    "dq_mrad": 19.2
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 2.27,
+    "change": 2.27
+   },
+   "drop": {
+    "start": 2.49,
+    "end": 1.03,
+    "change": -1.46
+   },
+   "open": {
+    "start": 1.03,
+    "end": 0.88,
+    "change": -0.16
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 6022,
+    "adv_mm": 2.49,
+    "F_pd_n": 9.3,
+    "F_eff_n": 9.9
+   },
+   {
+    "k": 6023,
+    "adv_mm": 2.49,
+    "F_pd_n": 9.3,
+    "F_eff_n": 9.1
+   },
+   {
+    "k": 6024,
+    "adv_mm": 2.27,
+    "F_pd_n": 0.3,
+    "F_eff_n": 4.6
+   },
+   {
+    "k": 6025,
+    "adv_mm": 1.85,
+    "F_pd_n": 0.6,
+    "F_eff_n": 1.3
+   },
+   {
+    "k": 6026,
+    "adv_mm": 1.34,
+    "F_pd_n": 0.7,
+    "F_eff_n": 1.0
+   },
+   {
+    "k": 6027,
+    "adv_mm": 1.31,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.3
+   },
+   {
+    "k": 6028,
+    "adv_mm": 0.98,
+    "F_pd_n": 0.3,
+    "F_eff_n": -0.6
+   },
+   {
+    "k": 6029,
+    "adv_mm": 1.11,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 6030,
+    "adv_mm": 1.09,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 6031,
+    "adv_mm": 1.04,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 6032,
+    "adv_mm": 1.03,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 6033,
+    "adv_mm": 1.03,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 6034,
+    "adv_mm": 1.03,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 6035,
+    "adv_mm": 1.06,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 6036,
+    "adv_mm": 1.03,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 6037,
+    "adv_mm": 1.03,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 6038,
+    "adv_mm": 1.03,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 6039,
+    "adv_mm": 1.06,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.4
+   }
+  ],
+  "jaw_moves_tick": 6040,
+  "jaw_full_open_tick": 6080,
+  "grip_change_push": 0.0113
+ },
+ {
+  "run": "full_160310_demo_2",
+  "config": "deploy/config/bimanual_align5_k4_push15_seat6.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 5691,
+   "seat": 5762,
+   "push0": 5772,
+   "drop": 6172,
+   "release": 6187,
+   "retreat": 6207,
+   "retreat_end": 6457,
+   "home": 6632
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 2.3496972862631083,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 5772,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.7,
+    "grip": 0.3032,
+    "finger_mm": 18.29,
+    "left_mm": 0.0,
+    "dq_mrad": 0.0
+   },
+   "push_peak": {
+    "k": 6138,
+    "adv_mm": 2.39,
+    "up_mm": -3.59,
+    "across_mm": -1.62,
+    "F_pd_n": 9.6,
+    "F_eff_n": 9.5,
+    "grip": 0.3027,
+    "finger_mm": 18.26,
+    "left_mm": 0.0,
+    "dq_mrad": 27.3
+   },
+   "push_end": {
+    "k": 6171,
+    "adv_mm": 2.35,
+    "up_mm": -3.8,
+    "across_mm": -1.61,
+    "F_pd_n": 9.6,
+    "F_eff_n": 9.7,
+    "grip": 0.3026,
+    "finger_mm": 18.26,
+    "left_mm": 0.07,
+    "dq_mrad": 27.3
+   },
+   "drop_end": {
+    "k": 6186,
+    "adv_mm": 0.87,
+    "up_mm": -4.41,
+    "across_mm": -0.36,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.1,
+    "grip": 0.3026,
+    "finger_mm": 18.26,
+    "left_mm": 0.07,
+    "dq_mrad": 0.4
+   },
+   "open_end": {
+    "k": 6206,
+    "adv_mm": 0.85,
+    "up_mm": -5.04,
+    "across_mm": -0.36,
+    "F_pd_n": -0.2,
+    "F_eff_n": -0.6,
+    "grip": 0.4047,
+    "finger_mm": 22.61,
+    "left_mm": 2.67,
+    "dq_mrad": 4.6
+   },
+   "retreat_5mm": {
+    "k": 6290,
+    "adv_mm": -11.99,
+    "up_mm": -7.4,
+    "across_mm": 0.07,
+    "F_pd_n": -2.7,
+    "F_eff_n": -3.6,
+    "grip": 0.4255,
+    "finger_mm": 23.5,
+    "left_mm": 2.67,
+    "dq_mrad": 16.7
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 2.09,
+    "change": 2.09
+   },
+   "drop": {
+    "start": 2.35,
+    "end": 0.87,
+    "change": -1.48
+   },
+   "open": {
+    "start": 0.87,
+    "end": 0.85,
+    "change": -0.02
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 6170,
+    "adv_mm": 2.36,
+    "F_pd_n": 9.6,
+    "F_eff_n": 9.9
+   },
+   {
+    "k": 6171,
+    "adv_mm": 2.35,
+    "F_pd_n": 9.6,
+    "F_eff_n": 9.7
+   },
+   {
+    "k": 6172,
+    "adv_mm": 2.09,
+    "F_pd_n": 0.4,
+    "F_eff_n": 4.5
+   },
+   {
+    "k": 6173,
+    "adv_mm": 1.46,
+    "F_pd_n": 0.6,
+    "F_eff_n": 0.8
+   },
+   {
+    "k": 6174,
+    "adv_mm": 1.11,
+    "F_pd_n": 0.6,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 6175,
+    "adv_mm": 1.12,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.7
+   },
+   {
+    "k": 6176,
+    "adv_mm": 0.97,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.9
+   },
+   {
+    "k": 6177,
+    "adv_mm": 0.94,
+    "F_pd_n": 0.1,
+    "F_eff_n": -1.0
+   },
+   {
+    "k": 6178,
+    "adv_mm": 0.95,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.4
+   },
+   {
+    "k": 6179,
+    "adv_mm": 0.97,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 6180,
+    "adv_mm": 0.94,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 6181,
+    "adv_mm": 0.93,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.4
+   },
+   {
+    "k": 6182,
+    "adv_mm": 0.96,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.7
+   },
+   {
+    "k": 6183,
+    "adv_mm": 0.91,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 6184,
+    "adv_mm": 0.9,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.0
+   },
+   {
+    "k": 6185,
+    "adv_mm": 0.88,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 6186,
+    "adv_mm": 0.87,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 6187,
+    "adv_mm": 0.87,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.1
+   }
+  ],
+  "jaw_moves_tick": 6188,
+  "jaw_full_open_tick": 6228,
+  "grip_change_push": 0.0006
+ },
+ {
+  "run": "full_161223_demo_3",
+  "config": "deploy/config/bimanual_align5_k4_push15_seat6.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 5335,
+   "seat": 5392,
+   "push0": 5402,
+   "drop": 5802,
+   "release": 5817,
+   "retreat": 5837,
+   "retreat_end": 6087,
+   "home": 6262
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 2.3874654434621334,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 5402,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.1,
+    "grip": 0.3205,
+    "finger_mm": 19.02,
+    "left_mm": 0.0,
+    "dq_mrad": 0.0
+   },
+   "push_peak": {
+    "k": 5768,
+    "adv_mm": 2.47,
+    "up_mm": -4.86,
+    "across_mm": -1.65,
+    "F_pd_n": 9.4,
+    "F_eff_n": 9.9,
+    "grip": 0.311,
+    "finger_mm": 18.62,
+    "left_mm": 0.0,
+    "dq_mrad": 27.6
+   },
+   "push_end": {
+    "k": 5801,
+    "adv_mm": 2.39,
+    "up_mm": -5.22,
+    "across_mm": -1.79,
+    "F_pd_n": 9.2,
+    "F_eff_n": 10.1,
+    "grip": 0.311,
+    "finger_mm": 18.61,
+    "left_mm": 0.0,
+    "dq_mrad": 27.3
+   },
+   "drop_end": {
+    "k": 5816,
+    "adv_mm": 1.0,
+    "up_mm": -5.24,
+    "across_mm": -0.57,
+    "F_pd_n": -0.1,
+    "F_eff_n": 0.8,
+    "grip": 0.3109,
+    "finger_mm": 18.61,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "open_end": {
+    "k": 5836,
+    "adv_mm": 0.66,
+    "up_mm": -5.76,
+    "across_mm": -0.85,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.2,
+    "grip": 0.408,
+    "finger_mm": 22.75,
+    "left_mm": 2.52,
+    "dq_mrad": 3.8
+   },
+   "retreat_5mm": {
+    "k": 5920,
+    "adv_mm": -11.35,
+    "up_mm": -7.98,
+    "across_mm": 1.69,
+    "F_pd_n": -4.0,
+    "F_eff_n": -3.8,
+    "grip": 0.4259,
+    "finger_mm": 23.52,
+    "left_mm": 2.66,
+    "dq_mrad": 17.5
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 2.16,
+    "change": 2.16
+   },
+   "drop": {
+    "start": 2.39,
+    "end": 1.0,
+    "change": -1.39
+   },
+   "open": {
+    "start": 1.0,
+    "end": 0.66,
+    "change": -0.34
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 5800,
+    "adv_mm": 2.39,
+    "F_pd_n": 9.2,
+    "F_eff_n": 9.6
+   },
+   {
+    "k": 5801,
+    "adv_mm": 2.39,
+    "F_pd_n": 9.2,
+    "F_eff_n": 10.1
+   },
+   {
+    "k": 5802,
+    "adv_mm": 2.16,
+    "F_pd_n": 0.4,
+    "F_eff_n": 4.7
+   },
+   {
+    "k": 5803,
+    "adv_mm": 1.59,
+    "F_pd_n": 0.6,
+    "F_eff_n": 1.7
+   },
+   {
+    "k": 5804,
+    "adv_mm": 1.28,
+    "F_pd_n": 0.7,
+    "F_eff_n": 1.2
+   },
+   {
+    "k": 5805,
+    "adv_mm": 0.8,
+    "F_pd_n": 0.4,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 5806,
+    "adv_mm": 0.84,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 5807,
+    "adv_mm": 0.79,
+    "F_pd_n": 0.3,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 5808,
+    "adv_mm": 0.82,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 5809,
+    "adv_mm": 1.0,
+    "F_pd_n": -0.1,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 5810,
+    "adv_mm": 0.84,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 5811,
+    "adv_mm": 1.0,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.0
+   },
+   {
+    "k": 5812,
+    "adv_mm": 0.84,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 5813,
+    "adv_mm": 0.99,
+    "F_pd_n": -0.1,
+    "F_eff_n": 0.6
+   },
+   {
+    "k": 5814,
+    "adv_mm": 0.89,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.7
+   },
+   {
+    "k": 5815,
+    "adv_mm": 0.99,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.6
+   },
+   {
+    "k": 5816,
+    "adv_mm": 1.0,
+    "F_pd_n": -0.1,
+    "F_eff_n": 0.8
+   },
+   {
+    "k": 5817,
+    "adv_mm": 0.99,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.8
+   }
+  ],
+  "jaw_moves_tick": 5818,
+  "jaw_full_open_tick": 5855,
+  "grip_change_push": 0.0095
+ },
+ {
+  "run": "full_161705_demo_4",
+  "config": "deploy/config/bimanual_align5_k4_push15_seat6.json",
+  "speed": 0.5,
+  "ticks": {
+   "insert": 4572,
+   "seat": 4638,
+   "push0": 4648,
+   "drop": 5048,
+   "release": 5063,
+   "retreat": 5083,
+   "retreat_end": 5333,
+   "home": 5508
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 2.092903247103095,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 4648,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.1,
+    "grip": 0.3056,
+    "finger_mm": 18.39,
+    "left_mm": 0.0,
+    "dq_mrad": 0.0
+   },
+   "push_peak": {
+    "k": 5036,
+    "adv_mm": 2.13,
+    "up_mm": -4.39,
+    "across_mm": -1.9,
+    "F_pd_n": 10.4,
+    "F_eff_n": 10.5,
+    "grip": 0.305,
+    "finger_mm": 18.36,
+    "left_mm": 0.1,
+    "dq_mrad": 28.1
+   },
+   "push_end": {
+    "k": 5047,
+    "adv_mm": 2.09,
+    "up_mm": -4.59,
+    "across_mm": -1.88,
+    "F_pd_n": 10.4,
+    "F_eff_n": 10.7,
+    "grip": 0.305,
+    "finger_mm": 18.36,
+    "left_mm": 0.1,
+    "dq_mrad": 28.1
+   },
+   "drop_end": {
+    "k": 5062,
+    "adv_mm": 0.56,
+    "up_mm": -4.53,
+    "across_mm": -0.55,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.4,
+    "grip": 0.3049,
+    "finger_mm": 18.36,
+    "left_mm": 0.1,
+    "dq_mrad": 0.4
+   },
+   "open_end": {
+    "k": 5082,
+    "adv_mm": -0.5,
+    "up_mm": -6.12,
+    "across_mm": -1.24,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.3,
+    "grip": 0.4058,
+    "finger_mm": 22.66,
+    "left_mm": 3.58,
+    "dq_mrad": 11.4
+   },
+   "retreat_5mm": {
+    "k": 5166,
+    "adv_mm": -12.51,
+    "up_mm": -8.48,
+    "across_mm": 1.28,
+    "F_pd_n": -3.7,
+    "F_eff_n": -4.5,
+    "grip": 0.4274,
+    "finger_mm": 23.58,
+    "left_mm": 3.57,
+    "dq_mrad": 20.5
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 1.87,
+    "change": 1.87
+   },
+   "drop": {
+    "start": 2.09,
+    "end": 0.56,
+    "change": -1.53
+   },
+   "open": {
+    "start": 0.56,
+    "end": -0.5,
+    "change": -1.06
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 5046,
+    "adv_mm": 2.1,
+    "F_pd_n": 10.4,
+    "F_eff_n": 10.4
+   },
+   {
+    "k": 5047,
+    "adv_mm": 2.09,
+    "F_pd_n": 10.4,
+    "F_eff_n": 10.7
+   },
+   {
+    "k": 5048,
+    "adv_mm": 1.87,
+    "F_pd_n": 0.4,
+    "F_eff_n": 5.0
+   },
+   {
+    "k": 5049,
+    "adv_mm": 1.13,
+    "F_pd_n": 0.8,
+    "F_eff_n": 1.4
+   },
+   {
+    "k": 5050,
+    "adv_mm": 0.73,
+    "F_pd_n": 0.7,
+    "F_eff_n": 1.2
+   },
+   {
+    "k": 5051,
+    "adv_mm": 0.58,
+    "F_pd_n": 0.4,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 5052,
+    "adv_mm": 0.49,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.6
+   },
+   {
+    "k": 5053,
+    "adv_mm": 0.55,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.7
+   },
+   {
+    "k": 5054,
+    "adv_mm": 0.62,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 5055,
+    "adv_mm": 0.65,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.1
+   },
+   {
+    "k": 5056,
+    "adv_mm": 0.61,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 5057,
+    "adv_mm": 0.6,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5058,
+    "adv_mm": 0.57,
+    "F_pd_n": 0.2,
+    "F_eff_n": 0.5
+   },
+   {
+    "k": 5059,
+    "adv_mm": 0.56,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5060,
+    "adv_mm": 0.56,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 5061,
+    "adv_mm": 0.6,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 5062,
+    "adv_mm": 0.56,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 5063,
+    "adv_mm": 0.56,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.0
+   }
+  ],
+  "jaw_moves_tick": 5064,
+  "jaw_full_open_tick": 5160,
+  "grip_change_push": 0.0006
+ },
+ {
+  "run": "full_171905_fastmove_1",
+  "config": "deploy/config/bimanual_align5_k4_push15_seat6_fastmove.json",
+  "speed": 0.75,
+  "ticks": {
+   "insert": 4988,
+   "seat": 5062,
+   "push0": 5072,
+   "drop": 5347,
+   "release": 5362,
+   "retreat": 5382,
+   "retreat_end": 5549,
+   "home": 5674
+  },
+  "event": {
+   "mode": "position",
+   "advance_mm": 2.0382169168442488,
+   "rest_advance_mm": null,
+   "force": null,
+   "stopped": null,
+   "end": null,
+   "centre_mm": null,
+   "rest_depth_mm": null,
+   "gap_mm": null
+  },
+  "marks": {
+   "push_start": {
+    "k": 5072,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.4,
+    "grip": 0.3037,
+    "finger_mm": 18.3,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "push_peak": {
+    "k": 5310,
+    "adv_mm": 2.06,
+    "up_mm": -4.1,
+    "across_mm": -1.84,
+    "F_pd_n": 9.4,
+    "F_eff_n": 9.7,
+    "grip": 0.303,
+    "finger_mm": 18.28,
+    "left_mm": 0.0,
+    "dq_mrad": 26.9
+   },
+   "push_end": {
+    "k": 5346,
+    "adv_mm": 2.04,
+    "up_mm": -4.51,
+    "across_mm": -1.85,
+    "F_pd_n": 9.1,
+    "F_eff_n": 9.0,
+    "grip": 0.303,
+    "finger_mm": 18.28,
+    "left_mm": 0.0,
+    "dq_mrad": 26.4
+   },
+   "drop_end": {
+    "k": 5361,
+    "adv_mm": 0.6,
+    "up_mm": -4.95,
+    "across_mm": -0.44,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.0,
+    "grip": 0.303,
+    "finger_mm": 18.28,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "open_end": {
+    "k": 5381,
+    "adv_mm": -0.36,
+    "up_mm": -6.19,
+    "across_mm": -1.08,
+    "F_pd_n": -0.2,
+    "F_eff_n": -0.5,
+    "grip": 0.405,
+    "finger_mm": 22.62,
+    "left_mm": 2.72,
+    "dq_mrad": 9.5
+   },
+   "retreat_5mm": {
+    "k": 5437,
+    "adv_mm": -12.06,
+    "up_mm": -8.2,
+    "across_mm": 0.54,
+    "F_pd_n": -3.4,
+    "F_eff_n": -3.7,
+    "grip": 0.4258,
+    "finger_mm": 23.51,
+    "left_mm": 2.72,
+    "dq_mrad": 19.3
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 1.74,
+    "change": 1.74
+   },
+   "drop": {
+    "start": 2.04,
+    "end": 0.6,
+    "change": -1.44
+   },
+   "open": {
+    "start": 0.6,
+    "end": -0.36,
+    "change": -0.96
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 5345,
+    "adv_mm": 2.0,
+    "F_pd_n": 9.2,
+    "F_eff_n": 9.3
+   },
+   {
+    "k": 5346,
+    "adv_mm": 2.04,
+    "F_pd_n": 9.1,
+    "F_eff_n": 9.0
+   },
+   {
+    "k": 5347,
+    "adv_mm": 1.74,
+    "F_pd_n": 0.4,
+    "F_eff_n": 4.1
+   },
+   {
+    "k": 5348,
+    "adv_mm": 1.16,
+    "F_pd_n": 0.7,
+    "F_eff_n": 1.1
+   },
+   {
+    "k": 5349,
+    "adv_mm": 0.95,
+    "F_pd_n": 0.5,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 5350,
+    "adv_mm": 0.54,
+    "F_pd_n": 0.3,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 5351,
+    "adv_mm": 0.5,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.4
+   },
+   {
+    "k": 5352,
+    "adv_mm": 0.47,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.3
+   },
+   {
+    "k": 5353,
+    "adv_mm": 0.47,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.0
+   },
+   {
+    "k": 5354,
+    "adv_mm": 0.57,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5355,
+    "adv_mm": 0.57,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5356,
+    "adv_mm": 0.57,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5357,
+    "adv_mm": 0.61,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 5358,
+    "adv_mm": 0.6,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5359,
+    "adv_mm": 0.56,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5360,
+    "adv_mm": 0.56,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 5361,
+    "adv_mm": 0.6,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.0
+   },
+   {
+    "k": 5362,
+    "adv_mm": 0.61,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.3
+   }
+  ],
+  "jaw_moves_tick": 5363,
+  "jaw_full_open_tick": 5404,
+  "grip_change_push": 0.0006
+ },
+ {
+  "run": "full_165400_all9_full_1",
+  "config": "deploy/config/bimanual_align9_all.json",
+  "speed": 0.75,
+  "ticks": {
+   "insert": 2723,
+   "seat": 2780,
+   "push0": 2790,
+   "drop": 2987,
+   "release": 3002,
+   "retreat": 3022,
+   "retreat_end": 3189,
+   "home": 3314
+  },
+  "event": {
+   "mode": "force",
+   "advance_mm": 2.642264124006033,
+   "rest_advance_mm": 0.7148681324906647,
+   "force": 10.0,
+   "stopped": null,
+   "end": "still",
+   "centre_mm": [
+    0.0,
+    0.0
+   ],
+   "rest_depth_mm": 6.749105662107468,
+   "gap_mm": 6.785987854003906
+  },
+  "marks": {
+   "push_start": {
+    "k": 2790,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.4,
+    "grip": 0.3126,
+    "finger_mm": 18.68,
+    "left_mm": 0.0,
+    "dq_mrad": 0.3
+   },
+   "push_peak": {
+    "k": 2964,
+    "adv_mm": 2.63,
+    "up_mm": 0.07,
+    "across_mm": 0.26,
+    "F_pd_n": 10.0,
+    "F_eff_n": 9.7,
+    "grip": 0.3126,
+    "finger_mm": 18.68,
+    "left_mm": 0.16,
+    "dq_mrad": 81.3
+   },
+   "push_end": {
+    "k": 2986,
+    "adv_mm": 2.6,
+    "up_mm": 0.02,
+    "across_mm": 0.23,
+    "F_pd_n": 10.0,
+    "F_eff_n": 9.9,
+    "grip": 0.3126,
+    "finger_mm": 18.68,
+    "left_mm": 0.16,
+    "dq_mrad": 81.7
+   },
+   "drop_end": {
+    "k": 3001,
+    "adv_mm": 0.67,
+    "up_mm": -0.74,
+    "across_mm": -0.7,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.1,
+    "grip": 0.3126,
+    "finger_mm": 18.68,
+    "left_mm": 0.0,
+    "dq_mrad": 0.4
+   },
+   "open_end": {
+    "k": 3021,
+    "adv_mm": -0.36,
+    "up_mm": -2.32,
+    "across_mm": -1.44,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.9,
+    "grip": 0.4072,
+    "finger_mm": 22.72,
+    "left_mm": 2.69,
+    "dq_mrad": 11.4
+   },
+   "retreat_5mm": {
+    "k": 3077,
+    "adv_mm": -11.73,
+    "up_mm": -4.49,
+    "across_mm": 0.9,
+    "F_pd_n": -4.3,
+    "F_eff_n": -4.7,
+    "grip": 0.4254,
+    "finger_mm": 23.49,
+    "left_mm": 2.69,
+    "dq_mrad": 20.4
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 2.34,
+    "change": 2.34
+   },
+   "drop": {
+    "start": 2.6,
+    "end": 0.67,
+    "change": -1.93
+   },
+   "open": {
+    "start": 0.67,
+    "end": -0.36,
+    "change": -1.03
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 2985,
+    "adv_mm": 2.6,
+    "F_pd_n": 10.1,
+    "F_eff_n": 9.6
+   },
+   {
+    "k": 2986,
+    "adv_mm": 2.6,
+    "F_pd_n": 10.0,
+    "F_eff_n": 9.9
+   },
+   {
+    "k": 2987,
+    "adv_mm": 2.34,
+    "F_pd_n": 0.1,
+    "F_eff_n": 5.7
+   },
+   {
+    "k": 2988,
+    "adv_mm": 0.97,
+    "F_pd_n": 0.6,
+    "F_eff_n": -0.0
+   },
+   {
+    "k": 2989,
+    "adv_mm": 0.8,
+    "F_pd_n": 0.2,
+    "F_eff_n": -0.7
+   },
+   {
+    "k": 2990,
+    "adv_mm": 0.53,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.9
+   },
+   {
+    "k": 2991,
+    "adv_mm": 0.52,
+    "F_pd_n": -0.0,
+    "F_eff_n": -1.0
+   },
+   {
+    "k": 2992,
+    "adv_mm": 0.52,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 2993,
+    "adv_mm": 0.52,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.3
+   },
+   {
+    "k": 2994,
+    "adv_mm": 0.67,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 2995,
+    "adv_mm": 0.67,
+    "F_pd_n": 0.0,
+    "F_eff_n": 0.0
+   },
+   {
+    "k": 2996,
+    "adv_mm": 0.67,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 2997,
+    "adv_mm": 0.67,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 2998,
+    "adv_mm": 0.67,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 2999,
+    "adv_mm": 0.67,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.4
+   },
+   {
+    "k": 3000,
+    "adv_mm": 0.63,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.3
+   },
+   {
+    "k": 3001,
+    "adv_mm": 0.67,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 3002,
+    "adv_mm": 0.67,
+    "F_pd_n": -0.0,
+    "F_eff_n": -0.5
+   }
+  ],
+  "jaw_moves_tick": 3003,
+  "jaw_full_open_tick": 3039,
+  "grip_change_push": 0.0
+ },
+ {
+  "run": "full_171043_all9b_full_1",
+  "config": "deploy/config/bimanual_align9_all_b.json",
+  "speed": 0.75,
+  "ticks": {
+   "insert": 2793,
+   "seat": 2857,
+   "push0": 2867,
+   "drop": 3219,
+   "release": 3234,
+   "retreat": 3254,
+   "retreat_end": 3421,
+   "home": 3546
+  },
+  "event": {
+   "mode": "force",
+   "advance_mm": 3.913263324648142,
+   "rest_advance_mm": 0.5389945581555367,
+   "force": 14.0,
+   "stopped": null,
+   "end": "still",
+   "centre_mm": [
+    -0.5336018800735474,
+    2.592219352722168
+   ],
+   "rest_depth_mm": 7.331502310931683,
+   "gap_mm": 5.6812896728515625
+  },
+  "marks": {
+   "push_start": {
+    "k": 2867,
+    "adv_mm": -0.0,
+    "up_mm": 0.0,
+    "across_mm": 0.0,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.7,
+    "grip": 0.3123,
+    "finger_mm": 18.67,
+    "left_mm": 0.0,
+    "dq_mrad": 0.7
+   },
+   "push_peak": {
+    "k": 3212,
+    "adv_mm": 4.07,
+    "up_mm": 2.44,
+    "across_mm": -0.13,
+    "F_pd_n": 13.9,
+    "F_eff_n": 14.3,
+    "grip": 0.3026,
+    "finger_mm": 18.26,
+    "left_mm": 0.2,
+    "dq_mrad": 115.1
+   },
+   "push_end": {
+    "k": 3218,
+    "adv_mm": 4.06,
+    "up_mm": 2.41,
+    "across_mm": -0.07,
+    "F_pd_n": 13.9,
+    "F_eff_n": 14.3,
+    "grip": 0.3025,
+    "finger_mm": 18.26,
+    "left_mm": 0.12,
+    "dq_mrad": 116.8
+   },
+   "drop_end": {
+    "k": 3233,
+    "adv_mm": 0.68,
+    "up_mm": 0.4,
+    "across_mm": -0.76,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.6,
+    "grip": 0.3025,
+    "finger_mm": 18.26,
+    "left_mm": 0.2,
+    "dq_mrad": 0.4
+   },
+   "open_end": {
+    "k": 3253,
+    "adv_mm": 0.26,
+    "up_mm": -1.35,
+    "across_mm": -1.13,
+    "F_pd_n": -0.5,
+    "F_eff_n": -0.6,
+    "grip": 0.4057,
+    "finger_mm": 22.66,
+    "left_mm": 2.82,
+    "dq_mrad": 12.6
+   },
+   "retreat_5mm": {
+    "k": 3309,
+    "adv_mm": -12.1,
+    "up_mm": -3.83,
+    "across_mm": 0.38,
+    "F_pd_n": -4.3,
+    "F_eff_n": -4.8,
+    "grip": 0.4257,
+    "finger_mm": 23.51,
+    "left_mm": 2.81,
+    "dq_mrad": 24.0
+   }
+  },
+  "phases": {
+   "push": {
+    "start": -0.0,
+    "end": 3.28,
+    "change": 3.28
+   },
+   "drop": {
+    "start": 4.06,
+    "end": 0.68,
+    "change": -3.37
+   },
+   "open": {
+    "start": 0.68,
+    "end": 0.26,
+    "change": -0.42
+   }
+  },
+  "drop_ticks": [
+   {
+    "k": 3217,
+    "adv_mm": 3.91,
+    "F_pd_n": 14.1,
+    "F_eff_n": 13.9
+   },
+   {
+    "k": 3218,
+    "adv_mm": 4.06,
+    "F_pd_n": 13.9,
+    "F_eff_n": 14.3
+   },
+   {
+    "k": 3219,
+    "adv_mm": 3.28,
+    "F_pd_n": 0.5,
+    "F_eff_n": 6.0
+   },
+   {
+    "k": 3220,
+    "adv_mm": 1.66,
+    "F_pd_n": 0.9,
+    "F_eff_n": 1.1
+   },
+   {
+    "k": 3221,
+    "adv_mm": 1.2,
+    "F_pd_n": 0.4,
+    "F_eff_n": 0.9
+   },
+   {
+    "k": 3222,
+    "adv_mm": 1.05,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 3223,
+    "adv_mm": 0.99,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.5
+   },
+   {
+    "k": 3224,
+    "adv_mm": 0.9,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 3225,
+    "adv_mm": 0.86,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 3226,
+    "adv_mm": 0.75,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.3
+   },
+   {
+    "k": 3227,
+    "adv_mm": 0.72,
+    "F_pd_n": -0.0,
+    "F_eff_n": 0.4
+   },
+   {
+    "k": 3228,
+    "adv_mm": 0.71,
+    "F_pd_n": 0.1,
+    "F_eff_n": 0.2
+   },
+   {
+    "k": 3229,
+    "adv_mm": 0.68,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 3230,
+    "adv_mm": 0.68,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.6
+   },
+   {
+    "k": 3231,
+    "adv_mm": 0.68,
+    "F_pd_n": 0.0,
+    "F_eff_n": -0.1
+   },
+   {
+    "k": 3232,
+    "adv_mm": 0.67,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.2
+   },
+   {
+    "k": 3233,
+    "adv_mm": 0.68,
+    "F_pd_n": -0.1,
+    "F_eff_n": -0.6
+   },
+   {
+    "k": 3234,
+    "adv_mm": 0.67,
+    "F_pd_n": 0.1,
+    "F_eff_n": -0.2
+   }
+  ],
+  "jaw_moves_tick": 3235,
+  "jaw_full_open_tick": 3272,
+  "grip_change_push": 0.0097
+ }
+]

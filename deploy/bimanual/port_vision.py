@@ -61,6 +61,9 @@ PLUG_ROI = (575, 715, 450, 590)     # u0, u1, v0, v1: undistorted pixels. The pl
 PLUG_W_PX = (38.0, 56.0)
 PLUG_H_PX = (22.0, 46.0)
 MIN_EDGE = 10.0             # smallest edge step in the mean profile (grey levels)
+# Shell reference of one grasp (off unless measure(..., plug_ref=...) gets one; docs/real/PORT_VISION_WIDTH_20261114.md).
+# The plug is rigid in the jaws and the camera is on the same wrist: the shell's edges stay at fixed pixels for the whole stage.
+SHELL_REF_TOL_PX = (1.5, 3.0)   # (side edge, end row) to the reference: an edge inside this is "trusted"
 
 
 @dataclasses.dataclass
@@ -127,9 +130,46 @@ def _edge(profile, lo, hi, sign):
     return i + (0.5 * (a - c) / d if abs(d) > 1e-6 else 0.0), float(b)
 
 
-def detect_plug(und):
+def _edge_near(profile, pos, tol, sign):
+    """The step of `sign` nearest to pos (window pos +/- tol): a true local maximum of the step, at least MIN_EDGE. (position, step) or (None, 0)."""
+    g = np.convolve(profile, [1, 1, 0, -1, -1], mode="same") / 2.0
+    lo, hi = max(int(np.floor(pos - tol)), 3), min(int(np.ceil(pos + tol)) + 1, len(g) - 3)
+    if hi <= lo:
+        return None, 0.0
+    i = lo + int(np.argmax(sign * g[lo:hi]))
+    a, b, c = sign * g[i - 1], sign * g[i], sign * g[i + 1]
+    if b < MIN_EDGE or b < a or b < c:          # rising into the window edge: the step is outside the window
+        return None, float(b)
+    d = a - 2 * b + c
+    x = i + (0.5 * (a - c) / d if abs(d) > 1e-6 else 0.0)
+    return (x, float(b)) if abs(x - pos) <= tol else (None, float(b))
+
+
+def ref_fix(side, ul, ur, sl, sr, ve, ref, u0=0.0, tol=SHELL_REF_TOL_PX):
+    """One side edge pulled off by a bright patch next to the shell (2026-11-13 full_163924: right edge +8 px).
+    Rule: the end row and one side edge sit on the grasp's reference (within tol); the other edge is off, a true shell step
+    exists at its reference position, and the width with that step is the reference width (within tol). Then that step is the edge. Any other case (both edges off, end row off, no step at the
+    reference): no change, so a real shell move in the jaws keeps the old result and its gates. Pixels in the window frame (u0 offset).
+    Returns (ul, ur, sl, sr, which) with which in ('', 'left', 'right')."""
+    te, tv = tol
+    if ref is None or abs(ve - ref['ve']) > tv or abs((ur - ul) - ref['w']) <= te:
+        return ul, ur, sl, sr, ''
+    dl, dr = abs(ul + u0 - ref['ul']), abs(ur + u0 - ref['ur'])
+    if dl <= te < dr:
+        x, s = _edge_near(side, ref['ur'] - u0, te, -1)
+        if x is not None and abs((x - ul) - ref['w']) <= te:
+            return ul, x, sl, s, 'right'
+    elif dr <= te < dl:
+        x, s = _edge_near(side, ref['ul'] - u0, te, +1)
+        if x is not None and abs((ur - x) - ref['w']) <= te:
+            return x, ur, s, sr, 'left'
+    return ul, ur, sl, sr, ''
+
+
+def detect_plug(und, ref=None, ref_tol=SHELL_REF_TOL_PX):
     """Metal shell in its window. Returns dict(ul, ur, vt, ve, w, ...) in undistorted pixels, or (None, reason).
-    The sleeve end is the shell's lower edge (bright over dark). The width comes from all shell rows at once."""
+    The sleeve end is the shell's lower edge (bright over dark). The width comes from all shell rows at once.
+    ref: this grasp's shell (plug_ref); None = the old detector. With ref, ref_fix may replace one side edge (off by default)."""
     u0, u1, v0, v1 = PLUG_ROI
     g = cv2.GaussianBlur(cv2.cvtColor(und[v0:v1, u0:u1], cv2.COLOR_BGR2GRAY), (3, 3), 0).astype(np.float32)
     # columns inside the shell for any plausible position
@@ -151,6 +191,9 @@ def detect_plug(und):
         side = g[max(i - 26, 0):i - 5].mean(0)
         ul, sl = _edge(side, 8, mid - 8, +1)
         ur, sr = _edge(side, mid + 8, len(side) - 8, -1)
+        fixed = ''
+        if ref is not None and ul is not None and ur is not None:
+            ul, ur, sl, sr, fixed = ref_fix(side, ul, ur, sl, sr, i + v0, ref, u0, ref_tol)
         if ul is None or ur is None or min(sl, sr) < MIN_EDGE:
             why = f'no shell side edges (steps {sl:.0f}, {sr:.0f})'
             continue
@@ -161,17 +204,17 @@ def detect_plug(und):
         # the shell's centre in the window should sit on the mid columns; bright rims on both sides
         score = min(sl, sr) + 0.3 * -gr[i]
         if score > best_s:
-            best, best_s = (i, ul, ur, sl, sr, w), score
+            best, best_s = (i, ul, ur, sl, sr, w, fixed), score
     if best is None:
         return None, why
-    ve, ul, ur, sl, sr, w = best
+    ve, ul, ur, sl, sr, w, fixed = best
     a_, b_, c_ = -gr[ve - 1], -gr[ve], -gr[ve + 1]
     d_ = a_ - 2 * b_ + c_
     vei = ve + (0.5 * (a_ - c_) / d_ if abs(d_) > 1e-6 else 0.0)
     a, b = int(ul) + 4, int(ur) - 3
     top = g[:, a:b].mean(1)
     vt, st = _edge(top, max(ve - int(PLUG_H_PX[1]), 3), ve - int(PLUG_H_PX[0]) + 1, +1)
-    return dict(ul=ul + u0, ur=ur + u0, vt=(vt + v0) if vt is not None else None, ve=vei + v0, w=w, steps=(best_s, sl, sr, st)), ''
+    return dict(ul=ul + u0, ur=ur + u0, vt=(vt + v0) if vt is not None else None, ve=vei + v0, w=w, steps=(best_s, sl, sr, st), ref_fix=fixed), ''
 
 
 # ---------------------------------------------------------------------------------- port row blobs
@@ -457,14 +500,16 @@ def measure(raw_bgr, side='right', **cfg):
     """Plug tip relative to port 2 from one raw frame. ok=False with a reason rather than a poor number.
 
     cfg: plug_z_mm: the shell's depth for this grasp (see plug_depth); default the depth from this frame's shell width (noisier).
-         max_reproj_px: pose fit gate."""
+         max_reproj_px: pose fit gate.
+         plug_ref: this grasp's shell edges (plug_ref()); None (default) = the old detector. ref_tol_px: (side edge, end row) tolerance."""
     if side != 'right':
         return PortMeasure(False, 'only the right wrist camera has a model')
     if raw_bgr is None or raw_bgr.shape[:2] != (1024, 1280):
         return PortMeasure(False, f'frame must be 1280x1024 raw, got {None if raw_bgr is None else raw_bgr.shape[:2]}')
     model = load_model()
     und, K = undistort(raw_bgr, side)
-    pl, why = detect_plug(und)
+    ref = cfg.get('plug_ref')
+    pl, why = detect_plug(und, ref, tuple(cfg.get('ref_tol_px') or SHELL_REF_TOL_PX)) if ref else detect_plug(und)
     dbg = dict(plug=pl)
     pose, why_p = panel_pose(und, K, plug_box(pl) if pl else None, float(cfg.get('max_reproj_px', MAX_REPROJ_PX)), model)
     port_px = None
@@ -493,6 +538,24 @@ def measure(raw_bgr, side='right', **cfg):
     conf = float(np.clip(1.0 - pose['emax'] / MAX_REPROJ_PX * 0.5, 0.0, 1.0))
     sigma = SIGMA_FAR_MM if X[2] > 15.0 else (SIGMA_NEAR_GRASP_MM if cfg.get('plug_z_mm') else SIGMA_NEAR_MM)
     return PortMeasure(True, '', conf, port_px, plug_px, float(X[0]), float(X[1]), float(X[2]), sigma, dbg)
+
+
+def plug_ref(frames, side='right', max_w_dev_px=1.0):
+    """This grasp's shell in the image: median side edges, end row and width over raw frames taken still at the stop (align prepare).
+    Frames whose width is more than max_w_dev_px off the median are left out. None if fewer than 3 frames agree."""
+    P = []
+    for f in frames:
+        pl, _ = detect_plug(undistort(f, side)[0])
+        if pl is not None:
+            P.append((pl['ul'], pl['ur'], pl['ve'], pl['w']))
+    if len(P) < 3:
+        return None
+    A = np.array(P, float)
+    A = A[np.abs(A[:, 3] - np.median(A[:, 3])) <= max_w_dev_px]
+    if len(A) < 3:
+        return None
+    m = np.median(A, 0)
+    return dict(ul=float(m[0]), ur=float(m[1]), ve=float(m[2]), w=float(m[3]), n=int(len(A)))
 
 
 def plug_depth(frames, side='right'):
