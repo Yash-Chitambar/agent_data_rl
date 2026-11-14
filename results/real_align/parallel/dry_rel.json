@@ -1,0 +1,334 @@
+{
+ "aggregate": {
+  "rel": {
+   "n": 5,
+   "completed": 5,
+   "stops": [],
+   "zed_ok": 5,
+   "pick_ok": 5,
+   "align_ok": 4,
+   "seated_detected": 4,
+   "seated_after_release": 2,
+   "end_seated": 2,
+   "handover_lat_mm_median": 0.506,
+   "handover_gap_mm_median": 5.886,
+   "zed_err_mm_median": 3.769,
+   "align_s_median": 10.0,
+   "rest_depth_mm_median": null,
+   "end_depth_mm_median": 5.566,
+   "t_seat_s_median": 2.58,
+   "sim_s_median": 60.78,
+   "plan 6 release": {
+    "n": 5,
+    "ok": 5,
+    "min_mm": [
+     49.3,
+     66.4
+    ],
+    "saved_s_median": 2.28
+   },
+   "plan manual": {
+    "n": 5,
+    "ok": 5,
+    "min_mm": [
+     124.3,
+     124.3
+    ],
+    "saved_s_median": 1.1
+   }
+  }
+ },
+ "paired": {},
+ "rows": [
+  {
+   "run": "full_150404_dry_s7041_rel_7041",
+   "seed": 7041,
+   "completed": true,
+   "stop": null,
+   "zed_ok": true,
+   "zed_err_mm": 4.688085076130109,
+   "pick_ok": true,
+   "align_ok": true,
+   "align_s": 10.0,
+   "align_cycles": 11,
+   "handover_lat_mm": 1.0047210092771757,
+   "handover_gap_mm": 5.8248291618638515,
+   "insert": "seated_detected",
+   "t_seat_s": 1.2,
+   "rest_depth_mm": null,
+   "seated_after_release": true,
+   "end_seated": true,
+   "end_depth_mm": 5.674547050148249,
+   "sim_s": 62.32,
+   "plans": [
+    {
+     "label": "manual",
+     "min_mm": 124.3,
+     "pair": [
+      "left_finger",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 7.72,
+     "parallel_s": 6.62,
+     "move_s": {
+      "right": 1.1,
+      "left": 6.62
+     },
+     "lead_s": 0.0,
+     "first": "right"
+    },
+    {
+     "label": "6 release",
+     "min_mm": 66.4,
+     "pair": [
+      "calibrated_webcam_visual",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 11.96,
+     "parallel_s": 9.54,
+     "move_s": {
+      "right": 6.54,
+      "left": 5.42
+     },
+     "lead_s": 3.0,
+     "first": "left"
+    }
+   ],
+   "tag": "rel"
+  },
+  {
+   "run": "full_150404_dry_s7042_rel_7042",
+   "seed": 7042,
+   "completed": true,
+   "stop": null,
+   "zed_ok": true,
+   "zed_err_mm": 0.9068203800944105,
+   "pick_ok": true,
+   "align_ok": true,
+   "align_s": 6.039999999999999,
+   "align_cycles": 11,
+   "handover_lat_mm": 0.7036276896041662,
+   "handover_gap_mm": 6.934985363793988,
+   "insert": "seated_detected",
+   "t_seat_s": 3.34,
+   "rest_depth_mm": null,
+   "seated_after_release": true,
+   "end_seated": true,
+   "end_depth_mm": 5.670853424817324,
+   "sim_s": 60.78,
+   "plans": [
+    {
+     "label": "manual",
+     "min_mm": 124.3,
+     "pair": [
+      "left_finger",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 7.68,
+     "parallel_s": 6.62,
+     "move_s": {
+      "right": 1.06,
+      "left": 6.62
+     },
+     "lead_s": 0.0,
+     "first": "right"
+    },
+    {
+     "label": "6 release",
+     "min_mm": 68.3,
+     "pair": [
+      "calibrated_webcam_visual",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 12.0,
+     "parallel_s": 9.76,
+     "move_s": {
+      "right": 6.76,
+      "left": 5.24
+     },
+     "lead_s": 3.0,
+     "first": "left"
+    }
+   ],
+   "tag": "rel"
+  },
+  {
+   "run": "full_150404_dry_s7043_rel_7043",
+   "seed": 7043,
+   "completed": true,
+   "stop": null,
+   "zed_ok": true,
+   "zed_err_mm": 3.769119198385083,
+   "pick_ok": true,
+   "align_ok": true,
+   "align_s": 12.700000000000003,
+   "align_cycles": 15,
+   "handover_lat_mm": 0.1900552275741813,
+   "handover_gap_mm": 5.540607134841119,
+   "insert": "seated_detected",
+   "t_seat_s": 1.82,
+   "rest_depth_mm": null,
+   "seated_after_release": false,
+   "end_seated": false,
+   "end_depth_mm": 5.565688479691744,
+   "sim_s": 66.96000000000001,
+   "plans": [
+    {
+     "label": "manual",
+     "min_mm": 124.3,
+     "pair": [
+      "left_finger",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 7.72,
+     "parallel_s": 6.62,
+     "move_s": {
+      "right": 1.1,
+      "left": 6.62
+     },
+     "lead_s": 0.0,
+     "first": "right"
+    },
+    {
+     "label": "6 release",
+     "min_mm": 66.7,
+     "pair": [
+      "calibrated_webcam_visual",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 11.84,
+     "parallel_s": 9.52,
+     "move_s": {
+      "right": 6.52,
+      "left": 5.32
+     },
+     "lead_s": 3.0,
+     "first": "left"
+    }
+   ],
+   "tag": "rel"
+  },
+  {
+   "run": "full_150928_dry_s7044_rel_7044",
+   "seed": 7044,
+   "completed": true,
+   "stop": null,
+   "zed_ok": true,
+   "zed_err_mm": 3.8561405811245666,
+   "pick_ok": true,
+   "align_ok": false,
+   "align_s": 12.940000000000005,
+   "align_cycles": 12,
+   "handover_lat_mm": null,
+   "handover_gap_mm": null,
+   "insert": null,
+   "t_seat_s": null,
+   "rest_depth_mm": null,
+   "seated_after_release": null,
+   "end_seated": false,
+   "end_depth_mm": -26.375936344265938,
+   "sim_s": 57.42,
+   "plans": [
+    {
+     "label": "manual",
+     "min_mm": 124.3,
+     "pair": [
+      "left_finger",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 7.72,
+     "parallel_s": 6.62,
+     "move_s": {
+      "right": 1.1,
+      "left": 6.62
+     },
+     "lead_s": 0.0,
+     "first": "right"
+    },
+    {
+     "label": "6 release",
+     "min_mm": 49.3,
+     "pair": [
+      "calibrated_webcam_visual",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 11.7,
+     "parallel_s": 9.44,
+     "move_s": {
+      "right": 6.44,
+      "left": 5.26
+     },
+     "lead_s": 3.0,
+     "first": "left"
+    }
+   ],
+   "tag": "rel"
+  },
+  {
+   "run": "full_150928_dry_s7045_rel_7045",
+   "seed": 7045,
+   "completed": true,
+   "stop": null,
+   "zed_ok": true,
+   "zed_err_mm": 2.5033282790556086,
+   "pick_ok": true,
+   "align_ok": true,
+   "align_s": 5.140000000000001,
+   "align_cycles": 11,
+   "handover_lat_mm": 0.3091597831821493,
+   "handover_gap_mm": 5.946882140900573,
+   "insert": "seated_detected",
+   "t_seat_s": 3.86,
+   "rest_depth_mm": null,
+   "seated_after_release": false,
+   "end_seated": false,
+   "end_depth_mm": 5.403370596468449,
+   "sim_s": 54.86,
+   "plans": [
+    {
+     "label": "manual",
+     "min_mm": 124.3,
+     "pair": [
+      "left_finger",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 7.7,
+     "parallel_s": 6.62,
+     "move_s": {
+      "right": 1.08,
+      "left": 6.62
+     },
+     "lead_s": 0.0,
+     "first": "right"
+    },
+    {
+     "label": "6 release",
+     "min_mm": 64.9,
+     "pair": [
+      "calibrated_webcam_visual",
+      "left_right_finger"
+     ],
+     "ok": true,
+     "serial_s": 12.26,
+     "parallel_s": 9.98,
+     "move_s": {
+      "right": 6.98,
+      "left": 5.28
+     },
+     "lead_s": 3.0,
+     "first": "left"
+    }
+   ],
+   "tag": "rel"
+  }
+ ]
+}

@@ -338,6 +338,12 @@ class RealChain:
             if self.edge['start_gate']:
                 self.zed_start = NC.zed(self.ndev, self.edge['start_gate'])
             self.log_event('zed_edge_refine', **{k: v for k, v in self.edge.items()})
+        # parallel two-arm schedule for the capture and home moves (config block parallel_schedule; off when absent or
+        # enabled is false: the serial calls below are unchanged): deploy/bimanual/parallel.py, docs/real/PARALLEL_SCHEDULE_20261115.md
+        from deploy.bimanual import parallel as PS
+        self.par, self.par_model = PS.parse(cfg), None
+        if self.par is not None:
+            self.log_event('parallel_schedule', **self.par)
         cap = json.loads((EC.ROOT / 'blind_insertion/configs/zed_capture_pose.json').read_text())['model_frame_rad']
         self.zed_q = {s: np.asarray(cap[s], float) for s in SIDES}
         w, f, ih = (NC.wrist(x, self.ndev) for x in (a.wrist_net, a.fine_net, a.inhand_net))
@@ -612,8 +618,9 @@ class RealChain:
     def motor(self, side, q_believed):
         return np.asarray(q_believed, float) - self.off[SIDES.index(side)]
 
-    def move(self, goals_b, grip=None, label='manual'):
-        """Slow checked moves to believed-frame goals {side: q6}; grip {side: i2rt}."""
+    def move(self, goals_b, grip=None, label='manual', parallel=None):
+        """Slow checked moves to believed-frame goals {side: q6}; grip {side: i2rt}. parallel = (lead_s, first side):
+        both arms at the same time (deploy/bimanual/parallel.move; only with the parallel_schedule block)."""
         if label != self.label:
             self.log_event('stage', stage=label, prev=self.label, tick=self.k)
             self.label = label
@@ -621,7 +628,11 @@ class RealChain:
         # peak joint speed of these smoothstep moves (capture, home, park); 0.15 rad/s unless the config sets
         # safety.move_max_vel_rad_s (2026-11-11: about 95 s of each run was these moves at 0.15)
         vmax = float(self.cfg['safety'].get('move_max_vel_rad_s', 0.15))
-        self.io.move_to({s: self.motor(s, q) for s, q in goals_b.items()}, grip, max_vel=vmax)
+        if parallel is not None and self.par is not None:
+            from deploy.bimanual import parallel as PS
+            PS.move(self, goals_b, grip, vmax, *parallel)
+        else:
+            self.io.move_to({s: self.motor(s, q) for s, q in goals_b.items()}, grip, max_vel=vmax)
         self.read_state()
         self.log_event('moved', goals_b={s: np.asarray(q).tolist() for s, q in goals_b.items()},
                        reached_b=(self.state['q'] + self.off).tolist())
@@ -637,7 +648,11 @@ class RealChain:
         port pose (ZedEstimator + presence/OOD + arm-pose gate)."""
         full = {s: self.gmaps[s].reading(self.cfg['gripper']['full_open_m']) for s in SIDES}
         full = {s: float(np.clip(v, self.gmaps[s].close, self.gmaps[s].open)) for s, v in full.items()}
-        self.move({'right': self.zed_q['right'], 'left': self.zed_q['left']}, grip=full, label='0 capture')
+        par = None
+        if self.par is not None and self.par['capture']:
+            lead = float(self.par['capture_left_lead_s'])
+            par = (abs(lead), 'right' if lead >= 0 else 'left')
+        self.move({'right': self.zed_q['right'], 'left': self.zed_q['left']}, grip=full, label='0 capture', parallel=par)
         cams = ('top',) if getattr(self.io, 'is_sim', False) else tuple(n for n in ('top', 'wrist_right', 'wrist_left') if n in self.io.cams)
         top = self.render(cams, tag='zed_pc')['top']
         arms = self.arms_believed()
@@ -916,11 +931,40 @@ class RealChain:
             self.hstep(q[0], ql, '6 release', grip_r=1., grip_l=-1.)
         self.right_open_override_m = None
 
-    def home(self):
-        """Back to the pose at connect, slow and checked (left first: it is the one near the PC)."""
+    def home(self, parallel=False):
+        """Back to the pose at connect, slow and checked (left first: it is the one near the PC). parallel (the normal
+        end of a run, with parallel_schedule.home): both arms at the same time, the right after home_left_lead_s."""
         q0b = self.q_start + self.off
+        if parallel and self.par is not None and self.par['home']:
+            self.move({'left': q0b[1], 'right': q0b[0]}, label='7 home', parallel=(float(self.par['home_left_lead_s']), 'left'))
+            return
         self.move({'left': q0b[1]}, label='7 home')
         self.move({'right': q0b[0]}, label='7 home')
+
+    def capture_prompt(self):
+        if self.par is not None and self.par['capture']:
+            from deploy.bimanual import parallel as PS
+            lead = float(self.par['capture_left_lead_s'])
+            r = PS.plan_for(self, {s: self.zed_q[s] for s in SIDES}, float(self.cfg['safety'].get('move_max_vel_rad_s', 0.15)),
+                            abs(lead), 'right' if lead >= 0 else 'left')
+            return (f"capture: BOTH arms move AT THE SAME TIME to the ZED capture pose, grippers fully open (planned arm-arm "
+                    f"{r['min_mm']:.0f} mm, limit {r['clearance_min_mm']:.0f}; {'parallel' if r['ok'] else 'FAILS: ' + self.par['on_plan_fail']})")
+        return 'capture: both arms to the ZED capture pose, grippers fully open'
+
+    def home_prompt(self):
+        if self.par is not None and self.par['home']:
+            from deploy.bimanual import parallel as PS
+            q0b = self.q_start + self.off
+            lead = float(self.par['home_left_lead_s'])
+            r = PS.plan_for(self, {'right': q0b[0], 'left': q0b[1]}, float(self.cfg['safety'].get('move_max_vel_rad_s', 0.15)), lead, 'left')
+            return (f"home: BOTH arms move AT THE SAME TIME to the start pose, left starts, right {lead:.1f} s later (planned "
+                    f"arm-arm {r['min_mm']:.0f} mm, limit {r['clearance_min_mm']:.0f}; {'parallel' if r['ok'] else 'FAILS: ' + self.par['on_plan_fail']})")
+        return 'home: return both arms to the start pose (left first)'
+
+    def plan_home(self):
+        """Dry run (SimIO does not home): the parallel home plan check from the present poses, logged only."""
+        self.label_home_plan = self.home_prompt()
+        print(self.label_home_plan, flush=True)
 
 
 def tr_reader(chain):

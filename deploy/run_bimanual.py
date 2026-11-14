@@ -353,7 +353,7 @@ class Runner:
         a, st = self.a, self.a.stage
         log = {}
         res['chain_log'] = log
-        if not self.confirm(ch, 'capture: both arms to the ZED capture pose, grippers fully open'):
+        if not self.confirm(ch, ch.capture_prompt()):
             return res
         ep, eR, ok = ch.capture_pc(log)
         print(f'ZED PC estimate: port {np.round(log["zed"]["port_xy"], 4)} m, yaw {log["zed"]["yaw_deg"]:.1f} deg, gate {ok}', flush=True)
@@ -574,9 +574,11 @@ class Runner:
     def finish(self, ch):
         if not self.a.no_home:
             if self.a.dry_run:
+                if getattr(ch, 'par', None) is not None and ch.par['home']:
+                    ch.plan_home()          # SimIO does not home: the parallel home plan check only (logged)
                 return
-            if self.confirm(ch, 'home: return both arms to the start pose (left first)'):
-                ch.home()
+            if self.confirm(ch, ch.home_prompt()):
+                ch.home(parallel=True)      # serial unless the config has parallel_schedule.home
 
 
 def ch_nominal_lift(ch):

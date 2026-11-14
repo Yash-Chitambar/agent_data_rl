@@ -1,0 +1,458 @@
+{
+ "_about": "bimanual_align10_all.json + the parallel schedule for the two slow two-arm moves (config block parallel_schedule, deploy/bimanual/parallel.py, docs/real/PARALLEL_SCHEDULE_20261115.md): capture = right and left to the ZED capture pose at the same time; home = left starts, right starts home_left_lead_s later. Same paths, same speed (safety.move_max_vel_rad_s 0.4), every SafeArm check per arm, plan check on the model from the measured start poses (arm-arm >= clearance_min_mm, else the serial move), a watch on the measured joints (< watch_min_mm: both arms hold), a stop of either arm holds both. Nothing else differs from bimanual_align10_all.json. A two-arm move under one operator go needs the operator's approval. Previous: Combined candidate for the rig session after 2026-11-13: bimanual_align9_all_b_unload.json (14 N force push, slow unload, jaws open before the left press ends, depth label off: docs/real/DEPTH_SPRINGBACK_20261114.md) + the port-vision shell reference of bimanual_align10_pv.json (align.source.shell_ref: docs/real/PORT_VISION_WIDTH_20261114.md). The unload motion needs the operator's approval. Sim dry runs only; never run on the arm. Previous: 2026-11-13 (rig session, operator approved): bimanual_align9_all + the four final-push keys of bimanual_align8_depth_b (force_n 14, centre_max_mm 4.5, centre_v_mm_s 2, max_lat_mm 4.5). Reason: all9_full_1 seated but rested 6.75 mm (band ~2 mm) with 10 N; depth_b_1 stopped at the hand-over on the wrist-net bias (no D in depth_b). Every part is operator approved (A no-jump, B fast align, C2, D). Combined candidate, 2026-11-13: bimanual_align5_k4_push15_seat6_fastmove + fast step alignment (bimanual_align8_fastalign) + force-mode final push 10 N (bimanual_align8_depth_a) + approach no-jump and 2 pick attempts (bimanual_align8_nojump_retry2) + wrist-net bias (bimanual_align8_netbias). Run it only after each part passed alone on the rig (docs/real/NEXT_RIG_20261114.md).",
+ "control_dt": 0.02,
+ "bundle_dir": "deploy/bundle",
+ "chain_args": {
+  "_about": "eval_chain.py arguments for the real chain (the rest are its defaults). believed_frame: plan and command on encoder FK (the only frame the real robot has).",
+  "believed_frame": true,
+  "hold_force": 25.0,
+  "hold_along": -0.02,
+  "look_gap": 30.0,
+  "stop": 18.0,
+  "wrist_net": "../perception_real/wrist_r10w_ft_abs",
+  "fine_net": "../perception_real/wrist_r10f_ft_abs",
+  "inhand_net": "inhand_ih5",
+  "zed_gate": "zed_v1_gate_arm",
+  "handover": "torque",
+  "stop_offset_mm": [
+   0.0,
+   0.12,
+   0.0
+  ],
+  "iters": 4,
+  "final_iters": 2,
+  "_stop": "Real run 2026-11-03: the servo integrated its target while joints 2 and 3 stuck, 6 iterations at the stop, then a 7 mm slip at a 4 mm gap. Now 2 iterations at 18 mm; the align stage closes from there with the creep law."
+ },
+ "pick": {
+  "_about": "Servo-descent pick (blind_insertion/pipeline/pick_servo.py): the 2040/2048 gate settings of scripts/policy/pick_expert_eval.py",
+  "reader_estimator": "reader_zed_cap",
+  "reader_retries": 1,
+  "hover_net": "reader_servo_hover",
+  "near_net": "reader_servo_near",
+  "rot_net": "reader_servo_near6",
+  "fracs": [
+   0.5,
+   0.8,
+   0.92
+  ],
+  "rehover_mm": 8.0,
+  "rehover_max": 2,
+  "settle_max_s": 3.0,
+  "hold_s": 1.0,
+  "episode_s": 90.0,
+  "grasp_v3": {
+   "_about": "blind_insertion/pipeline/grasp_v3.GraspV3Cfg; docs/real/PICK_GRASP_V3.md lists the knobs.",
+   "touchdown": false,
+   "td_speed_m_s": 0.01,
+   "td_max_below_mm": 8.0,
+   "td_drop_mm": 8.0,
+   "td_eps_mm": 0.5,
+   "td_lift_mm": 0.5,
+   "td_friction_ff": true,
+   "wrist_kp": null,
+   "wrist_kd": null,
+   "wrist_ramp_s": 0.3,
+   "holddown_mm": 0.0,
+   "gentle_close": false,
+   "gentle_rate": 0.2,
+   "gentle_delta": 0.12,
+   "squeeze_s": 0.6,
+   "dwell_s": 0.3,
+   "max_attempts": 1,
+   "test_lift_mm": 15.0,
+   "held_band": [
+    0.275,
+    0.36
+   ],
+   "rise_mm": 40.0,
+   "level_roll": true,
+   "level_roll_max_deg": 0.0,
+   "roll_gate_deg": null,
+   "td_follow_frac": 0.2,
+   "td_step_mm_s": 30.0,
+   "lost_ticks": 5,
+   "press_from_attempt": null,
+   "holddown_speed_m_s": 0.02,
+   "holddown_wait_s": 0.2,
+   "hold_from": "press"
+  },
+  "batches": {
+   "_about": "Real test batches, one change at a time (docs/real/PICK_GRASP_V3.md). One attempt per try: no retry, so each try is one count. A, B, C still press in the plan's descent: the pick2 clearances on the commanded pose. D: no press, the default clearances.",
+   "A": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 2,
+     "press_from_attempt": null,
+     "gentle_close": false,
+     "hold_from": "press",
+     "holddown_mm": 0.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    },
+    "_retry2": "2026-11-13: max_attempts 1 -> 2 for the empty close of demo_3 (one retry, press_from_attempt stays null)."
+   },
+   "B": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "hold_from": "press",
+     "holddown_mm": 0.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    }
+   },
+   "C": {
+    "grasp_v3": {
+     "touchdown": false,
+     "level_roll": true,
+     "roll_gate_deg": null,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "hold_from": "measured",
+     "hold_offset_mm": 0.0,
+     "holddown_mm": 8.0
+    },
+    "body_clearance": {
+     "gripper": 0.003,
+     "link_6": 0.015,
+     "link_5": 0.03
+    }
+   },
+   "D": {
+    "grasp_v3": {
+     "touchdown": true,
+     "level_roll": true,
+     "roll_gate_deg": 2.5,
+     "wrist_kp": null,
+     "wrist_kd": null,
+     "max_attempts": 1,
+     "press_from_attempt": null,
+     "gentle_close": true,
+     "holddown_mm": 8.0
+    }
+   }
+  },
+  "batch": "A"
+ },
+ "insert": {
+  "_about": "Part 4 K-J (obs_dim 68): accumulate, target cap from the policy meta (0.05), 10 s, 50 Hz; left joint-6 mask inside the loader. Seated detector: plug advance along the port axis (encoder FK) past the servo's stop gap.",
+  "policy": "insert_KJ",
+  "insert_s": 10.0,
+  "seat_margin_m": 0.001,
+  "seat_hold_s": 0.2,
+  "seat_speed_m_s": 0.005,
+  "release_open_s": 0.4,
+  "retreat_m": 0.05,
+  "retreat_v_m_s": 0.02,
+  "left_lift_m": 0.03,
+  "wrong_port_mm": null,
+  "_wrong_port": "log only: in the dry runs (+/-1.5 deg offset DR) the FK lateral of good approaches reached 15 mm, a neighbouring-port lock 11 mm; set a limit only with calibrated offsets",
+  "seat2": {
+   "margin_mm": 1.0,
+   "gate_mm": [
+    3.0,
+    6.0
+   ],
+   "hold_s": 0.3,
+   "speed_mm_s": 6.0,
+   "still_mm": 99.0,
+   "_about": "0.3 s at depth and no axial motion. No lateral stillness: after a true seat K-J keeps moving the hand (dry run: up -5 to -8 mm with the plug at full depth), and the guard then lifted seated plugs. Real ai4 seats at 3.84 s, A and A2 do not.",
+   "_speed_20261110": "operator approved 2026-11-10: 3 -> 6 mm/s. k4_2 was in at 8.4-9.0 mm for 3.8 s but K4 kept moving (|v| p90 5.8 mm/s): longest still run 14 of 15 ticks, no seat, guard backed out 20 mm and pulled the reader out. Replay on 10 real insertions: 6 mm/s detects all 6 seats (0.1-0.9 s sooner) and k4_2; no seat on the 3 stalls (max depth 3.2-3.6 mm)."
+  },
+  "guard": {
+   "bound_mm": [
+    5.0,
+    5.0
+   ],
+   "hard_mm": 3.0,
+   "stall_s": 3.0,
+   "stall_eps_mm": 0.3,
+   "lead_min_mm": 3.0,
+   "t_min_s": 1.0
+  },
+  "keep_reader_unless_seated": true,
+  "abort_lift_mm": 20.0,
+  "abort_v_mm_s": 10.0,
+  "policy_file": "runs/insert_K4.pt",
+  "policy_sha256": "4d288f234ff1af10",
+  "_policy_file": "K3 (K2 env + vision_prior_obs; rel_pose_obs). Copy from mason: docs/real/NEXT_RIG_20261109.md. Needs align.mode full (the vision prior is the align hand-over measurement).",
+  "final_push": {
+   "_about": "Force-mode final push (deploy/bimanual/insert.py final_push_force): PD axial force ramps to force_n, the hand stays on its line (lateral and rotation springs), no fixed 15 mm target. force_n 10 N: the PD estimate of the five 15 mm position pushes of 2026-11-10/11 peaked at 9.0-13.3 N along the port axis (with 2-3 N down). Here the load is along the axis only, so joint 1 carries more torque than in those pushes (see _tau_max). Gates and stops as bimanual_align5_k4_push15_seat6_fastmove (depth >= 5, |lateral| <= 2.5; advance 4 mm, left 2 mm, grip 0.02) plus off-line 4 mm. No centring.",
+   "hold_s": 1.5,
+   "min_depth_mm": 5.0,
+   "max_lat_mm": 4.5,
+   "max_advance_mm": 4.0,
+   "max_left_mm": 2.0,
+   "max_grip_change": 0.02,
+   "centre_max_mm": 4.5,
+   "rot_m_max_nm": 0.5,
+   "ramp_n_s": 4.0,
+   "tau_max_nm": [
+    6.0,
+    6.0,
+    6.0,
+    2.5,
+    2.0,
+    2.0
+   ],
+   "force_n": 14.0,
+   "mode": "force",
+   "max_lat_err_mm": 4.0,
+   "lat_f_max_n": 8.0,
+   "_tau_max": "Joint torque cap of the push load (N m), under safety.tau_cont_nm [9, 9, 9, 3, 3, 3]. A 10 N axial load at the 2026-11-11 seat pose needs joint 1 3.8 N m and joint 5 0.9 N m; the 15 mm position pushes used joint 1 about 2.2 N m, joint 4 about 1.0 N m.",
+   "still_mm": 0.15,
+   "full_depth_mm": null,
+   "still_s": 0.6,
+   "rot_k_nm_rad": 6.0,
+   "lat_k_n_mm": 3.0,
+   "_full_depth": "Off. 2026-11-14: operator 'fully in' 7.32-7.59 mm (n = 4: demo_4, k4_3, fastmove_1, k4_5), short or band 5.58-7.33 mm (n = 7, all9b_full_1 7.33 with a 2 mm band). Overlap: no FK threshold. depth_report prints the numbers and 'not verified'; the operator's silver-band check is the label.",
+   "centre_v_mm_s": 2.0,
+   "depth_report": "FK depth of the hand, not the plug; label from the operator band check",
+   "unload": {
+    "_about": "deploy/bimanual/insert.py unload_force. 1) ramp the axial load from the reached force to open_force_n at ramp_n_s (x --speed), jaws closed, same load law and push watches, the jaw readings watched; 2) open the right jaws for open_s (/ --speed) with open_force_n on (0: fixed position hold); the hand must not advance more than open_max_adv_mm beyond its pose at the start of the opening; 3) relax the rest of the load over relax_s (/ --speed), hold the measured pose hold_s; then the normal release (retreat, left unload). The left press target is kept until the release, as in the push.",
+    "open_force_n": 0.0,
+    "ramp_n_s": 4.0,
+    "open_s": 0.6,
+    "relax_s": 0.4,
+    "hold_s": 0.2,
+    "open_max_adv_mm": 1.0,
+    "_open_force": "0 N: the load ramps 14 -> 0 N with the jaws closed (at the approved 4 N/s x speed), then the jaws open with the right target held fixed at the pose reached at 0 N. Dry run 2026-11-14 seed 7043 with 3 N kept on while the jaws opened: the hand jumped 2.47 mm (1.0 mm watch fired at 1.64 mm, one tick late), so no residual load at the opening. open_max_adv_mm 1.0 stays as a watch."
+   }
+  }
+ },
+ "gripper": {
+  "_about": "i2rt gripper 0 closed .. 1 open (position PD). Finger opening per finger (m, the sim finger joint) is linear in the reading: right through (1.0, 0.048) and (g_reader, m_reader) (deploy/config/task_h.json, 2026-10-28); left uncalibrated (proportional). close = squeeze target (force NOT calibrated: sim squeeze 12 N).",
+  "right": {
+   "open": 1.0,
+   "close": 0.0,
+   "m_open": 0.048,
+   "g_reader": 0.32,
+   "m_reader": 0.019,
+   "g_empty": 0.015
+  },
+  "left": {
+   "open": 1.0,
+   "close": 0.0,
+   "m_open": 0.048,
+   "g_reader": null,
+   "m_reader": 0.019,
+   "g_empty": null
+  },
+  "right_approach_open_m": 0.024,
+  "full_open_m": 0.0475,
+  "_pick2": "2026-11-01 real: the 55 deg side grasp holds the reader at i2rt 0.311-0.333 (ai1-ai5 transport, mean 0.32), not 0.254 (10-28, top-down grasp); the sim holds it at 19 mm. g_reader 0.254 -> 0.32: the pick descent opening (right_approach_open_m 24 mm) then reads ~0.44 instead of 0.38 (pick1 landed on the reader with 0.38). pick2 run: grasped, but a finger brushed the reader and turned it; right_approach_open_m 0.024 -> 0.026 (reading ~0.48; the wrist nets saw 24 mm fingers in training). pick3/pick4 with 26 mm: the jaws closed empty (0.055 / 0.032), pads rode over the reader's top edges; pick2 with 24 mm closed on the reader (0.305, recovery close at the grasp pose). right_approach_open_m back to 0.024 (reading 0.437). pick6 (24 mm + press relief) grasped; operator: slightly wider would grasp better -> 0.025 (pick7). pick7 (25 mm + relief) failed -> back to 0.024."
+ },
+ "safety": {
+  "_about": "FlexChecker clearances (model frame, above the tabletop) on every target and measured pose; table_z = tabletop in each arm's base frame (bimanual scene: -0.033). Guards: PD torque estimate kp (target - q) + feed-forward per joint; DM4340 (joints 1-3) rated ~9 N m, DM4310 (4-6) ~3 N m.",
+  "table_z": -0.033,
+  "clearance": 0.04,
+  "tip_clearance": -0.015,
+  "body_clearance": {
+   "gripper": 0.003,
+   "link_6": 0.015,
+   "wrist_camera": 0.03,
+   "link_5": 0.03
+  },
+  "tau_peak_nm": [
+   12.0,
+   12.0,
+   12.0,
+   5.0,
+   5.0,
+   5.0
+  ],
+  "tau_peak_s": 0.1,
+  "tau_cont_nm": [
+   9.0,
+   9.0,
+   9.0,
+   3.0,
+   3.0,
+   3.0
+  ],
+  "tau_cont_s": 20.0,
+  "hold_max_s": 60.0,
+  "qd_max_rad_s": 2.5,
+  "tcp_box": {
+   "x": [
+    -0.1,
+    0.6
+   ],
+   "y": [
+    -0.3,
+    0.9
+   ],
+   "z_above_table": [
+    -0.05,
+    0.5
+   ]
+  },
+  "_pick2": "2026-11-01 pick1: SafetyStop at the last descent tick, gripper body 15.0 mm above the table (limit 15 mm); the sim pick bottoms at 17-18 mm. body_clearance.gripper 0.015 -> 0.010 (operator decision). pick2 run: SafetyStop link_5 40.2 mm (limit 40). Sim pick minima: link_5 44-45, link_6 27, gripper 17-18 mm; real pick1/2: link_5 42.3/40.2, link_6 26.1/23.9, gripper 15.1/15.5. link_5 0.040 -> 0.030, link_6 0.020 -> 0.015 (operator approved). pick3 run: SafetyStop gripper 9 mm (limit 10) at the grasp depth: the pick COMMANDS the tips ~13 mm into the table (tip floor), measured tips +0.7 mm, measured gripper body 27 mm; commanded gripper body 9-11 mm after a 4 deg wrist correction. body_clearance.gripper 0.010 -> 0.003 (commanded pose; operator approved).",
+  "_pick3": "No press: the command stays near the measured pose. body_clearance restored gripper 3 -> 10, link_5 30 -> 35 mm; link_6 stays 15.",
+  "move_max_vel_rad_s": 0.4,
+  "_move_max_vel": "2026-11-11: 0.4 approved by the operator (first run fastmove_1)."
+ },
+ "fric_comp_right": {
+  "tau": [
+   0.0275,
+   0.546,
+   0.819,
+   0.0463,
+   0.0433,
+   0.0467
+  ],
+  "ramp": 0.005
+ },
+ "cameras": {
+  "res": 320,
+  "max_age_ms": 250,
+  "stream_hz": 2.0
+ },
+ "align": {
+  "_about": "deploy/bimanual/align.py; values and evidence in docs/real/ALIGN_STAGE.md",
+  "enabled": true,
+  "mode": "full",
+  "source": {
+   "kind": "port_vision",
+   "shell_ref": true,
+   "ref_tol_px": [
+    1.5,
+    3.0
+   ],
+   "_shell_ref": "docs/real/PORT_VISION_WIDTH_20261114.md. Off by default in deploy/bimanual/align.py and port_vision.py. At the prepare stop the 9 frames give this grasp's shell edges (median left edge, right edge, end row, width). In a later frame, when the width is off by more than 1.5 px, the end row and ONE side edge are within (1.5, 3.0) px of the reference and a true shell step exists within 1.5 px of the other edge's reference, that step is the edge (2026-11-13 full_163924_all9_align_1: a bright patch next to the shell moved the right edge +8 px, 5 rejected cycles). Any other case keeps the old result, so a real move of the plug in the jaws (both edges or the end row move) still meets the old width gate (108-145 mm) and the grip change gate. No limit changed."
+  },
+  "sim_source": {
+   "kind": "sim_truth",
+   "slope": [
+    1,
+    1,
+    1
+   ],
+   "sigma_mm": [
+    0.1,
+    0.1,
+    0.1
+   ],
+   "pose_sigma_mm": [
+    0.25,
+    0.74,
+    0.49
+   ],
+   "run_bias_sigma_mm": [
+    0.3,
+    0.6,
+    0.4
+   ],
+   "drop_p": 0.1
+  },
+  "_sim_source": "port_vision held-out residuals (docs/real/PORT_VISION.md): frame noise under 0.12 mm, residual over poses across 0.18-0.38, up 0.74, gap 0.49; constant of a run: judgement, y about 0.6 mm",
+  "secondary": {
+   "kind": "wrist_net",
+   "sigma_mm": 1.0,
+   "_bias": "2026-11-13, docs/real/ROBUSTNESS_PLAN_20261113.md part B: the wrist net's up reads about +2.6 mm above port vision (n = 25 hand-overs 2026-11-03..11; seated check: vision +0.33 mm, net +2.91 mm, n = 13). The offset is subtracted from the net reading before the disagreement check; the gate widths are unchanged. NEEDS OPERATOR APPROVAL: the accepted raw up difference moves from +/-3.5 mm to -0.9..+6.1 mm.",
+   "bias_mm": [
+    -0.3,
+    2.6,
+    0.8
+   ]
+  },
+  "secondary_required": false,
+  "disagree_mm": [
+   3.0,
+   3.5,
+   2.5
+  ],
+  "_disagree_mm": "GUESS, never run in a loop: net against vision near the port, SD 0.25, 0.71-0.88, 0.46 mm (n = 26), constant across 1.4-1.8, up 1.5-2.0 at A2 (docs/real/WRIST_NETS_REAL.md). Limit = constant + about 2 SD. Checked at the hand-over only. Port vision alone gives the numbers the stage acts on.",
+  "min_clear_fail_mm": 1.0,
+  "_min_clear": "measured gap under 3 mm: back out 1 mm per cycle; stop under 1 mm",
+  "angle": {
+   "axes": [
+    0,
+    1
+   ],
+   "tol_deg": 1.0,
+   "step_deg": 0.75,
+   "max_deg": 7.0,
+   "required": true,
+   "_about": "rx pitch and ry yaw of the plug against the panel: port_vision panel pose + camera mount + mean real grasp. rz (roll) is not corrected: its slope on real frames is 0.39."
+  },
+  "entry_min_gap_mm": 12.0,
+  "back_off_creep": true,
+  "settle_s": 0.1,
+  "fresh_frames": "first",
+  "_fast": "docs/real/ALIGN_FAST_20261113.md. All new keys are off by default in deploy/bimanual/align.py; the values here are the fast settings.",
+  "reach_freeze": false,
+  "_frames": "real: 0.85-0.97 s per measurement = rest wait >= 0.3 s + 5 frames x 87 ms (60 ms of it waiting for two new camera frames; port_vision 26 ms) + the second source every cycle.",
+  "reach_rel": 0.5,
+  "frames": 3,
+  "reach_side_mm": 0.6,
+  "probe_mm": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "_slope_prior": "real slopes at the hand-over, n = 15 step runs 2026-11-10/11: across 0.94-1.10, up 0.76-0.98, gap 1.02-1.12 (gate 0.6-1.6). No probe cycles. Gap and up must be known (se <= 0.2; the gap moves about 10 mm on the way in; up has the largest vision residual): if not, one extra probe on that axis (extra_probes 2). Across fails only when 2 se out of range. Offline logic test: an up slope of 0.3 stops at the scale gate (3 of 3 starts).",
+  "gap_step_max_mm": 3.0,
+  "gap_step_ratio": 0.5,
+  "reach_stall_mm": 0.15,
+  "_reach": "real 2026-11-10/11: 123 of 229 steps ran to the 3 s timeout (reach test 0.3 mm, median moved/asked 1.09 there). Loose test per axis: each asked axis within 0.3 + 0.5 x asked, the other axes within 0.6 mm, for 3 ticks; or >= 0.6 of each asked axis done and stalled 0.5 s. Replay on the logged FK: 42 of 229 time out (2.0 s), step p50 150 -> 51 ticks.",
+  "reach_mode": "loose",
+  "extra_probes": 2,
+  "step_timeout_s": 2.0,
+  "secondary_near_mm": 1.0,
+  "min_good": 2,
+  "reach_hold_ticks": 3,
+  "reach_stall_s": 0.5,
+  "_reach_freeze": "false: dry run seed 7044 with true: after each loose step end the goal became the measured pose while joint 2 still had about 20 mrad of lead; the hand rose about 2 mm between steps, 'correction grows' stop (up 7 -> 14.7 mm by truth). Without it (as the strict stage after a timeout) the joints finish the step.",
+  "reach_frac_min": 0.6,
+  "slope_prior": {
+   "known_axes": [
+    1,
+    2
+   ]
+  }
+ },
+ "approach_nojump": {
+  "_about": "deploy/bimanual/chain.py RealChain + _StopDeadband (off when this block is absent or enabled is false). Real 2026-11-03..11 approaches (n=37): at the stop the servo integrated 0.3-6 mm net corrections on its command while joints 2/3 stuck (Coulomb friction > feed-forward); the command-hand lag grew up to 15 mm and the joint broke free: hand jumps 3.6-5.0 mm (6 of 18 runs 2026-11-10/11). Left hand moved <= 0.15 mm in every jump window (not the press).",
+  "enabled": true,
+  "iters": 4,
+  "final_iters": 2,
+  "stop_deadband_mm": [
+   3.0,
+   3.0,
+   1.0
+  ],
+  "_deadband": "Per port axis (across, up, gap). Gap band 1 mm: the align stage may advance at most 16 mm (align.max_advance_mm) from the stop to the 6 mm hand-over; a 3 mm gap band let dry run seed 7041 enter at a 21 mm gap and fail that gate."
+ },
+ "_about_unload": "bimanual_align9_all_b + insert.final_push.unload and depth_report (docs/real/DEPTH_SPRINGBACK_20261114.md). Nothing else differs. Rig 2026-11-13: after both force pushes the hand sprang back 1.9-3.4 mm in the first 0.04-0.2 s of the 0.3 s drop (load cut in one tick, jaws closed). Here the load ramps down to 0 N with the jaws closed (no 40 ms jerk), then the jaws open with the right arm held at that pose and the left press kept until the jaws are open. Force, gates and push watches are the approved all9_b values (14 N, centring 4.5 mm, lateral gate 4.5 mm); the unload phase adds watches, it removes none. The FULL/SHORT label is off (full_depth_mm null): no FK threshold separates the 11 operator labels; the run prints the depths as 'not verified'.",
+ "parallel_schedule": {
+  "_about": "Absent or enabled false = the serial moves of bimanual_align10_all.json. Leads in s; distances in mm on the bimanual scene model (links, grippers, wrist cameras, fingers). home_left_lead_s from the clearance replay of the logged real home paths (docs/real/PARALLEL_SCHEDULE_20261115.md).",
+  "enabled": true,
+  "capture": true,
+  "home": true,
+  "capture_left_lead_s": 0.0,
+  "home_left_lead_s": 3.0,
+  "clearance_min_mm": 50.0,
+  "watch_min_mm": 30.0,
+  "on_plan_fail": "serial"
+ }
+}
