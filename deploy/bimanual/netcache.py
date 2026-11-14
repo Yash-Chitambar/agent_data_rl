@@ -55,6 +55,9 @@ def preload(cfg, dev, ndev):
     t0 = time.monotonic()
     ca, pc = cfg['chain_args'], cfg['pick']
     zed(ndev, ca['zed_gate'])
+    er = cfg.get('zed_edge_refine') or {}
+    if er.get('enabled', False) and er.get('start_gate', 'zed_v5_gate'):      # capture edge fit start net (zed_edgefit.py)
+        zed(ndev, er.get('start_gate', 'zed_v5_gate'))
     for k in ('wrist_net', 'fine_net', 'inhand_net'):
         wrist(ca[k], ndev)
     zed_reader(pc['reader_estimator'], dev, pc['reader_retries'])

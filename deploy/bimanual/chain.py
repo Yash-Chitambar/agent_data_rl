@@ -329,6 +329,15 @@ class RealChain:
         from blind_insertion.eval_insertion import load_insertion_policy
         from deploy.bimanual import netcache as NC     # loaded before the arms connect (Runner.open_io)
         self.zed = NC.zed(self.ndev, a.zed_gate)
+        # ZED case-edge fit in the capture stage (config block zed_edge_refine; off when absent or enabled is false):
+        # deploy/bimanual/zed_edgefit.py, docs/real/ZED_EDGEFIT_20261115.md
+        from deploy.bimanual import zed_edgefit as ZE
+        self.edge = ZE.parse(cfg)
+        self.zed_start = None
+        if self.edge is not None:
+            if self.edge['start_gate']:
+                self.zed_start = NC.zed(self.ndev, self.edge['start_gate'])
+            self.log_event('zed_edge_refine', **{k: v for k, v in self.edge.items()})
         cap = json.loads((EC.ROOT / 'blind_insertion/configs/zed_capture_pose.json').read_text())['model_frame_rad']
         self.zed_q = {s: np.asarray(cap[s], float) for s in SIDES}
         w, f, ih = (NC.wrist(x, self.ndev) for x in (a.wrist_net, a.fine_net, a.inhand_net))
@@ -563,6 +572,7 @@ class RealChain:
         used is logged (policy image PNG = the exact net input; raw JPEG)."""
         tag = tag or self.label.replace(' ', '_')
         fr = (self.io.fresh_frames if fresh else self.io.frames)(names)
+        self.last_raw = {n: v[1] for n, v in fr.items()}      # raw BGR frames (None in the dry run): the capture edge fit
         out = {}
         for n, (pol, raw, t, cnt) in fr.items():
             key = {'top': 'top', 'wrist_right': 'wrist_cam', 'wrist_left': 'left_wrist_cam'}[n]
@@ -643,10 +653,59 @@ class RealChain:
             rec.update(true_port_xy=tr['pc_p'][:2].tolist(), true_yaw_deg=math.degrees(yt),
                        err_xy_mm=float(np.linalg.norm(np.asarray(rec['port_xy']) - tr['pc_p'][:2]) * 1e3),
                        err_z_mm=float((float(ep[0, 2]) - tr['pc_p'][2]) * 1e3))
+        if self.edge is not None:
+            xy, yaw, ok, ep, eR = self._edge_refine(top, arms, xy, yaw, ok, ep, eR, rec, tr)
         self.log_event('estimate', est='zed_pc', frame_tag=self.last_frame_tag, **rec)
         log.update(zed=rec)
         self.port = (ep, eR)
         return ep, eR, bool(ok[0])
+
+    def _edge_refine(self, top, arms, xy, yaw, ok, ep, eR, rec, tr):
+        """Capture edge fit (deploy/bimanual/zed_edgefit.py). Adds rec['net'] (the gate net, as today), rec['start'] and
+        rec['edge_fit']. Mode 'use': port_xy / yaw_deg / ok in rec and the returned port pose are the refined ones
+        (ok = net gate AND fit gate); mode 'shadow': unchanged."""
+        from deploy.bimanual import zed_edgefit as ZE
+        c = self.edge
+        net = {k: rec[k] for k in ('port_xy', 'yaw_deg', 'ok')}
+        if self.zed_start is not None:
+            sxy, syaw, sok, sinfo = self.zed_start(top.to(self.ndev), arms=tuple(x.to(self.ndev) for x in arms))
+            start = dict(port_xy=sxy[0].tolist(), yaw_deg=math.degrees(float(syaw[0])), ok=bool(sok[0]),
+                         **{k: float(v[0]) for k, v in sinfo.items()})
+        else:
+            start = dict(net)
+        model = None
+        if getattr(self.io, 'is_sim', False):
+            img, src, geom = ZE.canvas_from_policy(top[0].cpu().numpy()), 'sim_policy_upsampled', c['geom_sim']
+            if c['dry_run_fit'] == 'truth_model' and tr is not None:     # dry run only (zed_edgefit.DEFAULTS)
+                rng = np.random.default_rng(int(self.seed) + 15)
+                model = (*(tr['pc_p'][:2] + rng.normal(0., c['dry_run_fit_sd_mm'] * 1e-3, 2)),
+                         rec['true_yaw_deg'] + rng.normal(0., c['dry_run_fit_sd_deg']))
+        else:
+            img, src, geom = (getattr(self, 'last_raw', {}) or {}).get('top'), 'raw_hd1080', c['geom']
+        fxy, fyaw, fok, frec = ZE.refine(img, src, start['port_xy'], start['yaw_deg'], net['port_xy'], net['yaw_deg'], c, geom,
+                                         model_pose=model)
+        print(ZE.summary_line(frec), flush=True)
+        if tr is not None:
+            for k_, v_ in (('net', net), ('start', start)):
+                v_['err_xy_mm'] = float(np.linalg.norm(np.asarray(v_['port_xy']) - tr['pc_p'][:2]) * 1e3)
+            if 'fit_xy' in frec:
+                frec['err_xy_mm'] = float(np.linalg.norm(np.asarray(frec['fit_xy']) - tr['pc_p'][:2]) * 1e3)
+                frec['err_mm'] = ((np.asarray(frec['fit_xy']) - tr['pc_p'][:2]) * 1e3).tolist()
+                frec['err_yaw_deg'] = frec['fit_yaw_deg'] - rec['true_yaw_deg']
+        rec.update(net=net, start=start, edge_fit=frec, edge_mode=c['mode'])
+        if c['mode'] != 'use':
+            rec['est_source'] = 'net (edge fit shadow)'
+            return xy, yaw, ok, ep, eR
+        ok_all = bool(ok[0]) and fok
+        xy = torch.tensor([[float(fxy[0]), float(fxy[1])]], dtype=xy.dtype, device=self.dev)
+        yaw = torch.tensor([math.radians(fyaw)], dtype=yaw.dtype, device=self.dev)
+        ok = torch.tensor([ok_all], device=self.dev)
+        ep, eR = self.scene.port_frame(xy.cpu(), yaw.cpu())
+        ep, eR = ep.to(self.dev), eR.to(self.dev)
+        rec.update(port_xy=xy[0].tolist(), yaw_deg=float(fyaw), ok=ok_all, est_source=f"edge fit x, y + {c['yaw_source']} yaw")
+        if tr is not None:
+            rec['err_xy_mm'] = float(np.linalg.norm(np.asarray(rec['port_xy']) - tr['pc_p'][:2]) * 1e3)
+        return xy, yaw, ok, ep, eR
 
     def park_left(self):
         """Part 1 park (PickTaskCfg.left_park_q, joint 1 = 0) and one extra ZED frame (the sim chain's 'parked' frame,

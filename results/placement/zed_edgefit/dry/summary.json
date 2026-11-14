@@ -1,0 +1,871 @@
+[
+ {
+  "run": "capture_030418_dry_s7043_ef_cap_look",
+  "cfg": "bimanual_align10_all_edgefit.json",
+  "seed": 7043,
+  "sim_phys": "{\"pc_real_look\": \"blind_insertion/assets/pc_real_look\", \"visual_dr\": {\"cam_err_scale\": 0.0, \"focal_jitter\": 0.0, \"principal_jitter\": 0.0, \"radial_k1\": 0.0}}",
+  "gate_ok": false,
+  "used_err_mm": 16.65788066601427,
+  "net_err_mm": 4.12386605627772,
+  "fit_src": "sim_policy_upsampled",
+  "fit_ok": false,
+  "fit_why": [
+   "panel edge 20 < 30 inliers",
+   "back edge 0 < 30 inliers",
+   "|fit - start| 18.7 > 10.0 mm",
+   "|fit - gate net| 19.2 > 8.0 mm"
+  ],
+  "shift_mm": 19.195845821523665,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030151_dry_s7043_ef_ef_dr",
+  "cfg": "bimanual_align10_all_edgefit.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": false,
+  "used_err_mm": 15.532500826604576,
+  "net_err_mm": 3.769119198385083,
+  "fit_src": "sim_policy_upsampled",
+  "fit_ok": false,
+  "fit_why": [
+   "panel edge 20 < 30 inliers",
+   "back edge 0 < 30 inliers",
+   "|fit - start| 13.6 > 10.0 mm",
+   "|fit - gate net| 12.4 > 8.0 mm"
+  ],
+  "shift_mm": 12.423651646487714,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030152_dry_s7043_ef_base_cal",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7043,
+  "sim_phys": "{\"visual_dr\": {\"cam_err_scale\": 0.0, \"focal_jitter\": 0.0, \"principal_jitter\": 0.0, \"radial_k1\": 0.0}}",
+  "gate_ok": true,
+  "used_err_mm": 3.293354457446134,
+  "net_err_mm": 3.293354457446134,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": [
+   -2.08,
+   -5.9,
+   33.95
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   16,
+   15.100000000000001
+  ],
+  "insert": "seated_detected",
+  "true_seated": false,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030152_dry_s7043_ef_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 3.769119198385083,
+  "net_err_mm": 3.769119198385083,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": [
+   -3.44,
+   -6.58,
+   30.26
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   15,
+   13.720000000000006
+  ],
+  "insert": "seated_detected",
+  "true_seated": false,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030152_dry_s7043_ef_ef_cal",
+  "cfg": "bimanual_align10_all_edgefit.json",
+  "seed": 7043,
+  "sim_phys": "{\"visual_dr\": {\"cam_err_scale\": 0.0, \"focal_jitter\": 0.0, \"principal_jitter\": 0.0, \"radial_k1\": 0.0}}",
+  "gate_ok": false,
+  "used_err_mm": 20.019980615840733,
+  "net_err_mm": 3.293354457446134,
+  "fit_src": "sim_policy_upsampled",
+  "fit_ok": false,
+  "fit_why": [
+   "back edge 0 < 30 inliers",
+   "|fit - start| 21.8 > 10.0 mm",
+   "|fit - gate net| 22.2 > 8.0 mm"
+  ],
+  "shift_mm": 22.153580287992675,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030605_dry_s7044_ef_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7044,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 3.8561405811245666,
+  "net_err_mm": 3.8561405811245666,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": [
+   0.96,
+   -0.46,
+   29.07
+  ],
+  "align": [
+   false,
+   "after the press: step limit",
+   31,
+   25.439999999999998
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030606_dry_s7045_ef_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7045,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 2.5033282790556086,
+  "net_err_mm": 2.5033282790556086,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": [
+   7.01,
+   -17.83,
+   30.92
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   12,
+   5.32
+  ],
+  "insert": "seated_detected",
+  "true_seated": true,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030607_dry_s7041_ef_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7041,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 4.688085076130109,
+  "net_err_mm": 4.688085076130109,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": [
+   -3.36,
+   -9.29,
+   30.72
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   12,
+   6.8799999999999955
+  ],
+  "insert": "seated_detected",
+  "true_seated": true,
+  "outcome": {
+   "label": "seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030607_dry_s7041_ef_tm",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7041,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 0.7760851498332356,
+  "net_err_mm": 4.688085076130109,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 4.161126526090487,
+  "render_fit_err": [
+   -4.4,
+   12.7
+  ],
+  "first_wrist": [
+   0.01,
+   -10.04,
+   27.1
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   13,
+   8.719999999999999
+  ],
+  "insert": "seated_detected",
+  "true_seated": true,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030607_dry_s7042_ef_tm",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7042,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 0.2740098404412882,
+  "net_err_mm": 0.9068203800944105,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 1.0398954135869842,
+  "render_fit_err": [
+   -1.6,
+   15.0
+  ],
+  "first_wrist": [
+   1.72,
+   -10.53,
+   30.15
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   10,
+   7.3799999999999955
+  ],
+  "insert": "seated_detected",
+  "true_seated": true,
+  "outcome": {
+   "label": "seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030607_dry_s7043_ef_tm",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 0.5817111797037697,
+  "net_err_mm": 3.769119198385083,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 3.465262947782366,
+  "render_fit_err": [
+   1.1,
+   15.5
+  ],
+  "first_wrist": [
+   -0.38,
+   -7.74,
+   31.12
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   17,
+   14.36
+  ],
+  "insert": "seated_detected",
+  "true_seated": true,
+  "outcome": {
+   "label": "seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030607_dry_s7045_ef_tm",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7045,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 0.03693565947479227,
+  "net_err_mm": 2.5033282790556086,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 2.5323021971608872,
+  "render_fit_err": [
+   -1.9,
+   15.2
+  ],
+  "first_wrist": [
+   4.76,
+   -17.35,
+   30.52
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   12,
+   6.460000000000001
+  ],
+  "insert": "seated_detected",
+  "true_seated": true,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030608_dry_s7042_ef_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7042,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 0.9068203800944105,
+  "net_err_mm": 0.9068203800944105,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": [
+   2.13,
+   -10.74,
+   31.09
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   13,
+   7.100000000000001
+  ],
+  "insert": "seated_detected",
+  "true_seated": true,
+  "outcome": {
+   "label": "seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030608_dry_s7044_ef_tm",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7044,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 0.30180811477376074,
+  "net_err_mm": 3.8561405811245666,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 4.153336912572152,
+  "render_fit_err": [
+   1.9,
+   14.5
+  ],
+  "first_wrist": [
+   -2.75,
+   -0.65,
+   30.02
+  ],
+  "align": [
+   false,
+   "after the press: step limit",
+   31,
+   25.14
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030651_dry_s7043_shift_base_cal",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7043,
+  "sim_phys": "{\"visual_dr\": {\"cam_err_scale\": 0.0, \"focal_jitter\": 0.0, \"principal_jitter\": 0.0, \"radial_k1\": 0.0}}",
+  "gate_ok": false,
+  "used_err_mm": 2.150824307359435,
+  "net_err_mm": 2.150824307359435,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030650_dry_s7043_shift_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": false,
+  "used_err_mm": 3.4273322850740753,
+  "net_err_mm": 3.4273322850740753,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030650_dry_s7043_shift_ef_cal",
+  "cfg": "bimanual_align10_all_edgefit.json",
+  "seed": 7043,
+  "sim_phys": "{\"visual_dr\": {\"cam_err_scale\": 0.0, \"focal_jitter\": 0.0, \"principal_jitter\": 0.0, \"radial_k1\": 0.0}}",
+  "gate_ok": false,
+  "used_err_mm": 1.0607144620112738,
+  "net_err_mm": 2.150824307359435,
+  "fit_src": "sim_policy_upsampled",
+  "fit_ok": false,
+  "fit_why": [
+   "panel edge 7 < 30 inliers"
+  ],
+  "shift_mm": 3.2065178822234275,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030651_dry_s7043_shift_ef_dr",
+  "cfg": "bimanual_align10_all_edgefit.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": false,
+  "used_err_mm": 15.91320957162546,
+  "net_err_mm": 3.4273322850740753,
+  "fit_src": "sim_policy_upsampled",
+  "fit_ok": false,
+  "fit_why": [
+   "panel edge 1 < 30 inliers",
+   "inlier rms 1.2061386006856063 > 1.2 px",
+   "|fit - start| 13.7 > 10.0 mm",
+   "|fit - gate net| 19.2 > 8.0 mm"
+  ],
+  "shift_mm": 19.19670381851043,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030609_dry_s7043_shift_tm_dr",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": false,
+  "used_err_mm": 0.581726078202057,
+  "net_err_mm": 3.4273322850740753,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 3.4861462173500692,
+  "render_fit_err": [
+   5.0,
+   15.1
+  ],
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_031130_dry_s7043_spotood_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 2.4307615583692748,
+  "net_err_mm": 2.4307615583692748,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": [
+   -1.04,
+   -5.51,
+   31.07
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   16,
+   15.400000000000006
+  ],
+  "insert": "seated_detected",
+  "true_seated": true,
+  "outcome": {
+   "label": "seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_031130_dry_s7043_spotood_tm_dr",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 0.5817111797037697,
+  "net_err_mm": 2.4307615583692748,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 1.8502263304926123,
+  "render_fit_err": [
+   5.2,
+   14.4
+  ],
+  "first_wrist": [
+   -1.55,
+   -5.2,
+   32.42
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   15,
+   11.899999999999999
+  ],
+  "insert": "seated_detected",
+  "true_seated": false,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030805_dry_s7043_x20_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": false,
+  "used_err_mm": 2.16631669828917,
+  "net_err_mm": 2.16631669828917,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030805_dry_s7043_x20_tm_dr",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": false,
+  "used_err_mm": 0.581726078202057,
+  "net_err_mm": 2.16631669828917,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 2.2456023239922587,
+  "render_fit_err": [
+   5.3,
+   14.4
+  ],
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_031130_dry_s7043_x20ood_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 2.16631669828917,
+  "net_err_mm": 2.16631669828917,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": [
+   0.58,
+   -3.37,
+   32.54
+  ],
+  "align": [
+   false,
+   "after the press: step limit",
+   17,
+   14.300000000000004
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_031130_dry_s7043_x20ood_tm_dr",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": true,
+  "used_err_mm": 0.581726078202057,
+  "net_err_mm": 2.16631669828917,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": true,
+  "fit_why": [],
+  "shift_mm": 2.2456023239922587,
+  "render_fit_err": [
+   5.3,
+   14.4
+  ],
+  "first_wrist": [
+   -1.74,
+   -3.68,
+   31.77
+  ],
+  "align": [
+   true,
+   "within tolerance",
+   14,
+   12.100000000000001
+  ],
+  "insert": "seated_detected",
+  "true_seated": false,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030805_dry_s7043_x20y10yaw5_base_dr",
+  "cfg": "bimanual_align10_all.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": false,
+  "used_err_mm": 15.131274992926894,
+  "net_err_mm": 15.131274992926894,
+  "fit_src": null,
+  "fit_ok": null,
+  "fit_why": null,
+  "shift_mm": null,
+  "render_fit_err": null,
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_030805_dry_s7043_x20y10yaw5_tm_dr",
+  "cfg": "edgefit_truth_model.json",
+  "seed": 7043,
+  "sim_phys": "",
+  "gate_ok": false,
+  "used_err_mm": 0.581726078202057,
+  "net_err_mm": 15.131274992926894,
+  "fit_src": "sim_truth_model (dry run only)",
+  "fit_ok": false,
+  "fit_why": [
+   "|fit - gate net| 15.3 > 8.0 mm"
+  ],
+  "shift_mm": 15.265776915655373,
+  "render_fit_err": [
+   5.9,
+   15.9
+  ],
+  "first_wrist": null,
+  "align": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "insert": null,
+  "true_seated": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ }
+]
