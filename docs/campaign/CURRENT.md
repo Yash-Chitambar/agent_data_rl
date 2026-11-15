@@ -1,8 +1,10 @@
-# Current campaign (updated 2026-11-13)
+# Current campaign (updated 2026-11-15)
 
 Task: right YAM picks the SanDisk USB-C SD reader and inserts it into port 2 of the GMKtec
 mini PC; left YAM holds the PC. Recipe and question: [README](../../README.md),
 [research direction](../research/RESEARCH_DIRECTION.md). Dated detail: [FINDINGS](FINDINGS.md).
+
+**Real rig (2026-11-13) and server work to 2026-11-15:** fast alignment 10.1-13.9 s (n = 4), full run 117/122 s, approach jump fixed; 2 of 2 seated, but a silver band of about 2 mm stays after the 10 and 14 N pushes, and the arm-side depth label is not valid. Server: the fully-in runs used 9-10 N, so more axial force is unlikely to help; K4/K7 sim success depends mostly on port friction; a case-edge fit gives the PC pose within 1.1 mm. Next rig session: `docs/real/NEXT_RIG_20261115.md`. Detail: [FINDINGS](FINDINGS.md) 2026-11-14 and 2026-11-15.
 
 **Real rig (2026-11-11), milestone:** full pick-to-insert chain with the sim-trained K4 insertion policy: 10 of 10 seated when the plug reached the port, 10 of 15 starts end to end (stops: 3 align, 1 pick, 1 process end), 164 s per run with faster moves. One PC spot and one reader spot so far; next: other PC and reader placements. [FINDINGS](FINDINGS.md), `docs/real/SESSION_20261111_duchamp3.md`.
 
