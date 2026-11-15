@@ -1,0 +1,95 @@
+[
+ {
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plug": "nom",
+  "variant": "base",
+  "params": {},
+  "n": 1024,
+  "seed": 8700,
+  "sim_seat": 981,
+  "detected": 1005,
+  "full_at_rest": 940,
+  "release_done": 925,
+  "in_after_open": 898,
+  "d_open_mm_p1_p5_p50": [
+   5.524,
+   5.575,
+   5.667
+  ],
+  "in_after_ret": 897,
+  "d_ret_mm_p1_p5_p50": [
+   5.524,
+   5.575,
+   5.667
+  ],
+  "in_after_end": 897,
+  "d_end_mm_p1_p5_p50": [
+   5.524,
+   5.575,
+   5.666
+  ],
+  "out_frac_end": 0.0303,
+  "drop_open_mm_p50_p95": [
+   0.009,
+   0.087
+  ],
+  "drop_retreat_mm_p50_p95": [
+   0.0,
+   0.004
+  ],
+  "drop_unload_mm_p50_p95": [
+   0.0,
+   0.001
+  ]
+ },
+ {
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plug": "nom",
+  "variant": "pmu03",
+  "params": {
+   "port_mu": [
+    0.3,
+    0.3
+   ]
+  },
+  "n": 1024,
+  "seed": 8700,
+  "sim_seat": 810,
+  "detected": 891,
+  "full_at_rest": 793,
+  "release_done": 715,
+  "in_after_open": 707,
+  "d_open_mm_p1_p5_p50": [
+   5.548,
+   5.592,
+   5.675
+  ],
+  "in_after_ret": 707,
+  "d_ret_mm_p1_p5_p50": [
+   5.548,
+   5.592,
+   5.673
+  ],
+  "in_after_end": 707,
+  "d_end_mm_p1_p5_p50": [
+   5.548,
+   5.592,
+   5.672
+  ],
+  "out_frac_end": 0.0112,
+  "drop_open_mm_p50_p95": [
+   0.013,
+   0.081
+  ],
+  "drop_retreat_mm_p50_p95": [
+   0.0,
+   0.008
+  ],
+  "drop_unload_mm_p50_p95": [
+   0.0,
+   0.002
+  ]
+ }
+]

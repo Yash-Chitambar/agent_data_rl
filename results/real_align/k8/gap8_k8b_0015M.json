@@ -1,0 +1,33 @@
+[
+ {
+  "cond": {
+   "gap": 8.0,
+   "ring": 0.5
+  },
+  "k": 994,
+  "n": 1024,
+  "rate": 0.970703125,
+  "wilson": [
+   0.9584851077050605,
+   0.979402597949196
+  ],
+  "classes": {
+   "lateral_miss": 29,
+   "seated": 994,
+   "grasp_slip": 1
+  },
+  "force_p50": 11.09281873703003,
+  "force_p99": 30.26369091033935,
+  "t_ok_p50": 1.28,
+  "t_ok_p99": 4.144199999999996,
+  "cell": "gap8",
+  "plant": "real",
+  "lead": "real",
+  "policy": "runs/P4-insert-k8b-s0/ckpt_0015M.pt",
+  "climb_mm_p50_p95_max": [
+   8.1,
+   8.1,
+   8.2
+  ]
+ }
+]

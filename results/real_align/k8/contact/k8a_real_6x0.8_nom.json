@@ -1,0 +1,152 @@
+[
+ {
+  "n": 1024,
+  "k": 1019,
+  "rate": 0.9951171875,
+  "wilson": [
+   0.9886206977231168,
+   0.9979126358177713
+  ],
+  "full_depth_rate": 0.947265625,
+  "full_k": 970,
+  "t_seat_p50_p90_p99": [
+   1.18,
+   1.78,
+   3.213
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.552,
+   5.711
+  ],
+  "release_n": 1020,
+  "release_in_k": 950,
+  "release_ended_early": 242,
+  "release_in_frac": 0.9313725490196079,
+  "release_depth_mm_p1_p5_p50": [
+   5.246,
+   5.497,
+   5.679
+  ],
+  "classes": {
+   "seated": 1019,
+   "grasp_slip": 3,
+   "lateral_miss": 2
+  },
+  "variant": "base",
+  "params": {},
+  "tag": "k8a",
+  "policy": "runs/k8_eval/k8a_last.pt",
+  "place": "real",
+  "pad": "6x0.8",
+  "plug": "nom",
+  "seed": 8100,
+  "in_training": false,
+  "start_row_mismatch": 0,
+  "wall_s": 1192,
+  "batch_worlds": 3072
+ },
+ {
+  "n": 1024,
+  "k": 1019,
+  "rate": 0.9951171875,
+  "wilson": [
+   0.9886206977231168,
+   0.9979126358177713
+  ],
+  "full_depth_rate": 0.9267578125,
+  "full_k": 949,
+  "t_seat_p50_p90_p99": [
+   1.16,
+   1.76,
+   2.74
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.474,
+   5.7
+  ],
+  "release_n": 1021,
+  "release_in_k": 930,
+  "release_ended_early": 195,
+  "release_in_frac": 0.910871694417238,
+  "release_depth_mm_p1_p5_p50": [
+   5.01,
+   5.395,
+   5.665
+  ],
+  "classes": {
+   "seated": 1019,
+   "grasp_slip": 2,
+   "lateral_miss": 2,
+   "full_no_seat_test": 1
+  },
+  "variant": "pmu_lo",
+  "params": {
+   "port_mu": [
+    0.05,
+    0.08
+   ]
+  },
+  "tag": "k8a",
+  "policy": "runs/k8_eval/k8a_last.pt",
+  "place": "real",
+  "pad": "6x0.8",
+  "plug": "nom",
+  "seed": 8100,
+  "in_training": false,
+  "start_row_mismatch": 0,
+  "wall_s": 1192,
+  "batch_worlds": 3072
+ },
+ {
+  "n": 1024,
+  "k": 959,
+  "rate": 0.9365234375,
+  "wilson": [
+   0.9198969627456022,
+   0.9498868638673701
+  ],
+  "full_depth_rate": 0.9345703125,
+  "full_k": 957,
+  "t_seat_p50_p90_p99": [
+   1.36,
+   2.74,
+   5.24
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.643,
+   5.721
+  ],
+  "release_n": 970,
+  "release_in_k": 950,
+  "release_ended_early": 248,
+  "release_in_frac": 0.979381443298969,
+  "release_depth_mm_p1_p5_p50": [
+   5.459,
+   5.614,
+   5.695
+  ],
+  "classes": {
+   "seated": 959,
+   "lateral_miss": 51,
+   "grasp_slip": 13,
+   "tilt": 1
+  },
+  "variant": "pmu_hi",
+  "params": {
+   "port_mu": [
+    0.35,
+    0.6
+   ]
+  },
+  "tag": "k8a",
+  "policy": "runs/k8_eval/k8a_last.pt",
+  "place": "real",
+  "pad": "6x0.8",
+  "plug": "nom",
+  "seed": 8100,
+  "in_training": false,
+  "start_row_mismatch": 0,
+  "wall_s": 1192,
+  "batch_worlds": 3072
+ }
+]

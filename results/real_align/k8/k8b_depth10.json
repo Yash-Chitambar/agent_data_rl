@@ -1,0 +1,50 @@
+[
+ {
+  "policy": "runs/k8_eval/k8b_last.pt",
+  "mate_force_n": 10.0,
+  "n": 1024,
+  "seed": 6500,
+  "seat_depth_mm": 5.8,
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "vision_prior_sigma_scale": null,
+   "mate_force_n": [
+    10.0,
+    10.0
+   ]
+  },
+  "sim_seat_rate": 0.9912109375,
+  "t_seat_p50_p99": [
+   1.26,
+   3.492
+  ],
+  "det_rate": 0.9931640625,
+  "t_det_p50_p99": [
+   1.36,
+   3.077
+  ],
+  "det_depth_mm_p5_p50_p95": [
+   5.68,
+   5.737,
+   5.781
+  ],
+  "det_short_gt_0p5mm": 0.004916420845624385,
+  "max_depth_mm_p5_p50": [
+   5.781,
+   5.796
+  ],
+  "end_classes_after_rest_not_a_rate": {
+   "lateral_miss": 5,
+   "grasp_slip": 216,
+   "deep_unseated": 739,
+   "jam": 41,
+   "tilt": 23
+  },
+  "wall_s": 217
+ }
+]

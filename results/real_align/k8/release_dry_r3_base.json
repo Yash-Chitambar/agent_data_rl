@@ -1,0 +1,38 @@
+[
+ {
+  "tag": "r3_base_7045",
+  "plug": "nom",
+  "port_mu": null,
+  "argv": [
+   "--config",
+   "deploy/config/bimanual_align10_all.json",
+   "--stage",
+   "full",
+   "--align-mode",
+   "full",
+   "--dry-run",
+   "--seed",
+   "7045",
+   "--out",
+   "runs/k8_eval/dry/r3_base"
+  ],
+  "completed": true,
+  "stop": null,
+  "insert": "seated_detected",
+  "t_seat_s": 1.32,
+  "true_seated_after_release": false,
+  "depth_end_insert_mm": 5.5367,
+  "seated_end_insert": false,
+  "depth_max_insert_mm": 5.79,
+  "depth_release_start_mm": 5.5367,
+  "depth_after_open_mm": 5.5367,
+  "depth_after_retreat_mm": 4.9048,
+  "depth_end_mm": 4.9046,
+  "lat_end_mm": [
+   -0.037,
+   0.0639
+  ],
+  "seated_end": false,
+  "first_unseated_k": 0
+ }
+]
