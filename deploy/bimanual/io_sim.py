@@ -10,6 +10,7 @@ physics step, exactly as eval_chain does for its capture frames.
 """
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import sys
 from pathlib import Path
@@ -20,6 +21,63 @@ import torch
 ROOT = Path(__file__).resolve().parents[2]
 SIDES = ('right', 'left')
 CAM = {'top': 'top', 'wrist_right': 'wrist_cam', 'wrist_left': 'left_wrist_cam'}
+# Sim plant only (docs/real/SIM_RELEASE_PANEL_20261116.md): from the first '6 release' tick the sim right finger limit is this
+# opening per finger (m). At the sim's 24 mm limit an end pad sphere drags the seated reader out in the retreat (K8: 28 % of
+# nominal plugs, n = 906; 0.1 % at 27 mm, n = 898); the real rig kept the plug in (10 of 10). Config sim.release_open_m
+# overrides it; 0 / null = off (the old dry run). It never changes what the chain sends (RealIO has no such setting).
+SIM_RELEASE_OPEN_M = 0.027
+# Sim render only (same doc): the PC panel face (material pc_rear_photo, a flash photo) renders light grey in the ZED view;
+# the real panel is dark grey, so the case-edge fit (zed_edge_refine) finds the wrong panel edge. SimIO renders one extra top
+# frame with the panel material at this RGB (multiplies the photo texture) for the edge fit only; the ZED nets, the wrist
+# cameras and the logged frames keep the default look. Config sim.edgefit_panel_rgb overrides it; null = off.
+SIM_EDGEFIT_PANEL_RGB = (0.35, 0.35, 0.35)
+# The same extra frame comes from the calibrated top camera ('nominal'): the visual DR draws a top-camera pose error of up to
+# 8.6 mm / 1.2 deg per episode, which moves a calibrated-geometry fit by about 10 mm; the real fit agrees with the arm-derived
+# port to 0.8 mm p50 (n = 41, ZED_EDGEFIT_20261115.md), so the real error is far smaller. 'dr' = the episode's DR camera.
+SIM_EDGEFIT_CAMERA = 'nominal'
+
+
+@contextlib.contextmanager
+def panel_rgb(rt, rgb):
+    """Temporarily set the PC panel material (pc_rear_photo) RGB in every world of a BimanualRuntime (render only; no geometry)."""
+    import warp as wp
+    mid = rt.mjm.material('pc_rear_photo').id
+    vis = getattr(rt, 'visual', None)
+    f = getattr(vis, 'f', None)
+    mr = f['mat_rgba'] if f is not None and 'mat_rgba' in f else wp.to_torch(rt.m.mat_rgba)
+    old = mr[..., mid, :3].clone()
+    mr[..., mid, :3] = torch.as_tensor(rgb, dtype=mr.dtype, device=mr.device)
+    try:
+        yield
+    finally:
+        mr[..., mid, :3] = old
+
+
+@contextlib.contextmanager
+def nominal_camera(rt, cam='top'):
+    """Temporarily render camera `cam` at its calibrated pose and intrinsics in every world (visual DR camera-pose,
+    intrinsics and k1 draws off for it; the scene look, lights and the image noise stay). No-op without visual DR."""
+    vis = getattr(rt, 'visual', None)
+    f = getattr(vis, 'f', None)
+    if f is None or 'cam_pos' not in f:
+        yield
+        return
+    cid = rt.mjm.camera(cam).id
+    k = list(vis.camera_names).index(cam) if cam in vis.camera_names else None
+    keys = [x for x in ('cam_pos', 'cam_quat', 'cam_intrinsic') if x in f]
+    old = {x: f[x][:, cid].clone() for x in keys}
+    k1 = vis.k1[:, k].clone() if k is not None else None
+    for x in keys:
+        f[x][:, cid] = vis.f0[x][cid]
+    if k is not None:
+        vis.k1[:, k] = 0
+    try:
+        yield
+    finally:
+        for x in keys:
+            f[x][:, cid] = old[x]
+        if k is not None:
+            vis.k1[:, k] = k1
 
 
 def eval_chain():
@@ -70,6 +128,44 @@ class SimIO:
         self.t, self.k = 0.0, 0
         self.dt = self.ch.dt
         self.grip_position = False
+        sim = cfg.get('sim') or {}
+        ro = sim['release_open_m'] if 'release_open_m' in sim else SIM_RELEASE_OPEN_M
+        self.release_open_m = float(ro) if ro else None
+        self._finger_jid = [int(m.joint(f + '_finger').id) for f in ('left', 'right')]      # right gripper fingers
+        self._finger_hi0 = self._finger_hi().clone()
+        self.release_widened = False
+        er = sim['edgefit_panel_rgb'] if 'edgefit_panel_rgb' in sim else SIM_EDGEFIT_PANEL_RGB
+        self.edgefit_panel_rgb = None if er is None else [float(v) for v in (er if isinstance(er, (list, tuple)) else [er] * 3)]
+        self.edgefit_camera = sim.get('edgefit_camera', SIM_EDGEFIT_CAMERA)
+        if self.edgefit_camera not in ('nominal', 'dr'):
+            raise ValueError(f"sim.edgefit_camera {self.edgefit_camera!r}: 'nominal' or 'dr'")
+
+    # ------------------------------------------------------------------ sim plant settings per chain stage
+    def _finger_hi(self):
+        import warp as wp
+        jr = wp.to_torch(self.rt.m.jnt_range)
+        return jr[:, self._finger_jid, 1] if jr.dim() == 3 else jr[self._finger_jid, 1]
+
+    def _set_finger_hi(self, v):
+        import warp as wp
+        jr = wp.to_torch(self.rt.m.jnt_range)
+        v = torch.as_tensor(v, dtype=jr.dtype, device=jr.device)
+        for i, jid in enumerate(self._finger_jid):
+            vi = v if v.dim() == 0 else v[..., i]
+            if jr.dim() == 3:
+                jr[:, jid, 1] = vi
+            else:
+                jr[jid, 1] = vi
+
+    def on_stage(self, label):
+        """Chain stage change (RealChain.hstep). '6 release': the sim right finger limit -> release_open_m (sim.release_open_m,
+        default SIM_RELEASE_OPEN_M), never narrower than the present limit. Restored in reset(). Returns a log record or None."""
+        if label.startswith('6 release') and self.release_open_m and not self.release_widened:
+            old = float(self._finger_hi().max())
+            self._set_finger_hi(torch.clamp(self._finger_hi0, min=self.release_open_m))
+            self.release_widened = True
+            return dict(key='sim.release_open_m', release_open_m=self.release_open_m, finger_limit_old_m=old)
+        return None
 
     def reset(self, seed):
         """eval_chain.Chain.run_batch's episode start for one seed (layout, DR draws, left arm parked)."""
@@ -79,6 +175,9 @@ class SimIO:
         if hasattr(rt.visual, 'gen'):
             rt.visual.gen.manual_seed(seed)
         ch.rec = None
+        if self.release_widened:                       # the next episode picks with the sim's approach limit (24 mm)
+            self._set_finger_hi(self._finger_hi0)
+            self.release_widened = False
         rt.comp['right'] = None
         ch.pick.reset()
         if a.believed_frame:
@@ -135,7 +234,10 @@ class SimIO:
         if self.rt.fidelity is not None:      # the real gripper is position controlled: a ramped close follows its target
             if self.rt.grip_target is None:
                 self.rt.grip_target = torch.full((1,), float('nan'), device=self.dev)
-            self.rt.grip_target[0] = float(self.gmaps['right'].finger_m(grip[0])) if sign[0] > 0 or self.grip_position else float('nan')
+            w = float(self.gmaps['right'].finger_m(grip[0]))
+            if self.release_widened and sign[0] > 0:   # position-controlled jaws: the open target follows the widened sim limit
+                w = max(w, self.release_open_m)
+            self.rt.grip_target[0] = w if sign[0] > 0 or self.grip_position else float('nan')
         elif self.rt.grip_target is not None or self.grip_position:     # guarded grasp without the fidelity model
             if self.rt.grip_target is None:
                 self.rt.grip_target = torch.full((1,), float('nan'), device=self.dev)
@@ -269,6 +371,24 @@ class SimIO:
         return out
 
     fresh_frames = frames
+
+    def edgefit_top(self):
+        """Top policy frame (320 px RGB uint8) for the case-edge fit only: the same state, the PC panel at
+        edgefit_panel_rgb (dark like the real panel). None when the option is off (the fit then uses the policy frame)."""
+        if self.edgefit_panel_rgb is None:
+            return None
+        vc = getattr(getattr(self.rt, 'visual', None), 'cfg', None)
+        per_frame = getattr(vc, 'image_per_frame', None)
+        if per_frame:
+            vc.image_per_frame = False            # the photometric draw of the policy frame (no new exposure / gain draw)
+        try:
+            cam = nominal_camera(self.rt, 'top') if self.edgefit_camera == 'nominal' else contextlib.nullcontext()
+            with panel_rgb(self.rt, self.edgefit_panel_rgb), cam:
+                fr = self.ch.render()
+        finally:
+            if per_frame:
+                vc.image_per_frame = per_frame
+        return fr['top'][0].cpu().numpy()
 
     def truth(self):
         """Privileged sim state for the dry run's logs and comparisons (never used for control)."""

@@ -1,0 +1,39 @@
+[
+ {
+  "tag": "a10_7042_ro27",
+  "plug": "nom",
+  "port_mu": null,
+  "release_open_m": null,
+  "argv": [
+   "--config",
+   "deploy/config/bimanual_align10_all.json",
+   "--stage",
+   "full",
+   "--align-mode",
+   "full",
+   "--dry-run",
+   "--seed",
+   "7042",
+   "--out",
+   "runs/simrel/dry"
+  ],
+  "completed": true,
+  "stop": null,
+  "insert": "seated_detected",
+  "t_seat_s": 2.56,
+  "true_seated_after_release": true,
+  "depth_end_insert_mm": 5.6231,
+  "seated_end_insert": true,
+  "depth_max_insert_mm": 5.7465,
+  "depth_release_start_mm": 5.623,
+  "depth_after_open_mm": 5.623,
+  "depth_after_retreat_mm": 5.623,
+  "depth_end_mm": 5.6229,
+  "lat_end_mm": [
+   -0.0384,
+   0.0666
+  ],
+  "seated_end": true,
+  "first_unseated_k": null
+ }
+]

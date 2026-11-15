@@ -507,6 +507,11 @@ class RealChain:
             self.label = label
             self._stage_k0 = self.k
             self._precision_stage(label)
+            hook = getattr(self.io, 'on_stage', None)     # SimIO only (sim plant settings per stage); RealIO has none: no-op on the rig
+            if hook is not None:
+                ev = hook(label)
+                if ev:
+                    self.log_event('sim_stage', **ev)
         tgt = torch.stack([torch.as_tensor(qr, device=self.dev).reshape(6), torch.as_tensor(ql, device=self.dev).reshape(6)]).float()
         if not torch.isfinite(tgt).all():
             raise GuardStop(f'non-finite target at {label}')
@@ -690,7 +695,9 @@ class RealChain:
             start = dict(net)
         model = None
         if getattr(self.io, 'is_sim', False):
-            img, src, geom = ZE.canvas_from_policy(top[0].cpu().numpy()), 'sim_policy_upsampled', c['geom_sim']
+            alt = self.io.edgefit_top() if hasattr(self.io, 'edgefit_top') else None   # SimIO sim.edgefit_panel_rgb: dark panel, fit only
+            img, src, geom = ZE.canvas_from_policy(top[0].cpu().numpy() if alt is None else alt), \
+                'sim_policy_upsampled' if alt is None else 'sim_policy_upsampled_dark_panel', c['geom_sim']
             if c['dry_run_fit'] == 'truth_model' and tr is not None:     # dry run only (zed_edgefit.DEFAULTS)
                 rng = np.random.default_rng(int(self.seed) + 15)
                 model = (*(tr['pc_p'][:2] + rng.normal(0., c['dry_run_fit_sd_mm'] * 1e-3, 2)),
