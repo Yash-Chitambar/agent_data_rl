@@ -1,0 +1,1422 @@
+[
+ {
+  "tag": "k4_pc+0_+0_+0_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.551212001591921,
+  "flags": []
+ },
+ {
+  "tag": "k4_pc+0_+0_+10_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   10
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.674203392118216,
+  "flags": []
+ },
+ {
+  "tag": "k4_pc+0_+0_+15_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "insert",
+  "why": "press_abort",
+  "depth_end_mm": -2.3107947781682014,
+  "flags": []
+ },
+ {
+  "tag": "k4_pc+0_+0_+8_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   8
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.643870681524277,
+  "flags": []
+ },
+ {
+  "tag": "k4_pc+0_+0_-15_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "align",
+  "why": "after the press: step limit",
+  "depth_end_mm": null,
+  "flags": [
+   "AA align 9 (nominal 16) mm",
+   "AA approach 7 (nominal 47) mm",
+   "AA hold -18 (nominal -6) mm",
+   "AA home_move 13 (nominal 66) mm",
+   "AA transport -7 (nominal 7) mm",
+   "J right joint 6 0.23 rad (transport)"
+  ]
+ },
+ {
+  "tag": "k4_pc+0_+0_-8_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   -8
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.674086045473814,
+  "flags": [
+   "AA approach 30 (nominal 47) mm",
+   "AA hold -13 (nominal -6) mm",
+   "AA transport 0 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k4_pc+0_+25_+0_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   0,
+   25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "align",
+  "why": "measurement against FK: changed [-0.14, 2.75, -0.82] mm, hand moved [-0.01, -1.25, -0.12] mm",
+  "depth_end_mm": null,
+  "flags": []
+ },
+ {
+  "tag": "k4_pc+0_-25_+0_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   0,
+   -25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.608133506029844,
+  "flags": [
+   "TAB left wrist_camera 4.7 mm"
+  ]
+ },
+ {
+  "tag": "k4_pc+25_+0_+0_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   25,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.464368034154177,
+  "flags": [
+   "TAB left wrist_camera 3.2 mm"
+  ]
+ },
+ {
+  "tag": "k4_pc-25_+0_+0_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   -25,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "align",
+  "why": "after the press: step limit",
+  "depth_end_mm": null,
+  "flags": [
+   "AA hold -27 (nominal -6) mm",
+   "AA transport -16 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k4_pc-25_+0_-15_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   -25,
+   0,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.7010469026863575,
+  "flags": [
+   "AA align 8 (nominal 16) mm",
+   "AA approach 5 (nominal 47) mm",
+   "AA hold -37 (nominal -6) mm",
+   "AA home_move 8 (nominal 66) mm",
+   "AA release 8 (nominal 23) mm",
+   "AA transport -31 (nominal 7) mm",
+   "J right joint 6 0.15 rad (transport)",
+   "J right joint 6 0.27 rad (approach)",
+   "J right joint 6 0.28 rad (release)"
+  ]
+ },
+ {
+  "tag": "k4_pc-25_-25_+0_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   -25,
+   -25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.5228713899850845,
+  "flags": [
+   "AA hold -27 (nominal -6) mm",
+   "AA transport -14 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k4_pc-25_-25_+15_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   -25,
+   -25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "insert",
+  "why": "press_abort",
+  "depth_end_mm": -0.7098793867044151,
+  "flags": [
+   "AA hold -18 (nominal -6) mm",
+   "AA transport -7 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k4_pc-25_-25_-15_s7043",
+  "policy": "k4",
+  "seed": 7043,
+  "d": [
+   -25,
+   -25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.658596754074097,
+  "flags": [
+   "AA hold -36 (nominal -6) mm",
+   "AA transport -26 (nominal 7) mm",
+   "J right joint 6 0.15 rad (transport)",
+   "J right joint 6 0.27 rad (approach)",
+   "J right joint 6 0.29 rad (release)"
+  ]
+ },
+ {
+  "tag": "k7_c_pc+25_+25_+15_rd+20_+20_y100_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   25,
+   15
+  ],
+  "rd": [
+   20,
+   20,
+   100
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.6743863970041275,
+  "flags": []
+ },
+ {
+  "tag": "k7_c_pc+25_-25_+15_rd-20_+20_y80_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   -25,
+   15
+  ],
+  "rd": [
+   -20,
+   20,
+   80
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.651927553117275,
+  "flags": [
+   "TAB left wrist_camera 2.3 mm"
+  ]
+ },
+ {
+  "tag": "k7_c_pc-25_+25_-15_rd+20_-20_y100_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   25,
+   -15
+  ],
+  "rd": [
+   20,
+   -20,
+   100
+  ],
+  "node": "pick",
+  "why": "closed_empty",
+  "depth_end_mm": null,
+  "flags": []
+ },
+ {
+  "tag": "k7_c_pc-25_-25_-15_rd-20_-20_y80_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   -25,
+   -15
+  ],
+  "rd": [
+   -20,
+   -20,
+   80
+  ],
+  "node": "align",
+  "why": "after the press: step limit",
+  "depth_end_mm": null,
+  "flags": [
+   "AA approach 30 (nominal 48) mm",
+   "J right joint 6 0.15 rad (transport)",
+   "J right joint 6 0.27 rad (approach)",
+   "J right joint 6 0.29 rad (align)",
+   "J right joint 6 0.29 rad (release)"
+  ]
+ },
+ {
+  "tag": "k7_pc+0_+0_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.624311976134777,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_+0_+10_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   10
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.613185465335846,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_+0_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.6907134130597115,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_+0_+8_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   8
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.679459776729345,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_+0_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.628565326333046,
+  "flags": [
+   "AA align 9 (nominal 16) mm",
+   "AA approach 7 (nominal 48) mm",
+   "AA hold -18 (nominal -6) mm",
+   "AA home_move 5 (nominal 65) mm",
+   "AA release 5 (nominal 22) mm",
+   "AA transport -7 (nominal 7) mm",
+   "J right joint 6 0.23 rad (transport)"
+  ]
+ },
+ {
+  "tag": "k7_pc+0_+0_-8_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   0,
+   -8
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "align",
+  "why": "after the press: step limit",
+  "depth_end_mm": null,
+  "flags": [
+   "AA approach 29 (nominal 48) mm",
+   "AA hold -12 (nominal -6) mm",
+   "AA transport 0 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+0_+12_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   12,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.630260799080133,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_+25_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.678888410329819,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_+25_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.65886776894331,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_+25_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "approach",
+  "why": "[]",
+  "depth_end_mm": null,
+  "flags": [
+   "AA approach -14 (nominal 48) mm",
+   "AA hold -15 (nominal -6) mm",
+   "AA home_move -1 (nominal 65) mm",
+   "AA transport -20 (nominal 7) mm",
+   "J right joint 4 0.21 rad (transport)"
+  ]
+ },
+ {
+  "tag": "k7_pc+0_+30_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   30,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.523826461285353,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_+4_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   4,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.49418805167079,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_-12_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   -12,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.663570482283831,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_-25_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   -25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "align",
+  "why": "after the press: step limit",
+  "depth_end_mm": null,
+  "flags": [
+   "TAB left wrist_camera 4.7 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+0_-25_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   -25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.668414756655693,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+0_-25_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   0,
+   -25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.644064862281084,
+  "flags": [
+   "AA align 10 (nominal 16) mm",
+   "AA hold -15 (nominal -6) mm",
+   "AA home_move 27 (nominal 65) mm",
+   "AA insert -15 (nominal -10) mm",
+   "AA transport -5 (nominal 7) mm",
+   "J right joint 6 0.23 rad (transport)",
+   "TAB left wrist_camera 3.1 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+12_+0_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   12,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.604125093668699,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+25_+0_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.662563256919384,
+  "flags": [
+   "TAB left wrist_camera 3.2 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_+0_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   0,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.619647912681103,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+25_+0_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   0,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.650718230754137,
+  "flags": [
+   "AA align 8 (nominal 16) mm",
+   "AA approach 10 (nominal 48) mm",
+   "AA home_move 4 (nominal 65) mm",
+   "AA insert -16 (nominal -10) mm",
+   "AA release 4 (nominal 22) mm",
+   "AA transport 2 (nominal 7) mm",
+   "CAM left camera-PC -20 (nominal -11) mm",
+   "TAB left wrist_camera 2.2 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_+25_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.676052998751402,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+25_+25_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.583871155977249,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc+25_+25_+15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   25,
+   25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.673258099704981,
+  "flags": [
+   "TAB left wrist_camera 3.5 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_+25_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "approach",
+  "why": "[]",
+  "depth_end_mm": null,
+  "flags": [
+   "AA approach -6 (nominal 48) mm",
+   "AA home_move -0 (nominal 65) mm",
+   "AA transport -23 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_+25_-15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   25,
+   25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "approach",
+  "why": "[]",
+  "depth_end_mm": null,
+  "flags": [
+   "AA approach -1 (nominal 51) mm",
+   "AA home_move -0 (nominal 67) mm",
+   "J right joint 4 0.27 rad (transport)",
+   "TAB left wrist_camera 0.3 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_-25_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   -25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.576147697865963,
+  "flags": [
+   "CAM left camera-PC -20 (nominal -11) mm",
+   "TAB STOP left wrist_camera -0.7 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_-25_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   -25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.654345732182264,
+  "flags": [
+   "TAB left wrist_camera 2.3 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_-25_+15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   25,
+   -25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "align",
+  "why": "after the press: moved too far from the stop ([2.4, -5.5, -16.4] mm)",
+  "depth_end_mm": null,
+  "flags": [
+   "TAB STOP left wrist_camera -3.7 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_-25_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   25,
+   -25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.5424850434064865,
+  "flags": [
+   "AA align 9 (nominal 16) mm",
+   "AA home_move 25 (nominal 65) mm",
+   "CAM left camera-PC -24 (nominal -11) mm",
+   "TAB STOP left wrist_camera -2.1 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc+25_-25_-15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   25,
+   -25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.652891471982002,
+  "flags": [
+   "AA approach 30 (nominal 51) mm",
+   "CAM left camera-PC -14 (nominal -2) mm",
+   "TAB STOP left wrist_camera -8.5 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-12_+0_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -12,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.634702742099762,
+  "flags": [
+   "AA hold -17 (nominal -6) mm",
+   "AA transport -4 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_+0_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.636494141072035,
+  "flags": [
+   "AA hold -27 (nominal -6) mm",
+   "AA transport -17 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_+0_+0_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   -25,
+   0,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.7235294952988625,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc-25_+0_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   0,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.665973760187626,
+  "flags": [
+   "AA hold -17 (nominal -6) mm",
+   "AA transport -4 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_+0_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   0,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.604540463536978,
+  "flags": [
+   "AA align 9 (nominal 16) mm",
+   "AA approach 6 (nominal 48) mm",
+   "AA hold -38 (nominal -6) mm",
+   "AA home_move 6 (nominal 65) mm",
+   "AA insert -17 (nominal -10) mm",
+   "AA release 5 (nominal 22) mm",
+   "AA transport -31 (nominal 7) mm",
+   "J right joint 6 0.15 rad (transport)",
+   "J right joint 6 0.27 rad (approach)",
+   "J right joint 6 0.28 rad (release)",
+   "TAB right link_4 2.1 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_+0_-15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   -25,
+   0,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.627936217933893,
+  "flags": [
+   "AA align 5 (nominal 20) mm",
+   "AA approach 5 (nominal 51) mm",
+   "AA hold -37 (nominal -29) mm",
+   "AA home_move 10 (nominal 67) mm",
+   "AA release 7 (nominal 26) mm",
+   "AA transport -28 (nominal -22) mm",
+   "J right joint 6 0.16 rad (transport)",
+   "J right joint 6 0.21 rad (release)",
+   "J right joint 6 0.27 rad (approach)"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_+25_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.685577634721994,
+  "flags": [
+   "AA hold -25 (nominal -6) mm",
+   "AA transport -15 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_+25_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.6596677750349045,
+  "flags": [
+   "AA hold -13 (nominal -6) mm",
+   "AA transport -1 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_+25_+15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   -25,
+   25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.615749396383762,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc-25_+25_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "approach",
+  "why": "[]",
+  "depth_end_mm": null,
+  "flags": [
+   "AA approach -14 (nominal 48) mm",
+   "AA hold -36 (nominal -6) mm",
+   "AA home_move -6 (nominal 65) mm",
+   "AA transport -30 (nominal 7) mm",
+   "J right joint 4 0.16 rad (transport)",
+   "J right joint 6 0.27 rad (approach)"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_+25_-15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   -25,
+   25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "approach",
+  "why": "[]",
+  "depth_end_mm": null,
+  "flags": [
+   "AA approach -36 (nominal 51) mm",
+   "AA hold -36 (nominal -29) mm",
+   "AA home_move -9 (nominal 67) mm",
+   "AA transport -30 (nominal -22) mm",
+   "J right joint 4 0.15 rad (transport)",
+   "J right joint 6 0.28 rad (approach)"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_-25_+0_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   -25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "align",
+  "why": "after the press: step limit",
+  "depth_end_mm": null,
+  "flags": [
+   "AA hold -28 (nominal -6) mm",
+   "AA transport -14 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_-25_+0_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   -25,
+   -25,
+   0
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.662753712385893,
+  "flags": [
+   "TAB left wrist_camera 4.1 mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_-25_+15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   -25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.6746951304376125,
+  "flags": [
+   "AA hold -19 (nominal -6) mm",
+   "AA transport -7 (nominal 7) mm"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_-25_+15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   -25,
+   -25,
+   15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "ok",
+  "why": "",
+  "depth_end_mm": 5.674202926456928,
+  "flags": []
+ },
+ {
+  "tag": "k7_pc-25_-25_-15_s7043",
+  "policy": "k7",
+  "seed": 7043,
+  "d": [
+   -25,
+   -25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "align",
+  "why": "after the press: correction grows: 6.2 mm, best 1.0 mm, 4 cycles",
+  "depth_end_mm": null,
+  "flags": [
+   "AA hold -36 (nominal -6) mm",
+   "AA transport -26 (nominal 7) mm",
+   "J right joint 6 0.15 rad (transport)",
+   "J right joint 6 0.26 rad (approach)",
+   "J right joint 6 0.29 rad (align)",
+   "J right joint 6 0.29 rad (release)"
+  ]
+ },
+ {
+  "tag": "k7_pc-25_-25_-15_s7045",
+  "policy": "k7",
+  "seed": 7045,
+  "d": [
+   -25,
+   -25,
+   -15
+  ],
+  "rd": [
+   0,
+   0,
+   92
+  ],
+  "node": "release",
+  "why": "",
+  "depth_end_mm": 5.441706161946058,
+  "flags": [
+   "J right joint 6 0.15 rad (transport)",
+   "J right joint 6 0.24 rad (release)",
+   "J right joint 6 0.27 rad (approach)",
+   "TAB left wrist_camera 2.3 mm"
+  ]
+ }
+]
