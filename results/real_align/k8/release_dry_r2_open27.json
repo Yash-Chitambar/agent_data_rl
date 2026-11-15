@@ -1,0 +1,76 @@
+[
+ {
+  "tag": "r2_open27_7045",
+  "plug": "nom",
+  "port_mu": null,
+  "release_open_m": 0.027,
+  "argv": [
+   "--config",
+   "deploy/config/bimanual_align10_all.json",
+   "--stage",
+   "full",
+   "--align-mode",
+   "full",
+   "--dry-run",
+   "--seed",
+   "7045",
+   "--out",
+   "runs/k8_eval/dry/r2_open27"
+  ],
+  "completed": true,
+  "stop": null,
+  "insert": "seated_detected",
+  "t_seat_s": 2.14,
+  "true_seated_after_release": false,
+  "depth_end_insert_mm": 5.6468,
+  "seated_end_insert": true,
+  "depth_max_insert_mm": 5.7824,
+  "depth_release_start_mm": 5.6468,
+  "depth_after_open_mm": 5.606,
+  "depth_after_retreat_mm": 5.606,
+  "depth_end_mm": 5.6056,
+  "lat_end_mm": [
+   -0.0388,
+   0.0675
+  ],
+  "seated_end": false,
+  "first_unseated_k": 3
+ },
+ {
+  "tag": "r2_open27_7045",
+  "plug": "nom",
+  "port_mu": null,
+  "release_open_m": 0.027,
+  "argv": [
+   "--config",
+   "deploy/config/bimanual_align10_all.json",
+   "--stage",
+   "full",
+   "--align-mode",
+   "full",
+   "--dry-run",
+   "--seed",
+   "7045",
+   "--out",
+   "runs/k8_eval/dry/r2_open27"
+  ],
+  "completed": true,
+  "stop": null,
+  "insert": "seated_detected",
+  "t_seat_s": 1.8,
+  "true_seated_after_release": true,
+  "depth_end_insert_mm": 5.7118,
+  "seated_end_insert": true,
+  "depth_max_insert_mm": 5.7824,
+  "depth_release_start_mm": 5.7115,
+  "depth_after_open_mm": 5.6583,
+  "depth_after_retreat_mm": 5.6583,
+  "depth_end_mm": 5.658,
+  "lat_end_mm": [
+   -0.0122,
+   0.0733
+  ],
+  "seated_end": true,
+  "first_unseated_k": null
+ }
+]

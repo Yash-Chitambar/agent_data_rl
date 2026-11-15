@@ -1,0 +1,107 @@
+[
+ {
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plug": "tight",
+  "open_m": 0.024,
+  "variant": "base",
+  "params": {},
+  "n": 1024,
+  "seed": 8700,
+  "sim_seat": 711,
+  "detected": 976,
+  "full_at_rest": 689,
+  "release_done": 644,
+  "in_after_open": 638,
+  "d_open_mm_p1_p5_p50": [
+   5.553,
+   5.605,
+   5.711
+  ],
+  "in_after_ret": 600,
+  "d_ret_mm_p1_p5_p50": [
+   5.264,
+   5.512,
+   5.705
+  ],
+  "in_after_end": 600,
+  "d_end_mm_p1_p5_p50": [
+   5.264,
+   5.512,
+   5.704
+  ],
+  "out_frac_end": 0.0683,
+  "drop_open_mm_p50_p95": [
+   0.008,
+   0.051
+  ],
+  "drop_retreat_mm_p50_p95": [
+   0.0,
+   0.162
+  ],
+  "drop_unload_mm_p50_p95": [
+   0.0,
+   0.001
+  ],
+  "finger_mm_at_retreat_p5_p50_p95": [
+   23.88,
+   23.88,
+   23.88
+  ]
+ },
+ {
+  "tag": "k4",
+  "policy": "runs/insert_K4.pt",
+  "plug": "tight",
+  "open_m": 0.024,
+  "variant": "pmu03",
+  "params": {
+   "port_mu": [
+    0.3,
+    0.3
+   ]
+  },
+  "n": 1024,
+  "seed": 8700,
+  "sim_seat": 410,
+  "detected": 753,
+  "full_at_rest": 420,
+  "release_done": 265,
+  "in_after_open": 260,
+  "d_open_mm_p1_p5_p50": [
+   5.542,
+   5.596,
+   5.718
+  ],
+  "in_after_ret": 258,
+  "d_ret_mm_p1_p5_p50": [
+   5.541,
+   5.596,
+   5.715
+  ],
+  "in_after_end": 258,
+  "d_end_mm_p1_p5_p50": [
+   5.541,
+   5.596,
+   5.714
+  ],
+  "out_frac_end": 0.0264,
+  "drop_open_mm_p50_p95": [
+   0.003,
+   0.039
+  ],
+  "drop_retreat_mm_p50_p95": [
+   0.0,
+   0.027
+  ],
+  "drop_unload_mm_p50_p95": [
+   0.0,
+   0.002
+  ],
+  "finger_mm_at_retreat_p5_p50_p95": [
+   23.88,
+   23.88,
+   23.88
+  ]
+ }
+]

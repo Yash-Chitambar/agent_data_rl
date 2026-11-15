@@ -1,0 +1,488 @@
+[
+ {
+  "n": 264,
+  "k": 261,
+  "rate": 0.9886363636363636,
+  "wilson": [
+   0.9671278710987611,
+   0.9961280234299453
+  ],
+  "full_depth_rate": 0.8939393939393939,
+  "full_k": 236,
+  "t_seat_p50_p90_p99": [
+   1.08,
+   2.1,
+   3.8
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.417,
+   5.702
+  ],
+  "release_n": 261,
+  "release_in_k": 235,
+  "release_ended_early": 58,
+  "release_in_frac": 0.9003831417624522,
+  "release_depth_mm_p1_p5_p50": [
+   5.108,
+   5.356,
+   5.676
+  ],
+  "classes": {
+   "seated": 261,
+   "lateral_miss": 3
+  },
+  "fit_um": [
+   45.0,
+   80.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 268,
+  "k": 246,
+  "rate": 0.917910447761194,
+  "wilson": [
+   0.8788426302746793,
+   0.945166645715456
+  ],
+  "full_depth_rate": 0.8768656716417911,
+  "full_k": 235,
+  "t_seat_p50_p90_p99": [
+   1.24,
+   2.45,
+   5.681
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.368,
+   5.729
+  ],
+  "release_n": 263,
+  "release_in_k": 231,
+  "release_ended_early": 82,
+  "release_in_frac": 0.8783269961977186,
+  "release_depth_mm_p1_p5_p50": [
+   5.178,
+   5.335,
+   5.715
+  ],
+  "classes": {
+   "grasp_slip": 17,
+   "seated": 246,
+   "lateral_miss": 5
+  },
+  "fit_um": [
+   20.0,
+   50.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 279,
+  "k": 267,
+  "rate": 0.956989247311828,
+  "wilson": [
+   0.9263369253311919,
+   0.9752277667084515
+  ],
+  "full_depth_rate": 0.921146953405018,
+  "full_k": 257,
+  "t_seat_p50_p90_p99": [
+   1.2,
+   2.188,
+   5.473
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.494,
+   5.721
+  ],
+  "release_n": 276,
+  "release_in_k": 255,
+  "release_ended_early": 63,
+  "release_in_frac": 0.9239130434782609,
+  "release_depth_mm_p1_p5_p50": [
+   5.135,
+   5.449,
+   5.701
+  ],
+  "classes": {
+   "seated": 267,
+   "lateral_miss": 3,
+   "grasp_slip": 7,
+   "full_no_seat_test": 2
+  },
+  "fit_um": [
+   20.0,
+   80.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 250,
+  "k": 239,
+  "rate": 0.956,
+  "wilson": [
+   0.9229414729274126,
+   0.9752564583809309
+  ],
+  "full_depth_rate": 0.92,
+  "full_k": 230,
+  "t_seat_p50_p90_p99": [
+   1.2,
+   2.224,
+   3.696
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.489,
+   5.707
+  ],
+  "release_n": 248,
+  "release_in_k": 228,
+  "release_ended_early": 59,
+  "release_in_frac": 0.9193548387096774,
+  "release_depth_mm_p1_p5_p50": [
+   5.26,
+   5.449,
+   5.686
+  ],
+  "classes": {
+   "seated": 239,
+   "grasp_slip": 8,
+   "full_no_seat_test": 2,
+   "lateral_miss": 1
+  },
+  "fit_um": [
+   20.0,
+   110.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 247,
+  "k": 244,
+  "rate": 0.9878542510121457,
+  "wilson": [
+   0.9649046929123026,
+   0.9958609855078637
+  ],
+  "full_depth_rate": 0.951417004048583,
+  "full_k": 235,
+  "t_seat_p50_p90_p99": [
+   1.14,
+   2.07,
+   3.22
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.622,
+   5.73
+  ],
+  "release_n": 244,
+  "release_in_k": 234,
+  "release_ended_early": 44,
+  "release_in_frac": 0.9590163934426229,
+  "release_depth_mm_p1_p5_p50": [
+   5.311,
+   5.595,
+   5.715
+  ],
+  "classes": {
+   "seated": 244,
+   "lateral_miss": 2,
+   "grasp_slip": 1
+  },
+  "fit_um": [
+   45.0,
+   50.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 254,
+  "k": 234,
+  "rate": 0.9212598425196851,
+  "wilson": [
+   0.8815144676674032,
+   0.9484524577627835
+  ],
+  "full_depth_rate": 0.9173228346456693,
+  "full_k": 233,
+  "t_seat_p50_p90_p99": [
+   1.1,
+   2.14,
+   3.974
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.492,
+   5.683
+  ],
+  "release_n": 253,
+  "release_in_k": 225,
+  "release_ended_early": 63,
+  "release_in_frac": 0.8893280632411067,
+  "release_depth_mm_p1_p5_p50": [
+   5.122,
+   5.408,
+   5.65
+  ],
+  "classes": {
+   "seated": 234,
+   "lateral_miss": 1,
+   "full_no_seat_test": 18,
+   "grasp_slip": 1
+  },
+  "fit_um": [
+   45.0,
+   110.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 258,
+  "k": 256,
+  "rate": 0.9922480620155039,
+  "wilson": [
+   0.97218052008934,
+   0.9978716030263147
+  ],
+  "full_depth_rate": 0.9612403100775194,
+  "full_k": 248,
+  "t_seat_p50_p90_p99": [
+   1.28,
+   2.02,
+   3.247
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.647,
+   5.722
+  ],
+  "release_n": 256,
+  "release_in_k": 247,
+  "release_ended_early": 55,
+  "release_in_frac": 0.96484375,
+  "release_depth_mm_p1_p5_p50": [
+   5.392,
+   5.616,
+   5.697
+  ],
+  "classes": {
+   "seated": 256,
+   "grasp_slip": 1,
+   "lateral_miss": 1
+  },
+  "fit_um": [
+   67.5,
+   50.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 281,
+  "k": 277,
+  "rate": 0.9857651245551602,
+  "wilson": [
+   0.9639765515036147,
+   0.9944508692102136
+  ],
+  "full_depth_rate": 0.9252669039145908,
+  "full_k": 260,
+  "t_seat_p50_p90_p99": [
+   1.06,
+   1.928,
+   3.489
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.472,
+   5.693
+  ],
+  "release_n": 280,
+  "release_in_k": 255,
+  "release_ended_early": 59,
+  "release_in_frac": 0.9107142857142857,
+  "release_depth_mm_p1_p5_p50": [
+   5.283,
+   5.395,
+   5.666
+  ],
+  "classes": {
+   "seated": 277,
+   "full_no_seat_test": 3,
+   "lateral_miss": 1
+  },
+  "fit_um": [
+   67.5,
+   80.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 253,
+  "k": 152,
+  "rate": 0.6007905138339921,
+  "wilson": [
+   0.5393697331249729,
+   0.659196231267088
+  ],
+  "full_depth_rate": 0.8853754940711462,
+  "full_k": 224,
+  "t_seat_p50_p90_p99": [
+   1.14,
+   1.538,
+   3.698
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.435,
+   5.664
+  ],
+  "release_n": 250,
+  "release_in_k": 211,
+  "release_ended_early": 56,
+  "release_in_frac": 0.844,
+  "release_depth_mm_p1_p5_p50": [
+   5.038,
+   5.332,
+   5.628
+  ],
+  "classes": {
+   "seated": 152,
+   "lateral_miss": 3,
+   "full_no_seat_test": 91,
+   "grasp_slip": 7
+  },
+  "fit_um": [
+   67.5,
+   110.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 229,
+  "k": 219,
+  "rate": 0.9563318777292577,
+  "wilson": [
+   0.9214955780406866,
+   0.9761103480481224
+  ],
+  "full_depth_rate": 0.982532751091703,
+  "full_k": 225,
+  "t_seat_p50_p90_p99": [
+   1.44,
+   2.76,
+   4.955
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.661,
+   5.734
+  ],
+  "release_n": 227,
+  "release_in_k": 225,
+  "release_ended_early": 69,
+  "release_in_frac": 0.9911894273127754,
+  "release_depth_mm_p1_p5_p50": [
+   5.599,
+   5.646,
+   5.714
+  ],
+  "classes": {
+   "seated": 219,
+   "full_no_seat_test": 6,
+   "grasp_slip": 3,
+   "lateral_miss": 1
+  },
+  "fit_um": [
+   90.0,
+   50.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 275,
+  "k": 264,
+  "rate": 0.96,
+  "wilson": [
+   0.929804677313184,
+   0.9775204850729163
+  ],
+  "full_depth_rate": 0.9563636363636364,
+  "full_k": 263,
+  "t_seat_p50_p90_p99": [
+   1.16,
+   1.7,
+   2.746
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.565,
+   5.691
+  ],
+  "release_n": 274,
+  "release_in_k": 253,
+  "release_ended_early": 60,
+  "release_in_frac": 0.9233576642335767,
+  "release_depth_mm_p1_p5_p50": [
+   5.379,
+   5.521,
+   5.643
+  ],
+  "classes": {
+   "seated": 264,
+   "full_no_seat_test": 7,
+   "lateral_miss": 1,
+   "grasp_slip": 3
+  },
+  "fit_um": [
+   90.0,
+   80.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ },
+ {
+  "n": 214,
+  "k": 94,
+  "rate": 0.4392523364485981,
+  "wilson": [
+   0.37440868000859484,
+   0.5062385425604645
+  ],
+  "full_depth_rate": 0.9018691588785047,
+  "full_k": 193,
+  "t_seat_p50_p90_p99": [
+   1.08,
+   1.59,
+   2.551
+  ],
+  "rest_depth_mm_p5_p50": [
+   5.469,
+   5.659
+  ],
+  "release_n": 211,
+  "release_in_k": 172,
+  "release_ended_early": 44,
+  "release_in_frac": 0.8151658767772512,
+  "release_depth_mm_p1_p5_p50": [
+   5.209,
+   5.376,
+   5.627
+  ],
+  "classes": {
+   "seated": 94,
+   "full_no_seat_test": 108,
+   "grasp_slip": 9,
+   "lateral_miss": 3
+  },
+  "fit_um": [
+   90.0,
+   110.0
+  ],
+  "policy": "runs/insert_K7.pt",
+  "seed": 8600
+ }
+]
