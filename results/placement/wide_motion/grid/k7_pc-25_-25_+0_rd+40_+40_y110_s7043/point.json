@@ -1,0 +1,1 @@
+{"pc": [0.206, 0.369, 4.0], "reader": [0.171, 0.488, 110.0], "seed": 7043, "config": "deploy/config/bimanual_align12_wide_k7.json", "speed": 0.75, "zed_ood_scale": null}

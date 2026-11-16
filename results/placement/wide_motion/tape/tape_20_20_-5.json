@@ -1,0 +1,424 @@
+{
+ "config": "/home/yashchitambar/wt/graph-align/deploy/config/bimanual_align12_wide_k7.json",
+ "method": "Collision-aware whole-chain clearance check over the wide PC box (docs/real/WIDE_MOTION_20261116.md). Kinematic,\nCPU only, no sim physics: the chain's planned motions (deploy/bimanual/wide_motion.Planner) for each PC pose and\nreader pose, on the bimanual scene model (deploy/bimanual/wide_motion.ClearModel: arm meshes, grippers, wrist\ncameras, fingers, the reader in the right hand, the PC case, the table; SafeArm's FlexChecker for the table and the\njoint box). Two motion sets per pose:\n  today : the config without its wide_motion block (lift pose kept in the hold, Cartesian transport with the\n          40 / 30 mm via, LeftHold over the policy yaws at along -0.02)\n  new   : the config's wide_motion block (clear pose, joint_via transport, hold selection)\nPer pose: pass / the failed floors / the first failing node (chain order: hold, transport, port (approach, align,\ninsert), release, home) and every minimum.\n\n    PYTHONPATH=. python scripts/eval/wide_motion_check.py --config deploy/config/bimanual_align12_wide_k7.json         --out results/placement/wide_motion/check.json [--shard 0/4] [--reader 0.131 0.448 92]\n    PYTHONPATH=. python scripts/eval/wide_motion_check.py --merge results/placement/wide_motion/check_s*.json --out results/placement/wide_motion/check.json\n",
+ "n": 1,
+ "rows": [
+  {
+   "d": [
+    20.0,
+    20.0,
+    -5.0
+   ],
+   "pc": [
+    0.251,
+    0.41400000000000003,
+    -1.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "lift_ik_err_mm": 0.0,
+   "today": {
+    "choice": [
+     -0.02,
+     -105.0,
+     -0.0208
+    ],
+    "n_scored": 1,
+    "first_node": null,
+    "transport_ik_err_mm": 8.076774093979111e-05,
+    "seconds": 2.2,
+    "key": [
+     -0.02,
+     -105.0,
+     -0.0208
+    ],
+    "ok": true,
+    "fails": [],
+    "slack": 4.1,
+    "mins": {
+     "wait": {
+      "right_pc": [
+       94.3,
+       [
+        "gripper",
+        "fixture"
+       ]
+      ],
+      "reader_table": [
+       79.4,
+       [
+        "peg",
+        "world"
+       ]
+      ],
+      "table_right": [
+       64.0,
+       "link_2"
+      ],
+      "joint_right": [
+       0.849,
+       3
+      ],
+      "arm_arm": [
+       15.6,
+       [
+        "right_finger",
+        "left_right_finger"
+       ]
+      ]
+     },
+     "transport": {
+      "right_pc": [
+       99.2,
+       [
+        "gripper",
+        "fixture"
+       ]
+      ],
+      "reader_table": [
+       19.1,
+       [
+        "peg",
+        "world"
+       ]
+      ],
+      "table_right": [
+       42.2,
+       "left_finger"
+      ],
+      "joint_right": [
+       0.568,
+       6
+      ],
+      "arm_arm": [
+       18.9,
+       [
+        "right_finger",
+        "left_right_finger"
+       ]
+      ]
+     },
+     "port": {
+      "right_pc": [
+       94.1,
+       [
+        "calibrated_webcam_visual",
+        "fixture"
+       ]
+      ],
+      "reader_table": [
+       19.1,
+       [
+        "peg",
+        "world"
+       ]
+      ],
+      "table_right": [
+       41.8,
+       "left_finger"
+      ],
+      "joint_right": [
+       0.733,
+       6
+      ],
+      "arm_arm": [
+       26.1,
+       [
+        "calibrated_webcam_visual",
+        "left_right_finger"
+       ]
+      ]
+     },
+     "release": {
+      "right_pc": [
+       99.9,
+       [
+        "calibrated_webcam_visual",
+        "fixture"
+       ]
+      ],
+      "reader_table": [
+       19.1,
+       [
+        "peg",
+        "world"
+       ]
+      ],
+      "table_right": [
+       42.0,
+       "left_finger"
+      ],
+      "joint_right": [
+       0.674,
+       6
+      ],
+      "arm_arm": [
+       25.6,
+       [
+        "link_4",
+        "left_link_2"
+       ]
+      ]
+     },
+     "press": {
+      "table_left": [
+       12.9,
+       "wrist_camera"
+      ],
+      "joint_left": [
+       0.862,
+       4
+      ],
+      "left_body_pc": [
+       55.1,
+       [
+        "left_calibrated_webcam_visual",
+        "fixture"
+       ]
+      ]
+     },
+     "swing": {
+      "arm_arm": [
+       15.6,
+       [
+        "right_finger",
+        "left_right_finger"
+       ]
+      ],
+      "left_body_pc": [
+       55.1,
+       [
+        "left_calibrated_webcam_visual",
+        "fixture"
+       ]
+      ],
+      "table_left": [
+       64.0,
+       "link_2"
+      ],
+      "joint_left": [
+       0.477,
+       3
+      ]
+     },
+     "home": {
+      "arm_arm": [
+       25.6,
+       [
+        "link_4",
+        "left_link_2"
+       ]
+      ]
+     }
+    }
+   },
+   "new": {
+    "choice": [
+     -0.02,
+     -90.0,
+     -0.0208
+    ],
+    "n_scored": 1,
+    "first_node": null,
+    "transport_ik_err_mm": 9.884312390795458e-05,
+    "seconds": 3.4,
+    "key": [
+     -0.02,
+     -90.0,
+     -0.0208
+    ],
+    "ok": true,
+    "fails": [],
+    "slack": 4.1,
+    "mins": {
+     "wait": {
+      "right_pc": [
+       205.9,
+       [
+        "gripper",
+        "fixture"
+       ]
+      ],
+      "reader_table": [
+       119.5,
+       [
+        "peg",
+        "world"
+       ]
+      ],
+      "table_right": [
+       64.0,
+       "link_2"
+      ],
+      "joint_right": [
+       0.573,
+       3
+      ],
+      "arm_arm": [
+       112.4,
+       [
+        "right_finger",
+        "left_right_finger"
+       ]
+      ]
+     },
+     "transport": {
+      "right_pc": [
+       113.1,
+       [
+        "calibrated_webcam_visual",
+        "fixture"
+       ]
+      ],
+      "reader_table": [
+       19.1,
+       [
+        "peg",
+        "world"
+       ]
+      ],
+      "table_right": [
+       42.2,
+       "left_finger"
+      ],
+      "joint_right": [
+       0.587,
+       3
+      ],
+      "arm_arm": [
+       16.7,
+       [
+        "link_4",
+        "left_link_2"
+       ]
+      ]
+     },
+     "port": {
+      "right_pc": [
+       94.1,
+       [
+        "calibrated_webcam_visual",
+        "fixture"
+       ]
+      ],
+      "reader_table": [
+       19.1,
+       [
+        "peg",
+        "world"
+       ]
+      ],
+      "table_right": [
+       41.8,
+       "left_finger"
+      ],
+      "joint_right": [
+       0.733,
+       6
+      ],
+      "arm_arm": [
+       28.5,
+       [
+        "link_4",
+        "left_link_2"
+       ]
+      ]
+     },
+     "release": {
+      "right_pc": [
+       99.9,
+       [
+        "calibrated_webcam_visual",
+        "fixture"
+       ]
+      ],
+      "reader_table": [
+       19.1,
+       [
+        "peg",
+        "world"
+       ]
+      ],
+      "table_right": [
+       42.0,
+       "left_finger"
+      ],
+      "joint_right": [
+       0.674,
+       6
+      ],
+      "arm_arm": [
+       25.6,
+       [
+        "link_4",
+        "left_link_2"
+       ]
+      ]
+     },
+     "press": {
+      "table_left": [
+       13.3,
+       "wrist_camera"
+      ],
+      "joint_left": [
+       0.862,
+       4
+      ],
+      "left_body_pc": [
+       57.2,
+       [
+        "left_calibrated_webcam_visual",
+        "fixture"
+       ]
+      ]
+     },
+     "clear": {
+      "arm_arm": [
+       136.2,
+       [
+        "peg",
+        "left_arm"
+       ]
+      ]
+     },
+     "swing": {
+      "arm_arm": [
+       109.8,
+       [
+        "right_finger",
+        "left_right_finger"
+       ]
+      ],
+      "left_body_pc": [
+       57.2,
+       [
+        "left_calibrated_webcam_visual",
+        "fixture"
+       ]
+      ],
+      "table_left": [
+       64.0,
+       "link_2"
+      ],
+      "joint_left": [
+       0.477,
+       3
+      ]
+     },
+     "home": {
+      "arm_arm": [
+       25.6,
+       [
+        "link_4",
+        "left_link_2"
+       ]
+      ]
+     }
+    }
+   }
+  }
+ ]
+}

@@ -1,0 +1,470 @@
+NOTE: deploy/config/bimanual_align13_wide_k7_fp_shadow.json differs from the bundle copy (configs/bimanual.json); the run uses deploy/config/bimanual_align13_wide_k7_fp_shadow.json
+insertion policy: /home/yashchitambar/wt/graph-align/runs/insert_K7.pt (sha256 9a6e23b2f225ccc1)
+nets loaded in 2.6 s (before the arms connect)
+/home/yashchitambar/peg_test_bimanual/.venv/lib/python3.12/site-packages/mujoco_warp/_src/io.py:709: UserWarning: MULTICCD is enabled, but the scene contains CCD pairs without multicontact support: [('CAPSULE', 'MESH')]. At most 1 contact will be generated for these pairs.
+  warnings.warn(
+linesearch iterations limit reached - please increase ls_iterations to 20
+Warp 1.18.0 initialized:
+   CUDA Toolkit 12.9, Driver 13.0
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "Tesla V100-PCIE-32GB" (32 GiB, sm_70, mempool enabled)
+   Kernel cache:
+     /home/yashchitambar/.cache/warp/1.18.0
+Module mujoco_warp._src.render_util f62a762 load on device 'cuda:0' took 1.77 ms  (cached)
+Module mujoco_warp._src.io c728e4c load on device 'cuda:0' took 4.93 ms  (cached)
+Module mujoco_warp._src.bvh 97a6eba load on device 'cuda:0' took 1.95 ms  (cached)
+Module mujoco_warp._src.smooth d04e5a7 load on device 'cuda:0' took 7.24 ms  (cached)
+Module _nxn_broadphase__locals__kernel_04e59282 04e5928 load on device 'cuda:0' took 1.45 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_e65a44b9 e65a44b load on device 'cuda:0' took 4.17 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_e65a44b9 cb9939c load on device 'cuda:0' took 3.96 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_666061b5 666061b load on device 'cuda:0' took 3.80 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_666061b5 9f526e3 load on device 'cuda:0' took 3.96 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_07b2db0f 07b2db0 load on device 'cuda:0' took 3.86 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_07b2db0f cd94f12 load on device 'cuda:0' took 3.75 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_a4e145aa a4e145a load on device 'cuda:0' took 4.20 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_a4e145aa bce09a6 load on device 'cuda:0' took 3.89 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_f8de6ce7 f8de6ce load on device 'cuda:0' took 4.34 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_f8de6ce7 01a61b9 load on device 'cuda:0' took 4.23 ms  (cached)
+Module _primitive_narrowphase__locals__primitive_narrowphase_af852043 af85204 load on device 'cuda:0' took 2.59 ms  (cached)
+Module mujoco_warp._src.constraint 8d4d513 load on device 'cuda:0' took 1.37 ms  (cached)
+Module _equality_joint__locals__kernel_f6d7d60f f6d7d60 load on device 'cuda:0' took 1.41 ms  (cached)
+Module _friction_dof__locals__kernel_22ded5f6 22ded5f load on device 'cuda:0' took 1.42 ms  (cached)
+Module _limit_slide_hinge__locals__kernel_24a318de 24a318d load on device 'cuda:0' took 1.41 ms  (cached)
+Module _efc_contact_init__locals__kernel_54f1cc8c 54f1cc8 load on device 'cuda:0' took 1.47 ms  (cached)
+Module _efc_contact_jac_dense__locals__kernel_6b457580 747ee66 load on device 'cuda:0' took 1.42 ms  (cached)
+Module _efc_contact_update__locals__kernel_212e1c0a 212e1c0 load on device 'cuda:0' took 1.42 ms  (cached)
+Module mujoco_warp._src.forward 4b55789 load on device 'cuda:0' took 2.79 ms  (cached)
+Module mujoco_warp._src.passive 80f3681 load on device 'cuda:0' took 3.47 ms  (cached)
+Module mujoco_warp._src.forward a1745d1 load on device 'cuda:0' took 2.79 ms  (cached)
+Module _qfrc_smooth__locals__kernel_8b823980 8b82398 load on device 'cuda:0' took 1.26 ms  (cached)
+Module mujoco_warp._src.support a59a7bc load on device 'cuda:0' took 1.31 ms  (cached)
+Module _small_cholesky_factorize_solve_block__locals__kernel_9da335f1 a5c2521 load on device 'cuda:0' took 1.41 ms  (cached)
+Module _tile_cholesky_factorize_solve_block__locals__kernel_379cda95 6fb4a35 load on device 'cuda:0' took 55.56 ms  (cached)
+Module _solve_init_dof__locals__kernel_021c7a0e 021c7a0 load on device 'cuda:0' took 1.42 ms  (cached)
+Module mujoco_warp._src.solver 357f443 load on device 'cuda:0' took 2.50 ms  (cached)
+Module _solve_init_jaref_kernel__locals__kernel_7cc0c430 7cc0c43 load on device 'cuda:0' took 1.35 ms  (cached)
+Module mul_m_kernel__locals___mul_m_f3de1cc7 f3de1cc load on device 'cuda:0' took 1.25 ms  (cached)
+Module _update_constraint_efc__locals__kernel_0539aa50 0539aa5 load on device 'cuda:0' took 1.57 ms  (cached)
+Module _update_constraint_init_qfrc_constraint_dense__locals__kernel_bd7ca2ec bd7ca2e load on device 'cuda:0' took 1.24 ms  (cached)
+Module _update_gradient_zero_grad_dot__locals__kernel_b20934d7 b20934d load on device 'cuda:0' took 1.20 ms  (cached)
+Module _update_gradient_grad__locals__kernel_c876081d c876081 load on device 'cuda:0' took 1.16 ms  (cached)
+Module _update_gradient_JTDAJ_dense_tiled__locals__kernel_3c8f0956 2eeefe9 load on device 'cuda:0' took 2.09 ms  (cached)
+Module _update_gradient_cholesky__locals__kernel_6c983440 31a27c1 load on device 'cuda:0' took 54.34 ms  (cached)
+Module _linesearch_iterative_kernel__locals__kernel_e6a8cb84 bda4610 load on device 'cuda:0' took 2.04 ms  (cached)
+Module _solve_done__locals__kernel_0c4a4b4d 0c4a4b4 load on device 'cuda:0' took 1.41 ms  (cached)
+Module mujoco_warp._src.sensor 830d16a load on device 'cuda:0' took 3.85 ms  (cached)
+Module render__locals___render_megakernel_ea10d852 3a5997f load on device 'cuda:0' took 2.37 ms  (cached)
+edge fit (all): port (206.8, 367.7) mm, yaw -14.0 deg, rms 0.91 px, shift from the gate net (+1.0, -0.1) mm, from the start (+1.0, -0.1) mm, 0.09 s -> ok
+zed_fp: stereo pair saved (zed_fp/zed_pc_0), deferred (server none: run batch.py after the session)
+ZED PC estimate: port [0.2068 0.3677] m, yaw -14.0 deg, gate True
+zed_fp: reader frame stereo pairs saved: 1 (zed_fp/zed_reader_0), 0.1 s
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+Module mujoco_warp._src.derivative 8222a58 load on device 'cuda:0' took 2.56 ms  (cached)
+Module _next_time_builder__locals___next_time_f604e0b3 f604e0b load on device 'cuda:0' took 1.38 ms  (cached)
+grasp: roll_fix attempt=1 tick=282 roll_servo_deg=0 roll_kept_deg=0 plan_change_deg=0 roll_true_deg=-0.3982 tip_true_mm=130.4
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: roll_fix attempt=1 tick=336 roll_servo_deg=0 roll_kept_deg=0 plan_change_deg=0 roll_true_deg=1.456 tip_true_mm=131.7
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: roll_fix attempt=1 tick=459 roll_servo_deg=-1.102 roll_kept_deg=0 plan_change_deg=1.722 roll_true_deg=0.936 tip_true_mm=68.63
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: roll_fix attempt=1 tick=543 roll_servo_deg=-0.004808 roll_kept_deg=0 plan_change_deg=0.2113 roll_true_deg=0.8469 tip_true_mm=26.68
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: roll_fix attempt=1 tick=636 roll_servo_deg=0.9655 roll_kept_deg=0 plan_change_deg=0.4371 roll_true_deg=1.494 tip_true_mm=5.794
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: close_from_settle attempt=1 tick=799 z=-0.02133 roll_true_deg=0.9001 tip_true_mm=0.009226
+grasp: squeeze_start attempt=1 tick=799 z=-0.02133 roll_deg=-0.08172 roll_true_deg=0.9001 tip_true_mm=0.009226
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: squeeze_end attempt=1 tick=843 reading=0.3195 rot_deg=0.796 roll_deg=-0.3966 rise_mm=0.07907 roll_true_deg=0.6006 tip_true_mm=0.06674
+grasp: test_lift attempt=1 tick=843 reading=0.3195 roll_true_deg=0.6006 tip_true_mm=0.06674
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: test_result attempt=1 tick=896 reading=0.3195 held=1 roll_true_deg=1.433 tip_true_mm=4.35
+grasp: lift attempt=1 tick=896 roll_true_deg=1.433 tip_true_mm=4.35
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: end_hold attempt=1 tick=934 reading=0.3195 rot_deg=0.9113 roll_true_deg=1.223 tip_true_mm=80.45
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+grasp: done attempt=1 tick=984 reading=0.3195 roll_true_deg=0.4681 tip_true_mm=83.9
+pick outcome: held (1 attempt(s))
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+linesearch iterations limit reached - please increase ls_iterations to 20
+pick: done True, reader present (gripper) True
+wide_motion hold: NO CANDIDATE PASSES choice None (12 scored, 3.6 s) best fails: joint right transport j6 0.21 rad; joint right port j6 0.21 rad; joint right release j6 0.16 rad
+
+*** STOPPED: GuardStop: wide_motion: no hold candidate passes the clearance floors at this PC estimate (outside the planned box): joint right transport j6 0.21 rad; joint right port j6 0.21 rad; joint right release j6 0.16 rad
+log: /home/yashchitambar/wt/graph-align/data/real_runs/2026-11-16/full_104254_dry_s7045_dry13_k7_7045
+seed 7045: completed False stop GuardStop: wide_motion: no hold candidate passes the clearance floors at this PC estimate (outside the planned box): joint right transport j6 0.21 rad; joint right port j6 0.21 rad; joint right release j6 0.16 rad insert None true seated after release None

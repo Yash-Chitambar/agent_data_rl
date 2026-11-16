@@ -1,0 +1,2605 @@
+{
+ "method": "Reach, joint-limit and clearance check of both arms over the wide-placement grid (docs/real/WIDE_PLACEMENT_READY_20261116.md).\n\nFor each dry run of scripts/eval/placement_grid.py (run folder with ticks.npz), at the forced PC pose of that run:\n  * joint margin: distance of every joint (measured and target, motor frame) to the SafeArm joint box of\n    deploy/safety_task.FlexChecker (Menagerie range + safety.LIMIT_BUFFER, rig offsets), per arm, min over the run;\n  * table margin: FlexChecker body clearances (config safety.*), lowest body minus its limit, per arm;\n  * arm-arm: smallest distance between any right-arm geom and any left-arm geom (scripts/real/arm_clearance.TwoArm\n    geometry through scripts/real/parallel_clearance.Geo);\n  * arm-PC: smallest distance of the right arm (all geoms) and of the left arm without its gripper and fingers (the\n    left press touches the PC on purpose) to the PC case at the run's true pose;\n  * planned moves the dry run teleports (SimIO): capture (start -> ZED capture pose, right then left) and home\n    (left first, then right, to the start pose) as straight joint-space paths, the start pose of a real run\n    (2026-11-13 full_165400_all9_full_1). Arm-arm and arm-PC on those paths.\nAll numbers are minima per run and per stage group. Stride: every 5th tick (10 Hz) for the ticks, 50 samples per move.\n\n    PYTHONPATH=. python scripts/eval/wide_clearance.py --grid results/placement/wide/grid --out results/placement/wide/clearance.json\n",
+ "n": 10,
+ "rows": [
+  {
+   "tag": "k4_pc+20_-20_+5_s7043",
+   "pc": [
+    0.251,
+    0.374,
+    9.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7043,
+   "config": "deploy/config/bimanual_align12_wide_k4.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.1,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      126.1,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      39.2,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      245.8,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.594,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      3.8,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      104.8,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      57.7,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -12.9,
+      "left_wrist_camera"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.594,
+      3
+     ],
+     "table_right": [
+      34.9,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.82,
+      4
+     ],
+     "table_left": [
+      61.0,
+      "right_finger"
+     ],
+     "arm_arm": [
+      60.4,
+      [
+       "calibrated_webcam_visual",
+       "left_link_5"
+      ]
+     ],
+     "right_pc": [
+      80.7,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      54.5,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.8,
+      5
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.82,
+      4
+     ],
+     "table_left": [
+      61.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      51.2,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      66.1,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      54.6,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.782,
+      5
+     ],
+     "table_right": [
+      29.3,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.82,
+      4
+     ],
+     "table_left": [
+      3.8,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      28.0,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      50.6,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -12.9,
+      "left_wrist_camera"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.81,
+      5
+     ],
+     "table_right": [
+      33.8,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.713,
+      4
+     ],
+     "table_left": [
+      60.3,
+      "right_finger"
+     ],
+     "arm_arm": [
+      51.1,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      68.9,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      51.4,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      201.2,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      184.4,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      51.5,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      40.9,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      62.3,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "k7_pc+0_+0_+0_s7045",
+   "pc": [
+    0.231,
+    0.394,
+    4.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7045,
+   "config": "deploy/config/bimanual_align12_wide_k7.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      19.1,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.437,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      122.3,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      19.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      221.4,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.535,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.437,
+      3
+     ],
+     "table_left": [
+      4.9,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      91.3,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      47.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      2.1,
+      "left_wrist_camera"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.535,
+      3
+     ],
+     "table_right": [
+      33.0,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.903,
+      4
+     ],
+     "table_left": [
+      54.1,
+      "left_finger"
+     ],
+     "arm_arm": [
+      47.3,
+      [
+       "wrist_camera",
+       "left_gripper"
+      ]
+     ],
+     "right_pc": [
+      81.1,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      64.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.769,
+      5
+     ],
+     "table_right": [
+      32.3,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.903,
+      4
+     ],
+     "table_left": [
+      54.1,
+      "left_finger"
+     ],
+     "arm_arm": [
+      56.5,
+      [
+       "calibrated_webcam_visual",
+       "left_gripper"
+      ]
+     ],
+     "right_pc": [
+      63.1,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      64.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.724,
+      5
+     ],
+     "table_right": [
+      42.7,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.901,
+      4
+     ],
+     "table_left": [
+      4.9,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      36.4,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      49.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      2.1,
+      "left_wrist_camera"
+     ]
+    },
+    "insert": {
+     "joint_right": [
+      0.662,
+      5
+     ],
+     "table_right": [
+      32.1,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.901,
+      4
+     ],
+     "table_left": [
+      4.9,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      -4.5,
+      [
+       "calibrated_webcam_visual",
+       "left_link_5"
+      ]
+     ],
+     "right_pc": [
+      14.5,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      2.1,
+      "left_wrist_camera"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.864,
+      5
+     ],
+     "table_right": [
+      35.4,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.796,
+      4
+     ],
+     "table_left": [
+      53.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      39.0,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      58.9,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      59.6,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      123.9,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      204.8,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      169.7,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      40.1,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      27.5,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      66.2,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "k7_pc+0_+12_-10_s7043",
+   "pc": [
+    0.231,
+    0.406,
+    -6.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7043,
+   "config": "deploy/config/bimanual_align12_wide_k7.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.6,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      126.0,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      11.5,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      221.7,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.593,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      9.9,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      84.0,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      41.8,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -8.7,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.501,
+      6
+     ],
+     "table_right": [
+      34.7,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.871,
+      4
+     ],
+     "table_left": [
+      60.8,
+      "right_finger"
+     ],
+     "arm_arm": [
+      13.6,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      80.9,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      55.5,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.501,
+      6
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.871,
+      4
+     ],
+     "table_left": [
+      60.8,
+      "right_finger"
+     ],
+     "arm_arm": [
+      14.2,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      65.7,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      55.5,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.544,
+      6
+     ],
+     "table_right": [
+      28.5,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.87,
+      4
+     ],
+     "table_left": [
+      9.9,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      15.6,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      49.1,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -8.7,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "insert": {
+     "joint_right": [
+      0.603,
+      6
+     ],
+     "table_right": [
+      24.1,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.871,
+      4
+     ],
+     "table_left": [
+      9.9,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      -16.6,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      16.1,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -8.7,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.506,
+      6
+     ],
+     "table_right": [
+      37.8,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.759,
+      4
+     ],
+     "table_left": [
+      60.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      12.3,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      41.5,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      52.0,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      212.8,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      166.2,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      14.5,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      51.2,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      62.2,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "k7_pc+0_-25_-15_s7043",
+   "pc": [
+    0.231,
+    0.369,
+    -11.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7043,
+   "config": "deploy/config/bimanual_align12_wide_k7.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.1,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      125.9,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      10.5,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      239.7,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.591,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      3.6,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      64.2,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      43.3,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -15.2,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.366,
+      6
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.83,
+      4
+     ],
+     "table_left": [
+      61.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      19.6,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      78.2,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      54.4,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.366,
+      6
+     ],
+     "table_right": [
+      33.6,
+      "link_4"
+     ],
+     "joint_left": [
+      0.83,
+      4
+     ],
+     "table_left": [
+      61.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      33.3,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      65.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      54.5,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.416,
+      6
+     ],
+     "table_right": [
+      28.3,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.83,
+      4
+     ],
+     "table_left": [
+      3.6,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      24.5,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      48.3,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -15.2,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "insert": {
+     "joint_right": [
+      0.462,
+      6
+     ],
+     "table_right": [
+      18.2,
+      "link_4"
+     ],
+     "joint_left": [
+      0.83,
+      4
+     ],
+     "table_left": [
+      3.6,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      -17.1,
+      [
+       "left_finger",
+       "left_left_finger"
+      ]
+     ],
+     "right_pc": [
+      8.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -15.2,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.349,
+      6
+     ],
+     "table_right": [
+      36.8,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.722,
+      4
+     ],
+     "table_left": [
+      60.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      23.3,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      42.2,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      50.9,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      182.4,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      180.5,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      27.5,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      47.0,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      61.6,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "k7_pc+25_+25_+15_rd-40_+40_y70_tm_s7043",
+   "pc": [
+    0.256,
+    0.419,
+    19.0
+   ],
+   "reader": [
+    0.091,
+    0.488,
+    70.0
+   ],
+   "seed": 7043,
+   "config": "results/placement/wide_motion/configs/wide12_k7_tm.json",
+   "last_stage": "1 pick",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.0,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      40.5,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      108.1,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      229.5,
+      "left_arm"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      246.3,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      170.1,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      59.0,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      77.6,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      204.8,
+      "left_link_6"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "k7_pc+25_-25_-15_s7043",
+   "pc": [
+    0.256,
+    0.369,
+    -11.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7043,
+   "config": "deploy/config/bimanual_align12_wide_k7.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.1,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      126.1,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      34.7,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      261.9,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.588,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      -1.6,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      88.4,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      59.7,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -20.3,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.472,
+      6
+     ],
+     "table_right": [
+      34.9,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.793,
+      4
+     ],
+     "table_left": [
+      61.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      11.5,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      80.8,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      53.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.472,
+      6
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.793,
+      4
+     ],
+     "table_left": [
+      61.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      33.1,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      65.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      53.9,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.521,
+      6
+     ],
+     "table_right": [
+      29.4,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.793,
+      4
+     ],
+     "table_left": [
+      -1.6,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      22.4,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      48.8,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -20.3,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "insert": {
+     "joint_right": [
+      0.584,
+      6
+     ],
+     "table_right": [
+      22.1,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.793,
+      4
+     ],
+     "table_left": [
+      -1.6,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      -18.0,
+      [
+       "left_finger",
+       "left_gripper"
+      ]
+     ],
+     "right_pc": [
+      12.8,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -20.3,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.466,
+      6
+     ],
+     "table_right": [
+      36.7,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.689,
+      4
+     ],
+     "table_left": [
+      60.3,
+      "right_finger"
+     ],
+     "arm_arm": [
+      22.1,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      41.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      50.9,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      190.2,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      196.2,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      28.1,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      50.3,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      62.3,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "k7_pc-25_+0_-10_s7043",
+   "pc": [
+    0.206,
+    0.394,
+    -6.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7043,
+   "config": "deploy/config/bimanual_align12_wide_k7.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.2,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      126.1,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      -12.5,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      203.5,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.583,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      13.0,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      58.7,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      34.5,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -4.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.413,
+      6
+     ],
+     "table_right": [
+      34.8,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.888,
+      4
+     ],
+     "table_left": [
+      60.7,
+      "right_finger"
+     ],
+     "arm_arm": [
+      22.9,
+      [
+       "wrist_camera",
+       "left_gripper"
+      ]
+     ],
+     "right_pc": [
+      74.6,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      55.9,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.404,
+      6
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.888,
+      4
+     ],
+     "table_left": [
+      60.7,
+      "right_finger"
+     ],
+     "arm_arm": [
+      27.2,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      66.2,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      55.9,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.444,
+      6
+     ],
+     "table_right": [
+      29.2,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.888,
+      4
+     ],
+     "table_left": [
+      13.0,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      26.2,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      48.9,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -4.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "insert": {
+     "joint_right": [
+      0.508,
+      6
+     ],
+     "table_right": [
+      23.9,
+      "link_4"
+     ],
+     "joint_left": [
+      0.889,
+      4
+     ],
+     "table_left": [
+      13.0,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      -17.7,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      16.1,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -4.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.419,
+      6
+     ],
+     "table_right": [
+      37.7,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.778,
+      4
+     ],
+     "table_left": [
+      60.0,
+      "right_finger"
+     ],
+     "arm_arm": [
+      21.0,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      41.6,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      52.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      196.2,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      156.0,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      27.8,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      47.2,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      63.0,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "k7_pc-25_-25_+0_s7043",
+   "pc": [
+    0.206,
+    0.369,
+    4.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7043,
+   "config": "deploy/config/bimanual_align12_wide_k7.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.1,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      126.0,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      -4.5,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      211.2,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.583,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      11.0,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      55.8,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      34.8,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -5.7,
+      "left_wrist_camera"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.585,
+      3
+     ],
+     "table_right": [
+      34.7,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.87,
+      4
+     ],
+     "table_left": [
+      60.8,
+      "right_finger"
+     ],
+     "arm_arm": [
+      33.6,
+      [
+       "wrist_camera",
+       "left_gripper"
+      ]
+     ],
+     "right_pc": [
+      75.3,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      55.5,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.673,
+      6
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.87,
+      4
+     ],
+     "table_left": [
+      60.8,
+      "right_finger"
+     ],
+     "arm_arm": [
+      51.8,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      63.3,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      55.6,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.712,
+      5
+     ],
+     "table_right": [
+      29.0,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.87,
+      4
+     ],
+     "table_left": [
+      11.0,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      31.2,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      51.0,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -5.7,
+      "left_wrist_camera"
+     ]
+    },
+    "insert": {
+     "joint_right": [
+      0.611,
+      5
+     ],
+     "table_right": [
+      27.1,
+      "link_5"
+     ],
+     "joint_left": [
+      0.871,
+      4
+     ],
+     "table_left": [
+      11.0,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      -6.6,
+      [
+       "left_finger",
+       "left_gripper"
+      ]
+     ],
+     "right_pc": [
+      19.3,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      -5.7,
+      "left_wrist_camera"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.673,
+      6
+     ],
+     "table_right": [
+      31.4,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.763,
+      4
+     ],
+     "table_left": [
+      60.2,
+      "right_finger"
+     ],
+     "arm_arm": [
+      22.6,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      40.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      52.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      179.7,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      161.8,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      69.6,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      42.2,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      63.2,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "tape_k7_pc+20_-20_+0_s7043",
+   "pc": [
+    0.251,
+    0.374,
+    4.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7043,
+   "config": "deploy/config/bimanual_align12_wide_k7.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.1,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      126.0,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      40.8,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      248.0,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.587,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      2.8,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      101.2,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      57.2,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -14.1,
+      "left_wrist_camera"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.588,
+      3
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.817,
+      4
+     ],
+     "table_left": [
+      61.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      55.4,
+      [
+       "calibrated_webcam_visual",
+       "left_link_5"
+      ]
+     ],
+     "right_pc": [
+      80.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      54.7,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.776,
+      5
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.817,
+      4
+     ],
+     "table_left": [
+      61.1,
+      "right_finger"
+     ],
+     "arm_arm": [
+      51.4,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      65.6,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      54.7,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.744,
+      5
+     ],
+     "table_right": [
+      28.8,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.817,
+      4
+     ],
+     "table_left": [
+      2.8,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      29.6,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      51.3,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -14.1,
+      "left_wrist_camera"
+     ]
+    },
+    "insert": {
+     "joint_right": [
+      0.633,
+      5
+     ],
+     "table_right": [
+      28.3,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.817,
+      4
+     ],
+     "table_left": [
+      2.8,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      -19.3,
+      [
+       "left_finger",
+       "left_gripper"
+      ]
+     ],
+     "right_pc": [
+      16.7,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      -14.1,
+      "left_wrist_camera"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.821,
+      5
+     ],
+     "table_right": [
+      28.4,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.709,
+      4
+     ],
+     "table_left": [
+      60.2,
+      "right_finger"
+     ],
+     "arm_arm": [
+      23.4,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      40.5,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      51.8,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      198.2,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      185.9,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      71.2,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      49.1,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      62.9,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  },
+  {
+   "tag": "tape_k7_pc-20_-20_-8_s7043",
+   "pc": [
+    0.211,
+    0.374,
+    -4.0
+   ],
+   "reader": [
+    0.131,
+    0.448,
+    92.0
+   ],
+   "seed": 7043,
+   "config": "deploy/config/bimanual_align12_wide_k7.json",
+   "last_stage": "6 release",
+   "mins": {
+    "pick": {
+     "joint_right": [
+      0.577,
+      4
+     ],
+     "table_right": [
+      2.1,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      64.0,
+      "link_2"
+     ],
+     "arm_arm": [
+      126.1,
+      [
+       "left_finger",
+       "left_arm"
+      ]
+     ],
+     "right_pc": [
+      -4.0,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      216.4,
+      "left_arm"
+     ]
+    },
+    "hold": {
+     "joint_right": [
+      0.589,
+      3
+     ],
+     "table_right": [
+      64.0,
+      "link_2"
+     ],
+     "joint_left": [
+      0.439,
+      3
+     ],
+     "table_left": [
+      9.5,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      55.1,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      35.9,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -8.1,
+      "left_wrist_camera"
+     ]
+    },
+    "transport": {
+     "joint_right": [
+      0.47,
+      6
+     ],
+     "table_right": [
+      34.8,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.865,
+      4
+     ],
+     "table_left": [
+      60.9,
+      "right_finger"
+     ],
+     "arm_arm": [
+      25.6,
+      [
+       "wrist_camera",
+       "left_gripper"
+      ]
+     ],
+     "right_pc": [
+      73.4,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      55.2,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "approach": {
+     "joint_right": [
+      0.47,
+      6
+     ],
+     "table_right": [
+      34.6,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.865,
+      4
+     ],
+     "table_left": [
+      60.9,
+      "right_finger"
+     ],
+     "arm_arm": [
+      52.8,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      65.6,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      55.2,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "align": {
+     "joint_right": [
+      0.522,
+      6
+     ],
+     "table_right": [
+      31.1,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.865,
+      4
+     ],
+     "table_left": [
+      9.5,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      29.1,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      49.3,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -8.1,
+      "left_wrist_camera"
+     ]
+    },
+    "insert": {
+     "joint_right": [
+      0.588,
+      6
+     ],
+     "table_right": [
+      23.4,
+      "left_finger"
+     ],
+     "joint_left": [
+      0.866,
+      4
+     ],
+     "table_left": [
+      9.5,
+      "wrist_camera"
+     ],
+     "arm_arm": [
+      -11.2,
+      [
+       "right_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      13.2,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      -8.1,
+      "left_wrist_camera"
+     ]
+    },
+    "release": {
+     "joint_right": [
+      0.459,
+      6
+     ],
+     "table_right": [
+      35.2,
+      "right_finger"
+     ],
+     "joint_left": [
+      0.758,
+      4
+     ],
+     "table_left": [
+      60.2,
+      "right_finger"
+     ],
+     "arm_arm": [
+      23.6,
+      [
+       "calibrated_webcam_visual",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      41.6,
+      "right_finger"
+     ],
+     "left_body_pc": [
+      52.3,
+      "left_calibrated_webcam_visual"
+     ]
+    },
+    "capture_move": {
+     "arm_arm": [
+      121.6,
+      [
+       "left_finger",
+       "left_right_finger"
+      ]
+     ],
+     "right_pc": [
+      182.4,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      164.8,
+      "left_link_6"
+     ]
+    },
+    "home_move": {
+     "arm_arm": [
+      54.5,
+      [
+       "link_4",
+       "left_link_2"
+      ]
+     ],
+     "right_pc": [
+      43.4,
+      "left_finger"
+     ],
+     "left_body_pc": [
+      62.7,
+      "left_calibrated_webcam_visual"
+     ]
+    }
+   }
+  }
+ ]
+}
