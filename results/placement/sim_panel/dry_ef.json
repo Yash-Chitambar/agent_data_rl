@@ -1,0 +1,229 @@
+[
+ {
+  "run": "full_211603_dry_s7042_ef_s7042",
+  "seed": 7042,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": true,
+  "why": [],
+  "edges": "all",
+  "fit_err_mm": [
+   -0.33,
+   -0.17
+  ],
+  "fit_err_xy_mm": 0.37,
+  "fit_err_yaw_deg": 0.85,
+  "v1_err_mm": 0.91,
+  "v5_err_mm": 1.7,
+  "shift_mm": 0.58,
+  "insert": "seated_detected",
+  "seated_after_release": true,
+  "outcome": {
+   "label": "seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_211603_dry_s7044_ef_s7044",
+  "seed": 7044,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": true,
+  "why": [],
+  "edges": "all",
+  "fit_err_mm": [
+   -0.48,
+   -0.83
+  ],
+  "fit_err_xy_mm": 0.96,
+  "fit_err_yaw_deg": 0.56,
+  "v1_err_mm": 3.86,
+  "v5_err_mm": 2.78,
+  "shift_mm": 3.16,
+  "insert": null,
+  "seated_after_release": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_211604_dry_s7041_ef_s7041",
+  "seed": 7041,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": true,
+  "why": [],
+  "edges": "all",
+  "fit_err_mm": [
+   0.86,
+   -0.05
+  ],
+  "fit_err_xy_mm": 0.86,
+  "fit_err_yaw_deg": -0.28,
+  "v1_err_mm": 4.69,
+  "v5_err_mm": 4.0,
+  "shift_mm": 5.23,
+  "insert": "guard_bound",
+  "seated_after_release": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_211604_dry_s7043_ef_s7043",
+  "seed": 7043,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": true,
+  "why": [],
+  "edges": "all",
+  "fit_err_mm": [
+   -1.2,
+   -0.44
+  ],
+  "fit_err_xy_mm": 1.28,
+  "fit_err_yaw_deg": 0.85,
+  "v1_err_mm": 3.77,
+  "v5_err_mm": 2.39,
+  "shift_mm": 4.87,
+  "insert": "seated_detected",
+  "seated_after_release": true,
+  "outcome": {
+   "label": "seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_211605_dry_s7045_ef_s7045",
+  "seed": 7045,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": true,
+  "why": [],
+  "edges": "all",
+  "fit_err_mm": [
+   -0.38,
+   -0.0
+  ],
+  "fit_err_xy_mm": 0.38,
+  "fit_err_yaw_deg": -0.2,
+  "v1_err_mm": 2.5,
+  "v5_err_mm": 3.0,
+  "shift_mm": 2.39,
+  "insert": null,
+  "seated_after_release": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_211606_dry_s7043_ef_pc0",
+  "seed": 7043,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": true,
+  "why": [],
+  "edges": "all",
+  "fit_err_mm": [
+   -0.56,
+   -0.5
+  ],
+  "fit_err_xy_mm": 0.75,
+  "fit_err_yaw_deg": 0.23,
+  "v1_err_mm": 2.43,
+  "v5_err_mm": 2.25,
+  "shift_mm": 3.01,
+  "insert": "seated_detected",
+  "seated_after_release": false,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_211607_dry_s7043_ef_pc1",
+  "seed": 7043,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": true,
+  "why": [],
+  "edges": "all",
+  "fit_err_mm": [
+   -0.28,
+   -0.19
+  ],
+  "fit_err_xy_mm": 0.34,
+  "fit_err_yaw_deg": 0.55,
+  "v1_err_mm": 2.17,
+  "v5_err_mm": 2.25,
+  "shift_mm": 2.0,
+  "insert": null,
+  "seated_after_release": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_211607_dry_s7043_ef_pc2",
+  "seed": 7043,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": false,
+  "why": [
+   "|fit - gate net| 14.8 > 8.0 mm"
+  ],
+  "edges": "all",
+  "fit_err_mm": [
+   -0.31,
+   -0.28
+  ],
+  "fit_err_xy_mm": 0.42,
+  "fit_err_yaw_deg": 0.16,
+  "v1_err_mm": 15.13,
+  "v5_err_mm": 2.88,
+  "shift_mm": 14.8,
+  "insert": null,
+  "seated_after_release": null,
+  "outcome": {
+   "label": "not_seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ },
+ {
+  "run": "full_211606_dry_s7043_ef_pc3",
+  "seed": 7043,
+  "point": null,
+  "frame": "sim_policy_upsampled_dark_panel",
+  "fit_ok": true,
+  "why": [],
+  "edges": "noL",
+  "fit_err_mm": [
+   -0.37,
+   0.36
+  ],
+  "fit_err_xy_mm": 0.52,
+  "fit_err_yaw_deg": -0.44,
+  "v1_err_mm": 4.02,
+  "v5_err_mm": 2.52,
+  "shift_mm": 3.92,
+  "insert": "seated_detected",
+  "seated_after_release": true,
+  "outcome": {
+   "label": "seated",
+   "source": "sim truth",
+   "failure_labels": ""
+  }
+ }
+]

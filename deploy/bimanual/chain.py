@@ -286,7 +286,7 @@ class RealChain:
     # eval_chain stage code, shared verbatim
     site_target = EC.Chain.site_target
     _stage_hold = EC.Chain.stage_hold
-    stage_transport = EC.Chain.stage_transport
+    _stage_transport_ec = EC.Chain.stage_transport
     stage_approach = EC.Chain.stage_approach
 
     def __init__(self, cfg, io, scene, consts, gmaps, log=None, keys=None, guards=None, speed=1.0,
@@ -318,6 +318,17 @@ class RealChain:
             self.log_event('approach_nojump', iters=a.iters, final_iters=a.final_iters, final_pos_only=a.final_pos_only,
                            stop_deadband_mm=nj.get('stop_deadband_mm'))
         self.a = a
+        # wide_motion (off unless the config has the block; absent = the code path below is unchanged): right clear pose
+        # after the pick, joint_via transport, left hold chosen per PC estimate. deploy/bimanual/wide_motion.py,
+        # docs/real/WIDE_MOTION_20261116.md
+        from deploy.bimanual import wide_motion as WM
+        self.wide, self.wide_pm = WM.parse(cfg), None
+        if self.wide is not None:
+            if self.wide.get('via_back_mm') is not None:
+                a.via_back = float(self.wide['via_back_mm'])
+            if self.wide.get('via_up_mm') is not None:
+                a.via_up = float(self.wide['via_up_mm'])
+            self.log_event('wide_motion', **{k: v for k, v in self.wide.items()})
         self.rt = _Rt(scene)
         self.h = RealHarness(self)
         self.env = SimpleNamespace(hold=SimpleNamespace(cfg=SimpleNamespace(yaws_deg=tuple(consts['hold_yaws_deg']))))
@@ -338,6 +349,12 @@ class RealChain:
             if self.edge['start_gate']:
                 self.zed_start = NC.zed(self.ndev, self.edge['start_gate'])
             self.log_event('zed_edge_refine', **{k: v for k, v in self.edge.items()})
+        # ZED stereo pair + FoundationPose in the capture stage (config block zed_fp; off when absent or enabled is false):
+        # deploy/bimanual/zed_fp.py, docs/real/FOUNDATIONPOSE_20261116.md
+        from deploy.bimanual import zed_fp as ZF
+        self.zfp = ZF.parse(cfg)
+        if self.zfp is not None:
+            self.log_event('zed_fp', **self.zfp)
         # parallel two-arm schedule for the capture and home moves (config block parallel_schedule; off when absent or
         # enabled is false: the serial calls below are unchanged): deploy/bimanual/parallel.py, docs/real/PARALLEL_SCHEDULE_20261115.md
         from deploy.bimanual import parallel as PS
@@ -507,6 +524,11 @@ class RealChain:
             self.label = label
             self._stage_k0 = self.k
             self._precision_stage(label)
+            hook = getattr(self.io, 'on_stage', None)     # SimIO only (sim plant settings per stage); RealIO has none: no-op on the rig
+            if hook is not None:
+                ev = hook(label)
+                if ev:
+                    self.log_event('sim_stage', **ev)
         tgt = torch.stack([torch.as_tensor(qr, device=self.dev).reshape(6), torch.as_tensor(ql, device=self.dev).reshape(6)]).float()
         if not torch.isfinite(tgt).all():
             raise GuardStop(f'non-finite target at {label}')
@@ -670,6 +692,9 @@ class RealChain:
                        err_z_mm=float((float(ep[0, 2]) - tr['pc_p'][2]) * 1e3))
         if self.edge is not None:
             xy, yaw, ok, ep, eR = self._edge_refine(top, arms, xy, yaw, ok, ep, eR, rec, tr)
+        if self.zfp is not None:
+            from deploy.bimanual import zed_fp as ZF
+            xy, yaw, ok, ep, eR = ZF.apply(self, xy, yaw, ok, ep, eR, rec, tr)
         self.log_event('estimate', est='zed_pc', frame_tag=self.last_frame_tag, **rec)
         log.update(zed=rec)
         self.port = (ep, eR)
@@ -690,7 +715,9 @@ class RealChain:
             start = dict(net)
         model = None
         if getattr(self.io, 'is_sim', False):
-            img, src, geom = ZE.canvas_from_policy(top[0].cpu().numpy()), 'sim_policy_upsampled', c['geom_sim']
+            alt = self.io.edgefit_top() if hasattr(self.io, 'edgefit_top') else None   # SimIO sim.edgefit_panel_rgb: dark panel, fit only
+            img, src, geom = ZE.canvas_from_policy(top[0].cpu().numpy() if alt is None else alt), \
+                'sim_policy_upsampled' if alt is None else 'sim_policy_upsampled_dark_panel', c['geom_sim']
             if c['dry_run_fit'] == 'truth_model' and tr is not None:     # dry run only (zed_edgefit.DEFAULTS)
                 rng = np.random.default_rng(int(self.seed) + 15)
                 model = (*(tr['pc_p'][:2] + rng.normal(0., c['dry_run_fit_sd_mm'] * 1e-3, 2)),
@@ -738,6 +765,9 @@ class RealChain:
             self.io.set_grip('right', full)
         self.read_state()
         top = self.render(('top',), tag='zed_reader')['top']
+        if self.zfp is not None and self.zfp['save_reader']:      # zed_fp block: stereo pair of the reader frame (save only)
+            from deploy.bimanual import zed_fp as ZF
+            ZF.save_reader(self)
         return top, self.arms_believed()
 
     # ------------------------------------------------------------------ stage 1: pick
@@ -837,7 +867,10 @@ class RealChain:
         log.update(pick_done=bool(res['done'][0]), pick_failed=bool(res['failed'][0]), pick_reader_present=present,
                    pick_est_ok=bool(res.get('est_ok', torch.ones(1))[0]))
         self.log_event('pick_result', ok=ok, present=present, **{k: (v[0].tolist() if torch.is_tensor(v) else v) for k, v in res.items()})
-        return self.pick.joint_target[:, 0].clone(), ok and present is not False
+        q_lift, ok_all = self.pick.joint_target[:, 0].clone(), ok and present is not False
+        if ok_all and self.wide is not None and self.wide['right_clear']:
+            q_lift = self.wide_right_clear(q_lift)
+        return q_lift, ok_all
 
     def reader_in_hand(self):
         """Gripper reading between the empty-close and reader bands (deploy/grasp.reader_present), if calibrated."""
@@ -852,10 +885,14 @@ class RealChain:
         _TrackedHold.owner = self
         spd, HC = self.speed, EC.HoldCfg
 
+        sel = self.wide_select(qr, ep, eR) if (self.wide is not None and self.wide['hold_select']) else None
+
         def hold_cfg(**kw):
             # the park -> stand-off swing (HoldCfg.move_s 1.5 s at speed 1) is scripted motion: scale it by --speed
             # like pick/transport/approach (real run 2026-11-01 hold_160051: 1.5 s gave 2.1 rad/s on left joint 4).
             # The guarded descent (1 cm/s) and the press are unchanged.
+            if sel is not None:       # wide_motion: the chosen press point and tool yaw (one yaw: no LeftHold search)
+                kw.update(along_m=float(sel[0]), yaws_deg=(float(sel[1]),), across_m=float(sel[2]))
             c = HC(**kw)
             c.move_s = c.move_s / spd
             return c
@@ -873,6 +910,119 @@ class RealChain:
                        point=hb.plan['point'][0].tolist(), normal=hb.plan['normal'][0].tolist(),
                        q_contact=hb.plan['q_contact'][0].tolist(), force_cmd=hb.plan['force_cmd'][0].tolist())
         return q_hold
+
+    # ------------------------------------------------------------------ wide_motion (deploy/bimanual/wide_motion.py)
+    def _wide(self):
+        if self.wide_pm is None:
+            from deploy.bimanual import wide_motion as WM
+            P = WM.Planner(self.scene, self.a, self.consts, self.cfg['insert'], self.wide, self.R_sr0.cpu(), self.p_sr0.cpu())
+            M = WM.ClearModel(self.scene, self.off, self.cfg['safety'], self.R_sr0.cpu(), self.p_sr0.cpu())
+            self.wide_pm = (P, M)
+        return self.wide_pm
+
+    def _hold_while(self, fn):
+        """Run fn() (CPU planning, seconds) while both arms hold their measured pose (real I/O: keep the 50 Hz command
+        stream alive); in a dry run fn() runs directly."""
+        if getattr(self.io, 'is_sim', False):
+            return fn()
+        import threading
+        out = {}
+
+        def work():
+            try:
+                out['r'] = fn()
+            except BaseException as e:  # noqa: BLE001
+                out['e'] = e
+        th = threading.Thread(target=work, daemon=True)
+        qr, ql = self.q_b[0].clone(), self.q_b[1].clone()
+        th.start()
+        while th.is_alive():
+            self.hstep(qr, ql, '2 hold')
+        th.join()
+        if 'e' in out:
+            raise out['e']
+        return out['r']
+
+    def wide_right_clear(self, q_lift):
+        """wide_motion.right_clear: right hand from the lift pose to lift + right_clear_dp_m (lift orientation), joint
+        smoothstep over right_clear_s / speed, left held where it is. Returns the clear pose (1, 6), believed."""
+        P, _ = self._wide()
+        q_c, pe = P.right_clear(q_lift.reshape(1, 6).cpu())
+        if pe > 2e-3:
+            raise GuardStop(f'wide_motion: clear-pose IK error {pe * 1e3:.1f} mm')
+        q0, q1 = q_lift.reshape(6).to(self.dev).float(), q_c.reshape(6).to(self.dev).float()
+        ql = self.q_b[1].clone()
+        n = max(1, int(round(float(self.wide['right_clear_s']) / self.speed / self.dt)))
+        for k in range(n):
+            u = (k + 1) / n
+            self.hstep(q0 + (q1 - q0) * (u * u * (3 - 2 * u)), ql, '2 hold')
+        self.log_event('wide_right_clear', q_lift=q0.tolist(), q_clear=q1.tolist(), ik_err_mm=pe * 1e3)
+        return q1[None].clone()
+
+    def wide_select(self, qr, ep, eR):
+        """wide_motion.hold_select: press point and tool yaw for this PC estimate (wide_motion.select). Stops the run
+        before the hold when no candidate passes the floors (on_fail 'stop')."""
+        from deploy.bimanual import wide_motion as WM
+        P, M = self._wide()
+        t0 = time.perf_counter()
+        r = self._hold_while(lambda: WM.select(P, M, ep.cpu(), eR.cpu(), qr.reshape(6).cpu(), self.q_b[1].cpu().numpy()))
+        sec = time.perf_counter() - t0
+        self.log_event('wide_hold_select', ok=r['ok'], choice=None if r['choice'] is None else list(r['choice']), pc=r['pc'],
+                       seconds=sec, n_scored=len(r['scored']), best=WM.summary(r['best']),
+                       scored=[WM.summary(x) for x in r['scored'][:12]], transport_ik_err_mm=r['transport_ik_err_mm'])
+        print(f"wide_motion hold: {'ok' if r['ok'] else 'NO CANDIDATE PASSES'} choice {r['choice']} "
+              f"({len(r['scored'])} scored, {sec:.1f} s){'' if r['ok'] else ' best fails: ' + '; '.join(r['best']['fails'][:3])}", flush=True)
+        if r['choice'] is None:
+            raise GuardStop('wide_motion: no hold candidate passes the clearance floors at this PC estimate (outside the planned box): '
+                            + '; '.join(r['best']['fails'][:3]))
+        return r['choice']
+
+    def stage_transport(self, qr, q_hold, ep, eR, log):
+        """eval_chain.Chain.stage_transport, or (wide_motion.transport_mode 'joint_via') a joint smoothstep to the via
+        pose and eval_chain's Cartesian via -> look leg."""
+        if self.wide is None or self.wide['transport_mode'] != 'joint_via':
+            return self._stage_transport_ec(qr, q_hold, ep, eR, log)
+        P, _ = self._wide()
+        a, ch, dev = self.a, self.h.chain['right'], self.dev
+        q0 = torch.as_tensor(qr, dtype=torch.float32).reshape(1, 6).cpu()
+        q_via, _, (p_hi, p_via, R_via, p_look, R_look), err = P.joint_via_targets(ep.reshape(1, 3).cpu().float(), eR.reshape(1, 3, 3).cpu().float(), q0)
+        if err > 2e-3:
+            raise GuardStop(f'wide_motion transport: via / look IK error {err * 1e3:.1f} mm')
+        dq = float((q_via - q0).abs().max())
+        T = max(float(a.transport_s[0]), 1.5 * dq / float(self.wide['transport_max_qd']))
+        n = max(1, int(round(T / self.dt)))
+        ip0, iR0 = self.inhand()
+        right_pc = torch.zeros(1, dtype=torch.bool, device=dev)
+        qa, qb = q0.to(dev).reshape(6), q_via.to(dev).reshape(6)
+        for k in range(n):
+            u = (k + 1) / n
+            self.hstep(qa + (qb - qa) * (u * u * (3 - 2 * u)), q_hold, '3 transport')
+            if k % 5 == 0:
+                right_pc |= self.h.contacts()['right_pc']
+        sd = self.scene.device
+        legs = ([(p_hi, R_via, p_via, R_via)] if p_hi is not None else []) + [(p_via, R_via, p_look, R_look)]
+        q = q_via.to(sd)
+        nr = max(1, int(round(float(a.transport_s[1]) / self.dt)))
+        pe = re = torch.zeros(1)
+        for leg in legs:       # Cartesian: (high via ->) via -> look, eval_chain's smoothstep legs
+            pa, Ra, pb, Rb = (x.to(sd) for x in leg)
+            w = K.rot_log(Rb @ Ra.transpose(1, 2))
+            for k in range(nr):
+                u = (k + 1) / nr
+                u = u * u * (3 - 2 * u)
+                Rt = K.axis_angle_mat(w / w.norm(dim=1, keepdim=True).clamp(min=1e-9), w.norm(dim=1) * u) @ Ra
+                q, pe, re = ch.ik(pa + (pb - pa) * u, Rt, q, iters=8 if k + 1 < nr else 60)
+                self.hstep(q.to(dev), q_hold, '3 transport')
+                if k % 5 == 0:
+                    right_pc |= self.h.contacts()['right_pc']
+        ip1, iR1 = self.inhand()
+        log.update(transport_ik_err_mm=torch.tensor([max(err, float(pe.reshape(-1)[0])) * 1e3]),
+                   transport_ik_rot_deg=torch.rad2deg(re.reshape(-1).cpu()), transport_right_pc_contact=right_pc,
+                   transport_inhand_dp_mm=(ip1 - ip0).norm(dim=1) * 1e3,
+                   transport_inhand_dr_deg=torch.rad2deg(K.rot_log(iR1 @ iR0.transpose(1, 2)).norm(dim=1)),
+                   transport_joint_via_s=T)
+        self.log_event('wide_transport', joint_s=T, dq_max_rad=dq, via_look_ik_err_mm=err * 1e3, final_ik_err_mm=float(pe.reshape(-1)[0]) * 1e3)
+        return q.to(dev)
 
     def unload_left(self, steps=25):
         """Remove the press force: command the measured left pose (zero PD error), then lift the hand."""

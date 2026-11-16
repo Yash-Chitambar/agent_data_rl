@@ -1,0 +1,1 @@
+{"pc": [0.231, 0.419, -11.0], "reader": [0.131, 0.448, 92.0], "seed": 7043, "config": "results/placement/wide_motion/configs/wide12_k7_tm.json", "speed": 0.75, "zed_ood_scale": null}

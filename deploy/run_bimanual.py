@@ -114,6 +114,9 @@ def parse(argv=None):
     ap.add_argument('--align-mode', choices=('measure', 'align', 'full'), default=None, help='config align on: measure = camera measurements at the stop, no align motion, no insertion; align = move, no insertion; full = align then insertion (default: config align.mode)')
     ap.add_argument('--align-set', action='append', default=[], metavar='KEY=JSON', help='override one align key (dry-run experiments and rig commissioning; logged in meta.json)')
     ap.add_argument('--sim-phys', default='', help='dry run only, JSON of runtime fields, e.g. {"pc_real_look": "blind_insertion/assets/pc_real_look", "inhand_real": "v2"}')
+    ap.add_argument('--sim-release-open-m', type=float, default=None,
+                    help='dry run only: sim right finger limit (m per finger) from the release on (config sim.release_open_m; default '
+                         'io_sim.SIM_RELEASE_OPEN_M 0.027; 0 = the old 24 mm dry run). Never changes what the chain sends')
     ap.add_argument('--sim-inhand', default='', help='dry run only, stage approach_insert: in-hand pose from this real-grasp preset (v2), one draw per episode')
     ap.add_argument('--enc-offset-deg', type=float, default=None, help='dry run only: encoder-offset error DR, +/- deg (default eval_chain: 1.5)')
     ap.add_argument('--yes', action='store_true', help='answer every prompt with Enter (dry runs default to this)')
@@ -196,6 +199,8 @@ class Runner:
                 self.cfg.setdefault('sim', {})['phys_json'] = self.a.sim_phys
             if self.a.sim_inhand:
                 self.cfg.setdefault('sim', {})['inhand_preset'] = self.a.sim_inhand
+            if self.a.sim_release_open_m is not None:
+                self.cfg.setdefault('sim', {})['release_open_m'] = self.a.sim_release_open_m
             extra = ['--enc-offset-deg', str(self.a.enc_offset_deg)] if self.a.enc_offset_deg is not None else []
             self.io = SimIO(self.cfg, self.gmaps, self.policy_path, device=str(self.dev), extra_args=extra)
             return

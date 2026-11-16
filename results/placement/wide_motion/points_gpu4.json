@@ -1,0 +1,287 @@
+[
+{
+"tag": "k7_pc-25_+0_+0_s7043",
+"pc": [
+0.206,
+0.394,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc-25_-25_+0_s7043",
+"pc": [
+0.206,
+0.369,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc-25_+0_+15_s7043",
+"pc": [
+0.206,
+0.394,
+19.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc+25_-25_+15_s7043",
+"pc": [
+0.256,
+0.369,
+19.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc+0_+0_-5_s7043",
+"pc": [
+0.231,
+0.394,
+-1.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc+25_-25_-10_s7043",
+"pc": [
+0.256,
+0.369,
+-6.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc+25_-25_-15_s7043",
+"pc": [
+0.256,
+0.369,
+-11.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc-25_+12_+8_s7043",
+"pc": [
+0.206,
+0.406,
+12.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "tape_k7_pc-20_+4_+0_s7043",
+"pc": [
+0.211,
+0.398,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "tape_k7_pc-20_-20_-8_s7043",
+"pc": [
+0.211,
+0.374,
+-4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "tape_k7_pc+20_+20_-5_tm_s7043",
+"pc": [
+0.251,
+0.414,
+-1.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "results/placement/wide_motion/configs/wide12_k7_tm.json"
+},
+{
+"tag": "k7_pc+0_+25_+0_tm_s7043",
+"pc": [
+0.231,
+0.419,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "results/placement/wide_motion/configs/wide12_k7_tm.json"
+},
+{
+"tag": "k7_pc+25_+25_+0_tm_s7043",
+"pc": [
+0.256,
+0.419,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "results/placement/wide_motion/configs/wide12_k7_tm.json"
+},
+{
+"tag": "k7_pc+0_+25_-15_tm_s7043",
+"pc": [
+0.231,
+0.419,
+-11.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "results/placement/wide_motion/configs/wide12_k7_tm.json"
+},
+{
+"tag": "k7_pc-25_-25_+0_rd+40_+40_y110_s7043",
+"pc": [
+0.206,
+0.369,
+4.0
+],
+"reader": [
+0.171,
+0.488,
+110
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc+0_+0_-10_rd-40_-40_y70_s7043",
+"pc": [
+0.231,
+0.394,
+-6.0
+],
+"reader": [
+0.091,
+0.408,
+70
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k4_pc-20_-20_+0_s7043",
+"pc": [
+0.211,
+0.374,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align12_wide_k4.json"
+},
+{
+"tag": "k7_pc+0_+0_+0_s7045",
+"pc": [
+0.231,
+0.394,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7045,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+},
+{
+"tag": "k7_pc+20_-20_+12_s7045",
+"pc": [
+0.251,
+0.374,
+16.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7045,
+"config": "deploy/config/bimanual_align12_wide_k7.json"
+}
+]

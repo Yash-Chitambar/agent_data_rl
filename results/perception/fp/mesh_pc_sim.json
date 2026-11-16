@@ -1,0 +1,21 @@
+{
+ "R_up": [
+  [
+   -1.7e-08,
+   -2.9e-08,
+   -1.0
+  ],
+  [
+   -1.0,
+   3.1e-08,
+   1.7e-08
+  ],
+  [
+   3.1e-08,
+   1.0,
+   -2.9e-08
+  ]
+ ],
+ "z_origin": -0.009488035866323921,
+ "source": "scripts/perception/fp_sim_render.py (sim PC fixture body geoms, port 2 frame); R_up = fixture rotation at yaw 0; z_origin = fixture z in the right base (sim table)"
+}

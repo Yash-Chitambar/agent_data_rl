@@ -1,0 +1,122 @@
+[
+{
+"tag": "real_k7_base_s7043",
+"pc": [
+0.231,
+0.398,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align11_wide_k7.json"
+},
+{
+"tag": "real_k7_base_s7045",
+"pc": [
+0.231,
+0.398,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7045,
+"config": "deploy/config/bimanual_align11_wide_k7.json"
+},
+{
+"tag": "real_k7_x+12_yaw+8_s7043",
+"pc": [
+0.243,
+0.398,
+12.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align11_wide_k7.json"
+},
+{
+"tag": "real_k7_x+12_yaw+8_s7045",
+"pc": [
+0.243,
+0.398,
+12.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7045,
+"config": "deploy/config/bimanual_align11_wide_k7.json"
+},
+{
+"tag": "real_k7_y+12_x+12_s7043",
+"pc": [
+0.243,
+0.41,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align11_wide_k7.json"
+},
+{
+"tag": "real_k7_y+12_x+12_s7045",
+"pc": [
+0.243,
+0.41,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7045,
+"config": "deploy/config/bimanual_align11_wide_k7.json"
+},
+{
+"tag": "real_k4_base_s7043",
+"pc": [
+0.231,
+0.398,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7043,
+"config": "deploy/config/bimanual_align11_wide_k4.json"
+},
+{
+"tag": "real_k4_base_s7045",
+"pc": [
+0.231,
+0.398,
+4.0
+],
+"reader": [
+0.131,
+0.448,
+92.0
+],
+"seed": 7045,
+"config": "deploy/config/bimanual_align11_wide_k4.json"
+}
+]

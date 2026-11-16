@@ -3,6 +3,16 @@
 Running log for `docs/archive/RESEARCH_PLAN_single_arm.md`. Dated entries; newest first within each section.
 Figures and data referenced here live in `results/<phase>/`.
 
+## 2026-11-16: wide PC placement made ready for the rig (sim and offline; nothing on the arm)
+
+Next session: `docs/real/NEXT_RIG_20261117.md`, one config `bimanual_align13_wide_k7_fp_shadow`, approvals A1-A7.
+
+- **Sim release and panel fixes** (`SIM_RELEASE_PANEL_20261116.md`). SimIO defaults, RealIO unchanged: `sim.release_open_m` 0.027 (the retreat drag is gone: plug moved 0.000 mm in 8 of 8 released runs) and a dark PC panel for the edge-fit frame only (the fit now works in dry runs: 0.34-1.28 mm from sim truth, n = 9). The real jaws open only 22.6-23.6 mm (n = 24), so 27 mm is a sim pad workaround. Remaining after-release losses have other causes (spring-back at the end of the push; slide while the jaws open).
+- **Wide placement readiness** (`WIDE_PLACEMENT_READY_20261116.md`). Perception (edge fit + zed_v5 gate and yaw) and K7 cover +/-25 mm, +/-15 deg in the sim; the limit was the arm motions. v1 yaw: 7.4 deg off at +15 deg (sim, n = 8); on a real +7.4 deg turn v1 read +5.6, zed_v5 +7.2. Wide capture grid with the real fit: zed_v5 gate 125 of 125, fit gate 104 of 125 (rejects at dy >= +12), chain pose error median 0.67 mm, max 3.41 mm.
+- **Collision-aware wide motions** (`WIDE_MOTION_20261116.md`, `deploy/bimanual/wide_motion.py`, off by default). An offline whole-chain mesh check found three causes: right hand against the left press fingers in the hold, right joint 6 at negative yaw from the transport via pose, and the right wrist at the left shoulder at the insertion pose for dyaw <= -10 toward the left arm (one IK branch; no motion fixes it). New motions (right clear move, joint transport, per-pose left hold choice): 147 of 175 poses pass (old motions 61). 39 K7 dry runs: 31 reached the insertion, 31 seated before the release, 26 after; no guard or SafeArm stop. Rig box: dx, dy +/-20 mm, dyaw -5..+12 deg, down to -8 only with dy <= 0.
+- **SAM 3 + FoundationPose PC pose** (`FOUNDATIONPOSE_20261116.md`, `deploy/bimanual/zed_fp.py`, off by default; conda env `fp` in `~/fp_work`). ZED stereo (SGBM) depth, SAM 3 image-model mask, FP, yaw-flip resolved by the net yaw, plane correction to the 11.5 mm top (the real stereo depth reads the silver lid 6.5-17.6 mm high, n = 18). Sim: |dxy| median 0.76 mm, max 1.80 mm, yaw max 0.75 deg (n = 40); SAM 3 IoU median 0.952 against truth. Real (zed_gt, n = 18): FP - edge fit median dx -0.41, dy -1.57 mm, max 3.4 mm; repeat sd 0.67/0.38 mm (edge fit 0.09). Not yet checked against the arm: tomorrow's shadow captures save the stereo pairs. 1.06 s per frame on a V100.
+- **Node-swap attribution** (running). First signal on ai4: setting the hand-over gap to 6 mm removes the K4 lead over K7 (62.5 against 63.7 %, n = 256); a whole-ideal hand-over gives K7 only 41.8 %, so logged inputs interact. The K-J case ai5 does not separate nodes (12.5 % even with every node ideal).
+
 ## 2026-11-15: server work while the operator is away from the rig (sim and real logs; nothing on the arm)
 
 Four studies. Each has its own doc in `docs/real/`. None changes the next rig session (`NEXT_RIG_20261115.md`); the new configs are off the runbook and need the operator's decision.

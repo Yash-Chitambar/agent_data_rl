@@ -1,0 +1,43 @@
+[
+ {
+  "tag": "bimanual_align10_all_s7042_o0_r1",
+  "plug": "nom",
+  "port_mu": null,
+  "release_open_m": null,
+  "argv": [
+   "--config",
+   "deploy/config/bimanual_align10_all.json",
+   "--stage",
+   "full",
+   "--align-mode",
+   "full",
+   "--dry-run",
+   "--seed",
+   "7042",
+   "--out",
+   "/home/yashchitambar/wt/graph-align/runs/simrel/dry",
+   "--name",
+   "bimanual_align10_all_s7042_o0_r1",
+   "--sim-release-open-m",
+   "0.0"
+  ],
+  "completed": true,
+  "stop": null,
+  "insert": "seated_detected",
+  "t_seat_s": 1.56,
+  "true_seated_after_release": true,
+  "depth_end_insert_mm": 5.6705,
+  "seated_end_insert": true,
+  "depth_max_insert_mm": 5.7668,
+  "depth_release_start_mm": 5.6705,
+  "depth_after_open_mm": 5.6705,
+  "depth_after_retreat_mm": 5.6704,
+  "depth_end_mm": 5.6704,
+  "lat_end_mm": [
+   -0.016,
+   0.0729
+  ],
+  "seated_end": true,
+  "first_unseated_k": null
+ }
+]
