@@ -3,6 +3,10 @@
 Running log for `docs/archive/RESEARCH_PLAN_single_arm.md`. Dated entries; newest first within each section.
 Figures and data referenced here live in `results/<phase>/`.
 
+## 2026-11-19: real insertion force measured (kitchen scale, by hand)
+
+- Reader into port 2, PC on a kitchen scale: first contact about 200 g (2.0 N), rising to about 650 g (6.4 N) to push fully in (operator, one hand push; extraction not measured). The robot delivers 10.4 / 14.3 N at the plug in the force pushes (`FORCE_BUDGET_20261115.md`), so **the depth band is not a force shortage**; more push force is not needed. The value sits inside K7's training range (mating force 0-10 N); K4 was trained with none. Sim re-run with this profile: `MATING_FORCE_20261119.md` (running).
+
 ## 2026-11-16: wide PC placement made ready for the rig (sim and offline; nothing on the arm)
 
 Next session: `docs/real/NEXT_RIG_20261117.md`, one config `bimanual_align13_wide_k7_fp_shadow`, approvals A1-A7.
