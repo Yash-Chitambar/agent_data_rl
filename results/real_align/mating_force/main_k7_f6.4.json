@@ -1,0 +1,748 @@
+[
+ {
+  "policy": "runs/insert_K7.pt",
+  "cond": "comp_f6.4",
+  "mate_model": "friction",
+  "mate_peak_n": 6.4,
+  "mate_onset_n": 2.0,
+  "mate_start_mm": 2.0,
+  "n": 3072,
+  "seed": 6600,
+  "seat_depth_mm": 5.8,
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "vision_prior_sigma_scale": null,
+   "slip_m": 0.02,
+   "slip_deg": 20.0,
+   "right_series_stiffness": [
+    640.0,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "mate_force_n": [
+    6.4,
+    6.4
+   ],
+   "mate_model": "friction",
+   "mate_onset_frac": 0.3125,
+   "mate_start_m": 0.002
+  },
+  "sim_seat": {
+   "k": 3026,
+   "n": 3072,
+   "rate": 0.985,
+   "wilson": [
+    0.9801,
+    0.9888
+   ]
+  },
+  "det": {
+   "k": 3028,
+   "n": 3072,
+   "rate": 0.9857,
+   "wilson": [
+    0.9808,
+    0.9893
+   ]
+  },
+  "t_det_p50_p99": [
+   1.76,
+   5.949
+  ],
+  "det_true_depth_mm_p5_p50_p95": [
+   5.695,
+   5.736,
+   5.766
+  ],
+  "det_short_gt_1mm": {
+   "k": 1,
+   "n": 3028,
+   "rate": 0.0003,
+   "wilson": [
+    0.0001,
+    0.0019
+   ]
+  },
+  "det_short_gt_0p5mm": {
+   "k": 2,
+   "n": 3028,
+   "rate": 0.0007,
+   "wilson": [
+    0.0002,
+    0.0024
+   ]
+  },
+  "max_depth_mm_p5_p50": [
+   5.737,
+   5.78
+  ],
+  "end_classes_not_a_rate": {
+   "lateral_miss": 39,
+   "grasp_slip": 75,
+   "deep_unseated": 2953,
+   "tilt": 1,
+   "jam": 4
+  },
+  "groups": {
+   "force10:yaw0": {
+    "n": 1024,
+    "det": {
+     "k": 1006,
+     "n": 1024,
+     "rate": 0.9824,
+     "wilson": [
+      0.9724,
+      0.9889
+     ]
+    },
+    "pushed_n": 1006,
+    "watch_stop": {
+     "k": 0,
+     "n": 1006,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "full_under_load": {
+     "k": 1006,
+     "n": 1024,
+     "rate": 0.9824,
+     "wilson": [
+      0.9724,
+      0.9889
+     ]
+    },
+    "full_under_load_of_pushed": {
+     "k": 1006,
+     "n": 1006,
+     "rate": 1.0,
+     "wilson": [
+      0.9962,
+      1.0
+     ]
+    },
+    "full_at_rest": {
+     "k": 1006,
+     "n": 1024,
+     "rate": 0.9824,
+     "wilson": [
+      0.9724,
+      0.9889
+     ]
+    },
+    "full_at_rest_of_pushed": {
+     "k": 1006,
+     "n": 1006,
+     "rate": 1.0,
+     "wilson": [
+      0.9962,
+      1.0
+     ]
+    },
+    "rest_short_0p5_1": {
+     "k": 0,
+     "n": 1006,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "rest_short_1_2": {
+     "k": 0,
+     "n": 1006,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "rest_short_gt2": {
+     "k": 0,
+     "n": 1006,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "pre_push_depth_mm_p5_p50_p95": [
+     5.656,
+     5.709,
+     5.75
+    ],
+    "load_depth_mm_p5_p50_p95": [
+     5.672,
+     5.721,
+     5.784
+    ],
+    "rest_depth_mm_p5_p50_p95": [
+     5.665,
+     5.705,
+     5.767
+    ],
+    "fk_adv_end_mm_p5_p50_p95": [
+     1.995,
+     2.204,
+     2.513
+    ],
+    "fk_adv_rest_mm_p5_p50_p95": [
+     0.263,
+     0.449,
+     0.728
+    ],
+    "f_cmd_axial_end_n_p5_p50_p95": [
+     9.979,
+     9.997,
+     10.072
+    ],
+    "f_reached_p5_p50": [
+     10.0,
+     10.0
+    ],
+    "reader_shift_in_jaws_end_mm_p50_p95": [
+     3.637,
+     6.783
+    ],
+    "inhand_rot_at_push_deg_p5_p50_p95": [
+     1.979,
+     3.176,
+     6.228
+    ],
+    "plug_tilt_in_port_at_push_deg_p5_p50_p95": [
+     0.452,
+     1.386,
+     1.738
+    ],
+    "plug_tilt_in_port_rest_deg_p50_p95": [
+     1.322,
+     1.701
+    ],
+    "short_tilted_gt3deg": {
+     "k": 0,
+     "n": 1006,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "by_sign": {
+     "pos": {
+      "full_at_rest": {
+       "k": 502,
+       "n": 512,
+       "rate": 0.9805,
+       "wilson": [
+        0.9644,
+        0.9894
+       ]
+      }
+     },
+     "neg": {
+      "full_at_rest": {
+       "k": 504,
+       "n": 512,
+       "rate": 0.9844,
+       "wilson": [
+        0.9695,
+        0.9921
+       ]
+      }
+     }
+    },
+    "by_inhand_rot": {
+     "0-1": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "1-2": {
+      "k": 55,
+      "n": 55,
+      "rate": 1.0,
+      "wilson": [
+       0.9347,
+       1.0
+      ]
+     },
+     "2-3": {
+      "k": 371,
+      "n": 371,
+      "rate": 1.0,
+      "wilson": [
+       0.9898,
+       1.0
+      ]
+     },
+     "3-5": {
+      "k": 454,
+      "n": 454,
+      "rate": 1.0,
+      "wilson": [
+       0.9916,
+       1.0
+      ]
+     },
+     "5-90": {
+      "k": 126,
+      "n": 126,
+      "rate": 1.0,
+      "wilson": [
+       0.9704,
+       1.0
+      ]
+     }
+    }
+   },
+   "force14:yaw0": {
+    "n": 1024,
+    "det": {
+     "k": 1010,
+     "n": 1024,
+     "rate": 0.9863,
+     "wilson": [
+      0.9772,
+      0.9918
+     ]
+    },
+    "pushed_n": 1010,
+    "watch_stop": {
+     "k": 11,
+     "n": 1010,
+     "rate": 0.0109,
+     "wilson": [
+      0.0061,
+      0.0194
+     ]
+    },
+    "full_under_load": {
+     "k": 1010,
+     "n": 1024,
+     "rate": 0.9863,
+     "wilson": [
+      0.9772,
+      0.9918
+     ]
+    },
+    "full_under_load_of_pushed": {
+     "k": 1010,
+     "n": 1010,
+     "rate": 1.0,
+     "wilson": [
+      0.9962,
+      1.0
+     ]
+    },
+    "full_at_rest": {
+     "k": 1007,
+     "n": 1024,
+     "rate": 0.9834,
+     "wilson": [
+      0.9736,
+      0.9896
+     ]
+    },
+    "full_at_rest_of_pushed": {
+     "k": 1007,
+     "n": 1007,
+     "rate": 1.0,
+     "wilson": [
+      0.9962,
+      1.0
+     ]
+    },
+    "rest_short_0p5_1": {
+     "k": 0,
+     "n": 1007,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "rest_short_1_2": {
+     "k": 0,
+     "n": 1007,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "rest_short_gt2": {
+     "k": 0,
+     "n": 1007,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "pre_push_depth_mm_p5_p50_p95": [
+     5.654,
+     5.71,
+     5.743
+    ],
+    "load_depth_mm_p5_p50_p95": [
+     5.689,
+     5.738,
+     5.791
+    ],
+    "rest_depth_mm_p5_p50_p95": [
+     5.676,
+     5.708,
+     5.772
+    ],
+    "fk_adv_end_mm_p5_p50_p95": [
+     2.972,
+     3.307,
+     3.702
+    ],
+    "fk_adv_rest_mm_p5_p50_p95": [
+     0.652,
+     0.955,
+     1.354
+    ],
+    "f_cmd_axial_end_n_p5_p50_p95": [
+     13.938,
+     13.993,
+     14.067
+    ],
+    "f_reached_p5_p50": [
+     14.0,
+     14.0
+    ],
+    "reader_shift_in_jaws_end_mm_p50_p95": [
+     3.973,
+     6.96
+    ],
+    "inhand_rot_at_push_deg_p5_p50_p95": [
+     2.027,
+     3.3,
+     6.129
+    ],
+    "plug_tilt_in_port_at_push_deg_p5_p50_p95": [
+     0.432,
+     1.398,
+     1.729
+    ],
+    "plug_tilt_in_port_rest_deg_p50_p95": [
+     1.3,
+     1.683
+    ],
+    "short_tilted_gt3deg": {
+     "k": 0,
+     "n": 1007,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "by_sign": {
+     "pos": {
+      "full_at_rest": {
+       "k": 504,
+       "n": 512,
+       "rate": 0.9844,
+       "wilson": [
+        0.9695,
+        0.9921
+       ]
+      }
+     },
+     "neg": {
+      "full_at_rest": {
+       "k": 503,
+       "n": 512,
+       "rate": 0.9824,
+       "wilson": [
+        0.9669,
+        0.9907
+       ]
+      }
+     }
+    },
+    "by_inhand_rot": {
+     "0-1": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "1-2": {
+      "k": 46,
+      "n": 46,
+      "rate": 1.0,
+      "wilson": [
+       0.9229,
+       1.0
+      ]
+     },
+     "2-3": {
+      "k": 341,
+      "n": 341,
+      "rate": 1.0,
+      "wilson": [
+       0.9889,
+       1.0
+      ]
+     },
+     "3-5": {
+      "k": 486,
+      "n": 486,
+      "rate": 1.0,
+      "wilson": [
+       0.9922,
+       1.0
+      ]
+     },
+     "5-90": {
+      "k": 134,
+      "n": 134,
+      "rate": 1.0,
+      "wilson": [
+       0.9721,
+       1.0
+      ]
+     }
+    }
+   },
+   "pos15:yaw0": {
+    "n": 1024,
+    "det": {
+     "k": 1012,
+     "n": 1024,
+     "rate": 0.9883,
+     "wilson": [
+      0.9796,
+      0.9933
+     ]
+    },
+    "pushed_n": 1012,
+    "watch_stop": {
+     "k": 2,
+     "n": 1012,
+     "rate": 0.002,
+     "wilson": [
+      0.0005,
+      0.0072
+     ]
+    },
+    "full_under_load": {
+     "k": 1010,
+     "n": 1024,
+     "rate": 0.9863,
+     "wilson": [
+      0.9772,
+      0.9918
+     ]
+    },
+    "full_under_load_of_pushed": {
+     "k": 1010,
+     "n": 1012,
+     "rate": 0.998,
+     "wilson": [
+      0.9928,
+      0.9995
+     ]
+    },
+    "full_at_rest": {
+     "k": 1010,
+     "n": 1024,
+     "rate": 0.9863,
+     "wilson": [
+      0.9772,
+      0.9918
+     ]
+    },
+    "full_at_rest_of_pushed": {
+     "k": 1010,
+     "n": 1012,
+     "rate": 0.998,
+     "wilson": [
+      0.9928,
+      0.9995
+     ]
+    },
+    "rest_short_0p5_1": {
+     "k": 2,
+     "n": 1012,
+     "rate": 0.002,
+     "wilson": [
+      0.0005,
+      0.0072
+     ]
+    },
+    "rest_short_1_2": {
+     "k": 0,
+     "n": 1012,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "rest_short_gt2": {
+     "k": 0,
+     "n": 1012,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "pre_push_depth_mm_p5_p50_p95": [
+     5.652,
+     5.711,
+     5.745
+    ],
+    "load_depth_mm_p5_p50_p95": [
+     5.66,
+     5.701,
+     5.724
+    ],
+    "rest_depth_mm_p5_p50_p95": [
+     5.634,
+     5.681,
+     5.702
+    ],
+    "fk_adv_end_mm_p5_p50_p95": [
+     1.533,
+     1.829,
+     2.109
+    ],
+    "fk_adv_rest_mm_p5_p50_p95": [
+     0.213,
+     0.477,
+     0.68
+    ],
+    "f_cmd_axial_end_n_p5_p50_p95": [
+     9.362,
+     10.764,
+     12.133
+    ],
+    "f_reached_p5_p50": null,
+    "reader_shift_in_jaws_end_mm_p50_p95": [
+     5.397,
+     8.307
+    ],
+    "inhand_rot_at_push_deg_p5_p50_p95": [
+     1.93,
+     3.292,
+     6.098
+    ],
+    "plug_tilt_in_port_at_push_deg_p5_p50_p95": [
+     0.488,
+     1.367,
+     1.736
+    ],
+    "plug_tilt_in_port_rest_deg_p50_p95": [
+     1.653,
+     1.776
+    ],
+    "short_tilted_gt3deg": {
+     "k": 0,
+     "n": 1012,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "by_sign": {
+     "pos": {
+      "full_at_rest": {
+       "k": 505,
+       "n": 512,
+       "rate": 0.9863,
+       "wilson": [
+        0.9721,
+        0.9934
+       ]
+      }
+     },
+     "neg": {
+      "full_at_rest": {
+       "k": 505,
+       "n": 512,
+       "rate": 0.9863,
+       "wilson": [
+        0.9721,
+        0.9934
+       ]
+      }
+     }
+    },
+    "by_inhand_rot": {
+     "0-1": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "1-2": {
+      "k": 60,
+      "n": 61,
+      "rate": 0.9836,
+      "wilson": [
+       0.9128,
+       0.9971
+      ]
+     },
+     "2-3": {
+      "k": 322,
+      "n": 323,
+      "rate": 0.9969,
+      "wilson": [
+       0.9827,
+       0.9995
+      ]
+     },
+     "3-5": {
+      "k": 506,
+      "n": 506,
+      "rate": 1.0,
+      "wilson": [
+       0.9925,
+       1.0
+      ]
+     },
+     "5-90": {
+      "k": 122,
+      "n": 122,
+      "rate": 1.0,
+      "wilson": [
+       0.9695,
+       1.0
+      ]
+     }
+    }
+   }
+  },
+  "groups_spec": "force10:yaw0,force14:yaw0,pos15:yaw0",
+  "wall_s": 1911,
+  "tag": "k7"
+ }
+]
