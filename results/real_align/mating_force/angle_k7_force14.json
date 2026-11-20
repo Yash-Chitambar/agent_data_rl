@@ -1,0 +1,669 @@
+[
+ {
+  "policy": "runs/insert_K7.pt",
+  "cond": "comp_f6.4",
+  "mate_model": "friction",
+  "mate_peak_n": 6.4,
+  "mate_onset_n": 2.0,
+  "mate_start_mm": 2.0,
+  "n": 2048,
+  "seed": 6600,
+  "seat_depth_mm": 5.8,
+  "env_extra": {
+   "task_layout": "results/placement/task_layout_real_v2.json",
+   "pc_pose_range": [
+    0.005,
+    0.005,
+    1.5
+   ],
+   "vision_prior_sigma_scale": null,
+   "slip_m": 0.02,
+   "slip_deg": 20.0,
+   "right_series_stiffness": [
+    640.0,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "mate_force_n": [
+    6.4,
+    6.4
+   ],
+   "mate_model": "friction",
+   "mate_onset_frac": 0.3125,
+   "mate_start_m": 0.002
+  },
+  "sim_seat": {
+   "k": 2027,
+   "n": 2048,
+   "rate": 0.9897,
+   "wilson": [
+    0.9844,
+    0.9933
+   ]
+  },
+  "det": {
+   "k": 2027,
+   "n": 2048,
+   "rate": 0.9897,
+   "wilson": [
+    0.9844,
+    0.9933
+   ]
+  },
+  "t_det_p50_p99": [
+   1.76,
+   6.075
+  ],
+  "det_true_depth_mm_p5_p50_p95": [
+   5.695,
+   5.735,
+   5.767
+  ],
+  "det_short_gt_1mm": {
+   "k": 1,
+   "n": 2027,
+   "rate": 0.0005,
+   "wilson": [
+    0.0001,
+    0.0028
+   ]
+  },
+  "det_short_gt_0p5mm": {
+   "k": 2,
+   "n": 2027,
+   "rate": 0.001,
+   "wilson": [
+    0.0003,
+    0.0036
+   ]
+  },
+  "max_depth_mm_p5_p50": [
+   5.74,
+   5.782
+  ],
+  "end_classes_not_a_rate": {
+   "lateral_miss": 18,
+   "grasp_slip": 28,
+   "deep_unseated": 2000,
+   "tilt": 2
+  },
+  "groups": {
+   "force14:yaw5": {
+    "n": 1024,
+    "det": {
+     "k": 1012,
+     "n": 1024,
+     "rate": 0.9883,
+     "wilson": [
+      0.9796,
+      0.9933
+     ]
+    },
+    "pushed_n": 1012,
+    "watch_stop": {
+     "k": 50,
+     "n": 1012,
+     "rate": 0.0494,
+     "wilson": [
+      0.0377,
+      0.0645
+     ]
+    },
+    "full_under_load": {
+     "k": 1012,
+     "n": 1024,
+     "rate": 0.9883,
+     "wilson": [
+      0.9796,
+      0.9933
+     ]
+    },
+    "full_under_load_of_pushed": {
+     "k": 1012,
+     "n": 1012,
+     "rate": 1.0,
+     "wilson": [
+      0.9962,
+      1.0
+     ]
+    },
+    "full_at_rest": {
+     "k": 1012,
+     "n": 1024,
+     "rate": 0.9883,
+     "wilson": [
+      0.9796,
+      0.9933
+     ]
+    },
+    "full_at_rest_of_pushed": {
+     "k": 1012,
+     "n": 1012,
+     "rate": 1.0,
+     "wilson": [
+      0.9962,
+      1.0
+     ]
+    },
+    "rest_short_0p5_1": {
+     "k": 0,
+     "n": 1012,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "rest_short_1_2": {
+     "k": 0,
+     "n": 1012,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "rest_short_gt2": {
+     "k": 0,
+     "n": 1012,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "pre_push_depth_mm_p5_p50_p95": [
+     5.655,
+     5.712,
+     5.75
+    ],
+    "load_depth_mm_p5_p50_p95": [
+     5.692,
+     5.737,
+     5.793
+    ],
+    "rest_depth_mm_p5_p50_p95": [
+     5.676,
+     5.709,
+     5.773
+    ],
+    "fk_adv_end_mm_p5_p50_p95": [
+     2.766,
+     3.343,
+     3.971
+    ],
+    "fk_adv_rest_mm_p5_p50_p95": [
+     0.66,
+     0.947,
+     1.354
+    ],
+    "f_cmd_axial_end_n_p5_p50_p95": [
+     13.653,
+     13.801,
+     14.24
+    ],
+    "f_reached_p5_p50": [
+     14.0,
+     14.0
+    ],
+    "reader_shift_in_jaws_end_mm_p50_p95": [
+     3.771,
+     6.748
+    ],
+    "inhand_rot_at_push_deg_p5_p50_p95": [
+     1.973,
+     3.201,
+     5.983
+    ],
+    "reader_turn_in_jaws_handover_to_push_deg_p5_p50_p95": [
+     1.772,
+     2.97,
+     5.764
+    ],
+    "hand_angle_theta_push_deg_p5_p50_p95": null,
+    "hand_angle_theta_rest_deg_p5_p50_p95": null,
+    "hand_turn_handover_to_push_deg_p5_p50_p95": [
+     0.676,
+     1.741,
+     4.772
+    ],
+    "by_theta_push": {
+     "0-1": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "1-2": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "2-3": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "3-5": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "5-7.5": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "7.5-90": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     }
+    },
+    "plug_tilt_in_port_at_push_deg_p5_p50_p95": [
+     0.456,
+     1.368,
+     1.736
+    ],
+    "plug_tilt_in_port_rest_deg_p50_p95": [
+     1.276,
+     1.689
+    ],
+    "short_tilted_gt3deg": {
+     "k": 0,
+     "n": 1012,
+     "rate": 0.0,
+     "wilson": [
+      -0.0,
+      0.0038
+     ]
+    },
+    "by_sign": {
+     "pos": {
+      "full_at_rest": {
+       "k": 506,
+       "n": 512,
+       "rate": 0.9883,
+       "wilson": [
+        0.9747,
+        0.9946
+       ]
+      }
+     },
+     "neg": {
+      "full_at_rest": {
+       "k": 506,
+       "n": 512,
+       "rate": 0.9883,
+       "wilson": [
+        0.9747,
+        0.9946
+       ]
+      }
+     }
+    },
+    "by_inhand_rot": {
+     "0-1": {
+      "k": 2,
+      "n": 2,
+      "rate": 1.0,
+      "wilson": [
+       0.3424,
+       1.0
+      ]
+     },
+     "1-2": {
+      "k": 56,
+      "n": 56,
+      "rate": 1.0,
+      "wilson": [
+       0.9358,
+       1.0
+      ]
+     },
+     "2-3": {
+      "k": 357,
+      "n": 357,
+      "rate": 1.0,
+      "wilson": [
+       0.9894,
+       1.0
+      ]
+     },
+     "3-5": {
+      "k": 475,
+      "n": 475,
+      "rate": 1.0,
+      "wilson": [
+       0.992,
+       1.0
+      ]
+     },
+     "5-90": {
+      "k": 122,
+      "n": 122,
+      "rate": 1.0,
+      "wilson": [
+       0.9695,
+       1.0
+      ]
+     }
+    }
+   },
+   "force14:pitch5": {
+    "n": 1024,
+    "det": {
+     "k": 1015,
+     "n": 1024,
+     "rate": 0.9912,
+     "wilson": [
+      0.9834,
+      0.9954
+     ]
+    },
+    "pushed_n": 1012,
+    "watch_stop": {
+     "k": 14,
+     "n": 1012,
+     "rate": 0.0138,
+     "wilson": [
+      0.0083,
+      0.0231
+     ]
+    },
+    "full_under_load": {
+     "k": 1012,
+     "n": 1024,
+     "rate": 0.9883,
+     "wilson": [
+      0.9796,
+      0.9933
+     ]
+    },
+    "full_under_load_of_pushed": {
+     "k": 1012,
+     "n": 1012,
+     "rate": 1.0,
+     "wilson": [
+      0.9962,
+      1.0
+     ]
+    },
+    "full_at_rest": {
+     "k": 1010,
+     "n": 1024,
+     "rate": 0.9863,
+     "wilson": [
+      0.9772,
+      0.9918
+     ]
+    },
+    "full_at_rest_of_pushed": {
+     "k": 1010,
+     "n": 1010,
+     "rate": 1.0,
+     "wilson": [
+      0.9962,
+      1.0
+     ]
+    },
+    "rest_short_0p5_1": {
+     "k": 0,
+     "n": 1010,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "rest_short_1_2": {
+     "k": 0,
+     "n": 1010,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "rest_short_gt2": {
+     "k": 0,
+     "n": 1010,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "pre_push_depth_mm_p5_p50_p95": [
+     5.66,
+     5.711,
+     5.746
+    ],
+    "load_depth_mm_p5_p50_p95": [
+     5.687,
+     5.741,
+     5.793
+    ],
+    "rest_depth_mm_p5_p50_p95": [
+     5.672,
+     5.709,
+     5.772
+    ],
+    "fk_adv_end_mm_p5_p50_p95": [
+     2.965,
+     3.308,
+     3.778
+    ],
+    "fk_adv_rest_mm_p5_p50_p95": [
+     0.646,
+     0.953,
+     1.41
+    ],
+    "f_cmd_axial_end_n_p5_p50_p95": [
+     13.798,
+     13.937,
+     14.133
+    ],
+    "f_reached_p5_p50": [
+     14.0,
+     14.0
+    ],
+    "reader_shift_in_jaws_end_mm_p50_p95": [
+     3.961,
+     7.023
+    ],
+    "inhand_rot_at_push_deg_p5_p50_p95": [
+     1.999,
+     3.299,
+     6.451
+    ],
+    "reader_turn_in_jaws_handover_to_push_deg_p5_p50_p95": [
+     1.815,
+     3.045,
+     6.18
+    ],
+    "hand_angle_theta_push_deg_p5_p50_p95": null,
+    "hand_angle_theta_rest_deg_p5_p50_p95": null,
+    "hand_turn_handover_to_push_deg_p5_p50_p95": [
+     0.662,
+     1.907,
+     5.048
+    ],
+    "by_theta_push": {
+     "0-1": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "1-2": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "2-3": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "3-5": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "5-7.5": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     },
+     "7.5-90": {
+      "k": 0,
+      "n": 0,
+      "rate": 0.0,
+      "wilson": [
+       NaN,
+       NaN
+      ]
+     }
+    },
+    "plug_tilt_in_port_at_push_deg_p5_p50_p95": [
+     0.347,
+     1.349,
+     1.732
+    ],
+    "plug_tilt_in_port_rest_deg_p50_p95": [
+     1.268,
+     1.681
+    ],
+    "short_tilted_gt3deg": {
+     "k": 0,
+     "n": 1010,
+     "rate": 0.0,
+     "wilson": [
+      0.0,
+      0.0038
+     ]
+    },
+    "by_sign": {
+     "pos": {
+      "full_at_rest": {
+       "k": 505,
+       "n": 512,
+       "rate": 0.9863,
+       "wilson": [
+        0.9721,
+        0.9934
+       ]
+      }
+     },
+     "neg": {
+      "full_at_rest": {
+       "k": 505,
+       "n": 512,
+       "rate": 0.9863,
+       "wilson": [
+        0.9721,
+        0.9934
+       ]
+      }
+     }
+    },
+    "by_inhand_rot": {
+     "0-1": {
+      "k": 1,
+      "n": 1,
+      "rate": 1.0,
+      "wilson": [
+       0.2065,
+       1.0
+      ]
+     },
+     "1-2": {
+      "k": 51,
+      "n": 51,
+      "rate": 1.0,
+      "wilson": [
+       0.93,
+       1.0
+      ]
+     },
+     "2-3": {
+      "k": 311,
+      "n": 311,
+      "rate": 1.0,
+      "wilson": [
+       0.9878,
+       1.0
+      ]
+     },
+     "3-5": {
+      "k": 508,
+      "n": 508,
+      "rate": 1.0,
+      "wilson": [
+       0.9925,
+       1.0
+      ]
+     },
+     "5-90": {
+      "k": 139,
+      "n": 139,
+      "rate": 1.0,
+      "wilson": [
+       0.9731,
+       1.0
+      ]
+     }
+    }
+   }
+  },
+  "groups_spec": "force14:yaw5,force14:pitch5",
+  "wall_s": 2011,
+  "tag": "k7"
+ }
+]

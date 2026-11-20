@@ -211,6 +211,28 @@ class InsertionCfg:
     # zero up to mate_start_m of depth, then linear to the peak at the seat depth, set each control step. None: off (K4 and older).
     mate_force_n: tuple | None = None
     mate_start_m: float = 0.002
+    # Measured profile (docs/real/MATING_FORCE_20261119.md; kitchen scale 2026-11-19: about 2.0 N at first contact, 6.4 N at full depth):
+    # force at mate_start_m as a fraction of the peak (0: the old ramp from zero). Sim only.
+    mate_onset_frac: float = 0.0
+    # 'spring' (default, as before): an explicit force that pushes the plug out at any load, also a short plug at zero load.
+    # 'friction': Coulomb friction (MuJoCo frictionloss, solved with the contacts) on the plug's free-joint translation along the world
+    # axis nearest the port axis, limit = the profile force; it resists motion both ways and does not push a still plug out. Needs the
+    # dynamics profile (batched dof_frictionloss). Limits: the reaction goes to the world, not to the PC; one world axis (port yaw
+    # +-1.5 deg: cos 0.9997). Stick is soft: under a load F below the limit the plug creeps at v = F R / b (MuJoCo soft friction,
+    # R = (1 - d) / d * invweight0, b = 2 / (d * timeconst)). The plug's own invweight0 (a free 10 g body: about 100) gives a damper, not
+    # stick (creep about 25 mm/s at 5 N); mate_friction_invweight sets it to the held plug + hand (0.5: 2 kg) and mate_friction_solimp
+    # d = 0.99: creep about 0.03 mm/s at 5 N. Sim only.
+    mate_model: str = 'spring'
+    mate_friction_solref: tuple | None = (0.002, 1.0)
+    mate_friction_solimp: tuple | None = (0.99, 0.99, 0.001, 0.5, 2.0)
+    mate_friction_invweight: float | None = 0.5
+    # Angle dependence (kitchen scale 2026-11-20: about 10.8 N to push home at about 5 deg off the port axis, 6.4 N straight). The profile
+    # force is scaled by 1 + mate_angle_gain_per_deg x min(theta, mate_angle_max_deg); theta = angle between the port axis and the
+    # reader axis the jaws hold: the TCP rotation x the reader-in-TCP rotation at the end of the warm-up (a turn of the hand against
+    # the seated plug, as a rigid hand push at an angle). Measured: 0.14 per deg (x1.69 at 5 deg), linear in between (assumption),
+    # held flat above the cap. 0 (default): no angle dependence. Sim only.
+    mate_angle_gain_per_deg: float = 0.0
+    mate_angle_max_deg: float = 7.5
     # ---- AlignTask (blind_insertion/envs/align_task.py): final alignment from a real-like stop to the hand-over pose
     align_task: bool = False
     align_goal_mm: tuple = (0., 0., 6.)
@@ -357,6 +379,23 @@ class InsertionTask(BimanualTask):
             self.mate_xfrc = wp.to_torch(rt.d.xfrc_applied)
             self.mate_peak = torch.zeros(self.N, device=dev)
             self.mate_bodies = (int(m.body('peg').id), int(m.body('fixture').id))
+            if self.icfg.mate_model not in ('spring', 'friction'):
+                raise ValueError("mate_model: 'spring' or 'friction'")
+            if self.icfg.mate_model == 'friction':
+                if getattr(rt, 'frictionloss', None) is None or rt.frictionloss.shape[0] != self.N:
+                    raise ValueError("mate_model 'friction' needs batched dof_frictionloss (BimanualCfg.dynamics_profile)")
+                self.mate_dof0 = int(m.jnt_dofadr[int(m.body('peg').jntadr[0])])        # free joint: 3 translational dofs (world frame)
+                if self.icfg.mate_friction_solref is not None:
+                    sr = wp.to_torch(rt.m.dof_solref)
+                    sr[:, self.mate_dof0:self.mate_dof0 + 3, 0] = float(self.icfg.mate_friction_solref[0])
+                    sr[:, self.mate_dof0:self.mate_dof0 + 3, 1] = float(self.icfg.mate_friction_solref[1])
+                if self.icfg.mate_friction_solimp is not None:
+                    si = wp.to_torch(rt.m.dof_solimp)
+                    si[:, self.mate_dof0:self.mate_dof0 + 3] = torch.tensor(self.icfg.mate_friction_solimp, device=dev, dtype=si.dtype)
+                if self.icfg.mate_friction_invweight is not None:
+                    iw = wp.to_torch(rt.m.dof_invweight0)
+                    iw[:, self.mate_dof0:self.mate_dof0 + 3] = float(self.icfg.mate_friction_invweight)
+                self.mate_fric_now = torch.zeros(self.N, device=dev)
         self._init_nominal()
         # buffers
         n = self.N
@@ -838,6 +877,24 @@ class InsertionTask(BimanualTask):
         z = K.quat_to_mat(rt.q[:, fa + 3:fa + 7])[:, :, 2]                       # port axis (out of the port), world
         lat_ok = (p[:, :2].abs() < torch.tensor([0.002, 0.001], device=self.device)).all(1)     # only a plug that is in the opening
         e = ((-p[:, 2] - self.icfg.mate_start_m) / max(self.seat_depth - self.icfg.mate_start_m, 1e-6)).clamp(0, 1)
+        a0 = float(self.icfg.mate_onset_frac)
+        if a0 > 0:
+            e = torch.where(-p[:, 2] > self.icfg.mate_start_m, a0 + (1 - a0) * e, torch.zeros_like(e))
+        if self.icfg.mate_angle_gain_per_deg:
+            _, tR = self.right_chain.fk(rt.q[:, rt.indices['right'][0]])
+            ax_h = (tR @ self.ref_rel[:, :3, :3])[:, :, 2]
+            th = torch.rad2deg(torch.acos((ax_h * z).sum(1).abs().clamp(max=1.)))
+            self.mate_theta = th
+            e = e * (1 + float(self.icfg.mate_angle_gain_per_deg) * th.clamp(max=float(self.icfg.mate_angle_max_deg)))
+        if self.icfg.mate_model == 'friction':
+            r = self.mate_peak * e * lat_ok
+            d0 = self.mate_dof0
+            ax = z.abs().argmax(1)
+            fl = torch.zeros(self.N, 3, device=self.device)
+            fl.scatter_(1, ax[:, None], r[:, None])
+            self.runtime.frictionloss[:, d0:d0 + 3] = fl
+            self.mate_fric_now = r
+            return
         f = (self.mate_peak * e * lat_ok)[:, None] * z
         pb, fb = self.mate_bodies
         self.mate_xfrc[:, pb, :3] = f

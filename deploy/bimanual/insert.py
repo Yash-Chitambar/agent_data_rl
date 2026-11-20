@@ -23,6 +23,8 @@ below seat_speed; the push then stops (target = measured pose) and the release f
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import torch
 
@@ -106,13 +108,46 @@ def contact_summary(pol, hist):
     return p.mean(0).cpu().numpy(), torch.bincount(p.argmax(-1), minlength=p.shape[-1]).cpu().numpy()
 
 
+def push_frame(chain, pR, fp):
+    """Push frame (3, 3), columns = port x (across), y (up), z (out of the port), for final_push / final_push_force.
+    fp['axis_source'] (optional, absent = 'port': as before): 'port' = the chain's port estimate (ZED capture yaw; pitch and roll from the
+    scene's reference PC). 'plug' (docs/real/MATING_FORCE_20261119.md) = the plug's own frame at the push start: the believed TCP
+    rotation (encoder FK) x the in-hand estimate (chain.inhand_est6 rotation vector on the nominal grasp). After a seat the plug sits
+    in the port (5.8 mm, tight clearance), so its axis is the true port axis within the in-port play and the in-hand estimate error.
+    If the plug axis differs from the port estimate by more than fp['axis_max_dev_deg'] (default 3), the port estimate is used
+    (a bad in-hand estimate must not turn the push). Logged as event insert_push_axis."""
+    R = torch.as_tensor(pR, dtype=torch.float32).reshape(3, 3)
+    src = fp.get('axis_source', 'port')
+    if src == 'port':
+        return R
+    if src != 'plug':
+        raise ValueError(f"final_push.axis_source {src!r}: 'port' or 'plug'")
+    from blind_insertion.envs.inhand import nominal_reader_in_site
+    R0n, _ = nominal_reader_in_site(torch.device('cpu'))
+    _, Rt = chain.scene.tcp_chain.fk(chain.q_b[0:1].to(chain.scene.device).float())
+    rv = torch.as_tensor(chain.inhand_est6, dtype=torch.float32).reshape(6)[3:].cpu() * math.pi / 180
+    ang = float(rv.norm())
+    Rih = K.axis_angle_mat((rv / max(ang, 1e-12))[None], torch.tensor([ang]))[0] if ang > 1e-9 else torch.eye(3)
+    Rp = Rt[0].cpu().float() @ Rih @ R0n.float()
+    dev_deg = math.degrees(math.acos(max(-1., min(1., float(Rp[:, 2] @ R[:, 2].cpu())))))
+    use = dev_deg <= float(fp.get('axis_max_dev_deg', 3.0))
+    zp = R[:, 2].cpu()
+    yaw_pitch = [math.degrees(math.atan2(float(Rp[:, 2] @ R[:, 0].cpu()), float(Rp[:, 2] @ zp))),
+                 math.degrees(math.atan2(float(Rp[:, 2] @ R[:, 1].cpu()), float(Rp[:, 2] @ zp)))]
+    chain.log_event('insert_push_axis', source='plug' if use else 'port (plug axis off by more than axis_max_dev_deg)', dev_deg=dev_deg,
+                    plug_axis_in_port_deg=yaw_pitch, inhand_rot_deg=(rv * 180 / math.pi).tolist(), tick=chain.k)
+    print(f"final push axis: plug axis {dev_deg:.2f} deg from the port estimate (across {yaw_pitch[0]:+.2f}, up {yaw_pitch[1]:+.2f}); "
+          f"using the {'plug' if use else 'port'} axis", flush=True)
+    return Rp.to(R.device) if use else R
+
+
 def final_push(chain, pR, q_left, fp):
     """insert.final_push: after a detected seat (and the 0.2 s hold that drops the policy's target lead), move the right-arm target
     straight into the port along its axis by fp['mm'] at fp['v_mm_s'] (scaled by --speed, smoothstep), orientation kept, jaws closed,
     hold fp['hold_s'], then hold the measured pose for 0.3 s so the release starts with no lead. Position-controlled: the push force is
     the PD stiffness times the part of fp['mm'] the plug cannot travel (rig, 2026-11-10: K-J left the plug 1.5-1.8 mm short with a
     ~10 mm deep, 22-28 mm high target). No upward component, unlike K-J's late target."""
-    R = torch.as_tensor(pR, dtype=torch.float32).reshape(3, 3)
+    R = push_frame(chain, pR, fp)
     tc = chain.scene.chain['right']
     dev = chain.scene.device
     q0 = chain.q_b[0:1].to(dev).float()
@@ -170,7 +205,7 @@ def final_push(chain, pR, q_left, fp):
     return adv
 
 
-def final_push_force(chain, pR, q_left, fp, lat_mm=None, depth0_mm=None):
+def final_push_force(chain, pR, q_left, fp, lat_mm=None, depth0_mm=None, q_ref=None):
     """insert.final_push with mode "force" (docs/real/FULL_DEPTH_20261113.md). The position push (final_push) gives a force
     that depends on the arm stiffness, and on the rig the hand moved 5-6 mm down while the plug advanced 2 mm. Here the
     right-arm target is the MEASURED pose plus the joint step whose PD torque equals a chosen Cartesian load:
@@ -184,15 +219,44 @@ def final_push_force(chain, pR, q_left, fp, lat_mm=None, depth0_mm=None):
     fp['unload'] (optional, off by default; docs/real/DEPTH_SPRINGBACK_20261114.md) replaces the 0.3 s drop: see unload_force.
     fp['lat_bias_n'] (optional, absent = [0, 0]; docs/real/FORCE_BUDGET_20261115.md): a lateral load [across, up] (N, port axes) added to
     the lateral spring, scaled with the axial load (f / force_n), so it ramps up and down with it; the sum stays under lat_f_max_n.
-    depth0_mm: depth (seat-2 units) at the push start, for fp['depth_report'] only."""
+    depth0_mm: depth (seat-2 units) at the push start, for fp['depth_report'] only.
+    fp['rot_ref'] (optional, absent = 'start': as before; docs/real/PUSH_ANGLE_20261119.md): 'handover' = the rotation spring pulls the hand
+    toward its orientation at the insertion hand-over (q_ref, believed), which the align stage squared to the panel (rx, ry within 1 deg),
+    instead of the orientation at the push start (K4/K7 turn the hand by 2-7 deg during the insertion). The turn is clipped to
+    fp['rot_ref_max_deg'] (default 3) and scales with the axial load (f / force_n), so it ramps up and down with it. The moment cap
+    rot_m_max_nm is unchanged."""
     dev = chain.scene.device
     tc, lc = chain.scene.chain['right'], chain.scene.chain['left']
-    R = torch.as_tensor(pR, dtype=torch.float32).reshape(3, 3).to(dev)
+    R = push_frame(chain, pR, fp).to(dev)
     kp = chain.scene.kp[0].to(dev).float()
     q0 = chain.q_b[0:1].to(dev).float()
     p0, R0 = tc.fk(q0)
     pl0, _ = lc.fk(chain.q_b[1:2].to(dev).float())
     g0 = [float(x) for x in chain.state['grip']]
+    w_ref = torch.zeros(3, device=dev)                    # turn of the rotation-spring reference at full load (base frame, rad)
+    if fp.get('rot_ref', 'start') == 'handover' and q_ref is not None:
+        _, Rh = tc.fk(torch.as_tensor(q_ref, dtype=torch.float32).reshape(1, 6).to(dev))
+        Rd = (Rh[0] @ R0[0].T).double().cpu().numpy()
+        from scipy.spatial.transform import Rotation as _Rot
+        w = torch.as_tensor(_Rot.from_matrix(Rd).as_rotvec(), dtype=torch.float32, device=dev)
+        a_max = math.radians(float(fp.get('rot_ref_max_deg', 3.0)))
+        w_full = float(w.norm())
+        w_ref = w * min(1., a_max / max(w_full, 1e-9))
+        chain.log_event('insert_push_rot_ref', turn_deg_port=(R.T @ w_ref).mul(180 / math.pi).tolist(),
+                        wanted_deg_port=(R.T @ w).mul(180 / math.pi).tolist(), clipped=bool(w_full > a_max), tick=chain.k)
+        print(f"final push: rotation reference = hand-over orientation, turn {[round(float(x), 2) for x in (R.T @ w_ref) * 180 / math.pi]} deg "
+              f"(port x, y, z; wanted {[round(float(x), 2) for x in (R.T @ w) * 180 / math.pi]})", flush=True)
+
+    def r_ref(f_ax):
+        s_ = min(max(f_ax / max(float(fp['force_n']), 1e-6), 0.), 1.)
+        a_ = float(w_ref.norm()) * s_
+        if a_ < 1e-9:
+            return R0[0]
+        k_ = w_ref / w_ref.norm()
+        K_ = torch.zeros(3, 3, device=dev)
+        K_[0, 1], K_[0, 2], K_[1, 2] = -k_[2], k_[1], -k_[0]
+        K_ = K_ - K_.T                                    # skew matrix of the unit axis k_
+        return (torch.eye(3, device=dev) + math.sin(a_) * K_ + (1 - math.cos(a_)) * K_ @ K_) @ R0[0]
     f_max, ramp = float(fp['force_n']), float(fp.get('ramp_n_s', 4.0)) * max(float(chain.speed), 1e-3)
     hold_s, k_lat, f_lat_max = float(fp.get('hold_s', 1.0)), float(fp.get('lat_k_n_mm', 2.0)), float(fp.get('lat_f_max_n', 6.0))
     k_rot, m_max = float(fp.get('rot_k_nm_rad', 6.0)), float(fp.get('rot_m_max_nm', 0.5))
@@ -217,7 +281,7 @@ def final_push_force(chain, pR, q_left, fp, lat_mm=None, depth0_mm=None):
         e_lat = shift_ - rel[:2]                           # mm
         F_lat = (k_lat * e_lat + lat_bias * (f_ax / max(f_max, 1e-6))).clamp(-f_lat_max, f_lat_max)
         F = R[:, 0] * F_lat[0] + R[:, 1] * F_lat[1] - R[:, 2] * f_ax
-        Re = R0[0] @ Rm[0].T
+        Re = r_ref(f_ax) @ Rm[0].T
         w = torch.stack([Re[2, 1] - Re[1, 2], Re[0, 2] - Re[2, 0], Re[1, 0] - Re[0, 1]]) / 2      # small-angle rotation vector
         M = (k_rot * w).clamp(-m_max, m_max)
         tau = J[0].T.float() @ torch.cat([F, M])
@@ -428,6 +492,7 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
     ff_was_on = chain.rt.comp['right'] is not None
     chain.rt.comp['right'] = None
     qb = chain.q_b.clone()
+    q_handover = qb[0].clone()                  # final_push.rot_ref 'handover' (off by default)
     jt = torch.stack([cmd.reshape(6).to(dev), q_hold.reshape(6).to(dev)]).float()
     if ff_was_on and chain.fric is not None:
         tau_ff = FC.feedforward(jt[0] - qb[0], *chain.fric)
@@ -552,7 +617,7 @@ def run_insertion(chain, cmd, q_hold, log, sim_obs=None):
                     p_now, _ = chain.scene.tcp_chain.fk(chain.q_b[0:1])
                     zp_ = torch.as_tensor(pR[0], dtype=torch.float32).reshape(3, 3)[:, 2].to(p_now.device)
                     d0 = float(-((p_now[0] - p0[0].to(p_now.device)) @ zp_)) * 1e3 - float(det2.gap0[0])
-                final_push_force(chain, pR[0], q_hold.reshape(6), fp, lat_mm=l2, depth0_mm=d0)
+                final_push_force(chain, pR[0], q_hold.reshape(6), fp, lat_mm=l2, depth0_mm=d0, q_ref=q_handover)
             else:
                 final_push(chain, pR[0], q_hold.reshape(6), fp)
         else:
